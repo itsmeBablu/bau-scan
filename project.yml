@@ -1,4 +1,8 @@
 name: RoomScanner
+configs:
+  Debug: debug
+  Release: release
+  Release-Local: release
 options:
   bundleIdPrefix: fr.vincentlauriat
   deploymentTarget:
@@ -75,12 +79,18 @@ targets:
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_ENTITLEMENTS: RoomScanner/RoomScanner-iOS.entitlements
+      configs:
+        Release-Local:
+          PRODUCT_BUNDLE_IDENTIFIER: io.github.itsmebablu.dwalkscan.localtest
+          CODE_SIGN_ENTITLEMENTS: ""
+          DEVELOPMENT_TEAM: ""
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) ROOMSCANNER_LOCAL_ONLY"
     info:
       path: RoomScanner/Info-iOS.plist
       properties:
         CFBundleName: 3DScanner
         CFBundleDisplayName: 3D Scanner
-        CFBundleIdentifier: fr.vincentlauriat.roomscanner
+        CFBundleIdentifier: "$(PRODUCT_BUNDLE_IDENTIFIER)"
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}

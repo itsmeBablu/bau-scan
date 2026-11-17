@@ -32,14 +32,18 @@ struct SettingsView: View {
     private var form: some View {
         Form {
             Section {
+                #if !ROOMSCANNER_LOCAL_ONLY
                 Toggle("settings.icloud.toggle", isOn: $useICloud)
                     .disabled(!store.allowsCloud)
                     .onChange(of: useICloud) { _, on in Task { await store.setCloudEnabled(on) } }
+                #endif
                 LabeledContent("settings.icloud.status") {
                     Label(store.isCloud ? "cloud.title.icloud" : "cloud.title.local", systemImage: store.isCloud ? "checkmark.icloud" : "internaldrive")
                         .foregroundStyle(.secondary)
                 }
+                #if !ROOMSCANNER_LOCAL_ONLY
                 if !CloudAvailability.isSignedIn { Text("cloud.status.localNoAccount").font(.footnote).foregroundStyle(.secondary) }
+                #endif
                 Button { openLibraryFolder() } label: { Label("settings.openFolder", systemImage: "folder") }
             } header: { Text("settings.icloud.header") } footer: { Text("settings.icloud.footer") }
 

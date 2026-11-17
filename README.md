@@ -62,6 +62,50 @@ xcodebuild -scheme RoomScannerMac -destination 'platform=macOS' build test
 ```
 Run on device from Xcode (⌘R) with automatic signing. Mac release DMG: `Scripts/release.sh` (Developer ID + notarization).
 
+### Test on an iPhone from Windows
+
+On a repository you control, open **Actions → Build unsigned iPhone IPA → Run workflow**, choose
+the branch with this workflow, and click **Run workflow** again. GitHub requires the workflow file
+on the default branch before it can be dispatched. If your fork has Actions disabled, enable them
+from its **Actions** tab first.
+
+The workflow uses GitHub's macOS runner with Xcode 27 to build the `RoomScanner` scheme for a
+physical iPhone on iOS 18.0 or later. `Release-Local` is a Release build configuration with the
+bundle ID `io.github.itsmebablu.dwalkscan.localtest`. It uses the app's Documents directory
+for room scans, house scans and exports. iCloud sync, migration and iCloud Drive export are
+unavailable in this build. Use Files → On My iPhone → 3D Scanner or the share sheet to back up
+scans before deleting the app or changing signing identity or bundle ID.
+
+1. Open the completed run. Under **Artifacts**, download **3DScanner-local-unsigned-ipa**.
+   In Windows Explorer, right-click the downloaded ZIP, choose **Extract All**, and use
+   `3DScanner-local-unsigned.ipa` from the extracted folder.
+2. Install the desktop iTunes and iCloud packages linked on the [Sideloadly website](https://sideloadly.io/).
+   Sideloadly's Windows instructions call for the web installers. Remove Microsoft Store editions
+   of iTunes and iCloud if installed. Then install Sideloadly for Windows.
+3. Connect the unlocked iPhone by USB. Accept **Trust This Computer** on the phone and enter
+   its passcode. Confirm that iTunes detects it, then select the phone in Sideloadly.
+4. Drag the IPA into Sideloadly. Enter your free Apple Account in Sideloadly and click **Start**.
+   Complete any Apple sign-in and two-factor prompts there. Sideloadly signs the app on Windows.
+   Keep the same Apple Account and effective bundle ID on subsequent installs to update in place.
+5. If prompted to trust the developer, open **Settings → General → VPN & Device Management**,
+   select your developer profile and tap **Trust**. Enable **Settings → Privacy & Security →
+   Developer Mode**, restart, and confirm **Turn On** after restart. Check for Developer Mode
+   after the first install attempt if it was initially absent.
+6. Open 3D Scanner and allow camera access. Save a room scan, close and reopen the app, verify
+   the scan still appears in the library, then export a file and check it in Files.
+7. Free signing expires after seven days. Re-sign before expiration using the same account
+   and bundle ID, or enable Sideloadly's automatic refresh and keep its Windows daemon running
+   with the phone reachable over USB or configured Wi-Fi sync.
+
+For build failures, open the first failed Actions step and download **3DScanner-ios-build-logs**.
+Use `generate.log` for XcodeGen or SDK setup, `xcodebuild.log` for compilation, and `package.log`
+for IPA validation. For device detection issues, try another data cable or USB port and check
+iTunes again. For signing failures, check the detailed Sideloadly error for Apple Account
+authentication or free provisioning limits. If iOS refuses to launch the app, check the
+profile, Developer Mode and signing expiration. If the app opens and crashes, share the
+3DScanner crash entry from **Settings → Privacy & Security → Analytics & Improvements →
+Analytics Data**, along with the iOS version and the action that triggered the crash.
+
 ## Project layout
 
 ```

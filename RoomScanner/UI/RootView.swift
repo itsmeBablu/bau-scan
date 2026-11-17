@@ -2,7 +2,15 @@ import SwiftUI
 
 /// Écran racine : la bibliothèque, avec le `RoomStore` injecté dans l'environnement.
 struct RootView: View {
-    @State private var store = RoomStore(location: RootView.initialLocation(), allowsCloud: !RootView.hasForcedRoot)
+    @State private var store = RoomStore(location: RootView.initialLocation(), allowsCloud: RootView.allowsCloud)
+
+    private static var allowsCloud: Bool {
+        #if ROOMSCANNER_LOCAL_ONLY
+        false
+        #else
+        !hasForcedRoot
+        #endif
+    }
     @State private var importError: String?
 
     static var hasForcedRoot: Bool { UserDefaults.standard.string(forKey: "RoomScannerStorageRoot") != nil }

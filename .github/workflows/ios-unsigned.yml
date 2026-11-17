@@ -1,0 +1,73 @@
+name: Build unsigned iPhone IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Generate project
+        run: |
+          set -euo pipefail
+          mkdir -p build-logs
+          {
+            xcodebuild -version
+            xcrun --sdk iphoneos --show-sdk-version
+            brew install xcodegen
+            xcodegen --version
+            xcodegen generate
+            /usr/libexec/PlistBuddy -c 'Delete :NSUbiquitousContainers' RoomScanner/Info-iOS.plist
+          } 2>&1 | tee build-logs/generate.log
+
+      - name: Build Release for iPhone
+        run: |
+          set -euo pipefail
+          xcodebuild -project RoomScanner.xcodeproj -scheme RoomScanner \
+            -configuration Release-Local -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/derived-data" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build \
+            2>&1 | tee build-logs/xcodebuild.log
+
+      - name: Package and verify unsigned IPA
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/derived-data/Build/Products/Release-Local-iphoneos/3DScanner.app"
+          staging="$(mktemp -d)"
+          mkdir "$staging/Payload"
+          {
+            test -x "$app/3DScanner"
+            test ! -e "$app/_CodeSignature"
+            test ! -e "$app/embedded.mobileprovision"
+            test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")" = +              'io.github.itsmebablu.dwalkscan.localtest'
+            test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$app/Info.plist")" = '18.0'
+            test "$(xcrun lipo -archs "$app/3DScanner")" = 'arm64'
+            ditto "$app" "$staging/Payload/3DScanner.app"
+            (cd "$staging" && ditto -c -k --keepParent Payload "$RUNNER_TEMP/3DScanner-local-unsigned.ipa")
+            unzip -tq "$RUNNER_TEMP/3DScanner-local-unsigned.ipa"
+          } 2>&1 | tee build-logs/package.log
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3DScanner-local-unsigned-ipa
+          path: ${{ runner.temp }}/3DScanner-local-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3DScanner-ios-build-logs
+          path: build-logs/
+          retention-days: 7
