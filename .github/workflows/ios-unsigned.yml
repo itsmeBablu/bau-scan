@@ -47,9 +47,13 @@ jobs:
             test -x "$app/3DScanner"
             test ! -e "$app/_CodeSignature"
             test ! -e "$app/embedded.mobileprovision"
-            test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")" = +              'io.github.itsmebablu.dwalkscan.localtest'
-            test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$app/Info.plist")" = '18.0'
-            test "$(xcrun lipo -archs "$app/3DScanner")" = 'arm64'
+            bundle_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")"
+            minimum_os="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$app/Info.plist")"
+            architectures="$(xcrun lipo -archs "$app/3DScanner")"
+            printf 'Bundle ID: %s\nMinimum iOS: %s\nArchitectures: %s\n' "$bundle_id" "$minimum_os" "$architectures"
+            test "$bundle_id" = 'io.github.itsmebablu.dwalkscan.localtest'
+            test "$minimum_os" = '18.0'
+            test "$architectures" = 'arm64'
             ditto "$app" "$staging/Payload/3DScanner.app"
             (cd "$staging" && ditto -c -k --keepParent Payload "$RUNNER_TEMP/3DScanner-local-unsigned.ipa")
             unzip -tq "$RUNNER_TEMP/3DScanner-local-unsigned.ipa"
