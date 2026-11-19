@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// État partagé de la fenêtre Mac : pièce ou maison sélectionnée et actions demandées par
-/// les menus (`MacMenuCommands`), exécutées par `MacRootView`.
+/// Shared Mac window state: selected room or house and actions requested by
+/// menus (`MacMenuCommands`), executed by `MacRootView`.
 @Observable
 @MainActor
 final class MacAppState {
     enum Action: Equatable { case export(ExportFormat?), print, revealInFinder, importPackage, openLibraryFolder }
     var selected: LibraryItem?
-    /// Formats exportables pour l'élément sélectionné (les USDZ dépendent du contenu du paquet).
+    /// Export formats available for selected item (USDZ availability depends on bundle contents).
     var availableFormats: [ExportFormat] = []
     var pendingAction: Action?
     var hasSelection: Bool { selected != nil }

@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Plan 2D interactif : rendu par `PlanRenderer` en bitmap haute résolution,
-/// zoom au pincement / molette, déplacement au doigt, double-tap pour recentrer.
+/// Interactive 2D plan: rendered by `PlanRenderer` in high-resolution bitmap,
+/// pinch/scroll zoom, pan drag, double-tap to recenter.
 struct Plan2DView: View {
     let house: House
+    @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
     @State private var scale: CGFloat = 1
     @State private var lastScale: CGFloat = 1
     @State private var offset: CGSize = .zero
@@ -35,8 +36,9 @@ struct Plan2DView: View {
     private func render(size: CGSize) -> CGImage? {
         guard size.width > 10, size.height > 10 else { return nil }
         var r = PlanRenderer()
-        // À l'écran : le plan remplit la zone (pas d'échelle papier) et les textes sont en points,
-        // rendus à 2× la densité d'écran pour rester nets une fois zoomés.
+        r.options.unit = unit
+        // On screen: plan fills area (no paper scale) and text is in points,
+        // rendered at 2× screen density to stay crisp when zoomed.
         r.options.mode = .fill
         return r.image(house, pageSize: size, pixelScale: displayScale * 2)
     }

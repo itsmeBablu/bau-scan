@@ -1,11 +1,11 @@
 import Foundation
 
-/// Assemble une `House` à partir d'un `StructureInput` : chaque pièce passe par
-/// `FloorPlanBuilder` (coordonnées monde partagées ⇒ `transform = .identity`), les
-/// niveaux sont déduits de la hauteur des sols, les pièces sont nommées et
-/// dédoublonnées comme en v1. Aucune dépendance RoomPlan (v2, D26).
+/// Assembles a `House` from a `StructureInput`: each room passes through
+/// `FloorPlanBuilder` (shared world coordinates ⇒ `transform = .identity`),
+/// stories are inferred from floor elevation, rooms are named and
+/// deduplicated. No RoomPlan dependency (v2, D26).
 struct HouseBuilder {
-    /// Repère monde partagé : pas d'alignement par pièce (la maison sera alignée globalement en v2).
+    /// Shared world coordinates: no per-room alignment (house is aligned globally in v2).
     var planBuilder: FloorPlanBuilder = { var b = FloorPlanBuilder(); b.alignToLongestWall = false; return b }()
     var storyDetector = StoryDetector()
     var naming = RoomNaming()

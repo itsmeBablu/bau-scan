@@ -83,8 +83,8 @@ final class ExportServiceTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), Data("m".utf8))
         XCTAssertTrue(url.lastPathComponent.hasSuffix("-mesh.usdz"))
     }
-    /// Écrit tous les exports générés dans `<tmp>/RoomScannerExportSamples` pour inspection
-    /// (Aperçu, Inkscape, LibreCAD…) ; le chemin est imprimé dans le journal.
+    /// Writes all generated exports to `<tmp>/RoomScannerExportSamples` for inspection
+    /// (Preview, Inkscape, LibreCAD...); path is logged.
     func testWriteSamplesForInspection() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("RoomScannerExportSamples", isDirectory: true)
         try? FileManager.default.removeItem(at: dir)

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Barre de contrôle du visualiseur : mode, cotes, objets, échelle AR, recentrer, Aperçu rapide.
+/// Viewer control bar: mode, dimensions, objects, AR scale, recenter, Quick Look.
 struct ViewerControls: View {
     @Bindable var state: ViewerState
     var usdzURL: URL?
@@ -32,13 +32,16 @@ struct ViewerControls: View {
                     .quickLookPreview(usdzURL, isPresented: $showQuickLook)
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 14)
         .padding(.vertical, 8)
+        .liquidGlass(cornerRadius: 18, tint: AppTheme.primaryYellow)
+        .padding(.horizontal)
+        .padding(.vertical, 6)
     }
 }
 
 private extension View {
-    /// Aperçu rapide (QuickLook) d'un fichier — iOS : `quickLookPreview` natif ; macOS : QLPreviewPanel via `NSWorkspace`.
+    /// Quick Look file preview — iOS: native `quickLookPreview`; macOS: QLPreviewPanel via `NSWorkspace`.
     @ViewBuilder
     func quickLookPreview(_ url: URL, isPresented: Binding<Bool>) -> some View {
         #if os(iOS)

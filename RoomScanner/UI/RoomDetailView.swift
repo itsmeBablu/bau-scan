@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Détail d'une pièce : onglets Plan 2D / Visualiseur / Mesures, export (⌘E),
+/// Room detail view: 2D Plan / 3D Viewer / Measurements tabs, export (⌘E),
 /// titre renommable.
 struct RoomDetailView: View {
     @Environment(RoomStore.self) private var store
@@ -70,6 +70,8 @@ struct RoomDetailView: View {
                 Text("detail.tab.measures").tag(Tab.measures)
             }
             .pickerStyle(.segmented)
+            .padding(4)
+            .liquidGlass(cornerRadius: 12, tint: AppTheme.primaryYellow, hasBorder: true, shadowRadius: 6)
             .padding(.horizontal)
             .padding(.vertical, 8)
             switch tab {
@@ -105,22 +107,23 @@ struct RoomDetailView: View {
     }
 }
 
-/// Liste structurée des mesures (surface, périmètre, hauteur, murs, ouvertures, objets).
+/// Structured list of measurements (area, perimeter, height, walls, openings, objects).
 struct MeasuresView: View {
     let plan: FloorPlan
+    @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
     private var m: RoomMeasurements { RoomMeasurements(plan: plan) }
 
     var body: some View {
         List {
             Section("measures.summary") {
                 row("measures.area", MeasurementFormat.squareMeters(m.floorArea))
-                row("measures.perimeter", MeasurementFormat.meters(m.perimeter))
+                row("measures.perimeter", MeasurementFormat.length(m.perimeter, unit: unit))
                 row("measures.ceiling", ceilingText)
             }
             Section("measures.walls") {
                 ForEach(Array(m.walls.enumerated()), id: \.element.id) { i, w in
                     row(String(localized: "measures.wall \(i + 1)"),
-                        "\(MeasurementFormat.centimeters(w.length)) × \(MeasurementFormat.centimeters(w.height))", w.confidence)
+                        "\(MeasurementFormat.length(w.length, unit: unit)) × \(MeasurementFormat.length(w.height, unit: unit))", w.confidence)
                 }
             }
             if !m.openings.isEmpty {
@@ -132,7 +135,7 @@ struct MeasuresView: View {
                 Section("measures.objects") {
                     ForEach(m.objects) { o in
                         row(ObjectNaming.localizedName(o.category),
-                            "\(MeasurementFormat.centimeters(o.width)) × \(MeasurementFormat.centimeters(o.depth)) × \(MeasurementFormat.centimeters(o.height))", o.confidence)
+                            "\(MeasurementFormat.length(o.width, unit: unit)) × \(MeasurementFormat.length(o.depth, unit: unit)) × \(MeasurementFormat.length(o.height, unit: unit))", o.confidence)
                     }
                 }
             }
@@ -142,8 +145,8 @@ struct MeasuresView: View {
     private var ceilingText: String {
         let r = m.ceilingHeight
         return abs(r.upperBound - r.lowerBound) < 0.02
-            ? MeasurementFormat.meters(r.lowerBound)
-            : "\(MeasurementFormat.meters(r.lowerBound)) – \(MeasurementFormat.meters(r.upperBound))"
+            ? MeasurementFormat.length(r.lowerBound, unit: unit)
+            : "\(MeasurementFormat.length(r.lowerBound, unit: unit)) – \(MeasurementFormat.length(r.upperBound, unit: unit))"
     }
 
     private func openingName(_ kind: Opening.Kind) -> String {
@@ -155,8 +158,8 @@ struct MeasuresView: View {
     }
 
     private func openingText(_ o: RoomMeasurements.OpeningMeasure) -> String {
-        var t = "\(MeasurementFormat.centimeters(o.width)) × \(MeasurementFormat.centimeters(o.height))"
-        if o.kind == .window { t += " · " + String(localized: "measures.sill \(MeasurementFormat.centimeters(o.sillHeight))") }
+        var t = "\(MeasurementFormat.length(o.width, unit: unit)) × \(MeasurementFormat.length(o.height, unit: unit))"
+        if o.kind == .window { t += " · " + String(localized: "measures.sill \(MeasurementFormat.length(o.sillHeight, unit: unit))") }
         return t
     }
 

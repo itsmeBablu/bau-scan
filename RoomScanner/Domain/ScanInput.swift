@@ -1,10 +1,10 @@
 import Foundation
 import simd
 
-/// Instantané neutre d'un scan RoomPlan. C'est la frontière entre Apple et nous :
-/// `Scan/` (iOS) convertit un `CapturedRoom` en `ScanInput` ; le Domain, les tests
-/// (iOS *et* macOS, où RoomPlan n'existe pas) et les fixtures ne connaissent que ce type.
-/// Unités : mètres. Repère RoomPlan : Y vers le haut, sol = plan XZ.
+/// Platform-neutral snapshot of a RoomPlan scan boundary:
+/// `Scan/` (iOS) converts `CapturedRoom` to `ScanInput`; Domain logic, tests,
+/// (iOS and macOS targets) and unit test fixtures only depend on this type.
+/// Units: meters. RoomPlan coordinates: Y up, floor = XZ plane.
 struct ScanInput: Codable, Equatable {
     var id: UUID
     var story: Int
@@ -27,13 +27,13 @@ struct ScanSurface: Codable, Equatable {
     }
     var id: UUID
     var category: Category
-    /// (largeur, hauteur, profondeur) en mètres — `CapturedRoom.Surface.dimensions`.
+    /// (width, height, depth) in meters — `CapturedRoom.Surface.dimensions`.
     var dimensions: SIMD3<Float>
     var transform: simd_float4x4
     var confidence: Confidence
-    /// Mur porteur d'une porte / fenêtre / ouverture.
+    /// Supporting wall of a door / window / opening.
     var parentID: UUID?
-    /// Coins du polygone (murs non rectangulaires, sols) — vide si rectangulaire.
+    /// Polygon vertices (non-rectangular walls, floors) — empty if rectangular.
     var polygonCorners: [SIMD3<Float>]
 
     init(id: UUID = UUID(), category: Category, dimensions: SIMD3<Float>, transform: simd_float4x4, confidence: Confidence = .high, parentID: UUID? = nil, polygonCorners: [SIMD3<Float>] = []) {
@@ -55,7 +55,7 @@ struct ScanObject: Codable, Equatable {
     }
 }
 
-// MARK: - Codable pour simd_float4x4 (stocké colonne par colonne)
+// MARK: - Codable support for simd_float4x4 (stored column by column)
 
 extension simd_float4x4: Codable {
     public init(from decoder: Decoder) throws {
@@ -71,7 +71,7 @@ extension simd_float4x4: Codable {
 }
 
 extension simd_float4x4 {
-    /// Matrice d'une surface RoomPlan : rotation de `yaw` autour de Y (radians),
+    /// Transform matrix for RoomPlan surface: `yaw` rotation around Y (radians),
     /// puis translation. Sert aux fixtures et aux tests.
     static func roomPlacement(x: Float, y: Float, z: Float, yaw: Float = 0) -> simd_float4x4 {
         let c = cos(yaw), s = sin(yaw)

@@ -4,21 +4,21 @@ configs:
   Release: release
   Release-Local: release
 options:
-  bundleIdPrefix: fr.vincentlauriat
+  bundleIdPrefix: io.github.itsmebablu
   deploymentTarget:
     iOS: "18.0"
     macOS: "15.0"
   generateEmptyDirectories: true
 
-# Sparkle : auto-update de l'app macOS uniquement (pas de distribution directe
-# hors App Store sur iOS). Seule dépendance SPM du projet (spec D10/D18).
+# Sparkle: auto-updater for macOS app only (no direct distribution outside
+# App Store on iOS). Sole SPM dependency in the project.
 packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: "2.9.1"
 
-# Schemes explicites (sinon xcodegen n'en génère pas → schemes perdus à chaque
-# régénération). Un scheme par plateforme, chacun avec sa cible de tests.
+# Explicit schemes (prevents xcodegen from losing schemes on regeneration).
+# One scheme per platform, each with its dedicated test target.
 schemes:
   RoomScanner:
     build:
@@ -39,12 +39,12 @@ schemes:
     run:
       config: Debug
 
-# Réglages communs aux deux apps (même bundle id iOS/macOS, comme TheNews).
+# Common settings for both apps (shared bundle ID across iOS/macOS).
 settingGroups:
   app-common:
-    PRODUCT_NAME: 3DScanner
+    PRODUCT_NAME: dWalkScan
     PRODUCT_MODULE_NAME: RoomScanner
-    PRODUCT_BUNDLE_IDENTIFIER: fr.vincentlauriat.roomscanner
+    PRODUCT_BUNDLE_IDENTIFIER: io.github.itsmebablu.dwalkscan
     ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     SWIFT_VERSION: "5.9"
@@ -61,7 +61,7 @@ settingGroups:
 
 targets:
   # ---------------------------------------------------------------------------
-  # iOS — scan RoomPlan + visualisation + exports + iCloud
+  # iOS — RoomPlan scan + 3D/2D visualization + exports + iCloud
   # ---------------------------------------------------------------------------
   RoomScanner:
     type: application
@@ -88,8 +88,8 @@ targets:
     info:
       path: RoomScanner/Info-iOS.plist
       properties:
-        CFBundleName: 3DScanner
-        CFBundleDisplayName: 3D Scanner
+        CFBundleName: dWalkScan
+        CFBundleDisplayName: dWalkScan
         CFBundleIdentifier: "$(PRODUCT_BUNDLE_IDENTIFIER)"
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
@@ -103,38 +103,38 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        # RoomPlan a besoin de la caméra et d'ARKit (LiDAR).
-        NSCameraUsageDescription: "3D Scanner utilise la caméra et le LiDAR pour scanner la pièce."
+        # RoomPlan requires camera and ARKit (LiDAR).
+        NSCameraUsageDescription: "dWalkScan uses the camera and LiDAR to scan rooms."
         UIRequiredDeviceCapabilities:
           - arkit
-        # Dossier local de repli visible dans Fichiers (quand iCloud est inactif).
+        # Local fallback folder visible in Files app (when iCloud is inactive).
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
-        # Conteneur iCloud Drive exposé comme dossier public « 3D Scanner » dans Fichiers.
+        # iCloud Drive container exposed as public 'dWalkScan' folder in Files app.
         NSUbiquitousContainers:
-          iCloud.fr.vincentlauriat.roomscanner:
+          iCloud.io.github.itsmebablu.dwalkscan:
             NSUbiquitousContainerIsDocumentScopePublic: true
-            NSUbiquitousContainerName: "3D Scanner"
+            NSUbiquitousContainerName: "dWalkScan"
             NSUbiquitousContainerSupportedFolderLevels: Any
-        # Paquet .roomscan : un scan complet vu comme un seul fichier.
+        # Package .roomscan: full scan bundle treated as single document.
         UTExportedTypeDeclarations:
-          - UTTypeIdentifier: fr.vincentlauriat.roomscanner.room
-            UTTypeDescription: 3D Scanner room scan
+          - UTTypeIdentifier: io.github.itsmebablu.dwalkscan.room
+            UTTypeDescription: dWalkScan room scan
             UTTypeConformsTo: [com.apple.package]
             UTTypeTagSpecification:
               public.filename-extension: [roomscan]
-          - UTTypeIdentifier: fr.vincentlauriat.roomscanner.house
-            UTTypeDescription: 3D Scanner house scan
+          - UTTypeIdentifier: io.github.itsmebablu.dwalkscan.house
+            UTTypeDescription: dWalkScan house scan
             UTTypeConformsTo: [com.apple.package]
             UTTypeTagSpecification:
               public.filename-extension: [housescan]
         CFBundleDocumentTypes:
-          - CFBundleTypeName: 3D Scanner room scan
+          - CFBundleTypeName: dWalkScan room scan
             LSHandlerRank: Owner
-            LSItemContentTypes: [fr.vincentlauriat.roomscanner.room]
-          - CFBundleTypeName: 3D Scanner house scan
+            LSItemContentTypes: [io.github.itsmebablu.dwalkscan.room]
+          - CFBundleTypeName: dWalkScan house scan
             LSHandlerRank: Owner
-            LSItemContentTypes: [fr.vincentlauriat.roomscanner.house]
+            LSItemContentTypes: [io.github.itsmebablu.dwalkscan.house]
 
   RoomScannerTests:
     type: bundle.unit-test
@@ -145,16 +145,16 @@ targets:
     settings:
       groups: [tests-common]
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: fr.vincentlauriat.roomscanner.tests
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.itsmebablu.dwalkscan.tests
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/3DScanner.app/3DScanner"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/dWalkScan.app/dWalkScan"
         BUNDLE_LOADER: "$(TEST_HOST)"
     dependencies:
       - target: RoomScanner
 
   # ---------------------------------------------------------------------------
-  # macOS — visualisation, mesures, exports, impression, iCloud, Sparkle
-  # (pas de scan : RoomPlan n'existe pas sur macOS)
+  # macOS — visualization, measurements, exports, printing, iCloud, Sparkle
+  # (no scan capture: RoomPlan is iOS-only)
   # ---------------------------------------------------------------------------
   RoomScannerMac:
     type: application
@@ -178,53 +178,48 @@ targets:
     info:
       path: RoomScanner/Info-macOS.plist
       properties:
-        CFBundleName: 3DScanner
-        CFBundleDisplayName: 3D Scanner
-        CFBundleIdentifier: fr.vincentlauriat.roomscanner
+        CFBundleName: dWalkScan
+        CFBundleDisplayName: dWalkScan
+        CFBundleIdentifier: io.github.itsmebablu.dwalkscan
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSMinimumSystemVersion: "15.0"
-        NSHumanReadableCopyright: "© 2026 Vincent Lauriat"
+        NSHumanReadableCopyright: "© 2026 Babu Reddy"
         LSApplicationCategoryType: public.app-category.graphics-design
-        # Sparkle (auto-update). SUPublicEDKey est ajoutée en phase 10 lors de la
-        # génération UNIQUE de la clé EdDSA (compte trousseau « RoomScanner ») —
-        # ne jamais la régénérer ensuite (voir l'avertissement de Scripts/release.sh).
-        SUFeedURL: "https://raw.githubusercontent.com/vincentlauriat/3DScanner/main/appcast.xml"
-        # Clé publique EdDSA Sparkle — générée UNE FOIS le 2026-09-05 (compte trousseau
-        # « RoomScanner », sauvegarde ~/.sparkle-keys/RoomScanner-EdDSA-private-key.txt).
-        # NE JAMAIS la changer ni régénérer la clé : tous les utilisateurs installés
-        # refuseraient les mises à jour.
+        # Sparkle auto-updater feed URL.
+        SUFeedURL: "https://raw.githubusercontent.com/itsmeBablu/d-walk-scan/main/appcast.xml"
+        # Sparkle public EdDSA key.
         SUPublicEDKey: "qSGDP0w1B/HVt1++Bxip35K+OUI6NUvJUSxmfY9rbhE="
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400
         SUAutomaticallyUpdate: false
-        # App sandboxée (exigé par iCloud) : l'installateur Sparkle passe par son XPC.
+        # Sandboxed app installer support via XPC service.
         SUEnableInstallerLauncherService: true
         NSUbiquitousContainers:
-          iCloud.fr.vincentlauriat.roomscanner:
+          iCloud.io.github.itsmebablu.dwalkscan:
             NSUbiquitousContainerIsDocumentScopePublic: true
-            NSUbiquitousContainerName: "3D Scanner"
+            NSUbiquitousContainerName: "dWalkScan"
             NSUbiquitousContainerSupportedFolderLevels: Any
         UTExportedTypeDeclarations:
-          - UTTypeIdentifier: fr.vincentlauriat.roomscanner.room
-            UTTypeDescription: 3D Scanner room scan
+          - UTTypeIdentifier: io.github.itsmebablu.dwalkscan.room
+            UTTypeDescription: dWalkScan room scan
             UTTypeConformsTo: [com.apple.package]
             UTTypeTagSpecification:
               public.filename-extension: [roomscan]
-          - UTTypeIdentifier: fr.vincentlauriat.roomscanner.house
-            UTTypeDescription: 3D Scanner house scan
+          - UTTypeIdentifier: io.github.itsmebablu.dwalkscan.house
+            UTTypeDescription: dWalkScan house scan
             UTTypeConformsTo: [com.apple.package]
             UTTypeTagSpecification:
               public.filename-extension: [housescan]
         CFBundleDocumentTypes:
-          - CFBundleTypeName: 3D Scanner room scan
+          - CFBundleTypeName: dWalkScan room scan
             CFBundleTypeRole: Viewer
             LSHandlerRank: Owner
-            LSItemContentTypes: [fr.vincentlauriat.roomscanner.room]
-          - CFBundleTypeName: 3D Scanner house scan
+            LSItemContentTypes: [io.github.itsmebablu.dwalkscan.room]
+          - CFBundleTypeName: dWalkScan house scan
             CFBundleTypeRole: Viewer
             LSHandlerRank: Owner
-            LSItemContentTypes: [fr.vincentlauriat.roomscanner.house]
+            LSItemContentTypes: [io.github.itsmebablu.dwalkscan.house]
 
   RoomScannerMacTests:
     type: bundle.unit-test
@@ -235,9 +230,9 @@ targets:
     settings:
       groups: [tests-common]
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: fr.vincentlauriat.roomscanner.mactests
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.itsmebablu.dwalkscan.mactests
         MACOSX_DEPLOYMENT_TARGET: "15.0"
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/3DScanner.app/Contents/MacOS/3DScanner"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/dWalkScan.app/Contents/MacOS/dWalkScan"
         BUNDLE_LOADER: "$(TEST_HOST)"
     dependencies:
       - target: RoomScannerMac

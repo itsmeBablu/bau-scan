@@ -2,27 +2,28 @@ import Foundation
 import UniformTypeIdentifiers
 
 extension UTType {
-    /// `.roomscan` — un scan complet vu comme un seul fichier (déclaré dans les Info.plist).
-    static let roomScan = UTType(exportedAs: "fr.vincentlauriat.roomscanner.room", conformingTo: .package)
+    /// `.roomscan` — a complete scan bundle treated as a document package.
+    static let roomScan = UTType(exportedAs: "io.github.itsmebablu.dwalkscan.room", conformingTo: .package)
+    static let legacyRoomScan = UTType("fr.vincentlauriat.roomscanner.room")
 }
 
-/// Contenu d'un paquet `.roomscan` et lecture/écriture coordonnée.
+/// Contents of a `.roomscan` package with coordinated read/write.
 ///
-/// Écriture : le paquet est d'abord assemblé dans un dossier temporaire puis
-/// déplacé en une seule opération coordonnée, pour qu'iCloud le voie complet.
+/// Writing: the package is assembled in a temporary directory and then
+/// moved in a single coordinated operation for atomic iCloud sync.
 struct RoomPackage {
     var record: RoomRecord
     var plan: FloorPlan
     var scan: ScanInput?
-    /// `CapturedRoom` Apple encodé — opaque ici (lisible sur iOS seulement).
+    /// Apple-encoded `CapturedRoom` data — opaque on macOS (readable on iOS only).
     var capturedRoomData: Data?
     var usdzData: Data?
-    /// Maillage brut du scan (`CapturedRoom.export(.mesh)`), optionnel.
+    /// Raw scan mesh (`CapturedRoom.export(.mesh)`), optional.
     var usdzMeshData: Data?
     var thumbnailPNG: Data?
 
-    /// Dates ISO 8601 *avec* fractions de seconde : lisibles dans `meta.json`
-    /// et stables à l'aller-retour (la stratégie `.iso8601` standard tronque).
+    /// ISO 8601 dates with fractional seconds: readable in `meta.json`
+    /// and stable on roundtrip (standard `.iso8601` strategy truncates subseconds).
     private static let dateFormatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f
     }()
@@ -45,7 +46,7 @@ struct RoomPackage {
         return d
     }()
 
-    // MARK: Écriture
+    // MARK: Writing
 
     func write(to packageURL: URL, fileManager: FileManager = .default) throws {
         let staging = fileManager.temporaryDirectory
@@ -90,7 +91,7 @@ struct RoomPackage {
         }
     }
 
-    /// Lit le paquet entier (copie, imbrication dans une maison). Les fichiers optionnels absents restent `nil`.
+    /// Reads entire package. Missing optional files remain `nil`.
     static func read(from packageURL: URL) throws -> RoomPackage {
         try coordinatedRead(at: packageURL) { url in
             typealias F = FileLayout.PackageFile
@@ -121,7 +122,7 @@ struct RoomPackage {
         return FileManager.default.fileExists(atPath: f.path) ? f : nil
     }
 
-    /// Réécrit `meta.json` et `plan.json` (renommage, recalcul) sans toucher au reste.
+    /// Rewrites `meta.json` and `plan.json` (rename, recalculate) without altering assets.
     static func update(record: RoomRecord, plan: FloorPlan, in packageURL: URL) throws {
         try coordinatedWrite(at: packageURL, options: .forMerging) { url in
             try encoder.encode(record).write(to: url.appendingPathComponent(FileLayout.PackageFile.meta), options: .atomic)

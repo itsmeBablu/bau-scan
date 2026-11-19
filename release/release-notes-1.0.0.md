@@ -1,10 +1,10 @@
-# 3D Scanner 1.0.0
+# dWalkScan 1.0.0
 
 First release. Scan a room with the iPhone's LiDAR (Apple RoomPlan) and get a dimensioned 2D plan and a 3D model you can open anywhere.
 
 ## iPhone (iOS 18, iPhone Pro with LiDAR)
 - Guided room scan, automatic room naming, library of rooms (rename, delete, re-export).
-- Dimensioned 2D plan (walls, doors, windows, centimetre dimensions, m² area) with pinch-zoom.
+- Dimensioned 2D plan (walls, doors, windows, millimetre and metre dimensions, m² area) with pinch-zoom.
 - Viewer: 3D orbit, 2D top-down, AR placement of a scale model (1:20, 1:50) or 1:1 overlay.
 - Measurements: area, perimeter, ceiling height, every wall, door, window and detected object.
 
@@ -29,7 +29,7 @@ First release. Scan a room with the iPhone's LiDAR (Apple RoomPlan) and get a di
 - Share sheet, Save As…, Save to iCloud Drive (`Exports/<Room>/`).
 
 ## iCloud Drive
-- Rooms and exports live in the "3D Scanner" folder of iCloud Drive, visible in Files and the Finder and shared between iPhone and Mac; offline fallback to local storage; conflict copies never lose a scan.
+- Rooms and exports live in the "dWalkScan" folder of iCloud Drive, visible in Files and the Finder and shared between iPhone and Mac; offline fallback to local storage; conflict copies never lose a scan.
 
 ## Languages
 - French and English.

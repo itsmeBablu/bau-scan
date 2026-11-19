@@ -1,7 +1,7 @@
 import XCTest
 @testable import RoomScanner
 
-/// iCloud n'est pas disponible dans les tests : on couvre la logique pure
+/// iCloud is not available in tests: pure logic is covered
 /// (statuts, vainqueur d'un conflit, copies, migration hors ubiquité, chemins).
 final class CloudStorageTests: XCTestCase {
     private var tmp: URL!
@@ -24,7 +24,7 @@ final class CloudStorageTests: XCTestCase {
         XCTAssertFalse(CloudAvailability.isEnabledByUser)
         XCTAssertNil(CloudAvailability.resolveLocation(), "désactivé par l'utilisateur → local")
         UserDefaults.standard.removeObject(forKey: CloudAvailability.preferenceKey)
-        XCTAssertEqual(CloudAvailability.containerIdentifier, "iCloud.fr.vincentlauriat.roomscanner")
+        XCTAssertEqual(CloudAvailability.containerIdentifier, "iCloud.io.github.itsmebablu.dwalkscan")
     }
 
     func testMigrationIsNoopBetweenLocalRoots() throws {
@@ -67,7 +67,7 @@ final class CloudStorageTests: XCTestCase {
         XCTAssertEqual(try RoomPackage.readRecord(from: copyURL), copy)
         XCTAssertEqual(try RoomPackage.readPlan(from: copyURL).id, copy.id)
         XCTAssertEqual(try RoomPackage.readRecord(from: url).name, "Salon", "l'original est intact")
-        // Destination explicite (import sandboxé : jamais dans le dossier d'origine).
+        // Explicit destination (sandboxed import: never in source directory).
         let elsewhere = tmp.appendingPathComponent("elsewhere", isDirectory: true)
         let copy2 = try ConflictResolver.duplicateAsConflictCopy(packageAt: url, suffix: "(importé)", into: elsewhere)
         XCTAssertTrue(FileManager.default.fileExists(atPath: elsewhere.appendingPathComponent("\(copy2.id.uuidString).roomscan/meta.json").path))

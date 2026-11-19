@@ -1,14 +1,14 @@
 import Foundation
 
-/// Découpe des murs en boîtes pleines (portions, linteaux, allèges) et panneaux
-/// d'ouverture. Pur Swift : partagé par le visualiseur RealityKit
+/// Splits walls into solid boxes (segments, lintels, parapets) and opening panels.
+/// opening panels. Pure Swift: shared by RealityKit viewer
 /// (`PlanSceneBuilder`) et l'export de maillage (`PlanMeshBuilder`).
 struct WallGeometry {
-    /// Hauteur forcée des murs (mode « plan 2D » du visualiseur) ; `nil` = hauteur réelle,
-    /// ouvertures découpées.
+    /// Overridden wall height ('2D plan' viewer mode); `nil` = actual height,
+    /// cut openings.
     var flattenedHeight: Double? = nil
 
-    /// Boîte alignée sur un segment : `segment` le long du mur (m), `bottom`…`top` (m).
+    /// Segment-aligned box: `segment` along wall (m), `bottom`...`top` (m).
     struct Box: Equatable {
         var segment: Segment2D
         var bottom: Double
@@ -17,8 +17,8 @@ struct WallGeometry {
         var height: Double { top - bottom }
     }
 
-    /// Découpe un mur en boîtes pleines autour de ses ouvertures : portions
-    /// pleines, linteaux au-dessus des portes, allèges sous les fenêtres.
+    /// Splits a wall into solid boxes around its openings: full-height segments,
+    /// lintels above doors/windows, parapets/sills below windows.
     func wallBoxes(_ wall: Wall, openings: [Opening]) -> [Box] {
         let len = wall.length
         guard len > 0 else { return [] }
@@ -46,7 +46,7 @@ struct WallGeometry {
         return boxes
     }
 
-    /// Panneau de porte (bois) ou vitrage (verre) dans l'ouverture ; `nil` en mode aplati.
+    /// Door panel (wood) or glazing (glass) in opening; `nil` in flattened mode.
     func panelBox(_ o: Opening, wall: Wall?) -> Box? {
         guard flattenedHeight == nil, o.width > 0.05, o.height > 0.05 else { return nil }
         let bottom = o.kind == .door ? 0 : o.sillHeight
@@ -54,7 +54,7 @@ struct WallGeometry {
         return Box(segment: o.segment, bottom: bottom, top: bottom + o.height, thickness: thickness)
     }
 
-    /// Boîte d'un objet posé au sol (centre, taille, angle).
+    /// Box of an object on the floor (center, size, angle).
     static func objectBox(_ o: PlacedObject) -> Box {
         let d = Point2D(x: cos(o.angle), y: sin(o.angle)) * (o.size.width / 2)
         return Box(segment: Segment2D(start: o.center - d, end: o.center + d), bottom: 0, top: o.height, thickness: o.size.depth)

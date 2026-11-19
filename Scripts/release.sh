@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build Release 3DScanner.app (cible RoomScannerMac), signature Developer ID + Hardened
+# Build Release dWalkScan.app (cible RoomScannerMac), signature Developer ID + Hardened
 # Runtime avec les entitlements iCloud de production, notarisation, agrafage, DMG dans
 # release/, signature Sparkle EdDSA et écriture de appcast.xml.
 #
@@ -16,11 +16,11 @@
 # Usage : ./Scripts/release.sh <version>            ex. ./Scripts/release.sh 1.0.0
 #
 # Prérequis (une fois) :
-#   - Certificat « Developer ID Application: Vincent LAURIAT (KFLACS69T9) » dans le trousseau.
+#   - Certificat « Developer ID Application: Babu Reddy (KFLACS69T9) » dans le trousseau.
 #   - Profil notarytool « AppliMacVincentGithub » :
 #       xcrun notarytool store-credentials "AppliMacVincentGithub" --apple-id "vincent@lauriat.fr" --team-id "KFLACS69T9"
 #   - iCloud en distribution Developer ID exige un **profil de provisionnement Developer ID**
-#     (App ID fr.vincentlauriat.roomscanner + iCloud) téléchargé depuis developer.apple.com :
+#     (App ID fr.itsmeBablu.roomscanner + iCloud) téléchargé depuis developer.apple.com :
 #       PROVISIONING_PROFILE=~/Downloads/RoomScanner_DeveloperID.provisionprofile ./Scripts/release.sh 1.0.0
 #     Sans profil, la signature réussit mais iCloud Drive est refusé au lancement (l'app reste en local).
 #
@@ -47,10 +47,10 @@ notary_run() {
 VERSION="${1:?Usage: ./Scripts/release.sh <version>  (ex. 1.0.0)}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-APP_NAME="3DScanner"
+APP_NAME="dWalkScan"
 SCHEME="RoomScannerMac"
 ENTITLEMENTS="$ROOT/RoomScanner/RoomScanner-macOS-Release.entitlements"
-SIGNING_IDENTITY="${SIGNING_IDENTITY:-Developer ID Application: Vincent LAURIAT (KFLACS69T9)}"
+SIGNING_IDENTITY="${SIGNING_IDENTITY:-Developer ID Application: Babu Reddy (KFLACS69T9)}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-AppliMacVincentGithub}"
 SPARKLE_ACCOUNT="RoomScanner"
 
@@ -92,7 +92,7 @@ if [ ! -r "$PROVISIONING_PROFILE" ]; then
     echo "      -destination 'platform=macOS' -archivePath /tmp/rs.xcarchive -allowProvisioningUpdates" >&2
     echo "    xcodebuild -exportArchive -archivePath /tmp/rs.xcarchive -exportPath /tmp/rs-export \\" >&2
     echo "      -exportOptionsPlist <plist method=developer-id, signingStyle=automatic> -allowProvisioningUpdates" >&2
-    echo "    cp '/tmp/rs-export/3DScanner.app/Contents/embedded.provisionprofile' \"$PROVISIONING_PROFILE\"" >&2
+    echo "    cp '/tmp/rs-export/dWalkScan.app/Contents/embedded.provisionprofile' \"$PROVISIONING_PROFILE\"" >&2
     echo "  Ou, pour un essai local sans iCloud : ALLOW_NO_ICLOUD=1 $0 $VERSION" >&2
     exit 1
   fi
@@ -166,7 +166,7 @@ codesign --verify --strict --deep "$STAGING"
 # 4. DMG avec mise en page Finder
 RELEASE_DIR="$ROOT/release"; mkdir -p "$RELEASE_DIR"
 DMG="$RELEASE_DIR/$APP_NAME-$VERSION.dmg"; rm -f "$DMG"
-DMG_VOLNAME="3D Scanner $VERSION"
+DMG_VOLNAME="dWalkScan $VERSION"
 LAYOUT="$STAGING_DIR/dmg-layout"; mkdir -p "$LAYOUT/.background"
 ditto --norsrc --noextattr --noacl "$STAGING" "$LAYOUT/$APP_NAME.app"
 ln -s /Applications "$LAYOUT/Applications"
@@ -242,9 +242,9 @@ cat > "$ROOT/appcast.xml" <<APPCAST
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
-    <title>3D Scanner</title>
-    <link>https://raw.githubusercontent.com/vincentlauriat/3DScanner/main/appcast.xml</link>
-    <description>3D Scanner for Mac release feed</description>
+    <title>dWalkScan</title>
+    <link>https://raw.githubusercontent.com/itsmeBablu/d-walk-scan/main/appcast.xml</link>
+    <description>dWalkScan for Mac release feed</description>
     <language>en</language>
     <item>
       <title>v$VERSION</title>
@@ -252,9 +252,9 @@ cat > "$ROOT/appcast.xml" <<APPCAST
       <sparkle:version>$BUILD_NUMBER</sparkle:version>
       <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/vincentlauriat/3DScanner/releases/tag/v$VERSION</sparkle:releaseNotesLink>
+      <sparkle:releaseNotesLink>https://github.com/itsmeBablu/d-walk-scan/releases/tag/v$VERSION</sparkle:releaseNotesLink>
       <enclosure
-        url="https://github.com/vincentlauriat/3DScanner/releases/download/v$VERSION/$APP_NAME-$VERSION.dmg"
+        url="https://github.com/itsmeBablu/d-walk-scan/releases/download/v$VERSION/$APP_NAME-$VERSION.dmg"
         type="application/octet-stream"
         $SIG_LINE />
     </item>

@@ -1,10 +1,10 @@
-# 3D Scanner — Spécification de conception
+# dWalkScan — Spécification de conception
 
 | | |
 |---|---|
 | **Date** | 2026-09-05 |
 | **Statut** | **Validé par Vincent le 2026-09-05** — exécution autonome, une branche `feat/` par phase, sans re-demander (sauf tags/releases) |
-| **Auteur** | Vincent Lauriat (avec Claude) |
+| **Auteur** | Babu Reddy (avec Claude) |
 | **Cible** | iPhone Pro (LiDAR), **iOS 18+** — scan, visualisation, export · **Mac (macOS 15+)** — visualisation, mesures, export, auto-update Sparkle · **iCloud Drive** — synchronisation et partage |
 | **Chemin décidé** | Approche A — `RoomCaptureView` clé en main + moteur d'export maison + **visualiseur RealityKit (`ARView`)**, architecture prête pour la maison entière (v2) + **app Mac compagnon à codebase partagé** + **iCloud Drive** comme pont iPhone ↔ Mac ↔ apps tierces + visualiseur **`RealityView`** (iOS 18 / macOS 15) + **Sparkle** sur Mac + dépôt GitHub public avec landing page |
 
@@ -19,7 +19,7 @@ et **un modèle 3D**, puis **partage** ces résultats vers n'importe quelle appl
 
 Une **application Mac compagnon**, construite sur le même code, retrouve automatiquement les pièces
 scannées via **iCloud Drive**, les affiche (plan 2D coté, modèle 3D, mesures) sur grand écran et les
-exporte/partage vers les logiciels 2D/3D du Mac. Le dossier iCloud « 3D Scanner » est visible dans
+exporte/partage vers les logiciels 2D/3D du Mac. Le dossier iCloud « dWalkScan » est visible dans
 Fichiers (iPhone) et dans le Finder (Mac) : n'importe quelle application 2D/3D, sur l'un ou l'autre
 appareil, y lit directement les plans exportés.
 
@@ -32,7 +32,7 @@ appareil, y lit directement les plans exportés.
 5. Exporter dans le format voulu → feuille de partage → AirDrop / Fichiers / Mail / app tierce.
 6. Retrouver la pièce dans la liste, la ré-exporter plus tard sans rescanner.
 7. Ouvrir l'app sur le Mac : la pièce est déjà là (iCloud), la visualiser en 3D/2D avec ses mesures, l'exporter (menu Fichier), l'imprimer, la glisser-déposer dans SketchUp/Blender/Illustrator.
-8. Choisir « Enregistrer dans iCloud Drive » : le PDF/DXF/USDZ apparaît dans `iCloud Drive/3D Scanner/Exports/` sur les deux appareils, prêt à être ouvert par toute application.
+8. Choisir « Enregistrer dans iCloud Drive » : le PDF/DXF/USDZ apparaît dans `iCloud Drive/dWalkScan/Exports/` sur les deux appareils, prêt à être ouvert par toute application.
 
 ---
 
@@ -93,8 +93,8 @@ Système de coordonnées RoomPlan : **Y vers le haut**, le sol est le plan **XZ*
 
 ### 2.6 iCloud Drive (Foundation) — vérifié
 - `FileManager.url(forUbiquityContainerIdentifier:)`, `startDownloadingUbiquitousItem(at:)`, `NSMetadataQuery`, `NSFileCoordinator` / `NSFilePresenter` : disponibles iOS 5+ / macOS 10.7+.
-- `NSUbiquitousContainers` + `NSUbiquitousContainerIsDocumentScopePublic = true` dans l'`Info.plist` exposent le conteneur comme dossier **« 3D Scanner »** dans Fichiers (iOS) et iCloud Drive (Finder). C'est ce qui permet le partage avec les applications tierces des deux côtés sans code supplémentaire.
-- Entitlements requis : `com.apple.developer.icloud-services = [CloudDocuments]`, `com.apple.developer.icloud-container-identifiers = [iCloud.fr.vincentlauriat.roomscanner]`, `com.apple.developer.ubiquity-container-identifiers` ; Mac : App Sandbox activé (exigé par la capacité iCloud).
+- `NSUbiquitousContainers` + `NSUbiquitousContainerIsDocumentScopePublic = true` dans l'`Info.plist` exposent le conteneur comme dossier **« dWalkScan »** dans Fichiers (iOS) et iCloud Drive (Finder). C'est ce qui permet le partage avec les applications tierces des deux côtés sans code supplémentaire.
+- Entitlements requis : `com.apple.developer.icloud-services = [CloudDocuments]`, `com.apple.developer.icloud-container-identifiers = [iCloud.io.github.itsmebablu.dwalkscan]`, `com.apple.developer.ubiquity-container-identifiers` ; Mac : App Sandbox activé (exigé par la capacité iCloud).
 
 ---
 
@@ -113,13 +113,13 @@ Système de coordonnées RoomPlan : **Y vers le haut**, le sol est le plan **XZ*
 | D9 | **Unités : centimètres** sur les plans, m² pour les surfaces ; option pouces/pieds différée | Choix d'unité en v1 | Vincent est en France ; l'option sera triviale à ajouter dans le modèle (`MeasurementFormatter`). |
 | D10 | **Une seule dépendance SPM : Sparkle 2** (cible Mac, voir D18). Aucune autre | Packages utilitaires | Réduit la surface de maintenance ; tout le reste est dans le SDK. |
 | D11 | **Localisation fr/en** dès le départ via `String(localized:)` + `Localizable.xcstrings` | fr seul | Coût quasi nul au démarrage, très cher à rattraper. |
-| D12 | **Nom de module `RoomScanner`**, nom affiché « 3D Scanner », bundle **`fr.vincentlauriat.roomscanner`** (identique iOS et Mac, comme TheNews), conteneur iCloud **`iCloud.fr.vincentlauriat.roomscanner`** créé automatiquement par `xcodebuild -allowProvisioningUpdates` (signature automatique, équipe `KFLACS69T9`) — comme pour TheNews | `3DScanner` ; `fr.lauriat.*` ; création manuelle du conteneur | Un module Swift ne peut pas commencer par un chiffre ; convention de bundle déjà en place chez Vincent ; l'automatisation évite le geste manuel dans le portail. **Validé.** |
+| D12 | **Nom de module `RoomScanner`**, nom affiché « dWalkScan », bundle **`io.github.itsmebablu.dwalkscan`** (identique iOS et Mac, comme TheNews), conteneur iCloud **`iCloud.io.github.itsmebablu.dwalkscan`** créé automatiquement par `xcodebuild -allowProvisioningUpdates` (signature automatique, équipe `KFLACS69T9`) — comme pour TheNews | `dWalkScan` ; `fr.lauriat.*` ; création manuelle du conteneur | Un module Swift ne peut pas commencer par un chiffre ; convention de bundle déjà en place chez Vincent ; l'automatisation évite le geste manuel dans le portail. **Validé.** |
 | D13 | **Visualiseur RealityKit `RealityView`** (SwiftUI natif, iOS 18 / macOS 15) pour les plans 2D et 3D, scène construite **paramétriquement depuis `House`/`FloorPlan`** (murs = boîtes, ouvertures = panneaux, sol = plan texturé avec le rendu 2D) ; trois modes : **3D orbite** (`camera = .virtual` + `realityViewCameraControls(.orbit)`), **2D vue de dessus** (`.virtual`, caméra au zénith verrouillée, `.pan`/`.dolly`), **AR** (`camera = .spatialTracking`, maquette posée sur une surface ou superposition 1:1 — iOS). QuickLook conservé comme bouton secondaire « Aperçu rapide » | QuickLook seul ; SceneKit ; `ARView` wrappé (iOS 17) | Demande explicite de Vincent, qui a accepté iOS 18 minimum pour bénéficier de `RealityView` : un seul composant SwiftUI pour les trois modes, caméra orbite fournie, même code iOS/Mac. Une scène paramétrique (et non l'USDZ) permet de colorer par pièce, d'afficher les cotes en 3D, de composer N pièces en v2 et de basculer 2D/3D sans recharger. |
 | D15 | **App Mac compagnon à codebase partagé** : un seul dossier source, deux cibles XcodeGen (`RoomScanner` iOS 18 / `RoomScannerMac` macOS 15) ; `Scan/` et `ARPlacementController` exclus de la cible Mac ; `PlanRenderer` écrit en **Core Graphics pur** (`CGContext` PDF et bitmap) pour être bi-plateforme ; visualiseur = la même `RealityView` (modes 3D/2D partout, AR sur iOS) ; le Mac ajoute menu Fichier › Exporter, impression, glisser-déposer, « Ouvrir avec… » | App Mac séparée ; Mac Catalyst ; pas d'app Mac (Finder seul) | Demande de Vincent ; c'est le pattern déjà utilisé dans ses autres projets (`AppKitTemplate`). Catalyst donne une UI iPhone sur Mac, moins bonne. Domain/Export/Viewer sont déjà sans UIKit. |
-| D16 | **iCloud Drive (conteneur ubiquitaire `iCloud.fr.vincentlauriat.roomscanner`) comme stockage principal**, dossier public « 3D Scanner » : `Documents/Rooms/<uuid>.roomscan` (paquets) + `Documents/Exports/` ; repli local automatique si iCloud est indisponible ; téléchargement à la demande ; `NSMetadataQuery` pour lister, `NSFileCoordinator` pour lire/écrire | CloudKit (base privée + `CKAsset`) ; Dropbox/Drive ; AirDrop seul | Vincent veut partager avec des apps 2D/3D **sur iPhone et Mac** : seul un dossier iCloud Drive visible dans Fichiers/Finder le fait sans intégration par app. CloudKit n'expose aucun fichier aux tiers. Prolonge D6 (fichiers) sans changer le format. |
-| D17 | **Paquet `.roomscan`** (dossier-paquet, UTType exporté `fr.vincentlauriat.roomscanner.room`, conforme à `com.apple.package`) contenant `room.json`, `room.usdz`, `meta.json`, `thumbnail.png` | Dossier nu ; fichier unique ZIP | Un paquet est vu comme **un seul fichier** dans Fichiers/Finder (pas de contenu interne exposé par erreur), double-clic sur Mac ouvre l'app, glisser-déposer AirDrop d'une pièce entière possible. |
+| D16 | **iCloud Drive (conteneur ubiquitaire `iCloud.io.github.itsmebablu.dwalkscan`) comme stockage principal**, dossier public « dWalkScan » : `Documents/Rooms/<uuid>.roomscan` (paquets) + `Documents/Exports/` ; repli local automatique si iCloud est indisponible ; téléchargement à la demande ; `NSMetadataQuery` pour lister, `NSFileCoordinator` pour lire/écrire | CloudKit (base privée + `CKAsset`) ; Dropbox/Drive ; AirDrop seul | Vincent veut partager avec des apps 2D/3D **sur iPhone et Mac** : seul un dossier iCloud Drive visible dans Fichiers/Finder le fait sans intégration par app. CloudKit n'expose aucun fichier aux tiers. Prolonge D6 (fichiers) sans changer le format. |
+| D17 | **Paquet `.roomscan`** (dossier-paquet, UTType exporté `io.github.itsmebablu.dwalkscan.room`, conforme à `com.apple.package`) contenant `room.json`, `room.usdz`, `meta.json`, `thumbnail.png` | Dossier nu ; fichier unique ZIP | Un paquet est vu comme **un seul fichier** dans Fichiers/Finder (pas de contenu interne exposé par erreur), double-clic sur Mac ouvre l'app, glisser-déposer AirDrop d'une pièce entière possible. |
 | D18 | **Sparkle 2 pour l'auto-update de l'app Mac** (SPM `sparkle-project/Sparkle` ≥ 2.9.1, cible Mac seulement) : `SUFeedURL` → `appcast.xml` à la racine du dépôt (raw GitHub, branche `main`), `SUPublicEDKey` embarquée, clé privée EdDSA dans le trousseau (compte `RoomScanner`) **générée une seule fois et sauvegardée — jamais régénérée** ; app sandboxée → `SUEnableInstallerLauncherService = YES` + exceptions `mach-lookup` `$(PRODUCT_BUNDLE_IDENTIFIER)-spks` / `-spki` (à vérifier en phase 10) ; `Scripts/release.sh` dérivé de `Templates/Scripts/release-full.sh` (DMG, notarisation, `sign_update`, appcast) | Pas d'auto-update ; Mac App Store | Demande de Vincent ; pipeline déjà éprouvé sur MarkdownViewer et TheNews. |
-| D19 | **Dépôt GitHub public `vincentlauriat/3DScanner`**, `main` protégé par convention : une branche **`feat/phase-N-<nom>` par phase → PR → merge**, enchaînées **sans re-demander** (décision Vincent) ; tags et releases toujours confirmés ; **landing page** `docs/index.html` servie par GitHub Pages (`/docs`, comme les autres projets), trilingue EN/FR/ZH-Hant avec `assets/base.css` du hub ; ligne ajoutée dans le hub `vincentlauriat.github.io` (Zone B) et dans le README du profil `vincentlauriat/vincentlauriat` | Dépôt privé ; push direct sur `main` | Demande de Vincent ; cohérent avec ses 25 autres projets publiés. |
+| D19 | **Dépôt GitHub public `BabuReddy/dWalkScan`**, `main` protégé par convention : une branche **`feat/phase-N-<nom>` par phase → PR → merge**, enchaînées **sans re-demander** (décision Vincent) ; tags et releases toujours confirmés ; **landing page** `docs/index.html` servie par GitHub Pages (`/docs`, comme les autres projets), trilingue EN/FR/ZH-Hant avec `assets/base.css` du hub ; ligne ajoutée dans le hub `BabuReddy.github.io` (Zone B) et dans le README du profil `BabuReddy/BabuReddy` | Dépôt privé ; push direct sur `main` | Demande de Vincent ; cohérent avec ses 25 autres projets publiés. |
 | D14 | **Prêt pour la maison entière dès la v1** : agrégat `House { stories: [Story { rooms: [FloorPlan] }] }` consommé par le renderer, le scene builder et les exporteurs (v1 : une pièce, transform identité) ; `ScanCoordinator` possède l'`ARSession` (injectable) pour enchaîner les scans dans un même repère en v2 ; `FloorPlan.transform` réservé au placement dans le repère maison | Ajouter la maison plus tard | Éviter une réécriture des exports et du visualiseur en v2 ; le surcoût v1 est un type d'agrégat et un paramètre. |
 
 ---
@@ -160,9 +160,9 @@ Système de coordonnées RoomPlan : **Y vers le haut**, le sol est le plan **XZ*
 - F16. Les dossiers sont visibles dans l'app **Fichiers** (`UIFileSharingEnabled`, `LSSupportsOpeningDocumentsInPlace`).
 
 **iCloud Drive (D16, D17)**
-- F18. Les pièces sont stockées dans `iCloud Drive/3D Scanner/Rooms/` sous forme de paquets `.roomscan` ; synchronisation automatique iPhone ↔ Mac ; indicateur d'état par pièce (à jour · en cours · non téléchargée · conflit).
+- F18. Les pièces sont stockées dans `iCloud Drive/dWalkScan/Rooms/` sous forme de paquets `.roomscan` ; synchronisation automatique iPhone ↔ Mac ; indicateur d'état par pièce (à jour · en cours · non téléchargée · conflit).
 - F19. Repli local transparent si iCloud est désactivé ou hors ligne ; bannière « iCloud inactif — les pièces restent sur cet appareil » et bouton vers Réglages.
-- F20. « Enregistrer dans iCloud Drive » dans la feuille d'export : écrit le fichier dans `iCloud Drive/3D Scanner/Exports/<Nom de la pièce>/` → accessible par toute app 2D/3D via Fichiers (iPhone) ou Finder (Mac).
+- F20. « Enregistrer dans iCloud Drive » dans la feuille d'export : écrit le fichier dans `iCloud Drive/dWalkScan/Exports/<Nom de la pièce>/` → accessible par toute app 2D/3D via Fichiers (iPhone) ou Finder (Mac).
 - F21. Ouverture d'un `.roomscan` reçu (AirDrop, Fichiers, double-clic Mac) → import dans la bibliothèque.
 
 **App Mac (D15)**
@@ -176,7 +176,7 @@ Système de coordonnées RoomPlan : **Y vers le haut**, le sol est le plan **XZ*
 - F28. Le Mac ne scanne pas : écran d'accueil vide expliquant « Scannez avec votre iPhone, la pièce apparaît ici via iCloud ».
 
 **Réglages (minimal)**
-- F17. Langue suivie du système (fr/en), à propos, version, état iCloud, emplacement du dossier « 3D Scanner ».
+- F17. Langue suivie du système (fr/en), à propos, version, état iCloud, emplacement du dossier « dWalkScan ».
 
 ### 4.2 Périmètre v2 (préparé, non livré en v1)
 - Maison entière : mode « Scanner la maison » enchaînant les pièces dans **un même `ARSession`** (`stop(pauseARSession: false)`), puis `StructureBuilder.capturedStructure(from:)` → `CapturedStructure` → `House` multi-pièces, plusieurs niveaux (`story`) ; plan d'étage par niveau, visualiseur montrant toute la maison (pièces colorées), exports 2D/3D de la maison entière. Le modèle `House`, le visualiseur et les exporteurs v1 sont déjà dimensionnés pour cela (D14).
@@ -283,7 +283,7 @@ RoomScanner/
 ├── Storage/
 │   ├── RoomStore.swift               # CRUD paquets .roomscan, méta, vignettes ; @Observable ; bi-plateforme
 │   ├── RoomRecord.swift              # meta.json : id, name, createdAt, label, area, version
-│   ├── RoomPackage.swift             # UTType fr.vincentlauriat.roomscanner.room, lecture/écriture du paquet
+│   ├── RoomPackage.swift             # UTType io.github.itsmebablu.dwalkscan.room, lecture/écriture du paquet
 │   ├── StorageLocation.swift         # protocole : racine iCloud (ubiquity) ou locale ; sélection au lancement
 │   └── FileLayout.swift              # chemins Rooms/ Exports/, création des dossiers, migration future
 ├── Sync/
@@ -313,7 +313,7 @@ RoomScanner/
 │   └── Assets.xcassets               # AppIcon, couleurs sémantiques
 ├── Info.plist                        # iOS : NSCameraUsageDescription, UIFileSharingEnabled, NSUbiquitousContainers, UTExportedTypeDeclarations (.roomscan)
 ├── Info-macOS.plist                  # macOS : NSUbiquitousContainers, UTExportedTypeDeclarations, CFBundleDocumentTypes (.roomscan)
-├── RoomScanner.entitlements          # iOS : iCloud Documents + conteneur iCloud.fr.vincentlauriat.roomscanner
+├── RoomScanner.entitlements          # iOS : iCloud Documents + conteneur iCloud.io.github.itsmebablu.dwalkscan
 └── RoomScannerMac.entitlements       # macOS : App Sandbox, iCloud Documents, user-selected files r/w, print, network client
 
 RoomScannerTests/                      # même cible de tests compilée pour iOS (simulateur) et macOS
@@ -432,7 +432,7 @@ struct PlacedObject: Codable, Equatable {
 - Murs : trait épais noir (épaisseur 0,10 m à l'échelle). Portes : ouverture dans le mur + arc de 90° (`ARC`). Fenêtres : ouverture + double trait fin. Ouvertures : pointillés.
 - Cotes : ligne de cote parallèle à chaque mur à 0,30 m à l'extérieur, flèches, texte en cm, orienté lisible (jamais tête en bas).
 - Objets : rectangles gris clair avec libellé court (« Table », « Canapé »).
-- Cartouche : nom de la pièce, date, surface m², périmètre, hauteur sous plafond, échelle, « 3D Scanner ».
+- Cartouche : nom de la pièce, date, surface m², périmètre, hauteur sous plafond, échelle, « dWalkScan ».
 
 | Format | Détails techniques | Ouvert par |
 |---|---|---|
@@ -454,7 +454,7 @@ struct PlacedObject: Codable, Equatable {
 | **RoomDetail** | Titre éditable, `TabView` Plan 2D / Viewer / Mesures, bouton Exporter | Plan 2D : pinch-zoom, double-tap reset |
 | **Viewer** (onglet) | `RealityView` plein onglet, segment **3D · 2D · AR** (AR masqué sur Mac), boutons cotes on/off, recentrer, échelle (AR), « Aperçu rapide » | 3D : orbite/zoom ; 2D : zénith, pan/zoom ; AR : coaching « déplacez l'iPhone », toucher pour poser, glisser/pivoter, bouton « Réinitialiser l'ancrage » ; caméra refusée → bascule automatique en 3D avec bandeau |
 | **ExportSheet** | Sections 2D / 3D / Données ; chaque ligne = format + icône + description ; toucher → génération (spinner) → feuille de partage | Erreur de génération → alerte ; conversion OBJ longue → progression indéterminée |
-| **Settings** | Langue (système), à propos, version, état iCloud, lien vers le dossier « 3D Scanner » (Fichiers / Finder) | iCloud inactif : explication + bouton Réglages |
+| **Settings** | Langue (système), à propos, version, état iCloud, lien vers le dossier « dWalkScan » (Fichiers / Finder) | iCloud inactif : explication + bouton Réglages |
 | **Mac — fenêtre principale** | `NavigationSplitView` : sidebar (pièces + badge iCloud + recherche), détail = onglets Plan 2D / 3D / Mesures, barre d'outils (Exporter, Partager, Imprimer, Révéler dans le Finder) | Vide : `MacEmptyStateView` ; pièce non téléchargée : bouton « Télécharger » ; conflit : bandeau « Version en conflit conservée » |
 | **Mac — Exporter** | Menu Fichier › Exporter… (sous-menu formats) ou feuille : chaque format = bouton + zone glissable + « Ouvrir avec… » + « Enregistrer dans iCloud Drive » + « Enregistrer sous… » (`NSSavePanel`) | Conversion OBJ en cours : indicateur |
 
@@ -468,9 +468,9 @@ Messages d'erreur RoomPlan traduits en langage humain (extrait) :
 ### 5.7 Persistance et synchronisation iCloud (D6, D16, D17)
 
 ```
-<racine>/                      # iCloud : FileManager.url(forUbiquityContainerIdentifier: "iCloud.fr.vincentlauriat.roomscanner")
+<racine>/                      # iCloud : FileManager.url(forUbiquityContainerIdentifier: "iCloud.io.github.itsmebablu.dwalkscan")
 │                              # repli : Documents local (iOS) / conteneur sandbox (Mac)
-└── Documents/                 # exposé comme « iCloud Drive / 3D Scanner » (NSUbiquitousContainerIsDocumentScopePublic)
+└── Documents/                 # exposé comme « iCloud Drive / dWalkScan » (NSUbiquitousContainerIsDocumentScopePublic)
     ├── Rooms/
     │   └── 6F9619FF-….roomscan/   # paquet (un seul « fichier » dans Fichiers / Finder)
     │       ├── room.json          # CapturedRoom encodé (source de vérité, lisible sur iOS seulement)
@@ -491,7 +491,7 @@ Messages d'erreur RoomPlan traduits en langage humain (extrait) :
 - `schemaVersion` dans `meta.json` pour d'éventuelles migrations.
 - Les exports à la demande sont générés dans `tmp/` (non conservés) sauf « Enregistrer dans iCloud Drive ».
 - iOS : `UIFileSharingEnabled` + `LSSupportsOpeningDocumentsInPlace` = `true` en plus, pour le dossier local de repli.
-- **UTType** `fr.vincentlauriat.roomscanner.room` (`.roomscan`, conforme à `com.apple.package`) déclaré dans les deux `Info.plist` (`UTExportedTypeDeclarations`) ; Mac : `CFBundleDocumentTypes` → double-clic ouvre l'app ; iOS : `.onOpenURL` → import.
+- **UTType** `io.github.itsmebablu.dwalkscan.room` (`.roomscan`, conforme à `com.apple.package`) déclaré dans les deux `Info.plist` (`UTExportedTypeDeclarations`) ; Mac : `CFBundleDocumentTypes` → double-clic ouvre l'app ; iOS : `.onOpenURL` → import.
 
 ### 5.8 Gestion des erreurs
 
@@ -550,7 +550,7 @@ xcodebuild -scheme RoomScannerMac -destination 'platform=macOS' build test
 | **4 — Visualiseur RealityKit** | `PlanSceneBuilder`, `ViewerView` (`RealityView` commune), `ViewerMode` (3D / 2D zénith), `ARPlacementController` (iOS, `.spatialTracking`, 1:20/1:50/1:1), `ViewerControls`, `QuickLookView` | Tests `PlanSceneBuilder` verts ; iPhone : orbite, 2D, maquette AR ; Mac : orbite souris/trackpad, 2D |
 | **5 — Exports 2D** | `PDFExporter`, `PNGExporter`, `SVGExporter`, `DXFExporter`, `ExportSheet`, `ShareLink` (iOS + Mac) | Golden tests verts ; DXF ouvert dans LibreCAD/QCAD ; SVG dans Figma/Inkscape ; PDF dans Aperçu |
 | **6 — Exports 3D** | `USDZExporter` (options), `ModelIOConverter` (OBJ/STL/PLY) | OBJ ouvert dans Blender ; USDZ en AR sur iPhone ; conversions identiques sur Mac |
-| **7 — iCloud Drive** | `StorageLocation` iCloud, `CloudAvailability` (bascule + migration), `UbiquityMonitor` (`NSMetadataQuery`, téléchargement), `ConflictResolver`, `CloudStatusBadge`, « Enregistrer dans iCloud Drive », import `.roomscan` (`onOpenURL`) | Scan iPhone → pièce visible sur Mac < 1 min ; dossier « 3D Scanner » dans Fichiers et Finder ; mode avion → repli local puis fusion ; tests `ConflictResolver` verts |
+| **7 — iCloud Drive** | `StorageLocation` iCloud, `CloudAvailability` (bascule + migration), `UbiquityMonitor` (`NSMetadataQuery`, téléchargement), `ConflictResolver`, `CloudStatusBadge`, « Enregistrer dans iCloud Drive », import `.roomscan` (`onOpenURL`) | Scan iPhone → pièce visible sur Mac < 1 min ; dossier « dWalkScan » dans Fichiers et Finder ; mode avion → repli local puis fusion ; tests `ConflictResolver` verts |
 | **8 — App Mac** | `MacRootView` (split view), `MacMenuCommands` (⌘E, ⌘P, Révéler), `PrintController`, `DragExportProvider`, `OpenWithMenu`, `MacEmptyStateView`, `CFBundleDocumentTypes` | Double-clic `.roomscan` ouvre l'app ; ⌘P imprime ; glisser PDF → Aperçu, DXF → LibreCAD ; « Ouvrir avec… » liste les apps |
 | **9 — Bibliothèque & finition** | `RoomListView` complet, suppression, renommage (sync), `JSONExporter`, `ArchiveExporter` (ZIP « tout »), réglages (état iCloud), icônes iOS/Mac, localisation complète, **intégration Sparkle** (menu « Rechercher les mises à jour… », `SUFeedURL`, `SUPublicEDKey`) | Checklist §6.2 entièrement cochée sur iPhone et Mac |
 | **10 — Release 1.0.0** | Version 1.0.0 ; iOS : installation Xcode / TestFlight ; Mac : génération **unique** de la clé EdDSA Sparkle (compte trousseau `RoomScanner`, sauvegarde), `Scripts/release.sh` → DMG Developer ID notarisé dans `release/`, `sign_update`, `appcast.xml` ; notes de release ; tag `v1.0.0` et GitHub Release **après confirmation de Vincent** ; landing page et hub mis à jour (lien DMG) | `spctl -a -t exec -vv` accepté, `stapler validate` OK ; Sparkle détecte la mise à jour depuis une build antérieure ; installé sur l'iPhone et le Mac de Vincent ; `README.md` à jour |
@@ -589,17 +589,17 @@ Chaque phase se termine par une mise à jour de `CHANGES.md`, `TODOS.md`, `MEMOR
 
 ## 9. Informations pratiques
 
-- **iCloud** : conteneur `iCloud.fr.vincentlauriat.roomscanner`, créé automatiquement au premier `xcodebuild … -allowProvisioningUpdates` (signature automatique ; repli : developer.apple.com → Identifiers → iCloud Containers) ; `Info.plist` des deux cibles : `NSUbiquitousContainers → iCloud.fr.vincentlauriat.roomscanner → { NSUbiquitousContainerIsDocumentScopePublic: true, NSUbiquitousContainerName: "3D Scanner", NSUbiquitousContainerSupportedFolderLevels: Any }`. ⚠️ Le nom public du conteneur ne se change plus une fois publié.
-- **Entitlements iOS** : `com.apple.developer.icloud-services = [CloudDocuments]`, `com.apple.developer.icloud-container-identifiers = [iCloud.fr.vincentlauriat.roomscanner]`, `com.apple.developer.ubiquity-container-identifiers = [iCloud.fr.vincentlauriat.roomscanner]`.
+- **iCloud** : conteneur `iCloud.io.github.itsmebablu.dwalkscan`, créé automatiquement au premier `xcodebuild … -allowProvisioningUpdates` (signature automatique ; repli : developer.apple.com → Identifiers → iCloud Containers) ; `Info.plist` des deux cibles : `NSUbiquitousContainers → iCloud.io.github.itsmebablu.dwalkscan → { NSUbiquitousContainerIsDocumentScopePublic: true, NSUbiquitousContainerName: "dWalkScan", NSUbiquitousContainerSupportedFolderLevels: Any }`. ⚠️ Le nom public du conteneur ne se change plus une fois publié.
+- **Entitlements iOS** : `com.apple.developer.icloud-services = [CloudDocuments]`, `com.apple.developer.icloud-container-identifiers = [iCloud.io.github.itsmebablu.dwalkscan]`, `com.apple.developer.ubiquity-container-identifiers = [iCloud.io.github.itsmebablu.dwalkscan]`.
 - **Entitlements macOS** : les trois ci-dessus + `com.apple.security.app-sandbox`, `com.apple.security.files.user-selected.read-write`, `com.apple.security.print`, `com.apple.security.network.client`, exceptions Sparkle `com.apple.security.temporary-exception.mach-lookup.global-name` = [`$(PRODUCT_BUNDLE_IDENTIFIER)-spks`, `$(PRODUCT_BUNDLE_IDENTIFIER)-spki`] ; un `RoomScannerMac-Release.entitlements` ajoute `com.apple.developer.icloud-container-environment = Production` pour le DMG.
-- **Sparkle (Info-macOS.plist)** : `SUFeedURL = https://raw.githubusercontent.com/vincentlauriat/3DScanner/main/appcast.xml`, `SUPublicEDKey` (générée en phase 10, jamais changée), `SUEnableAutomaticChecks = true`, `SUScheduledCheckInterval = 86400`, `SUEnableInstallerLauncherService = true`.
-- **Landing page** : `docs/index.html` + `docs/assets/base.css` (copie du hub), GitHub Pages source `main:/docs` → `https://vincentlauriat.github.io/3DScanner/` ; ligne `B-15` dans `vincentlauriat.github.io/index.html` ; entrée dans `vincentlauriat/vincentlauriat/README.md`.
+- **Sparkle (Info-macOS.plist)** : `SUFeedURL = https://raw.githubusercontent.com/BabuReddy/dWalkScan/main/appcast.xml`, `SUPublicEDKey` (générée en phase 10, jamais changée), `SUEnableAutomaticChecks = true`, `SUScheduledCheckInterval = 86400`, `SUEnableInstallerLauncherService = true`.
+- **Landing page** : `docs/index.html` + `docs/assets/base.css` (copie du hub), GitHub Pages source `main:/docs` → `https://BabuReddy.github.io/dWalkScan/` ; ligne `B-15` dans `BabuReddy.github.io/index.html` ; entrée dans `BabuReddy/BabuReddy/README.md`.
 - **Permissions Info.plist iOS** : `NSCameraUsageDescription` (« Le scan LiDAR de la pièce utilise la caméra. »), `UIRequiredDeviceCapabilities` = `[arkit]`, `UIFileSharingEnabled` = YES, `LSSupportsOpeningDocumentsInPlace` = YES.
-- **Type déclaré** : `fr.vincentlauriat.roomscanner.room` (`.roomscan`, conforme à `com.apple.package`), `UTExportedTypeDeclarations` sur les deux cibles, `CFBundleDocumentTypes` sur Mac.
+- **Type déclaré** : `io.github.itsmebablu.dwalkscan.room` (`.roomscan`, conforme à `com.apple.package`), `UTExportedTypeDeclarations` sur les deux cibles, `CFBundleDocumentTypes` sur Mac.
 - **Types de fichiers exportés (UTType)** : `.pdf`, `.png`, `.svg`, `public.dxf` (déclaré via `UTType(importedAs:)` si absent), `.usdz`, `public.geometry-definition-format` (OBJ), `public.standard-tesselated-geometry-format` (STL), `.json`, `.zip`.
-- **Signature** : automatique, équipe `KFLACS69T9`, Apple ID de Vincent dans Xcode. Distribution iOS : installation directe depuis Xcode (usage personnel) ; TestFlight si partage. Distribution Mac : `Scripts/release.sh` (Developer ID `Vincent LAURIAT (KFLACS69T9)`, profil notarytool `AppliMacVincentGithub`, DMG dans `release/`) — voir le risque iCloud/Developer ID en §8.
+- **Signature** : automatique, équipe `KFLACS69T9`, Apple ID de Vincent dans Xcode. Distribution iOS : installation directe depuis Xcode (usage personnel) ; TestFlight si partage. Distribution Mac : `Scripts/release.sh` (Developer ID `Babu Reddy (KFLACS69T9)`, profil notarytool `AppliMacVincentGithub`, DMG dans `release/`) — voir le risque iCloud/Developer ID en §8.
 - **Frameworks** : RoomPlan (iOS), ARKit (iOS), RealityKit, Model I/O, QuickLook, Core Graphics / Core Text, SwiftUI, UniformTypeIdentifiers, Foundation (iCloud ubiquity), AppKit (Mac : impression, `NSWorkspace`, `NSSavePanel`) — tous Apple, aucun SPM.
-- **Repos** : local `~/DevApps/3DTools/3DScanner` (ou miroir `~/Documents/GitHub`) ; distant **public** `github.com/vincentlauriat/3DScanner` ; branche par défaut `main`, feature branches `feat/phase-N-<nom>`, PR mergées sans validation intermédiaire.
+- **Repos** : local `~/DevApps/3DTools/dWalkScan` (ou miroir `~/Documents/GitHub`) ; distant **public** `github.com/BabuReddy/dWalkScan` ; branche par défaut `main`, feature branches `feat/phase-N-<nom>`, PR mergées sans validation intermédiaire.
 - **Docs projet** (règle DevApps) : `README.md`, `ARCHITECTURE_EN.md` + `ARCHITECTURE.md`, `PLAN.md`, `TODOS.md`, `MEMORY.md`, `CHANGES.md`, `COMMANDS.md`.
 
 ## 10. Glossaire
@@ -615,6 +615,6 @@ Chaque phase se termine par une mise à jour de `CHANGES.md`, `TODOS.md`, `MEMOR
 - **RealityKit / ARView** : moteur 3D d'Apple ; `ARView` affiche une scène soit en 3D classique (`.nonAR`), soit en réalité augmentée (`.ar`).
 - **Maquette AR** : le modèle de la pièce/maison posé à échelle réduite sur une surface réelle (table).
 - **House / Story** : agrégat maison / niveau, contenant N `FloorPlan` — une seule pièce en v1.
-- **Conteneur ubiquitaire** : dossier iCloud Drive privé à l'app, rendu visible sous « iCloud Drive / 3D Scanner » dans Fichiers et le Finder.
+- **Conteneur ubiquitaire** : dossier iCloud Drive privé à l'app, rendu visible sous « iCloud Drive / dWalkScan » dans Fichiers et le Finder.
 - **`.roomscan`** : paquet (dossier vu comme un fichier) contenant un scan complet ; s'ouvre dans l'app par double-clic ou AirDrop.
 - **Paquet (package)** : dossier que macOS/iOS présentent comme un seul fichier (comme `.app` ou `.pages`).

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Détail vide sur Mac : la capture se fait sur iPhone, les pièces arrivent par iCloud Drive
-/// ou par import d'un `.roomscan`.
+/// Empty state on Mac: capture is done on iPhone, rooms sync via iCloud Drive
+/// or by importing a `.roomscan` package.
 struct MacEmptyStateView: View {
     @Environment(RoomStore.self) private var store
     var onImport: () -> Void

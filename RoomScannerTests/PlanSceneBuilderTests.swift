@@ -10,18 +10,18 @@ final class PlanSceneBuilderTests: XCTestCase {
         let p = plan(); let b = PlanSceneBuilder()
         let door = p.openings.first { $0.kind == .door }!, window = p.openings.first { $0.kind == .window }!
         let south = p.wall(withID: door.wallID)!, north = p.wall(withID: window.wallID)!
-        // Porte : 2 portions pleines + 1 linteau (2,0 → 2,5 m)
+        // Door: 2 solid portions + 1 lintel (2.0 -> 2.5 m)
         let s = b.wallBoxes(south, openings: [door])
         XCTAssertEqual(s.count, 3)
         let lintel = s.first { $0.bottom > 0.1 }!
         XCTAssertEqual(lintel.bottom, 2.0, accuracy: 0.001); XCTAssertEqual(lintel.top, 2.5, accuracy: 0.001)
         XCTAssertEqual(lintel.segment.length, 0.9, accuracy: 0.001)
-        // Fenêtre : 2 portions pleines + allège (0 → 1,0) + linteau (2,0 → 2,5)
+        // Window: 2 solid portions + sill (0 -> 1.0) + lintel (2.0 -> 2.5)
         let n = b.wallBoxes(north, openings: [window])
         XCTAssertEqual(n.count, 4)
         XCTAssertTrue(n.contains { abs($0.top - 1.0) < 0.001 && $0.bottom == 0 })
         XCTAssertTrue(n.contains { abs($0.bottom - 2.0) < 0.001 && abs($0.top - 2.5) < 0.001 })
-        // Mur plein : une seule boîte pleine hauteur
+        // Solid wall: single full-height box
         let east = p.walls.first { $0.id != south.id && $0.id != north.id }!
         XCTAssertEqual(b.wallBoxes(east, openings: []), [PlanSceneBuilder.WallBox(segment: east.segment, bottom: 0, top: 2.5, thickness: 0.10)])
     }
@@ -53,11 +53,11 @@ final class PlanSceneBuilderTests: XCTestCase {
         let p = plan()
         let root = PlanSceneBuilder().makeScene(for: House(room: p))
         let walls = root.children[0].children.first { $0.name == "walls" }!
-        // Mur est : x = 2, centre en z = 0 (y_plan = 0 → z = 0), hauteur 2,5 → centre y = 1,25
+        // East wall: x = 2, center at z = 0 (y_plan = 0 -> z = 0), height 2.5 -> center y = 1.25
         let east = walls.children.first { abs($0.position.x - 2) < 0.01 }!
         XCTAssertEqual(east.position.y, 1.25, accuracy: 0.001)
         XCTAssertEqual(east.position.z, 0, accuracy: 0.001)
-        // Mur nord (y_plan = 1,5) → z = −1,5
+        // North wall (y_plan = 1.5) -> z = -1.5
         XCTAssertTrue(walls.children.contains { abs($0.position.z + 1.5) < 0.01 })
     }
 
@@ -99,7 +99,7 @@ final class PlanSceneBuilderTests: XCTestCase {
             XCTAssertEqual(up.y, 1, accuracy: 1e-4)
             XCTAssertLessThan(label.position.y, 0.1, "posé sur le sol aplati")
         }
-        // Le libellé du mur sud (y = −1.5 → z = +1.5) est décalé vers l'extérieur (z > 1.5).
+        // South wall label (y = -1.5 -> z = +1.5) offset outward (z > 1.5).
         XCTAssertTrue(dims.children.contains { $0.position.z > 1.6 && abs($0.position.x) < 0.01 })
         // Texte lisible : la direction de lecture (+x local) ne pointe jamais vers −x.
         for label in dims.children { XCTAssertGreaterThanOrEqual(label.orientation.act(SIMD3<Float>(1, 0, 0)).x, -1e-4) }

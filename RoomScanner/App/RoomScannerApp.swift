@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Point d'entrée : bibliothèque en pile sur iPhone, fenêtre à barre latérale et
-/// menus Fichier sur Mac (`MacUI/`).
+/// Entry point: navigation stack library on iPhone, sidebar window on
+/// File menus on macOS (`MacUI/`).
 @main
 struct RoomScannerApp: App {
     #if os(macOS)

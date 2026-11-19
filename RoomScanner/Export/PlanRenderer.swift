@@ -4,73 +4,80 @@ import CoreText
 import ImageIO
 import UniformTypeIdentifiers
 
-/// Dessine un plan 2D coté en **Core Graphics pur** — identique sur iOS et macOS.
-/// Sert au PDF, au PNG, à la vignette, à la texture du sol du visualiseur et à
-/// l'impression. Unités d'entrée : mètres (repère plan, Y vers le haut) ; le
-/// contexte CG a aussi l'origine en bas à gauche, donc aucun retournement.
+/// Renders a dimensioned 2D plan in **pure Core Graphics** — identical on iOS and macOS.
+/// Used for PDF, PNG, thumbnail, viewer floor texture, and
+/// printing. Input units: meters (plan coordinate system, Y up);
+/// the CG context also has its origin at bottom-left, requiring no flipping.
 struct PlanRenderer {
     enum Mode: Equatable {
-        /// Feuille à l'échelle standard (1:n), avec ou sans cartouche.
+        /// Sheet at standard scale (1:n), with or without title block.
         case page(titleBlock: Bool)
-        /// Remplit la zone (texture du sol, vignette) : pas d'échelle normalisée, pas de cartouche.
+        /// Fills viewport (floor texture, thumbnail): unscaled, no title block.
         case fill
     }
 
     struct Options {
         var mode: Mode = .page(titleBlock: true)
         var locale: Locale = .current
+        var unit: MeasurementUnit = .both
         var showDimensions = true
+        var showOpeningDimensions = true
+        var showRoomLabels = true
         var showObjects = true
         var showFloor = true
-        /// Fond transparent (texture) ou blanc (feuille).
+        /// Transparent background (texture) or white (sheet).
         var transparentBackground = false
-        /// Palette « plan d'architecte ».
-        var wallColor = CGColor(gray: 0.10, alpha: 1)
-        var floorColor = CGColor(red: 0.93, green: 0.95, blue: 0.98, alpha: 1)
-        var dimensionColor = CGColor(red: 0.07, green: 0.42, blue: 0.86, alpha: 1)
-        var objectFill = CGColor(gray: 0.80, alpha: 0.5)
-        var objectStroke = CGColor(gray: 0.45, alpha: 1)
-        var textColor = CGColor(gray: 0.15, alpha: 1)
-        var windowColor = CGColor(red: 0.20, green: 0.55, blue: 0.95, alpha: 1)
-        /// Maison : chaque pièce reçoit une teinte de sol différente (`PlanRenderer.roomTint`).
+        /// dWalkScan palette (Primary Yellow #facc15, Secondary #fef08a, Dark Charcoal #111110 / #272000).
+        var wallColor = CGColor(red: 17/255, green: 17/255, blue: 16/255, alpha: 1) // #111110
+        var floorColor = CGColor(red: 254/255, green: 243/255, blue: 199/255, alpha: 1) // #fef3c7
+        var dimensionColor = CGColor(red: 39/255, green: 32/255, blue: 0/255, alpha: 1) // #272000 deep warm charcoal for text/dimension
+        var dimensionLineColor = CGColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 1) // #facc15 primary yellow
+        var objectFill = CGColor(red: 254/255, green: 240/255, blue: 138/255, alpha: 0.5) // #fef08a
+        var objectStroke = CGColor(red: 39/255, green: 32/255, blue: 0/255, alpha: 1) // #272000
+        var textColor = CGColor(red: 17/255, green: 17/255, blue: 16/255, alpha: 1) // #111110
+        var windowColor = CGColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 1) // #facc15
+        /// House: each room receives a distinct floor tint (`PlanRenderer.roomTint`).
         var tintRooms = true
     }
 
-    /// Teintes de sol pastel pour distinguer les pièces d'une maison (cycle de 6).
+    /// Pastel floor tints to distinguish rooms of a house (cycle of 6 in warm yellow/cream tones).
     static let roomPalette: [CGColor] = [
-        CGColor(red: 0.93, green: 0.95, blue: 0.98, alpha: 1), CGColor(red: 0.98, green: 0.94, blue: 0.90, alpha: 1),
-        CGColor(red: 0.92, green: 0.97, blue: 0.92, alpha: 1), CGColor(red: 0.98, green: 0.96, blue: 0.88, alpha: 1),
-        CGColor(red: 0.96, green: 0.92, blue: 0.97, alpha: 1), CGColor(red: 0.90, green: 0.96, blue: 0.97, alpha: 1),
+        CGColor(red: 254/255, green: 243/255, blue: 199/255, alpha: 1),
+        CGColor(red: 254/255, green: 240/255, blue: 138/255, alpha: 1),
+        CGColor(red: 253/255, green: 230/255, blue: 138/255, alpha: 1),
+        CGColor(red: 254/255, green: 249/255, blue: 195/255, alpha: 1),
+        CGColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 0.35),
+        CGColor(red: 255/255, green: 251/255, blue: 235/255, alpha: 1),
     ]
     static func roomTint(_ index: Int) -> CGColor { roomPalette[((index % roomPalette.count) + roomPalette.count) % roomPalette.count] }
 
-    /// Couleur de sol d'une pièce : teinte de palette dans une maison multi-pièces, sinon `floorColor`.
+    /// Room floor color: palette tint in multi-room houses, otherwise `floorColor`.
     func floorColor(forRoomAt index: Int, of count: Int) -> CGColor {
         options.tintRooms && count > 1 ? Self.roomTint(index) : options.floorColor
     }
 
-    /// Dénominateurs d'échelle usuels en architecture.
+    /// Standard architectural scale denominators.
     static let standardScales: [Double] = [10, 20, 25, 50, 75, 100, 200, 500]
-    /// Points PostScript par mètre à l'échelle 1:1.
+    /// PostScript points per meter at 1:1 scale.
     static let pointsPerMeter = 72.0 / 0.0254
 
-    /// Marge autour du plan (m) réservée aux cotes.
+    /// Margin around plan (m) reserved for dimensions.
     static let dimensionMargin = 0.55
     static let dimensionOffset = 0.30
-    /// Les murs plus courts (retours, piliers) ne sont pas cotés : leurs libellés se chevauchaient sur les vrais scans.
+    /// Shorter walls (pillars, returns) are not dimensioned to avoid overlapping labels on real scans.
     static let minimumDimensionedLength = 0.5
 
     var options = Options()
 
-    // MARK: - Sorties
+    // MARK: - Outputs
 
-    /// PDF vectoriel A4 paysage par défaut : une page par niveau (une maison à plusieurs niveaux
-    /// superposés serait illisible), une seule page pour une pièce ou un niveau unique.
+    /// Vector PDF A4 landscape by default: one page per story (multi-level houses
+    /// stacked on one sheet would be unreadable), single page for single rooms or stories.
     func pdfData(_ house: House, size: CGSize = CGSize(width: 842, height: 595), title: String? = nil) -> Data {
         let data = NSMutableData()
         var box = CGRect(origin: .zero, size: size)
         let consumer = CGDataConsumer(data: data as CFMutableData)!
-        var info: [CFString: Any] = [kCGPDFContextCreator: "3D Scanner"]
+        var info: [CFString: Any] = [kCGPDFContextCreator: "dWalkScan"]
         if let title { info[kCGPDFContextTitle] = title }
         let ctx = CGContext(consumer: consumer, mediaBox: &box, info as CFDictionary)!
         for page in Self.pages(of: house) {
@@ -82,8 +89,8 @@ struct PlanRenderer {
         return data as Data
     }
 
-    /// Pages d'un plan : la maison entière si un seul niveau, sinon une « maison » par niveau,
-    /// nommée « Maison — Niveau » pour le cartouche.
+    /// Plan pages: entire house if single story, otherwise one 'house' per level,
+    /// named 'House — Level' for the title block.
     static func pages(of house: House) -> [House] {
         guard house.stories.count > 1 else { return [house] }
         return house.stories.map { story in
@@ -91,7 +98,7 @@ struct PlanRenderer {
         }
     }
 
-    /// Image bitmap RGBA (`makeImage`) de `pixels` pixels.
+    /// RGBA bitmap image (`makeImage`) of `pixels` pixels.
     func image(_ house: House, pixels: CGSize) -> CGImage? {
         let w = Int(pixels.width.rounded()), h = Int(pixels.height.rounded())
         guard w > 0, h > 0,
@@ -102,9 +109,9 @@ struct PlanRenderer {
         return ctx.makeImage()
     }
 
-    /// Image d'une *page* (points) rendue à `pixelScale` × : le calcul d'échelle
-    /// se fait en points, donc « Échelle 1:n » reste exact quel que soit le facteur.
-    /// Bitmap d'une page ; pour une maison à plusieurs niveaux, les pages sont empilées verticalement.
+    /// Image of a *page* (points) rendered at `pixelScale` × : scale calculation
+    /// is done in points, keeping 'Scale 1:n' exact regardless of pixel density.
+    /// Bitmap of a page; for multi-story houses, pages are stacked vertically.
     func image(_ house: House, pageSize: CGSize, pixelScale: CGFloat) -> CGImage? {
         let pages = Self.pages(of: house)
         let w = Int((pageSize.width * pixelScale).rounded()), h = Int((pageSize.height * pixelScale).rounded()) * pages.count
@@ -115,7 +122,7 @@ struct PlanRenderer {
         ctx.scaleBy(x: pixelScale, y: pixelScale)
         for (i, page) in pages.enumerated() {
             ctx.saveGState()
-            // Origine Core Graphics en bas : la première page est en haut de l'image.
+            // Core Graphics bottom-left origin: first page is at top of image.
             ctx.translateBy(x: 0, y: CGFloat(pages.count - 1 - i) * pageSize.height)
             draw(page, in: ctx, size: pageSize)
             ctx.restoreGState()
@@ -127,7 +134,7 @@ struct PlanRenderer {
         image(house, pageSize: pageSize, pixelScale: pixelScale).flatMap(Self.encodePNG)
     }
 
-    /// PNG de `pixels` pixels.
+    /// PNG of `pixels` pixels.
     func pngData(_ house: House, pixels: CGSize) -> Data? {
         image(house, pixels: pixels).flatMap(Self.encodePNG)
     }
@@ -139,10 +146,10 @@ struct PlanRenderer {
         return CGImageDestinationFinalize(dest) ? data as Data : nil
     }
 
-    // MARK: - Échelle
+    // MARK: - Scale
 
-    /// Plus grande échelle standard (plus petit `n`) telle que le plan et ses
-    /// cotes tiennent dans `area` (points).
+    /// Largest standard scale (smallest `n`) such that the plan and its
+    /// dimensions fit within `area` (points).
     static func standardScale(fitting bounds: Rect2D, into area: CGSize) -> Double {
         let w = bounds.width + 2 * dimensionMargin, h = bounds.height + 2 * dimensionMargin
         for n in standardScales {
@@ -152,16 +159,16 @@ struct PlanRenderer {
         return standardScales.last!
     }
 
-    // MARK: - Dessin
+    // MARK: - Drawing
 
-    /// Dessine la maison dans `ctx`, dimensionné `size` (points ou pixels).
+    /// Draws the house into `ctx`, sized `size` (points or pixels).
     func draw(_ house: House, in ctx: CGContext, size: CGSize) {
         let rooms = house.allRooms
         if !options.transparentBackground {
             ctx.setFillColor(CGColor(gray: 1, alpha: 1))
             ctx.fill(CGRect(origin: .zero, size: size))
         }
-        // Zone de dessin : réserve le cartouche en bas si demandé.
+        // Drawing area: reserves title block at bottom if requested.
         let titleHeight: CGFloat = options.mode == .page(titleBlock: true) ? min(size.height * 0.16, 96) : 0
         let inset: CGFloat = options.mode == .fill ? size.width * 0.02 : min(size.width, size.height) * 0.05
         let area = CGRect(x: inset, y: titleHeight + inset, width: size.width - 2 * inset, height: size.height - titleHeight - 2 * inset)
@@ -183,7 +190,7 @@ struct PlanRenderer {
         case .fill:
             ppm = min(Double(area.width) / (bounds.width + 2 * margin), Double(area.height) / (bounds.height + 2 * margin))
         }
-        // Centre le plan dans la zone.
+        // Centers the plan within the drawing area.
         let planW = (bounds.width + 2 * margin) * ppm, planH = (bounds.height + 2 * margin) * ppm
         let origin = CGPoint(x: area.midX - planW / 2 + margin * ppm - bounds.minX * ppm,
                              y: area.midY - planH / 2 + margin * ppm - bounds.minY * ppm)
@@ -193,9 +200,9 @@ struct PlanRenderer {
         if titleHeight > 0 { drawTitleBlock(house, rooms: rooms, scaleDenominator: scaleDenominator, in: ctx, size: size, height: titleHeight) }
     }
 
-    /// Texture du sol pour le visualiseur : les pièces sont dessinées de sorte que
-    /// `bounds` (m, repère maison) couvre exactement l'image — pas de marge, pas de
-    /// cartouche. `pixelsPerMeter` fixe la résolution.
+    /// Floor texture for the viewer: rooms are drawn such that
+    /// `bounds` (m, house coordinates) exactly covers the image — no margin, no
+    /// title block. `pixelsPerMeter` sets resolution.
     func floorTextureImage(_ house: House, bounds: Rect2D, pixelsPerMeter: Double) -> CGImage? {
         let w = Int((bounds.width * pixelsPerMeter).rounded()), h = Int((bounds.height * pixelsPerMeter).rounded())
         guard w > 0, h > 0,
@@ -205,11 +212,15 @@ struct PlanRenderer {
         ctx.setFillColor(CGColor(gray: 1, alpha: 1)); ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
         let mapper = Mapper(origin: CGPoint(x: -bounds.minX * pixelsPerMeter, y: -bounds.minY * pixelsPerMeter), ppm: pixelsPerMeter)
         let rooms = house.allRooms
-        for (i, room) in rooms.enumerated() { drawRoom(room, mapper: mapper, floor: floorColor(forRoomAt: i, of: rooms.count), in: ctx) }
+        var r = self
+        r.options.showDimensions = false
+        r.options.showOpeningDimensions = false
+        r.options.showRoomLabels = false
+        for (i, room) in rooms.enumerated() { r.drawRoom(room, mapper: mapper, floor: floorColor(forRoomAt: i, of: rooms.count), in: ctx) }
         return ctx.makeImage()
     }
 
-    /// Conversion plan (m) → contexte (pt/px), avec le placement de la pièce dans la maison.
+    /// Plan (m) → context (pt/px) mapping, applying room transform within the house.
     struct Mapper {
         var origin: CGPoint
         var ppm: Double
@@ -225,16 +236,16 @@ struct PlanRenderer {
         var mapper = base; mapper.transform = room.transform
         let side = InteriorSide(polygon: room.floorPolygon, fallback: room.bounds.center)
 
-        // Sol
+        // Floor
         if options.showFloor, room.floorPolygon.count >= 3 {
             ctx.setFillColor(floorColor)
             path(room.floorPolygon, mapper: mapper, in: ctx); ctx.fillPath()
         }
-        // Objets
+        // Objects
         if options.showObjects {
             for o in room.objects { drawObject(o, mapper: mapper, in: ctx) }
         }
-        // Murs avec percements
+        // Walls with openings
         let thickness = max(mapper.length(FloorPlan.defaultWallThickness), 1.5)
         ctx.setStrokeColor(options.wallColor); ctx.setLineWidth(thickness); ctx.setLineCap(.square)
         for wall in room.walls {
@@ -244,20 +255,24 @@ struct PlanRenderer {
             }
         }
         ctx.strokePath()
-        // Portes / fenêtres / ouvertures
+        // Doors / windows / openings
         for o in room.openings { drawOpening(o, side: side, mapper: mapper, in: ctx) }
-        // Cotes
+        // Dimensions
         if options.showDimensions {
             for wall in room.walls { drawDimension(wall, side: side, mapper: mapper, in: ctx) }
         }
+        // Room label (name + m² area)
+        if options.showRoomLabels {
+            drawRoomLabel(room, mapper: mapper, in: ctx)
+        }
     }
 
-    /// Découpe la trace du mur autour des ouvertures qui lui sont rattachées.
+    /// Splits wall path around attached openings.
     func wallPieces(_ wall: Wall, openings: [Opening]) -> [Segment2D] {
         let len = wall.length
         guard len > 0 else { return [] }
         let dir = wall.segment.direction
-        // Intervalles [t0, t1] (m le long du mur) occupés par les ouvertures.
+        // Intervals [t0, t1] (m along wall) occupied by openings.
         var gaps: [(Double, Double)] = openings.map { o in
             let t = ((o.center.x - wall.start.x) * dir.x + (o.center.y - wall.start.y) * dir.y)
             return (max(0, t - o.width / 2), min(len, t + o.width / 2))
@@ -278,10 +293,13 @@ struct PlanRenderer {
         let a = mapper.point(seg.start), b = mapper.point(seg.end)
         let n = seg.leftNormal
         let inward = side.inward(of: seg)
+        let outward = inward * -1
         let thin = max(mapper.length(0.02), 0.8)
+        let angle = readable(seg.angle)
+
         switch o.kind {
         case .door:
-            // Battant ouvert à 90° vers l'intérieur + arc de débattement depuis la charnière (start).
+            // Door leaf open at 90° inward + swing arc from hinge (start).
             ctx.setStrokeColor(options.wallColor); ctx.setLineWidth(thin); ctx.setLineDash(phase: 0, lengths: [])
             let hinge = seg.start
             let leafEnd = hinge + inward * o.width
@@ -295,7 +313,7 @@ struct PlanRenderer {
             ctx.strokePath()
             ctx.setLineDash(phase: 0, lengths: [])
         case .window:
-            // Deux traits fins (vitrage) dans l'épaisseur du mur.
+            // Two thin lines (glazing) within wall thickness.
             ctx.setStrokeColor(options.windowColor); ctx.setLineWidth(thin); ctx.setLineDash(phase: 0, lengths: [])
             let off = n * (FloorPlan.defaultWallThickness * 0.3)
             for d in [off, off * -1] {
@@ -303,11 +321,85 @@ struct PlanRenderer {
             }
             ctx.strokePath()
         case .opening:
+            // Cased opening (dashed line across opening).
             ctx.setStrokeColor(options.wallColor); ctx.setLineWidth(thin)
             ctx.setLineDash(phase: 0, lengths: [mapper.length(0.08), mapper.length(0.06)])
             ctx.move(to: a); ctx.addLine(to: b); ctx.strokePath()
             ctx.setLineDash(phase: 0, lengths: [])
         }
+
+        if options.showOpeningDimensions {
+            let widthStr = MeasurementFormat.openingWidth(o.width, unit: options.unit, locale: options.locale)
+            let heightStr = MeasurementFormat.openingHeight(o.height, unit: options.unit, locale: options.locale)
+            let fontSize = max(min(mapper.length(0.16), 8.5), 3.2)
+            let textSpacing = Double(fontSize) / mapper.ppm * 0.70 + 0.04
+
+            // Opening dimension line (Image 1 reference):
+            // Parallel to opening on outward side with oblique ticks at both ends
+            let dimOffset = outward * 0.18
+            let lineStart = seg.start + dimOffset
+            let lineEnd = seg.end + dimOffset
+
+            ctx.saveGState()
+            ctx.setStrokeColor(options.dimensionColor)
+            ctx.setLineWidth(max(mapper.length(0.008), 0.5))
+            ctx.setLineDash(phase: 0, lengths: [])
+            ctx.move(to: mapper.point(lineStart)); ctx.addLine(to: mapper.point(lineEnd))
+
+            // Diagonal architectural tick marks at ends:
+            let tick = (seg.direction + outward).normalized * 0.04
+            ctx.move(to: mapper.point(lineStart - tick)); ctx.addLine(to: mapper.point(lineStart + tick))
+            ctx.move(to: mapper.point(lineEnd - tick)); ctx.addLine(to: mapper.point(lineEnd + tick))
+            ctx.strokePath()
+            ctx.restoreGState()
+
+            // Top (above dimension line): Width
+            let posWidth = seg.midpoint + outward * (0.18 + textSpacing)
+            drawText(widthStr, at: mapper.point(posWidth), angle: angle, fontSize: fontSize, color: options.dimensionColor, in: ctx)
+
+            // Bottom (below dimension line): Height
+            let posHeight = seg.midpoint + outward * max(0.06, (0.18 - textSpacing))
+            drawText(heightStr, at: mapper.point(posHeight), angle: angle, fontSize: fontSize, color: options.dimensionColor, in: ctx)
+
+            // Window parapet height (Image 2 reference):
+            // Centered on inward side (inside the room along the sill) with NO overlap
+            if o.kind == .window {
+                let parapetStr = MeasurementFormat.parapetHeight(o.sillHeight, unit: options.unit, locale: options.locale)
+                let posBRH = seg.midpoint + inward * 0.16
+                drawText(parapetStr, at: mapper.point(posBRH), angle: angle, fontSize: fontSize * 0.95, weight: .regular, color: options.dimensionColor, in: ctx)
+            }
+        }
+    }
+
+    private func drawRoomLabel(_ room: FloorPlan, mapper: Mapper, in ctx: CGContext) {
+        guard options.showRoomLabels else { return }
+        let center = Polygon2D.interiorPoint(room.floorPolygon, fallback: room.bounds.center)
+        let pt = mapper.point(center)
+
+        let name = room.name.isEmpty ? RoomNaming.defaultBaseName(room.label) : room.name
+        let area = Polygon2D.area(room.floorPolygon)
+        let areaStr = MeasurementFormat.squareMeters(area, locale: options.locale)
+
+        let fontSize = max(min(mapper.length(0.30), 14), 8.5)
+        let subFontSize = fontSize * 0.82
+
+        // Soft background pill with rounded corners, primary yellow border, and high legibility
+        let textWidth = CGFloat(max(name.count, areaStr.count)) * fontSize * 0.65
+        let pillW = max(mapper.length(1.3), textWidth + 20)
+        let pillH = fontSize * 2.7 + 6
+        let pillRect = CGRect(x: pt.x - pillW / 2, y: pt.y - pillH / 2, width: pillW, height: pillH)
+
+        ctx.saveGState()
+        let pillPath = CGPath(roundedRect: pillRect, cornerWidth: 8, cornerHeight: 8, transform: nil)
+        ctx.addPath(pillPath)
+        ctx.setFillColor(CGColor(red: 255/255, green: 255/255, blue: 255/255, alpha: 0.88))
+        ctx.setStrokeColor(CGColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 0.65)) // #facc15
+        ctx.setLineWidth(1)
+        ctx.drawPath(using: .fillStroke)
+        ctx.restoreGState()
+
+        drawText(name, at: CGPoint(x: pt.x, y: pt.y + fontSize * 0.45), angle: 0, fontSize: fontSize, weight: .bold, color: options.textColor, align: .center, in: ctx)
+        drawText(areaStr, at: CGPoint(x: pt.x, y: pt.y - fontSize * 0.55), angle: 0, fontSize: subFontSize, weight: .regular, color: options.dimensionColor, align: .center, in: ctx)
     }
 
     private func drawObject(_ o: PlacedObject, mapper: Mapper, in ctx: CGContext) {
@@ -329,20 +421,20 @@ struct PlanRenderer {
     private func drawDimension(_ wall: Wall, side: InteriorSide, mapper: Mapper, in ctx: CGContext) {
         let seg = wall.segment
         guard seg.length >= PlanRenderer.minimumDimensionedLength else { return }
-        // Ligne de cote à l'extérieur du mur.
+        // Dimension line on exterior of wall.
         let n = seg.leftNormal
         let outward = side.inward(of: seg) * -1
         let off = outward * Self.dimensionOffset
         let a = seg.start + off, b = seg.end + off
         ctx.setStrokeColor(options.dimensionColor); ctx.setLineWidth(max(mapper.length(0.012), 0.6)); ctx.setLineDash(phase: 0, lengths: [])
         ctx.move(to: mapper.point(a)); ctx.addLine(to: mapper.point(b))
-        // Traits de rappel et extrémités
+        // Witness lines and ends
         let tick = outward * 0.06
         for (p, q) in [(seg.start + outward * 0.05, a + tick), (seg.end + outward * 0.05, b + tick)] {
             ctx.move(to: mapper.point(p)); ctx.addLine(to: mapper.point(q))
         }
         ctx.strokePath()
-        // Flèches (petits triangles pleins)
+        // Arrows (small filled triangles)
         let d = seg.direction
         let arrowLen = 0.09, arrowHalf = 0.03
         for (tip, back) in [(a, a + d * arrowLen), (b, b - d * arrowLen)] {
@@ -350,7 +442,7 @@ struct PlanRenderer {
             ctx.setFillColor(options.dimensionColor)
             path([tip, left, right], mapper: mapper, in: ctx); ctx.fillPath()
         }
-        let label = MeasurementFormat.centimeters(wall.length, locale: options.locale)
+        let label = MeasurementFormat.length(wall.length, unit: options.unit, locale: options.locale)
         let fontSize = max(min(mapper.length(0.24), 12), 4)
         let textPos = seg.midpoint + off + outward * (0.12 + Double(fontSize) / mapper.ppm * 0.4)
         drawText(label, at: mapper.point(textPos), angle: readable(seg.angle), fontSize: fontSize, color: options.dimensionColor, in: ctx)
@@ -376,12 +468,12 @@ struct PlanRenderer {
                      String(localized: "plan.perimeter", locale: loc) + " " + MeasurementFormat.meters(perimeter, locale: loc),
                      String(localized: "plan.ceiling", locale: loc) + " " + ceilText].joined(separator: "   ·   ")
         drawText(line1, at: CGPoint(x: x, y: rect.maxY - big * 1.1 - small * 1.6), angle: 0, fontSize: small, color: options.textColor, align: .left, in: ctx)
-        var line2 = [df.string(from: date), "3D Scanner", String(localized: "plan.disclaimer", locale: loc)]
+        var line2 = [df.string(from: date), "dWalkScan", String(localized: "plan.disclaimer", locale: loc)]
         if let n = scaleDenominator { line2.insert(String(localized: "plan.scale", locale: loc) + " 1:\(Int(n))", at: 0) }
         drawText(line2.joined(separator: "   ·   "), at: CGPoint(x: x, y: rect.minY + small * 0.8), angle: 0, fontSize: small, color: CGColor(gray: 0.4, alpha: 1), align: .left, in: ctx)
     }
 
-    // MARK: - Texte (Core Text)
+    // MARK: - Text (Core Text)
 
     enum Align { case left, center }
     enum Weight { case regular, bold }
@@ -402,9 +494,9 @@ struct PlanRenderer {
         ctx.restoreGState()
     }
 
-    /// Détermine de quel côté d'un segment se trouve l'intérieur de la pièce :
-    /// test point-dans-polygone à 5 cm du milieu (robuste sur les pièces en L),
-    /// repli sur la position du centre de l'englobant.
+    /// Determines which side of a segment faces the room interior:
+    /// point-in-polygon test 5 cm from midpoint (robust on L-shaped rooms),
+    /// fallback to bounding box center.
     struct InteriorSide {
         let polygon: [Point2D]
         let fallback: Point2D
@@ -429,7 +521,7 @@ struct PlanRenderer {
         ctx.closePath()
     }
 
-    /// Angle ramené dans ]−π/2, π/2] pour qu'un texte ne soit jamais tête en bas.
+    /// Angle normalized to ]−π/2, π/2] so text is never upside down.
     private func readable(_ angle: Double) -> CGFloat {
         var a = angle
         while a > .pi / 2 { a -= .pi }
@@ -457,12 +549,14 @@ struct PlanRenderer {
 }
 
 extension PlanRenderer {
-    /// Vignette de bibliothèque (600 × 400 px, sans cartouche).
+    /// Library thumbnail (600 × 400 px, without title block).
     static func thumbnailPNG(for plan: FloorPlan) -> Data? { thumbnailPNG(for: House(room: plan)) }
 
-    /// Vignette d'une maison : premier niveau seulement (le plan superposé de plusieurs niveaux serait illisible).
+    /// House thumbnail: first story only (overlapping multi-story plan would be unreadable).
     static func thumbnailPNG(for house: House) -> Data? {
         var r = PlanRenderer(); r.options.mode = .fill; r.options.showObjects = true
+        r.options.showOpeningDimensions = false
+        r.options.showRoomLabels = false
         let shown = house.stories.count > 1 ? House(id: house.id, name: house.name, stories: [house.stories[0]]) : house
         return r.pngData(shown, pixels: CGSize(width: 600, height: 400))
     }

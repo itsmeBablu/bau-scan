@@ -1,18 +1,18 @@
 import Foundation
 import Sparkle
 
-/// Sparkle 2 (macOS) : vérification quotidienne, menu « Rechercher les mises à jour… ».
-/// L'updater ne démarre que si `SUPublicEDKey` est présente dans l'Info.plist (ajoutée
-/// en phase 10 avec la clé EdDSA du trousseau `RoomScanner`) : sans clé, Sparkle
-/// refuserait le flux et afficherait une erreur au lancement.
-/// Les propriétés observées sont **stockées** (miroirs de l'état Sparkle) : `@Observable`
-/// n'instrumente pas des accesseurs calculés, l'interface ne se rafraîchirait pas.
+/// Sparkle 2 (macOS): daily check, 'Check for Updates...' menu item.
+/// Updater only starts if `SUPublicEDKey` is present in Info.plist (added
+/// with EdDSA key): without key, Sparkle
+/// would reject feed and display an error at launch.
+/// Observed properties are stored mirror states of Sparkle: `@Observable`
+/// requires stored properties for SwiftUI view invalidation.
 @Observable
 @MainActor
 final class UpdaterController {
     private let controller: SPUStandardUpdaterController
     private let delegate = Delegate()
-    /// `false` en développement (pas de clé) : l'élément de menu est désactivé.
+    /// `false` in development (no key): menu item is disabled.
     let isConfigured: Bool
     private(set) var canCheckForUpdates = false
     private(set) var lastUpdateCheckDate: Date?
@@ -34,7 +34,7 @@ final class UpdaterController {
         refresh()
     }
 
-    /// Relit l'état Sparkle dans les miroirs observables.
+    /// Reads Sparkle state into observable mirror properties.
     func refresh() {
         guard isConfigured else { canCheckForUpdates = false; return }
         canCheckForUpdates = controller.updater.canCheckForUpdates
@@ -42,7 +42,7 @@ final class UpdaterController {
         automaticallyChecksForUpdates = controller.updater.automaticallyChecksForUpdates
     }
 
-    /// Relais du cycle de mise à jour Sparkle vers le main thread.
+    /// Relays Sparkle update cycle events to the main thread.
     private final class Delegate: NSObject, SPUUpdaterDelegate {
         var onCycleFinished: (() -> Void)?
         func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?) {

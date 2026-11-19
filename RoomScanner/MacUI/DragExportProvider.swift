@@ -1,10 +1,10 @@
 import AppKit
 import UniformTypeIdentifiers
 
-/// Glisser-déposer vers d'autres apps : le fichier est généré à la demande quand
-/// la destination le réclame (`registerFileRepresentation`), jamais avant.
+/// Drag-and-drop to other apps: file generated on demand when destination requests it.
+/// destination requests it (`registerFileRepresentation`), never before.
 enum DragExportProvider {
-    /// Fournisseur d'un export généré à la volée (PDF vers Aperçu, DXF vers LibreCAD…).
+    /// Provider of an on-the-fly generated export (PDF to Preview, DXF to LibreCAD, etc.).
     static func provider(subject: ExportSubject, format: ExportFormat) -> NSItemProvider {
         let provider = NSItemProvider()
         provider.suggestedName = ExportService.fileName(for: subject, format: format)
@@ -20,7 +20,7 @@ enum DragExportProvider {
         return provider
     }
 
-    /// Fournisseur du paquet `.roomscan` / `.housescan` lui-même (copie vers le Finder, AirDrop, Mail).
+    /// Provider of the `.roomscan` / `.housescan` document package (Finder, AirDrop, Mail).
     static func packageProvider(url: URL) -> NSItemProvider {
         let provider = NSItemProvider(contentsOf: url) ?? NSItemProvider()
         provider.suggestedName = url.lastPathComponent

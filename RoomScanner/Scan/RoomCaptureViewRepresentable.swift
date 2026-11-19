@@ -2,7 +2,7 @@
 import SwiftUI
 import RoomPlan
 
-/// Héberge la `RoomCaptureView` UIKit du coordinateur dans SwiftUI.
+/// Hosts UIKit `RoomCaptureView` inside SwiftUI.
 struct RoomCaptureViewRepresentable: UIViewRepresentable {
     let coordinator: ScanCoordinator
 

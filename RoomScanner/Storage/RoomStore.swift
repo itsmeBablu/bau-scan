@@ -1,32 +1,32 @@
 import Foundation
 import Observation
 
-/// Bibliothèque des pièces : liste des `RoomRecord`, création, renommage,
+/// Room library: list of `RoomRecord`s, creation, renaming,
 /// suppression, import ; racine locale ou iCloud Drive (observation live,
-/// téléchargements, conflits — D16/D17).
+/// downloads, conflicts — D16/D17).
 @Observable
 @MainActor
 final class RoomStore {
     private(set) var location: StorageLocation
     private(set) var records: [RoomRecord] = []
-    /// Maisons (`.housescan`, v2), du plus récent au plus ancien.
+    /// Houses (`.housescan`, v2), from newest to oldest.
     private(set) var houseRecords: [HouseRecord] = []
     private(set) var lastError: AppError?
-    /// État iCloud par paquet (vide en stockage local).
+    /// iCloud status per package (empty in local storage).
     private(set) var cloudStatus: [UUID: CloudItemStatus] = [:]
-    /// Nombre de paquets iCloud pas encore téléchargés sur cet appareil.
+    /// Count of iCloud packages not yet downloaded on this device.
     private(set) var pendingDownloads = 0
-    /// `true` pendant la résolution du conteneur au lancement.
+    /// `true` during container resolution at launch.
     private(set) var isResolvingCloud = false
-    /// Racine forcée (`-RoomScannerStorageRoot`) : pas de bascule iCloud.
+    /// Forced root (`-RoomScannerStorageRoot`): no iCloud switching.
     let allowsCloud: Bool
 
     @ObservationIgnored private var monitor: UbiquityMonitor?
-    /// Paquets dont la résolution de conflit a échoué : on ne retente pas à chaque lot du moniteur.
+    /// Packages whose conflict resolution failed: avoids retrying on every monitor batch.
     @ObservationIgnored private var failedConflictResolutions: Set<URL> = []
     @ObservationIgnored private var isResolvingConflicts = false
-    /// Maisons déjà passées par la montée de schéma : un paquet sans `structure.json`
-    /// ne peut pas être migré, inutile de le relire à chaque `reload()`.
+    /// Houses already upgraded: a package without `structure.json`
+    /// cannot be migrated, no need to reread on every `reload()`.
     @ObservationIgnored private var migratedHouses: Set<UUID> = []
 
     init(location: StorageLocation, allowsCloud: Bool = true) {
@@ -38,8 +38,8 @@ final class RoomStore {
 
     // MARK: iCloud
 
-    /// Au lancement : résout le conteneur hors main thread, migre le local vers iCloud,
-    /// bascule et démarre l'observation. Sans compte ou conteneur, on reste en local.
+    /// At launch: resolves container off main thread, migrates local to iCloud,
+    /// switches and starts monitoring. Without account or container, stays local.
     func activateCloudIfAvailable() async {
         guard allowsCloud, !isCloud, !isResolvingCloud else { return }
         isResolvingCloud = true
@@ -54,15 +54,15 @@ final class RoomStore {
         switchLocation(to: cloud)
     }
 
-    /// Réglage « Utiliser iCloud Drive » : bascule immédiate. Désactiver revient au dossier local
-    /// (les fichiers iCloud restent dans iCloud Drive, rien n'est déplacé ni supprimé).
+    /// Setting 'Use iCloud Drive': immediate toggle. Disabling reverts to local folder
+    /// (iCloud files remain in iCloud Drive; nothing is moved or deleted).
     func setCloudEnabled(_ enabled: Bool) async {
         UserDefaults.standard.set(enabled, forKey: CloudAvailability.preferenceKey)
         if enabled { await activateCloudIfAvailable() }
         else if isCloud { switchLocation(to: .local()) }
     }
 
-    /// Change de racine (iCloud ↔ local), recharge, (re)démarre l'observation.
+    /// Switches storage root (iCloud ↔ local), reloads, and (re)starts file monitoring.
     func switchLocation(to newLocation: StorageLocation) {
         monitor?.stop(); monitor = nil
         cloudStatus = [:]; pendingDownloads = 0
@@ -88,7 +88,7 @@ final class RoomStore {
         if !conflicts.isEmpty { resolveConflicts(at: conflicts) }
     }
 
-    /// Résout les conflits hors du main thread (copies de paquets entiers), une série à la fois.
+    /// Resolves conflicts off the main thread, one batch at a time.
     private func resolveConflicts(at urls: [URL]) {
         guard !isResolvingConflicts else { return }
         isResolvingConflicts = true
@@ -113,8 +113,8 @@ final class RoomStore {
 
     // MARK: Import / export
 
-    /// Importe un `.roomscan` reçu (AirDrop, Fichiers, double-clic). Si l'identifiant
-    /// existe déjà, la pièce importée reçoit un nouvel identifiant et un suffixe.
+    /// Imports an incoming `.roomscan` (AirDrop, Files, double-click). If ID
+    /// already exists, the imported room receives a new ID and suffix.
     @discardableResult
     func importPackage(from url: URL) throws -> RoomRecord {
         let accessing = url.startAccessingSecurityScopedResource()
@@ -123,8 +123,8 @@ final class RoomStore {
         var record = try RoomPackage.readRecord(from: url)
         let dest = location.packageURL(for: record.id)
         if FileManager.default.fileExists(atPath: dest.path) {
-            // La copie est écrite dans le dossier temporaire de l'app (le dossier d'origine n'est
-            // pas accessible en sandbox), puis déplacée dans `Rooms/`.
+            // Copy is written to app's temporary folder (original folder is
+            // not directly writable in sandbox), then moved to `Rooms/`.
             let staging = FileManager.default.temporaryDirectory.appendingPathComponent("import-\(UUID().uuidString)", isDirectory: true)
             defer { try? FileManager.default.removeItem(at: staging) }
             let copy = try ConflictResolver.duplicateAsConflictCopy(packageAt: url, suffix: String(localized: "cloud.importedSuffix"), into: staging)
@@ -142,14 +142,14 @@ final class RoomStore {
         return record
     }
 
-    /// Importe un `.roomscan` ou un `.housescan` selon l'extension.
+    /// Imports a `.roomscan` or `.housescan` depending on file extension.
     @discardableResult
     func importAny(from url: URL) throws -> LibraryItem {
         url.pathExtension == FileLayout.housePackageExtension ? .house(try importHousePackage(from: url)) : .room(try importPackage(from: url))
     }
 
-    /// Importe un `.housescan` ; un identifiant déjà présent reçoit une nouvelle identité (la maison
-    /// et ses pièces imbriquées) et un suffixe.
+    /// Imports a `.housescan`; an existing ID receives a new identity (the house
+    /// and nested rooms) and a suffix.
     @discardableResult
     func importHousePackage(from url: URL) throws -> HouseRecord {
         let accessing = url.startAccessingSecurityScopedResource()
@@ -174,8 +174,8 @@ final class RoomStore {
         return record
     }
 
-    /// Copie un export dans `Exports/<Pièce>/` de la racine courante (iCloud Drive ou local) ;
-    /// visible dans Fichiers / Finder et par toute app tierce.
+    /// Copies an export into `Exports/<Room>/` of the current root (iCloud Drive or local);
+    /// visible in Files app / Finder and third-party tools.
     @discardableResult
     func saveExport(_ fileURL: URL, for record: RoomRecord) throws -> URL {
         try saveExport(fileURL, folderName: ExportService.folderName(for: record))
@@ -198,25 +198,25 @@ final class RoomStore {
         return dest
     }
 
-    /// Recharge la liste depuis le disque (triée du plus récent au plus ancien).
+    /// Reloads list from disk (sorted newest to oldest).
     func reload() {
         do {
             try location.prepare()
             let fm = FileManager.default
             let urls = try fm.contentsOfDirectory(at: location.roomsURL, includingPropertiesForKeys: nil)
                 .filter { $0.pathExtension == FileLayout.packageExtension }
-            // Un paquet iCloud pas encore téléchargé n'a pas de `meta.json` lisible : ignoré
-            // jusqu'à la notification du moniteur.
+            // Undownloaded iCloud package has no readable `meta.json`: ignored
+            // until notified by file monitor.
             records = urls.compactMap { try? RoomPackage.readRecord(from: $0) }
                 .sorted { $0.createdAt > $1.createdAt }
             let houseURLs = ((try? fm.contentsOfDirectory(at: location.housesURL, includingPropertiesForKeys: nil)) ?? [])
                 .filter { $0.pathExtension == FileLayout.housePackageExtension }
             houseRecords = houseURLs.compactMap { try? HousePackage.readRecord(from: $0) }
                 .sorted { $0.createdAt > $1.createdAt }
-            // Montée de schéma : une maison enregistrée par une version antérieure garde dans son
-            // `meta.json` une surface et des noms périmés (schéma 2 : union des pièces, noms
-            // composés). On la recalcule une fois ici, sinon la bibliothèque afficherait l'ancienne
-            // surface jusqu'à ce que la maison soit ouverte.
+            // Schema upgrade: a house saved by an earlier version retains outdated
+            // `meta.json` area and names (schema 2: room union, compound
+            // names). Recomputed once here so library displays accurate values.
+            // rather than stale cached values.
             for record in houseRecords where record.schemaVersion < FloorPlan.schemaVersion && !migratedHouses.contains(record.id) {
                 migratedHouses.insert(record.id)
                 _ = try? house(for: record)
@@ -229,12 +229,12 @@ final class RoomStore {
 
     func packageURL(for record: RoomRecord) -> URL { location.packageURL(for: record.id) }
 
-    /// Nom proposé pour une nouvelle pièce, dédoublonné parmi les existantes.
+    /// Suggested name for a new room, deduplicated against existing names.
     func proposedName(for label: RoomLabel) -> String {
         RoomNaming().proposedName(for: label, existingNames: records.map(\.name))
     }
 
-    /// Enregistre un nouveau paquet et l'ajoute à la liste.
+    /// Saves a new package and adds it to the list.
     @discardableResult
     func save(_ package: RoomPackage) throws -> RoomRecord {
         try location.prepare()
@@ -245,10 +245,10 @@ final class RoomStore {
         return package.record
     }
 
-    /// Plan d'une pièce. Quand `scan.json` est présent, le plan est **recalculé** par le Domain
-    /// courant (contour du sol, alignement, corrections) ; s'il diffère de `plan.json`, le paquet
-    /// est rafraîchi (plan + vignette) pour que tous les appareils convergent. Sans `scan.json`
-    /// (paquet importé minimal), `plan.json` fait foi.
+    /// Room plan. When `scan.json` is present, the plan is recomputed by Domain
+    /// logic (floor polygon, alignment); if differing from `plan.json`, the package
+    /// is refreshed (plan + thumbnail) so devices converge. Without `scan.json`
+    /// (minimal imported package), `plan.json` is authoritative.
     func plan(for record: RoomRecord) throws -> FloorPlan {
         let url = packageURL(for: record)
         let stored = try RoomPackage.readPlan(from: url)
@@ -281,7 +281,7 @@ final class RoomStore {
         records.removeAll { $0.id == record.id }
     }
 
-    // MARK: Maisons (v2)
+    // MARK: Houses (v2)
 
     func packageURL(for record: HouseRecord) -> URL { location.housePackageURL(for: record.id) }
 
@@ -289,7 +289,7 @@ final class RoomStore {
         switch item { case .room(let r): packageURL(for: r); case .house(let h): packageURL(for: h) }
     }
 
-    /// Nom proposé pour une nouvelle maison (« Maison », « Maison 2 », …).
+    /// Suggested name for a new house ('House', 'House 2', ...).
     func proposedHouseName() -> String {
         let base = String(localized: "house.defaultName")
         let existing = Set(houseRecords.map(\.name))
@@ -309,14 +309,14 @@ final class RoomStore {
         return package.record
     }
 
-    /// Maison d'un paquet. Quand `structure.json` est présent, la maison est **recalculée** par le
-    /// Domain courant et le paquet rafraîchi si la maison, sa surface ou sa version de schéma
-    /// diffèrent ; sinon `house.json` fait foi.
+    /// House package. When `structure.json` is present, house is recomputed by
+    /// current Domain logic and package is updated if data or schema version
+    /// differ; otherwise `house.json` is authoritative.
     ///
-    /// Les noms de pièces enregistrés sont conservés — ils peuvent avoir été saisis à la main.
-    /// Exception : à une montée de version de schéma, les noms d'une version antérieure sont
-    /// considérés comme automatiques et recalculés (schéma 2 : noms composés depuis toutes les
-    /// sections RoomPlan, « Salle à manger / Cuisine »).
+    /// Persisted room names are preserved — they may have been manually renamed.
+    /// Exception: on schema version bump, names from older version are
+    /// treated as automatic and recomputed (schema 2: compound names from all
+    /// RoomPlan sections, e.g. 'Dining Room / Kitchen').
     func house(for record: HouseRecord) throws -> House {
         let url = packageURL(for: record)
         let stored = try HousePackage.readHouse(from: url)

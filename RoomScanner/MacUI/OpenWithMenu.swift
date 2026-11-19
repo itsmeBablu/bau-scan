@@ -2,8 +2,8 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-/// « Ouvrir avec… » : les applications du Mac capables d'ouvrir le fichier exporté
-/// (`NSWorkspace.urlsForApplications(toOpen:)`), avec leur icône.
+/// 'Open With...': Mac applications capable of opening the exported file
+/// (`NSWorkspace.urlsForApplications(toOpen:)`), with their app icons.
 struct OpenWithMenu: View {
     let fileURL: URL
     let type: UTType

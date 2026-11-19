@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Accès caméra refusé : explication + lien vers Réglages.
+/// Camera access denied: explanation and link to Settings.
 struct CameraDeniedView: View {
     var onClose: (() -> Void)? = nil
     var body: some View {

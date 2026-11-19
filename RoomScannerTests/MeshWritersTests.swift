@@ -13,7 +13,7 @@ final class MeshWritersTests: XCTestCase {
         XCTAssertEqual(lines.filter { $0.hasPrefix("f ") }.count, m.triangles.count)
         XCTAssertEqual(lines.filter { $0.hasPrefix("g ") }.map { String($0.dropFirst(2)) }, ["walls", "doors", "windows", "floor", "objects"])
         XCTAssertTrue(s.contains("o Salon_test"))
-        // Indices 1-based dans les bornes.
+        // 1-based indices within bounds.
         let maxIndex = lines.filter { $0.hasPrefix("f ") }.flatMap { $0.split(separator: " ").dropFirst().compactMap { Int($0.split(separator: "/")[0]) } }.max()
         XCTAssertEqual(maxIndex, m.positions.count)
         XCTAssertFalse(lines.contains { ($0.hasPrefix("v ") || $0.hasPrefix("vn ")) && $0.contains(",") }, "décimales avec virgule")
@@ -25,7 +25,7 @@ final class MeshWritersTests: XCTestCase {
         XCTAssertEqual(d.count, 84 + 50 * m.triangles.count)
         let count = d.subdata(in: 80..<84).withUnsafeBytes { $0.loadUnaligned(as: UInt32.self) }
         XCTAssertEqual(Int(UInt32(littleEndian: count)), m.triangles.count)
-        XCTAssertTrue(String(decoding: d.prefix(10), as: UTF8.self).hasPrefix("3D Scanner"))
+        XCTAssertTrue(String(decoding: d.prefix(9), as: UTF8.self).hasPrefix("dWalkScan"))
     }
 
     func testPLYHeader() {

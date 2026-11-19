@@ -1,15 +1,15 @@
 import Foundation
 import simd
 
-/// Écrivains de maillage sans dépendance : OBJ (texte, groupes), STL (binaire),
-/// PLY (ASCII). Mètres, y vers le haut.
+/// Dependency-free mesh writers: OBJ (text, groups), STL (binary),
+/// PLY (ASCII). Meters, Y up.
 enum MeshWriters {
     private static let posix = Locale(identifier: "en_US_POSIX")
     private static func f(_ v: Float) -> String { String(format: "%.4f", locale: posix, v == 0 ? 0 : v) }
 
     /// Wavefront OBJ : `v`, `vn`, `g <groupe>`, faces `f v//vn`. Indices 1-based.
     static func obj(_ mesh: TriangleMesh, name: String) -> Data {
-        var s = "# 3D Scanner — \(name)\n# units: meters / y up\no \(name.replacingOccurrences(of: " ", with: "_"))\n"
+        var s = "# dWalkScan — \(name)\n# units: meters / y up\no \(name.replacingOccurrences(of: " ", with: "_"))\n"
         for p in mesh.positions { s += "v \(f(p.x)) \(f(p.y)) \(f(p.z))\n" }
         for n in mesh.normals { s += "vn \(f(n.x)) \(f(n.y)) \(f(n.z))\n" }
         var groups = mesh.groups
@@ -24,10 +24,10 @@ enum MeshWriters {
         return Data(s.utf8)
     }
 
-    /// STL binaire : en-tête 80 octets, nombre de triangles UInt32, 50 octets par triangle (normale, 3 sommets, attribut).
+    /// Binary STL: 80-byte header, UInt32 triangle count, 50 bytes per triangle (normal, 3 vertices, attribute).
     static func stl(_ mesh: TriangleMesh, name: String) -> Data {
         var d = Data()
-        var header = Array("3D Scanner \(name)".utf8.prefix(80)); header += [UInt8](repeating: 0, count: 80 - header.count)
+        var header = Array("dWalkScan \(name)".utf8.prefix(80)); header += [UInt8](repeating: 0, count: 80 - header.count)
         d.append(contentsOf: header)
         d.append(le(UInt32(mesh.triangles.count)))
         for t in mesh.triangles {
@@ -44,7 +44,7 @@ enum MeshWriters {
         var s = """
         ply
         format ascii 1.0
-        comment 3D Scanner — \(name) — meters, y up
+        comment dWalkScan — \(name) — meters, y up
         element vertex \(mesh.positions.count)
         property float x
         property float y

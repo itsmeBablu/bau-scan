@@ -15,6 +15,18 @@ final class GeometryTests: XCTestCase {
         XCTAssertEqual(Polygon2D.perimeter(square), 14, accuracy: 1e-9)
     }
 
+    func testCentroidAndInteriorPoint() {
+        let c = Polygon2D.centroid(square)
+        XCTAssertEqual(c.x, 2.0, accuracy: 1e-9)
+        XCTAssertEqual(c.y, 1.5, accuracy: 1e-9)
+        let inside = Polygon2D.interiorPoint(square)
+        XCTAssertTrue(Polygon2D.contains(square, inside))
+
+        let lShape = SyntheticRooms.lShapeCorners
+        let lInside = Polygon2D.interiorPoint(lShape)
+        XCTAssertTrue(Polygon2D.contains(lShape, lInside), "interiorPoint garantit d'être dans la pièce en L")
+    }
+
     func testChainReordersAndReversesSegments() {
         let segs = [Segment2D(start: square[2], end: square[3]),   // désordonné
                     Segment2D(start: square[1], end: square[0]),   // inversé
@@ -59,7 +71,7 @@ final class GeometryTests: XCTestCase {
     }
 
     func testTriangulationSkipsFlatLastTripletAndReportsDegenerateContours() {
-        // Rectangle avec un sommet aligné sur un côté : le dernier triplet peut être plat.
+        // Rectangle with a vertex aligned on one side: last triplet can be flat.
         let pts = [Point2D(x: 0, y: 0), Point2D(x: 2, y: 0), Point2D(x: 4, y: 0), Point2D(x: 4, y: 3), Point2D(x: 0, y: 3)]
         let (tris, complete) = Polygon2D.triangulation(pts)
         XCTAssertTrue(complete)
@@ -68,13 +80,13 @@ final class GeometryTests: XCTestCase {
             XCTAssertGreaterThan(abs(Polygon2D.signedArea([a, b, c])), 1e-9, "aucun triangle plat")
         }
         XCTAssertEqual(tris.reduce(0.0) { $0 + abs(Polygon2D.signedArea([pts[$1.0], pts[$1.1], pts[$1.2]])) }, 12, accuracy: 1e-9)
-        // Contour dégénéré (tous alignés) : incomplet, sans triangle.
+        // Degenerate contour (all collinear): incomplete, no triangle.
         let flat = [Point2D(x: 0, y: 0), Point2D(x: 1, y: 0), Point2D(x: 2, y: 0), Point2D(x: 3, y: 0)]
         let r = Polygon2D.triangulation(flat)
         XCTAssertFalse(r.complete); XCTAssertTrue(r.triangles.isEmpty)
     }
 
-    // MARK: - Union et intersection de polygones (surface d'une maison)
+    // MARK: - Polygon union and intersection (house floor area)
 
     private func rect(_ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double) -> [Point2D] {
         [Point2D(x: x0, y: y0), Point2D(x: x1, y: y0), Point2D(x: x1, y: y1), Point2D(x: x0, y: y1)]
@@ -99,10 +111,10 @@ final class GeometryTests: XCTestCase {
         XCTAssertEqual(Polygon2D.unionArea([a, b]), 1.5, accuracy: 1e-9)
     }
 
-    /// Cas qui distingue l'inclusion–exclusion complète d'une simple soustraction des
-    /// recouvrements deux à deux : trois carrés partageant une même zone. Somme 3,
+    /// Case distinguishing full inclusion-exclusion from simple pairwise subtraction
+    /// of overlaps: three squares sharing the same area. Sum 3,
     /// recouvrements deux à deux 0,5 + 0,5 + 0,25, zone triple 0,25 ⇒ union = 2.
-    /// Une implémentation qui s'arrêterait aux paires répondrait 1,75.
+    /// An implementation stopping at pairs would return 1.75.
     func testUnionHandlesARegionSharedByThreePolygons() {
         let a = rect(0, 0, 1, 1), b = rect(0.5, 0, 1.5, 1), c = rect(0, 0.5, 1, 1.5)
         XCTAssertEqual(Polygon2D.intersectionArea([a, b, c]), 0.25, accuracy: 1e-9)
@@ -111,7 +123,7 @@ final class GeometryTests: XCTestCase {
 
     func testUnionOfConcavePolygons() {
         // L renversé : [0,2]×[0,1] ∪ [0,1]×[0,2] décrit d'un seul tenant (aire 3),
-        // uni avec le carré manquant [1,2]×[1,2] ⇒ le carré plein 2×2.
+        // union with missing square [1,2]x[1,2] => solid square 2x2.
         let l = [Point2D(x: 0, y: 0), Point2D(x: 2, y: 0), Point2D(x: 2, y: 1),
                  Point2D(x: 1, y: 1), Point2D(x: 1, y: 2), Point2D(x: 0, y: 2)]
         XCTAssertEqual(Polygon2D.area(l), 3, accuracy: 1e-9)

@@ -1,7 +1,7 @@
 import Foundation
 import UniformTypeIdentifiers
 
-/// Formats d'export proposés à l'utilisateur (spec §5.5).
+/// Export formats available to user.
 enum ExportFormat: String, CaseIterable, Identifiable, Codable {
     case pdf, png, svg, dxf
     case usdzParametric, usdzMesh, obj, stl, ply
@@ -55,6 +55,6 @@ enum ExportFormat: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// Suffixe ajouté au nom de fichier quand deux formats partagent une extension.
+    /// Suffix appended to filename when two formats share an extension.
     var fileSuffix: String { self == .usdzMesh ? "-mesh" : "" }
 }

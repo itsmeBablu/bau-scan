@@ -1,6 +1,6 @@
 import Foundation
 
-/// Ce que l'utilisateur scanne : une pièce (v1) ou une maison, pièce après pièce (v2).
+/// Scan target: single room (v1) or multi-room house (v2).
 enum ScanMode: String, Identifiable, Hashable {
     case room, house
     var id: String { rawValue }

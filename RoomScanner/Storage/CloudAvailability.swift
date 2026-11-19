@@ -1,35 +1,35 @@
 import Foundation
 
-/// Résolution du conteneur iCloud Drive et migration local → iCloud (D16, D17).
-/// `url(forUbiquityContainerIdentifier:)` peut bloquer : toujours hors du main thread.
+/// iCloud Drive container resolution and local → iCloud migration.
+/// `url(forUbiquityContainerIdentifier:)` can block: always execute off main thread.
 enum CloudAvailability {
-    static let containerIdentifier = "iCloud.fr.vincentlauriat.roomscanner"
-    /// Préférence utilisateur (réglages) ; `true` par défaut.
+    static let containerIdentifier = "iCloud.io.github.itsmebablu.dwalkscan"
+    /// User preference (settings); `true` by default.
     static let preferenceKey = "RoomScannerUseICloud"
 
     static var isEnabledByUser: Bool {
         UserDefaults.standard.object(forKey: preferenceKey) == nil ? true : UserDefaults.standard.bool(forKey: preferenceKey)
     }
 
-    /// Un compte iCloud est-il connecté sur l'appareil ?
+    /// Is an iCloud account signed in on the device?
     static var isSignedIn: Bool { FileManager.default.ubiquityIdentityToken != nil }
 
-    /// `Documents/` du conteneur (le dossier public « 3D Scanner » de Fichiers / Finder).
+    /// `Documents/` container folder (public 'dWalkScan' folder in Files / Finder).
     static func documentsURL(containerURL: URL) -> URL {
         containerURL.appendingPathComponent("Documents", isDirectory: true)
     }
 
-    /// Emplacement iCloud, ou `nil` si pas de compte, conteneur absent ou désactivé par l'utilisateur.
-    /// À appeler depuis une tâche détachée.
+    /// iCloud location, or `nil` if signed out, container absent, or disabled.
+    /// Must be called from a detached background task.
     nonisolated static func resolveLocation() -> StorageLocation? {
         guard isEnabledByUser, isSignedIn,
               let container = FileManager.default.url(forUbiquityContainerIdentifier: containerIdentifier) else { return nil }
         return StorageLocation(kind: .iCloud, documentsURL: documentsURL(containerURL: container))
     }
 
-    /// Déplace dans iCloud les paquets et exports locaux qui n'y sont pas encore
-    /// (`setUbiquitous`). Un paquet déjà présent côté iCloud est laissé en place :
-    /// la copie locale est conservée, jamais écrasée. Renvoie le nombre d'éléments déplacés.
+    /// Migrates local packages and exports to iCloud if not already present
+    /// (`setUbiquitous`). Packages already present in iCloud are preserved:
+    /// the local copy is retained without overwriting. Returns count moved.
     @discardableResult
     nonisolated static func migrate(from local: StorageLocation, to cloud: StorageLocation, fileManager fm: FileManager = .default) throws -> Int {
         guard local.kind == .local, cloud.kind == .iCloud, local.documentsURL != cloud.documentsURL else { return 0 }

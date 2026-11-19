@@ -8,11 +8,11 @@ final class PlanRendererTests: XCTestCase {
     }
 
     func testStandardScaleFitsA4Landscape() {
-        // Pièce 4 × 3 m + marges de cotes (5,1 × 4,1 m). À 1:25 (113 pt/m) il faut 578 × 465 pt.
+        // Room 4 x 3 m + dimension margins (5.1 x 4.1 m). At 1:25 (113 pt/m) needs 578 x 465 pt.
         let b = Rect2D(minX: -2, minY: -1.5, maxX: 2, maxY: 1.5)
         XCTAssertEqual(PlanRenderer.standardScale(fitting: b, into: CGSize(width: 750, height: 500)), 25)
         XCTAssertEqual(PlanRenderer.standardScale(fitting: b, into: CGSize(width: 750, height: 400)), 50, "trop bas pour 1:25 → 1:50")
-        // Grande maison 30 × 20 m (31,1 × 21,1 m) : 1:100 demande 881 × 598 pt.
+        // Large house 30 x 20 m (31.1 x 21.1 m): 1:100 needs 881 x 598 pt.
         XCTAssertEqual(PlanRenderer.standardScale(fitting: Rect2D(minX: 0, minY: 0, maxX: 30, maxY: 20), into: CGSize(width: 900, height: 620)), 100)
         XCTAssertEqual(PlanRenderer.standardScale(fitting: Rect2D(minX: 0, minY: 0, maxX: 30, maxY: 20), into: CGSize(width: 750, height: 400)), 200)
         // Minuscule zone → l'échelle la plus petite disponible
@@ -55,7 +55,7 @@ final class PlanRendererTests: XCTestCase {
     func testInteriorSideOnLShape() {
         let plan = FloorPlanBuilder().build(from: SyntheticRooms.lShapedRoom(), name: "L")
         let side = PlanRenderer.InteriorSide(polygon: plan.floorPolygon, fallback: plan.bounds.center)
-        // Mur rentrant (3,3)→(3,5) : l'intérieur est à gauche (x < 3), le centroïde de l'englobant est à droite.
+        // Reentrant wall (3,3)->(3,5): interior on left (x < 3), bounding box centroid on right.
         let inner = plan.walls.first { abs($0.start.x - 3) < 0.01 && abs($0.end.x - 3) < 0.01 }!
         let inward = side.inward(of: inner.segment)
         XCTAssertTrue(Polygon2D.contains(plan.floorPolygon, inner.segment.midpoint + inward * 0.05))
@@ -93,7 +93,7 @@ final class PlanRendererTests: XCTestCase {
         XCTAssertTrue(String(decoding: PlanRenderer().pdfData(empty).prefix(4), as: UTF8.self) == "%PDF")
     }
 
-    /// Écrit des rendus dans `<tmp>/RoomScannerPlanSamples` pour inspection visuelle.
+    /// Writes renderings to `<tmp>/RoomScannerPlanSamples` for visual inspection.
     func testWriteSamplesForInspection() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("RoomScannerPlanSamples", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

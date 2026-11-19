@@ -8,7 +8,7 @@ final class PlanMeshBuilderTests: XCTestCase {
     func testGroupsAndCounts() {
         let mesh = PlanMeshBuilder().build(House(room: plan))
         XCTAssertEqual(mesh.groups.map(\.name), ["walls", "doors", "windows", "floor", "objects"])
-        // Murs : sud (2 portions + linteau), est, nord (2 portions + allège + linteau), ouest = 9 boîtes × 12 triangles.
+        // Walls: south (2 portions + lintel), east, north (2 portions + sill + lintel), west = 9 boxes x 12 triangles.
         let boxes = plan.walls.reduce(0) { acc, wall in acc + WallGeometry().wallBoxes(wall, openings: plan.openings.filter { $0.wallID == wall.id }).count }
         XCTAssertEqual(boxes, 9)
         XCTAssertEqual(mesh.groups[0].triangles.count, boxes * 12)
@@ -24,14 +24,14 @@ final class PlanMeshBuilderTests: XCTestCase {
     func testBoundsMatchRoom() throws {
         let mesh = PlanMeshBuilder().build(House(room: plan))
         let b = try XCTUnwrap(mesh.bounds)
-        // 4 × 3 m centrés à l'origine, murs de 10 cm centrés sur le segment ; dalle 5 cm sous le sol ; plafond 2.5 m.
+        // 4 x 3 m centered at origin, 10 cm walls centered on segment; 5 cm slab below floor; 2.5 m ceiling.
         XCTAssertEqual(b.min.x, -2.05, accuracy: 0.001); XCTAssertEqual(b.max.x, 2.05, accuracy: 0.001)
         XCTAssertEqual(b.min.z, -1.55, accuracy: 0.001); XCTAssertEqual(b.max.z, 1.55, accuracy: 0.001)
         XCTAssertEqual(b.min.y, -0.05, accuracy: 0.001); XCTAssertEqual(b.max.y, 2.5, accuracy: 0.001)
     }
 
     func testOutwardNormals() {
-        // Pour une boîte convexe, chaque normale de face pointe à l'opposé du centre de la boîte.
+        // For a convex box, each face normal points away from the box center.
         var mesh = TriangleMesh()
         let box = WallGeometry.Box(segment: Segment2D(start: Point2D(x: 0, y: 0), end: Point2D(x: 2, y: 0)), bottom: 0, top: 1, thickness: 0.2)
         PlanMeshBuilder.addBox(box, transform: .identity, to: &mesh)

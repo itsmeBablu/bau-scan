@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Feuille d'export d'une pièce ou d'une maison (`ExportSubject`) : choix du format, génération dans un dossier
-/// temporaire, puis partage (`ShareLink`), enregistrement via le sélecteur système
-/// ou copie dans `Exports/` du stockage courant (iCloud Drive en phase 7).
+/// Export sheet for room or house (`ExportSubject`): format picker, generation in temporary folder,
+/// sharing (`ShareLink`), saving via system file exporter,
+/// or copies into `Exports/` folder of current storage.
 struct ExportSheet: View {
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -67,7 +67,7 @@ struct ExportSheet: View {
         #endif
     }
 
-    /// Pied fixe : fichier produit + actions. Reste visible pendant que la liste défile.
+    /// Fixed footer: generated file + action buttons. Stays visible while list scrolls.
     private var footer: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {

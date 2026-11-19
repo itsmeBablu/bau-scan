@@ -2,13 +2,13 @@ import Foundation
 import simd
 @testable import RoomScanner
 
-/// Pièces synthétiques construites dans le repère RoomPlan (Y haut, sol XZ),
+/// Synthetic rooms built in RoomPlan coordinate system (Y up, XZ floor),
 /// à partir de contours donnés en coordonnées *plan* (x droite, y haut de feuille).
 enum SyntheticRooms {
     static let wallHeight: Float = 2.5
 
-    /// Mur RoomPlan reliant deux points du plan : centre au milieu, axe X local
-    /// le long du mur (`xAxis = (cos yaw, 0, −sin yaw)` ⇒ `yaw = atan2(dy, dx)`).
+    /// RoomPlan wall connecting two plan points: center in middle, local X axis
+    /// along wall (`xAxis = (cos yaw, 0, -sin yaw)` => `yaw = atan2(dy, dx)`).
     static func wall(from a: Point2D, to b: Point2D, height: Float = wallHeight, id: UUID = UUID(), confidence: Confidence = .high) -> ScanSurface {
         let mid = (a + b) * 0.5
         let dx = b.x - a.x, dy = b.y - a.y
@@ -17,7 +17,7 @@ enum SyntheticRooms {
         return ScanSurface(id: id, category: .wall, dimensions: SIMD3(length, height, 0), transform: t, confidence: confidence)
     }
 
-    /// Ouverture posée sur un mur : `along` ∈ [0,1] position le long du mur.
+    /// Opening on a wall: `along` in [0,1] position along the wall.
     static func opening(_ category: ScanSurface.Category, on wall: ScanSurface, from a: Point2D, to b: Point2D,
                         along: Double, width: Float, height: Float, bottom: Float, parent: Bool = true) -> ScanSurface {
         let p = a + (b - a) * along
@@ -31,14 +31,14 @@ enum SyntheticRooms {
                    transform: .roomPlacement(x: Float(center.x), y: height / 2, z: Float(-center.y), yaw: yaw))
     }
 
-    /// Murs fermant un contour (dans l'ordre des points), sol optionnel.
+    /// Walls closing a contour (in point order), optional floor.
     static func walls(closing polygon: [Point2D]) -> [ScanSurface] {
         polygon.indices.map { wall(from: polygon[$0], to: polygon[($0 + 1) % polygon.count]) }
     }
 
     // MARK: - Pièces
 
-    /// Rectangle 4 m × 3 m centré à l'origine, porte au sud, fenêtre au nord, une table.
+    /// Rectangle 4 m x 3 m centered at origin, door to south, window to north, a table.
     static let rectangleCorners = [Point2D(x: -2, y: -1.5), Point2D(x: 2, y: -1.5), Point2D(x: 2, y: 1.5), Point2D(x: -2, y: 1.5)]
 
     static func rectangularRoom(withParentIDs: Bool = true) -> (scan: ScanInput, south: ScanSurface, north: ScanSurface) {
@@ -56,7 +56,7 @@ enum SyntheticRooms {
         return (scan, south, north)
     }
 
-    /// Pièce en L : 6 m × 5 m moins un carré 3 × 2 → 24 m², périmètre 22 m.
+    /// L-shaped room: 6 m x 5 m minus 3 x 2 square -> 24 m2, perimeter 22 m.
     static let lShapeCorners = [Point2D(x: 0, y: 0), Point2D(x: 6, y: 0), Point2D(x: 6, y: 3),
                                 Point2D(x: 3, y: 3), Point2D(x: 3, y: 5), Point2D(x: 0, y: 5)]
 
@@ -66,7 +66,7 @@ enum SyntheticRooms {
 
     // MARK: - Maisons (v2)
 
-    /// Rectangle `w` × `d` dont le coin bas-gauche est `origin`, sol à la hauteur `floorY`, avec une porte au sud.
+    /// Rectangle `w` x `d` with lower-left corner at `origin`, floor at `floorY`, with south door.
     static func rectangularRoom(origin: Point2D, width w: Double, depth d: Double, floorY: Float = 0, label: RoomLabel = .unidentified) -> ScanInput {
         let c = [origin, origin + Point2D(x: w, y: 0), origin + Point2D(x: w, y: d), origin + Point2D(x: 0, y: d)]
         var surfaces = c.indices.map { i -> ScanSurface in
@@ -80,7 +80,7 @@ enum SyntheticRooms {
         return ScanInput(sectionLabels: [label], surfaces: surfaces)
     }
 
-    /// Deux pièces mitoyennes (4 × 3 m et 3 × 3 m) sur un même niveau, mur commun en x = 4.
+    /// Two adjacent rooms (4 x 3 m and 3 x 3 m) on same level, shared wall at x = 4.
     static func twoRoomApartment() -> StructureInput {
         StructureInput(rooms: [
             rectangularRoom(origin: Point2D(x: 0, y: 0), width: 4, depth: 3, label: .livingRoom),
@@ -88,7 +88,7 @@ enum SyntheticRooms {
         ])
     }
 
-    /// Maison à étage : deux pièces au sol (y = 0 et 0.02 : tolérance) et une chambre à 2.7 m.
+    /// Multi-story house: two ground floor rooms (y = 0 and 0.02: tolerance) and bedroom at 2.7 m.
     static func twoStoryHouse() -> StructureInput {
         StructureInput(rooms: [
             rectangularRoom(origin: Point2D(x: 0, y: 0), width: 4, depth: 3, label: .livingRoom),

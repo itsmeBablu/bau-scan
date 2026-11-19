@@ -1,6 +1,6 @@
 import Foundation
 
-/// Élément de la bibliothèque : une pièce ou une maison (sélection Mac, navigation iOS).
+/// Library item: a room or house (Mac selection, iOS navigation).
 enum LibraryItem: Hashable, Identifiable {
     case room(RoomRecord)
     case house(HouseRecord)

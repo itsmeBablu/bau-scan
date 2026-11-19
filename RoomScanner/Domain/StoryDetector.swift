@@ -1,12 +1,12 @@
 import Foundation
 
-/// Regroupe des pièces en niveaux d'après la hauteur de leur sol (D27) : les hauteurs
-/// à moins de `tolerance` l'une de l'autre forment un même niveau ; le plus bas est 0.
-/// Les niveaux restent éditables ensuite — ceci n'est qu'une proposition.
+/// Groups rooms into stories based on floor elevation (D27): elevations
+/// within `tolerance` form the same story; lowest story is 0.
+/// Stories remain editable later — this is an initial suggestion.
 struct StoryDetector {
     var tolerance: Double = 0.5
 
-    /// Index de niveau par identifiant de pièce.
+    /// Story index by room identifier.
     func stories(floorHeights: [UUID: Double]) -> [UUID: Int] {
         let sorted = floorHeights.sorted { $0.value < $1.value }
         var result: [UUID: Int] = [:]
@@ -19,7 +19,7 @@ struct StoryDetector {
         return result
     }
 
-    /// Hauteur du sol d'un scan (m, repère RoomPlan) : premier sol connu, sinon bas des murs.
+    /// Floor elevation of a scan (m, RoomPlan): first known floor, else wall bottom.
     static func floorHeight(of scan: ScanInput) -> Double {
         if let f = scan.floors.first { return Double(f.transform.translation.y) }
         let bottoms = scan.walls.map { Double($0.transform.translation.y) - Double($0.dimensions.y) / 2 }
@@ -27,7 +27,7 @@ struct StoryDetector {
     }
 }
 
-/// Noms de niveaux (« Rez-de-chaussée », « Étage 1 »…), clés localisées.
+/// Story names ('Ground floor', 'Floor 1'...), localized keys.
 enum StoryNaming {
     static func localizationKey(for index: Int) -> String { index == 0 ? "story.ground" : "story.upper %lld" }
     static func localizedName(for index: Int) -> String {

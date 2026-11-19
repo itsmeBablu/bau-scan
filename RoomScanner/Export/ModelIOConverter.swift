@@ -1,9 +1,9 @@
 import Foundation
 import ModelIO
 
-/// Convertit un fichier 3D lisible par Model I/O (USDZ/USD du scan) vers OBJ, STL ou
-/// PLY. Model I/O importe l'USDZ et exporte ces trois formats sur iOS et macOS,
-/// mais ne sait **pas** écrire d'USDZ (vérifié). À appeler hors du main thread.
+/// Converts a Model I/O readable 3D file (USDZ/USD scan) to OBJ, STL, or
+/// PLY. Model I/O imports USDZ and exports these formats on iOS and macOS,
+/// but cannot export USDZ directly. Call off main thread.
 enum ModelIOConverter {
     enum ConversionError: LocalizedError {
         case unsupported(String), emptyAsset

@@ -1,17 +1,17 @@
 #if canImport(RoomPlan)
 import SwiftUI
 
-/// Écran de scan plein écran : guidage Apple, Annuler / Terminer, traitement,
-/// puis enregistrement dans le `RoomStore` et retour à la liste.
-/// Mode maison : « Pièce suivante » enchaîne les pièces dans le même repère, « Terminer la maison »
-/// fusionne et enregistre un `.housescan`.
+/// Full-screen scan view: guidance, Cancel / Done, processing,
+/// saving to `RoomStore` and returning to library.
+/// House mode: 'Next Room' captures another room in same coordinates, 'Finish House'
+/// merges and saves a `.housescan` package.
 struct ScanView: View {
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var coordinator: ScanCoordinator
     @State private var saveError: AppError?
     let mode: ScanMode
-    /// Élément créé (pièce ou maison), transmis à l'appelant pour l'ouvrir.
+    /// Created item (room or house) passed to caller to display.
     var onSaved: (LibraryItem) -> Void
 
     init(mode: ScanMode = .room, onSaved: @escaping (LibraryItem) -> Void = { _ in }) {

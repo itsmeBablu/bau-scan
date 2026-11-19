@@ -30,11 +30,11 @@ final class ArchiveExporterTests: XCTestCase {
     func testReadmeMentionsFilesAndMeasurements() {
         let record = RoomRecord(plan: plan)
         let readme = ArchiveExporter.readme(record: record, plan: plan, files: [("Salon.pdf", .pdf), ("Salon.dxf", .dxf)], locale: Locale(identifier: "fr_FR"))
-        XCTAssertTrue(readme.hasPrefix("3D Scanner — Salon\n"))
+        XCTAssertTrue(readme.hasPrefix("dWalkScan — Salon\n"))
         XCTAssertTrue(readme.contains("Salon.pdf")); XCTAssertTrue(readme.contains("Salon.dxf"))
         XCTAssertTrue(readme.contains("12") && readme.contains("m²"), "surface 12 m²")
         XCTAssertTrue(readme.contains("4") && readme.contains("1"), "4 murs, 1 porte, 1 fenêtre")
-        XCTAssertTrue(readme.contains("https://vincentlauriat.github.io/3DScanner/"))
+        XCTAssertTrue(readme.contains("https://github.com/itsmeBablu/d-walk-scan"))
     }
 
     func testExportServiceZipContainsEverything() throws {

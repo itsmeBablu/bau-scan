@@ -45,7 +45,7 @@ final class FloorPlanBuilderTests: XCTestCase {
         XCTAssertEqual(window.width, 1.2, accuracy: 0.001)
         XCTAssertEqual(window.height, 1.0, accuracy: 0.001)
         XCTAssertEqual(window.sillHeight, 1.0, accuracy: 0.001, "allège = bas de la fenêtre − sol")
-        // La trace au sol de la porte reste sur le mur sud.
+        // Floor footprint of the door remains on the south wall.
         XCTAssertEqual(door.segment.start.y, -1.5, accuracy: 0.001)
         XCTAssertEqual(door.segment.length, 0.9, accuracy: 0.001)
     }
@@ -80,7 +80,7 @@ final class FloorPlanBuilderTests: XCTestCase {
     }
 
     func testFloorFallsBackToBoundingBoxWhenWallsDoNotClose() {
-        // Trois murs seulement : le contour ne se referme pas → englobant.
+        // Three walls only: contour does not close -> bounding box.
         var walls = SyntheticRooms.walls(closing: SyntheticRooms.rectangleCorners)
         walls.removeLast()
         let plan = builder.build(from: ScanInput(surfaces: walls), name: "Partiel")

@@ -2,14 +2,14 @@ import SwiftUI
 import RealityKit
 
 /// Visualiseur `RealityView` commun iOS / macOS (D13).
-/// - 3D : caméra virtuelle + contrôles orbite du framework.
-/// - 2D : murs aplatis, caméra au zénith verrouillée, glisser / pincer.
-/// - AR (iOS) : caméra `.spatialTracking`, maquette ancrée sur un plan horizontal.
+/// - 3D: virtual camera with framework orbit controls.
+/// - 2D: flattened walls, locked zenith camera, drag/pinch pan-zoom.
+/// - AR (iOS): `.spatialTracking` camera, model anchored on horizontal plane.
 struct ViewerView: View {
     let house: House
     @Bindable var state: ViewerState
 
-    /// Racine de la scène, reconstruite quand les options changent.
+    /// Root of the scene, rebuilt when visual options change.
     @State private var sceneRoot = Entity()
     @State private var camera = PerspectiveCamera()
     @State private var twoDPan: CGSize = .zero
@@ -44,10 +44,10 @@ struct ViewerView: View {
         #if os(iOS)
         .onChange(of: state.arScale) { _, _ in ar.apply(scale: state.arScale, to: sceneRoot) }
         #endif
-        .background(Color(white: 0.12))
+        .background(AppTheme.darkCharcoal)
     }
 
-    // MARK: - Scène
+    // MARK: - Scene
 
     private func rebuildScene() {
         var builder = PlanSceneBuilder()
@@ -55,11 +55,11 @@ struct ViewerView: View {
         builder.options.showObjects = state.showObjects
         builder.options.flattenWalls = state.mode == .twoD
         let fresh = builder.makeScene(for: house)
-        // Remplace les enfants en gardant la même entité racine (déjà ajoutée au contenu).
+        // Replaces children while preserving root entity (already attached to content).
         for child in sceneRoot.children.map({ $0 }) { child.removeFromParent() }
         for child in fresh.children.map({ $0 }) { sceneRoot.addChild(child) }
-        // Recentre la maison sur l'origine : les contrôles orbite de RealityView pivotent
-        // autour de l'origine du monde, et l'ancre AR pose la maquette par son centre.
+        // Recenters house at origin: RealityView orbit controls rotate
+        // around world origin, and AR anchor places model by its center.
         let b = house.bounds
         sceneRoot.position = b.isEmpty ? .zero : SIMD3(Float(-b.center.x), 0, Float(b.center.y))
         #if os(iOS)
@@ -89,7 +89,7 @@ struct ViewerView: View {
         frameCamera()
     }
 
-    /// Cadre la maison (centrée sur l'origine) : vue 3/4 en 3D, zénith en 2D.
+    /// Frames house (centered at origin): 3/4 view in 3D, top-down zenith in 2D.
     private func frameCamera() {
         let b = house.bounds
         let radius = Float(max(b.width, b.height, 2))

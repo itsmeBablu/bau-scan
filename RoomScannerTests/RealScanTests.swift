@@ -1,8 +1,8 @@
 import XCTest
 @testable import RoomScanner
 
-/// Scan réel (salle à manger ouverte sur cuisine, iPhone 16 Pro, 2026-09-05) : ce que RoomPlan
-/// livre vraiment — 22 murs non chaînables, sol à 44 sommets, repère monde incliné.
+/// Real scan (dining open to kitchen, iPhone 16 Pro, 2026-09-05): what RoomPlan
+/// actually produces - 22 unchainable walls, 44-vertex floor, tilted world coordinates.
 final class RealScanTests: XCTestCase {
     static func load(_ name: String) throws -> ScanInput {
         let url = try XCTUnwrap(Bundle(for: RealScanTests.self).url(forResource: name, withExtension: "json"), "fixture \(name).json absente du bundle de tests")
@@ -17,9 +17,9 @@ final class RealScanTests: XCTestCase {
         XCTAssertLessThan(plan.floorPolygon.count, 44, "sommets colinéaires simplifiés")
         let area = RoomMeasurements(plan: plan).floorArea
         let b = plan.bounds
-        XCTAssertLessThan(area, b.width * b.height * 0.95, "la surface du polygone est inférieure à celle de l'englobant")
+        XCTAssertLessThan(area, b.width * b.height * 0.95, "polygon area is smaller than bounding box area")
         XCTAssertGreaterThan(area, 20); XCTAssertLessThan(area, 54, "l'ancienne valeur (englobant) était 54,4 m²")
-        // Le contour du sol est contenu dans l'englobant des murs (à 30 cm près).
+        // Floor contour is contained within wall bounding box (within 30 cm).
         let wallsBounds = Rect2D.bounding(plan.walls.flatMap { [$0.start, $0.end] }).insetBy(0.3)
         for p in plan.floorPolygon { XCTAssertTrue(p.x >= wallsBounds.minX && p.x <= wallsBounds.maxX && p.y >= wallsBounds.minY && p.y <= wallsBounds.maxY, "\(p)") }
     }
@@ -29,14 +29,14 @@ final class RealScanTests: XCTestCase {
         let plan = FloorPlanBuilder().build(from: scan, name: "Salle à manger")
         let longest = try XCTUnwrap(plan.walls.max { $0.length < $1.length })
         XCTAssertEqual(abs(sin(longest.segment.angle)), 0, accuracy: 1e-6, "mur le plus long horizontal")
-        // Sans alignement, ce même mur est incliné.
+        // Without alignment, this same wall is tilted.
         var raw = FloorPlanBuilder(); raw.alignToLongestWall = false
         let rawLongest = try XCTUnwrap(raw.build(from: scan, name: "x").walls.max { $0.length < $1.length })
         XCTAssertGreaterThan(abs(sin(rawLongest.segment.angle)), 0.1)
-        // Les longueurs et la surface sont invariantes par rotation.
+        // Lengths and area are invariant under rotation.
         XCTAssertEqual(longest.length, rawLongest.length, accuracy: 1e-6)
         XCTAssertEqual(RoomMeasurements(plan: plan).floorArea, RoomMeasurements(plan: raw.build(from: scan, name: "x")).floorArea, accuracy: 1e-6)
-        // Les ouvertures restent sur leur mur après rotation.
+        // Openings remain on their wall after rotation.
         for o in plan.openings { if let w = plan.wall(withID: o.wallID) { XCTAssertLessThan(w.segment.distance(to: o.center), 0.15) } }
     }
 
@@ -48,7 +48,7 @@ final class RealScanTests: XCTestCase {
         let mesh = PlanMeshBuilder().build(house)
         XCTAssertFalse(mesh.normals.contains { $0.x.isNaN || $0.y.isNaN || $0.z.isNaN })
         XCTAssertFalse(mesh.isEmpty)
-        // Échantillons pour inspection.
+        // Samples for inspection.
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("RoomScannerRealScan", isDirectory: true)
         try? FileManager.default.removeItem(at: dir); try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         try PlanRenderer().pdfData(house).write(to: dir.appendingPathComponent("dining-room.pdf"))
@@ -60,7 +60,7 @@ final class RealScanTests: XCTestCase {
         let scan = try Self.load("dining-room.scan")
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("RealScanStore-\(UUID().uuidString)")
         let store = RoomStore(location: StorageLocation(kind: .local, documentsURL: tmp), allowsCloud: false)
-        // Ancien plan (englobant, incliné) tel qu'écrit par une version précédente.
+        // Old floor plan (bounding box, tilted) as written by previous version.
         var old = FloorPlanBuilder(); old.alignToLongestWall = false
         var oldPlan = old.build(from: scan, name: "Salle à manger"); oldPlan.floorPolygon = []
         let rec = try store.save(RoomPackage(record: RoomRecord(plan: oldPlan), plan: oldPlan, scan: scan))

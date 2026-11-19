@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Réglages : iCloud Drive, dossier « 3D Scanner », mises à jour (Mac), à propos.
+/// Settings: iCloud Drive, 'dWalkScan' folder, measurements (mm / m), updates (Mac), about.
 struct SettingsView: View {
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @AppStorage(CloudAvailability.preferenceKey) private var useICloud = true
+    @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
     #if os(macOS)
     @Environment(UpdaterController.self) private var updater
     @State private var autoCheck = true
@@ -25,7 +26,7 @@ struct SettingsView: View {
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("common.close") { dismiss() } } }
         }
         #else
-        form.frame(width: 480).frame(minHeight: 380)
+        form.frame(width: 480).frame(minHeight: 420)
         #endif
     }
 
@@ -47,6 +48,16 @@ struct SettingsView: View {
                 Button { openLibraryFolder() } label: { Label("settings.openFolder", systemImage: "folder") }
             } header: { Text("settings.icloud.header") } footer: { Text("settings.icloud.footer") }
 
+            Section("settings.measurements.header") {
+                Picker("settings.measurements.unit", selection: $unit) {
+                    Text("settings.unit.both").tag(MeasurementUnit.both)
+                    Text("settings.unit.millimeters").tag(MeasurementUnit.millimeters)
+                    Text("settings.unit.meters").tag(MeasurementUnit.meters)
+                }
+            } footer: {
+                Text("settings.measurements.footer")
+            }
+
             #if os(macOS)
             Section("settings.updates.header") {
                 Toggle("settings.updates.auto", isOn: $autoCheck)
@@ -62,9 +73,20 @@ struct SettingsView: View {
             #endif
 
             Section("settings.about.header") {
+                HStack(spacing: 14) {
+                    BrandLogoView(size: 44)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("dWalkScan").font(.headline)
+                        Text("Babu Reddy").font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+
                 LabeledContent("settings.about.version", value: version)
-                Link(destination: URL(string: "https://vincentlauriat.github.io/3DScanner/")!) { Label("settings.about.website", systemImage: "globe") }
-                Link(destination: URL(string: "https://github.com/vincentlauriat/3DScanner")!) { Label("settings.about.source", systemImage: "chevron.left.forwardslash.chevron.right") }
+                // Redirect to GitHub repo only — project website is ignored and not redirected
+                Link(destination: URL(string: "https://github.com/itsmeBablu/d-walk-scan")!) {
+                    Label("settings.about.source", systemImage: "chevron.left.forwardslash.chevron.right")
+                }
             }
         }
         .formStyle(.grouped)
@@ -75,7 +97,7 @@ struct SettingsView: View {
         #if os(macOS)
         NSWorkspace.shared.open(store.location.documentsURL)
         #else
-        // Fichiers ouvre le dossier via le schéma shareddocuments://.
+        // Files app opens folder via shareddocuments:// URL scheme.
         var comps = URLComponents(url: store.location.documentsURL, resolvingAgainstBaseURL: false)
         comps?.scheme = "shareddocuments"
         if let url = comps?.url { UIApplication.shared.open(url) }

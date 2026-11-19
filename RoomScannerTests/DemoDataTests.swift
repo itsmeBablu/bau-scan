@@ -2,7 +2,7 @@ import XCTest
 @testable import RoomScanner
 
 /// Écrit un stockage de démonstration `<tmp>/RoomScannerDemo` (deux pièces) utilisé
-/// pour lancer l'app avec `-RoomScannerStorageRoot` (captures d'écran, essais manuels).
+/// to launch the app with `-RoomScannerStorageRoot` (screenshots, manual testing).
 @MainActor
 final class DemoDataTests: XCTestCase {
     static let demoRoot = FileManager.default.temporaryDirectory.appendingPathComponent("RoomScannerDemo", isDirectory: true)

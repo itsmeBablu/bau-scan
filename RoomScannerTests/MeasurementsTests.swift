@@ -30,19 +30,28 @@ final class MeasurementsTests: XCTestCase {
     func testFormattingFrench() {
         let fr = Locale(identifier: "fr_FR")
         XCTAssertEqual(MeasurementFormat.centimeters(4.004, locale: fr), "400 cm")
+        XCTAssertTrue(MeasurementFormat.millimeters(4.004, locale: fr).contains("4") && MeasurementFormat.millimeters(4.004, locale: fr).contains("mm"))
         XCTAssertEqual(MeasurementFormat.squareMeters(12.04, locale: fr), "12,0 m²")
         XCTAssertEqual(MeasurementFormat.meters(2.5, locale: fr), "2,50 m")
+        XCTAssertEqual(MeasurementFormat.length(2.5, unit: .meters, locale: fr), "2,50 m")
     }
 
     func testFormattingEnglish() {
         let en = Locale(identifier: "en_US")
         XCTAssertEqual(MeasurementFormat.centimeters(1.2, locale: en), "120 cm")
+        XCTAssertEqual(MeasurementFormat.millimeters(1.2, locale: en), "1,200 mm")
+        XCTAssertEqual(MeasurementFormat.meters(1.2, locale: en), "1.20 m")
+        XCTAssertEqual(MeasurementFormat.length(1.2, unit: .both, locale: en), "1,200 mm (1.20 m)")
         XCTAssertEqual(MeasurementFormat.squareMeters(29.94, locale: en), "29.9 m²")
+        XCTAssertEqual(MeasurementFormat.openingWidth(0.9, unit: .meters, locale: en), "0.90 m")
+        XCTAssertEqual(MeasurementFormat.openingHeight(2.1, unit: .meters, locale: en), "2.10 m")
+        XCTAssertEqual(MeasurementFormat.parapetHeight(0.9, unit: .meters, locale: en), "BRH: 0.90 m")
+        XCTAssertEqual(MeasurementFormat.parapetHeight(0.9, unit: .millimeters, locale: en), "BRH: 900 mm")
     }
 
     func testBoundsIncludeObjectCorners() {
         var plan = FloorPlanBuilder().build(from: SyntheticRooms.rectangularRoom().scan, name: "Salon")
-        // Table 1.2 × 0.8 placée à cheval sur le mur est (x = 2) : ses coins dépassent l'englobant des murs.
+        // Table 1.2 x 0.8 placed across east wall (x = 2): corners extend beyond wall bounds.
         plan.objects[0].center = Point2D(x: 2.0, y: 0); plan.objects[0].angle = 0
         XCTAssertEqual(plan.bounds.maxX, 2.6, accuracy: 1e-4)
         XCTAssertEqual(plan.bounds.minX, -2.0, accuracy: 1e-4)

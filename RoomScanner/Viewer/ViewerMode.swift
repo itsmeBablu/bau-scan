@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// Modes du visualiseur : 3D orbite, 2D vue de dessus, AR (iOS).
+/// Viewer modes: 3D orbit, 2D top-down view, AR (iOS).
 enum ViewerMode: String, CaseIterable, Identifiable {
     case threeD, twoD, ar
     var id: String { rawValue }
@@ -19,7 +19,7 @@ enum ViewerMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// Échelle de la maquette en AR.
+/// AR tabletop model scale factor.
 enum ARScale: Double, CaseIterable, Identifiable {
     case oneToTwenty = 0.05
     case oneToFifty = 0.02
@@ -30,7 +30,7 @@ enum ARScale: Double, CaseIterable, Identifiable {
     }
 }
 
-/// État partagé du visualiseur (contrôles ↔ scène).
+/// Shared viewer state (controls ↔ scene).
 @Observable
 @MainActor
 final class ViewerState {
@@ -38,6 +38,6 @@ final class ViewerState {
     var showDimensions = false
     var showObjects = true
     var arScale: ARScale = .oneToFifty
-    /// Incrémenté pour demander un recentrage / une réinitialisation d'ancrage.
+    /// Incremented to request recentering or anchor reset.
     var resetToken = 0
 }

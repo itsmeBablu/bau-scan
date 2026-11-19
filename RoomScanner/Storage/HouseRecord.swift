@@ -1,7 +1,7 @@
 import Foundation
 
-/// Métadonnées d'une maison (`meta.json` du paquet `.housescan`) : ce que la
-/// bibliothèque affiche sans ouvrir le modèle.
+/// House metadata (`meta.json` in `.housescan` package): displayed in
+/// library without opening the full model.
 struct HouseRecord: Codable, Equatable, Identifiable, Hashable {
     var id: UUID
     var name: String

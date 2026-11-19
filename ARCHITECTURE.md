@@ -1,6 +1,6 @@
-# Architecture — 3D Scanner (miroir français)
+# Architecture — dWalkScan (miroir français)
 
-**Plateformes :** iPhone (iOS 18+, LiDAR) scanne, visualise, exporte · Mac (macOS 15+) visualise, mesure, exporte, imprime, se met à jour via Sparkle · iCloud Drive synchronise les deux et expose les fichiers aux apps tierces. Une seule base de code, deux cibles XcodeGen (`RoomScanner`, `RoomScannerMac`), une dépendance SPM (Sparkle, Mac seulement). Dépôt public `vincentlauriat/3DScanner`, landing page GitHub Pages (`/docs`).
+**Plateformes :** iPhone (iOS 18+, LiDAR) scanne, visualise, exporte · Mac (macOS 15+) visualise, mesure, exporte, imprime, se met à jour via Sparkle · iCloud Drive synchronise les deux et expose les fichiers aux apps tierces. Une seule base de code, deux cibles XcodeGen (`RoomScanner`, `RoomScannerMac`), une dépendance SPM (Sparkle, Mac seulement). Dépôt public `BabuReddy/dWalkScan`, landing page GitHub Pages (`/docs`).
 
 _Source de vérité : `ARCHITECTURE_EN.md`. Éditer les deux dans le même tour._
 
@@ -54,8 +54,8 @@ Tout ce qui est sous l'UI est testable sur simulateur à partir de fixtures JSON
 - **Aucun dédoublonnage au niveau maison (D26)** — sur la première vraie `CapturedStructure`, aucun identifiant de mur n'est partagé entre deux pièces : `StructureBuilder` écarte 7 murs de pièce et en synthétise 3 (52 → 48), et fusionne les 3 sols de pièce en 1. Portes, fenêtres, ouvertures et objets passent inchangés. Le mur mitoyen est donc une reconstruction, pas un doublon repérable — `StructureInput.mergedWalls` / `mergedFloors` portent les surfaces fusionnées d'Apple pour la géométrie de la maison ; les `FloorPlan` par pièce restent la source du par-pièce.
 - `ExportFormat` — `pdf, png, svg, dxf, usdzParametric, usdzMesh, obj, stl, ply, json, zip` avec `UTType`, extension, libellé localisé.
 - `RoomRecord` — `meta.json` : `id, name, createdAt, label, areaM2, storyIndex, schemaVersion`.
-- `RoomPackage` — le paquet `.roomscan` (UTType `fr.vincentlauriat.roomscanner.room`, conforme à `com.apple.package`) : `room.json`, `room.usdz`, `meta.json`, `thumbnail.png`. Vu comme un seul fichier dans Fichiers/Finder ; double-clic ouvre l'app Mac ; envoyable par AirDrop.
-- `StorageLocation` — protocole sur la racine de stockage : conteneur iCloud (`iCloud.fr.vincentlauriat.roomscanner`) si `ubiquityIdentityToken != nil`, sinon Documents local.
+- `RoomPackage` — le paquet `.roomscan` (UTType `io.github.itsmebablu.dwalkscan.room`, conforme à `com.apple.package`) : `room.json`, `room.usdz`, `meta.json`, `thumbnail.png`. Vu comme un seul fichier dans Fichiers/Finder ; double-clic ouvre l'app Mac ; envoyable par AirDrop.
+- `StorageLocation` — protocole sur la racine de stockage : conteneur iCloud (`iCloud.io.github.itsmebablu.dwalkscan`) si `ubiquityIdentityToken != nil`, sinon Documents local.
 
 ## Conventions de coordonnées
 
@@ -89,7 +89,7 @@ Tout ce qui est sous l'UI est testable sur simulateur à partir de fixtures JSON
 ## Organisation du stockage et synchronisation iCloud (D6, D16, D17)
 
 ```
-<racine>/Documents/                    racine = conteneur iCloud (affiché « iCloud Drive / 3D Scanner ») ou repli local
+<racine>/Documents/                    racine = conteneur iCloud (affiché « iCloud Drive / dWalkScan ») ou repli local
   Rooms/<uuid>.roomscan/               paquet = un seul fichier dans Fichiers / Finder
     room.json       CapturedRoom (source de vérité ; lisible sur iOS seulement)
     scan.json       ScanInput (instantané neutre)
@@ -99,7 +99,7 @@ Tout ce qui est sous l'UI est testable sur simulateur à partir de fixtures JSON
     meta.json       RoomRecord
     thumbnail.png   aperçu du plan 600×400
   Exports/<Nom de la pièce>/<Nom>.pdf|dxf|svg|usdz|obj…   « Enregistrer dans iCloud Drive » — lisible par toute app 2D/3D sur les deux appareils
-  Houses/<uuid>.housescan/             v2 — un paquet par maison (UTType fr.vincentlauriat.roomscanner.house)
+  Houses/<uuid>.housescan/             v2 — un paquet par maison (UTType io.github.itsmebablu.dwalkscan.house)
     meta.json             HouseRecord (nom, nombre de pièces/niveaux, surface)
     house.json            House (niveaux → FloorPlans, repère monde partagé) — recalculé depuis structure.json quand il existe
     structure.json        StructureInput (neutre : ScanInputs par pièce + surfaces fusionnées)
@@ -112,8 +112,8 @@ Tout ce qui est sous l'UI est testable sur simulateur à partir de fixtures JSON
 - Liste live via `NSMetadataQuery` (portée documents ubiquitaires, `*.roomscan`), badge d'état d'après les clés downloading/uploaded ; téléchargement à la demande via `startDownloadingUbiquitousItem`.
 - Toute lecture/écriture passe par `NSFileCoordinator` ; un paquet est écrit en une seule opération coordonnée pour arriver complet sur l'autre appareil.
 - Conflits (`NSFileVersion`) : la plus récente gagne, l'autre est conservée en `<nom> (conflit).roomscan` — un scan n'est jamais perdu.
-- Info.plist des deux cibles : `NSUbiquitousContainers` avec `NSUbiquitousContainerIsDocumentScopePublic = true`, `NSUbiquitousContainerName = "3D Scanner"` ; `UTExportedTypeDeclarations` pour `.roomscan` ; Mac ajoute `CFBundleDocumentTypes`.
-- Entitlements : iCloud Documents + conteneur `iCloud.fr.vincentlauriat.roomscanner` (les deux — créé automatiquement par `xcodebuild -allowProvisioningUpdates`, comme pour TheNews) ; Mac ajoute App Sandbox, fichiers choisis par l'utilisateur r/w, impression, client réseau, exceptions Sparkle `mach-lookup` (`-spks`, `-spki`) ; un `-Release.entitlements` fixe `icloud-container-environment = Production` pour le DMG.
+- Info.plist des deux cibles : `NSUbiquitousContainers` avec `NSUbiquitousContainerIsDocumentScopePublic = true`, `NSUbiquitousContainerName = "dWalkScan"` ; `UTExportedTypeDeclarations` pour `.roomscan` ; Mac ajoute `CFBundleDocumentTypes`.
+- Entitlements : iCloud Documents + conteneur `iCloud.io.github.itsmebablu.dwalkscan` (les deux — créé automatiquement par `xcodebuild -allowProvisioningUpdates`, comme pour TheNews) ; Mac ajoute App Sandbox, fichiers choisis par l'utilisateur r/w, impression, client réseau, exceptions Sparkle `mach-lookup` (`-spks`, `-spki`) ; un `-Release.entitlements` fixe `icloud-container-environment = Production` pour le DMG.
 - Les exports temporaires vivent dans `tmp/` et sont regénérés à la demande. iOS garde `UIFileSharingEnabled` + `LSSupportsOpeningDocumentsInPlace` pour le dossier local de repli.
 
 ## Gestion des erreurs
@@ -128,7 +128,7 @@ Sparkle 2 (SPM, cible Mac seulement). `SUFeedURL` → `appcast.xml` à la racine
 
 ## Livraison (D19)
 
-Dépôt public `vincentlauriat/3DScanner`. Une branche par phase `feat/phase-N-<nom>` → PR → merge sur `main`, enchaînées sans validation intermédiaire ; tags et GitHub Releases toujours confirmés par Vincent. Landing page `docs/index.html` (GitHub Pages depuis `/docs`, trilingue, `assets/base.css` du hub), une ligne dans le hub `vincentlauriat.github.io` et une entrée dans le README du profil.
+Dépôt public `BabuReddy/dWalkScan`. Une branche par phase `feat/phase-N-<nom>` → PR → merge sur `main`, enchaînées sans validation intermédiaire ; tags et GitHub Releases toujours confirmés par Vincent. Landing page `docs/index.html` (GitHub Pages depuis `/docs`, trilingue, `assets/base.css` du hub), une ligne dans le hub `BabuReddy.github.io` et une entrée dans le README du profil.
 
 ## Stratégie de test
 

@@ -1,9 +1,9 @@
 import Foundation
 import simd
 
-/// Maillage triangulé indexé, normales par face (rendu à facettes), groupes nommés.
-/// Repère : mètres, **y vers le haut**, z = −y_plan (même convention que RealityKit
-/// et que l'USDZ de RoomPlan).
+/// Indexed triangle mesh, face normals (flat faceted shading), named groups.
+/// Coordinates: meters, **Y up**, z = -y_plan (same convention as RealityKit
+/// and RoomPlan USDZ output).
 struct TriangleMesh: Equatable {
     struct Group: Equatable { var name: String; var triangles: Range<Int> }
     var positions: [SIMD3<Float>] = []
@@ -18,7 +18,7 @@ struct TriangleMesh: Equatable {
         return positions.dropFirst().reduce((f, f)) { (simd_min($0.0, $1), simd_max($0.1, $1)) }
     }
 
-    /// Ajoute un quadrilatère plan (4 sommets dans l'ordre, normale extérieure = sens trigonométrique vu de dehors).
+    /// Adds a planar quad (4 vertices in order, outward normal = counterclockwise viewed from outside).
     mutating func addQuad(_ a: SIMD3<Float>, _ b: SIMD3<Float>, _ c: SIMD3<Float>, _ d: SIMD3<Float>) {
         let cross = simd_cross(b - a, c - a)
         guard simd_length(cross) > 1e-9 else { return }   // face plate : pas de normale possible
@@ -28,7 +28,7 @@ struct TriangleMesh: Equatable {
         triangles += [SIMD3(base, base + 1, base + 2), SIMD3(base, base + 2, base + 3)]
     }
 
-    /// Ajoute un triangle avec sa normale.
+    /// Adds a triangle with its normal.
     mutating func addTriangle(_ a: SIMD3<Float>, _ b: SIMD3<Float>, _ c: SIMD3<Float>) {
         let cross = simd_cross(b - a, c - a)
         guard simd_length(cross) > 1e-9 else { return }
@@ -45,9 +45,9 @@ struct TriangleMesh: Equatable {
     }
 }
 
-/// Construit le maillage paramétrique d'une maison : murs découpés (linteaux,
-/// allèges), panneaux de portes et vitrages, dalle de sol polygonale, objets en
-/// boîtes. Résultat déterministe, identique iOS / macOS, indépendant de RoomPlan.
+/// Builds parametric mesh of a house: walls with cutouts (lintels,
+/// parapets), door and glazing panels, polygonal floor slab, placed
+/// boxes. Deterministic output, identical on iOS / macOS, independent of RoomPlan.
 struct PlanMeshBuilder {
     var floorThickness: Double = 0.05
     var includeObjects = true
@@ -88,39 +88,39 @@ struct PlanMeshBuilder {
 
     static func point(_ p: Point2D, y: Double) -> SIMD3<Float> { SIMD3(Float(p.x), Float(y), Float(-p.y)) }
 
-    /// Boîte posée sur un segment : les 6 faces avec normales extérieures.
+    /// Box sitting on a segment: 6 faces with outward normals.
     static func addBox(_ box: WallGeometry.Box, transform t: Transform2D, to mesh: inout TriangleMesh) {
         guard box.segment.length > 0, box.height > 0, box.thickness > 0 else { return }
         let seg = Segment2D(start: t.apply(box.segment.start), end: t.apply(box.segment.end))
         let n = seg.leftNormal * (box.thickness / 2)
-        // Coins au sol dans le plan : a→b le long du segment, côté +n puis −n.
+        // Footprint corners in plan: a→b along segment, sides +n then -n.
         let p0 = seg.start + n, p1 = seg.end + n, p2 = seg.end - n, p3 = seg.start - n
         let (lo, hi) = (box.bottom, box.top)
         let a0 = point(p0, y: lo), a1 = point(p1, y: lo), a2 = point(p2, y: lo), a3 = point(p3, y: lo)
         let b0 = point(p0, y: hi), b1 = point(p1, y: hi), b2 = point(p2, y: hi), b3 = point(p3, y: hi)
-        // Le passage plan (x, y) → 3D (x, −z) inverse la chiralité : les quads sont
-        // énumérés dans le sens qui donne des normales extérieures (vérifié par test).
+        // Conversion from plan (x, y) to 3D (x, -z) reverses chirality: quads are
+        // ordered to yield outward-facing normals.
         mesh.addQuad(b3, b2, b1, b0)       // dessus (+y)
         mesh.addQuad(a0, a1, a2, a3)       // dessous (−y)
-        mesh.addQuad(a0, b0, b1, a1)       // face +n (z négatif)
+        mesh.addQuad(a0, b0, b1, a1)       // face +n (negative z)
         mesh.addQuad(a2, b2, b3, a3)       // face −n
         mesh.addQuad(a1, b1, b2, a2)       // bout `end`
         mesh.addQuad(a3, b3, b0, a0)       // bout `start`
     }
 
-    /// Dalle : polygone du sol (ou rectangle englobant) triangulé dessus/dessous + flancs.
+    /// Floor slab: floor polygon (or bounding box) triangulated top/bottom + edges.
     static func addFloor(_ room: FloorPlan, transform t: Transform2D, thickness: Double, to mesh: inout TriangleMesh) {
         let b = room.bounds
         guard !b.isEmpty else { return }
         let rectangle = [Point2D(x: b.minX, y: b.minY), Point2D(x: b.maxX, y: b.minY), Point2D(x: b.maxX, y: b.maxY), Point2D(x: b.minX, y: b.maxY)]
         var poly = room.floorPolygon.count >= 3 ? room.floorPolygon : rectangle
-        // Orientation trigonométrique pour que les normales pointent dehors.
+        // Counterclockwise winding so normals point outward.
         if Polygon2D.signedArea(poly) < 0 { poly.reverse() }
         var pts = poly.map(t.apply)
         var (tris, complete) = Polygon2D.triangulation(pts)
         if !complete {
-            // Contour dégénéré : une dalle partielle avec tous ses flancs serait non fermée (rejetée à
-            // l'impression 3D). Repli sur le rectangle englobant, toujours triangulable.
+            // Degenerate contour: a partial slab with all sides would be unclosed (rejected
+            // 3D printing). Fallback to bounding rectangle, always triangulable.
             pts = rectangle.map(t.apply)
             (tris, _) = Polygon2D.triangulation(pts)
         }
@@ -131,7 +131,7 @@ struct PlanMeshBuilder {
         }
         for i in pts.indices {
             let p = pts[i], q = pts[(i + 1) % pts.count]
-            mesh.addQuad(point(q, y: -thickness), point(q, y: 0), point(p, y: 0), point(p, y: -thickness))   // flanc, normale vers l’extérieur
+            mesh.addQuad(point(q, y: -thickness), point(q, y: 0), point(p, y: 0), point(p, y: -thickness))   // side face, outward normal
         }
     }
 }

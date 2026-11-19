@@ -11,7 +11,7 @@ import AppKit
 typealias PlatformColor = NSColor
 #endif
 
-/// `PlatformColor` depuis un `CGColor` (l'initialiseur AppKit est optionnel, celui d'UIKit non).
+/// `PlatformColor` from `CGColor` (AppKit initializer is failable, UIKit is not).
 func platformColor(_ cg: CGColor) -> PlatformColor {
     #if canImport(UIKit)
     return UIColor(cgColor: cg)
@@ -20,17 +20,17 @@ func platformColor(_ cg: CGColor) -> PlatformColor {
     #endif
 }
 
-/// Construit la scène RealityKit **paramétrique** d'une maison (D13) :
-/// murs = boîtes découpées autour des ouvertures, panneaux de portes/fenêtres,
-/// sol texturé avec le plan 2D, objets, cotes 3D optionnelles.
-/// Repère : plan (x, y) → RealityKit (x, hauteur, −y), Y vers le haut, mètres.
+/// Builds RealityKit **parametric** scene for a house:
+/// walls = boxes cut around openings, door/window panels,
+/// floor textured with 2D plan, placed objects, optional 3D dimension lines.
+/// Coordinates: plan (x, y) → RealityKit (x, height, -y), Y up, meters.
 @MainActor
 struct PlanSceneBuilder {
     struct Options {
         var showObjects = true
         var showDimensions = false
         var showFloorTexture = true
-        /// Murs aplatis (mode 2D) : hauteur graphique quand `flattenWalls` est vrai.
+        /// Flattened walls (2D mode): visual height when `flattenWalls` is true.
         var flattenWalls = false
         var flattenedHeight: Float = 0.02
         var floorTexturePixelsPerMeter = 120.0
@@ -49,9 +49,9 @@ struct PlanSceneBuilder {
 
     var options = Options()
 
-    // MARK: - Scène
+    // MARK: - Scene
 
-    /// Racine contenant une entité par pièce, chacune placée par `FloorPlan.transform`.
+    /// Root containing one entity per room, positioned by `FloorPlan.transform`.
     func makeScene(for house: House) -> Entity {
         let root = Entity()
         root.name = Names.root
@@ -66,7 +66,7 @@ struct PlanSceneBuilder {
         return root
     }
 
-    /// `floorTint` : teinte de sol de la pièce dans une maison (palette `PlanRenderer.roomPalette`).
+    /// `floorTint`: room floor tint within a house (palette `PlanRenderer.roomPalette`).
     func makeRoom(_ room: FloorPlan, floorTint: CGColor? = nil) -> Entity {
         let roomEntity = Entity()
         let walls = Entity(); walls.name = Names.walls
@@ -96,17 +96,17 @@ struct PlanSceneBuilder {
         return roomEntity
     }
 
-    // MARK: - Géométrie des murs
+    // MARK: - Wall Geometry
 
     typealias WallBox = WallGeometry.Box
 
-    /// Géométrie des murs selon les options (aplatie en mode plan 2D).
+    /// Wall geometry based on options (flattened in 2D plan mode).
     var wallGeometry: WallGeometry { WallGeometry(flattenedHeight: options.flattenWalls ? Double(options.flattenedHeight) : nil) }
 
-    /// Découpe un mur en boîtes pleines autour de ses ouvertures (voir `WallGeometry`).
+    /// Splits wall into solid boxes around openings (see `WallGeometry`).
     func wallBoxes(_ wall: Wall, openings: [Opening]) -> [WallBox] { wallGeometry.wallBoxes(wall, openings: openings) }
 
-    /// Panneau de porte (bois) ou vitrage (verre) dans l'ouverture.
+    /// Door panel (wood) or window glazing in opening.
     func panelBox(_ o: Opening, wall: Wall?) -> WallBox? { wallGeometry.panelBox(o, wall: wall) }
 
     private func makeBox(_ box: WallBox, material: RealityKit.Material) -> ModelEntity {
@@ -114,12 +114,12 @@ struct PlanSceneBuilder {
         let e = ModelEntity(mesh: mesh, materials: [material])
         let mid = box.segment.midpoint
         e.position = SIMD3(Float(mid.x), Float(box.bottom + box.height / 2), Float(-mid.y))
-        // L'axe X local suit le segment ; l'angle du plan est mesuré dans le repère (x, y_plan) = (x, −z).
+        // Local X axis follows segment; plan angle is measured in coordinate space (x, y_plan) = (x, -z).
         e.orientation = simd_quatf(angle: Float(box.segment.angle), axis: SIMD3(0, 1, 0))
         return e
     }
 
-    // MARK: - Sol, objets, cotes
+    // MARK: - Floor, objets, cotes
 
     private func makeFloor(_ room: FloorPlan, tint: CGColor?) -> ModelEntity? {
         let b = room.bounds
@@ -137,13 +137,13 @@ struct PlanSceneBuilder {
         }
         let e = ModelEntity(mesh: mesh, materials: [material])
         e.name = Names.floor
-        // Le maillage polygonal est déjà en coordonnées pièce ; le plan de repli est centré.
+        // Polygonal mesh is already in room coordinates; fallback plane is centered.
         e.position = room.floorPolygon.count >= 3 ? SIMD3(0, 0.001, 0) : SIMD3(Float(b.center.x), 0.001, Float(-b.center.y))
         return e
     }
 
-    /// Maillage du sol suivant le contour de la pièce (triangulation par oreilles),
-    /// UV normalisées sur `bounds` pour caler la texture rendue par `floorTextureImage`
+    /// Floor mesh following room contour (ear-clipping triangulation),
+    /// normalized UVs on `bounds` to map texture rendered by `floorTextureImage`
     /// (u = x croissant, v = 0 en haut de l'image = y_plan max).
     static func floorMesh(polygon: [Point2D], bounds: Rect2D) throws -> MeshResource {
         guard polygon.count >= 3 else { throw NSError(domain: "PlanSceneBuilder", code: 1) }
@@ -155,7 +155,7 @@ struct PlanSceneBuilder {
         desc.textureCoordinates = MeshBuffers.TextureCoordinates(polygon.map {
             SIMD2(Float(($0.x - bounds.minX) / bounds.width), Float(($0.y - bounds.minY) / bounds.height))
         })
-        // Face visible du dessus : ordre trigonométrique vu depuis +Y.
+        // Visible top face: counterclockwise winding viewed from +Y.
         var indices: [UInt32] = []
         for (a, b, c) in tris {
             let pa = polygon[a], pb = polygon[b], pc = polygon[c]
@@ -166,7 +166,7 @@ struct PlanSceneBuilder {
         return try MeshResource.generate(from: [desc])
     }
 
-    /// La pièce est dessinée dans son propre repère (l'entité porte le placement maison).
+    /// The room is rendered in its local space (parent entity holds house transform).
     private func untransformed(_ room: FloorPlan) -> FloorPlan { var r = room; r.transform = .identity; return r }
 
     private func makeObject(_ o: PlacedObject) -> Entity {
@@ -177,7 +177,7 @@ struct PlanSceneBuilder {
         e.orientation = simd_quatf(angle: Float(o.angle), axis: SIMD3(0, 1, 0))
         let label = makeLabel(ObjectNaming.localizedName(o.category), size: 0.12, billboard: !options.flattenWalls)
         if options.flattenWalls {
-            // À plat sur l'objet, lisible depuis le zénith (l'entité parente porte déjà l'angle de l'objet).
+            // Flat on object, readable from zenith (parent entity already has object rotation).
             label.position = SIMD3(0, Float(o.height / 2) + 0.005, 0)
             label.orientation = Self.flatOrientation(yaw: Self.readable(o.angle) - o.angle)
         } else {
@@ -187,12 +187,12 @@ struct PlanSceneBuilder {
         return e
     }
 
-    /// Cote d'un mur. En 3D : texte billboard au-dessus du mur. En 2D (murs aplatis) : texte posé
-    /// à plat à l'extérieur du mur, tourné pour se lire de gauche à droite depuis le zénith —
-    /// un billboard vu du dessus dépend du « haut » de la caméra et pouvait apparaître tête en bas.
+    /// Wall dimension line. In 3D: billboard text above wall. In 2D: text placed
+    /// flat on exterior of wall, oriented for readability from top-down zenith view.
+    /// billboard text viewed from top-down could otherwise appear flipped.
     private func makeDimensionLabel(_ wall: Wall, room: FloorPlan) -> Entity {
-        let text = MeasurementFormat.centimeters(wall.length, locale: options.locale)
-        let color = PlatformColor(red: 0.07, green: 0.42, blue: 0.86, alpha: 1)
+        let text = MeasurementFormat.length(wall.length, unit: .both, locale: options.locale)
+        let color = PlatformColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 1)
         let mid = wall.segment.midpoint
         guard options.flattenWalls else {
             let label = makeLabel(text, size: 0.16, color: color)
@@ -208,23 +208,23 @@ struct PlanSceneBuilder {
         return label
     }
 
-    /// Orientation d'un texte couché sur le sol (face vers +y), tourné de `yaw` (angle du plan,
-    /// repère (x, y_plan) = (x, −z), même convention que les murs).
+    /// Orientation of text laying on floor (facing +Y), rotated by `yaw`.
+    /// coordinates (x, y_plan) = (x, -z), matching wall convention).
     static func flatOrientation(yaw: Double) -> simd_quatf {
         simd_quatf(angle: Float(yaw), axis: SIMD3(0, 1, 0)) * simd_quatf(angle: -.pi / 2, axis: SIMD3(1, 0, 0))
     }
 
-    /// Angle ramené dans ]-90°, 90°] pour que le texte reste lisible.
+    /// Angle normalized to ]-90°, 90°] for readable orientation.
     static func readable(_ a: Double) -> Double {
         var x = a; while x > .pi / 2 { x -= .pi }; while x <= -.pi / 2 { x += .pi }; return x
     }
 
-    /// Texte 3D centré, extrudé très finement.
+    /// Centered 3D text with minimal extrusion.
     func makeLabel(_ text: String, size: Float, color: PlatformColor = PlatformColor(white: 0.25, alpha: 1), billboard: Bool = true) -> ModelEntity {
         let mesh = MeshResource.generateText(text, extrusionDepth: 0.002, font: .systemFont(ofSize: CGFloat(size)),
                                              containerFrame: .zero, alignment: .center, lineBreakMode: .byClipping)
         let e = ModelEntity(mesh: mesh, materials: [UnlitMaterial(color: color)])
-        // generateText ancre le texte en bas à gauche : on le recentre.
+        // generateText anchors text at bottom-left: recenter it.
         let bounds = mesh.bounds
         e.position = SIMD3(-bounds.center.x, 0, 0)
         let holder = ModelEntity()
@@ -233,7 +233,7 @@ struct PlanSceneBuilder {
         return holder
     }
 
-    // MARK: - Matériaux
+    // MARK: - Materials
 
     private var wallMaterial: RealityKit.Material { SimpleMaterial(color: PlatformColor(white: 0.93, alpha: 1), roughness: 0.8, isMetallic: false) }
     private var doorMaterial: RealityKit.Material { SimpleMaterial(color: PlatformColor(red: 0.62, green: 0.45, blue: 0.30, alpha: 1), roughness: 0.6, isMetallic: false) }

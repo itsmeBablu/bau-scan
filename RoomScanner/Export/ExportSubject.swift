@@ -1,7 +1,7 @@
 import Foundation
 
-/// Ce que l'on exporte : une pièce (`.roomscan`) ou une maison (`.housescan`). Tout l'aval
-/// (`ExportService`, feuille d'export, glisser-déposer, README) ne connaît que ce type.
+/// Export subject: a room (`.roomscan`) or house (`.housescan`). Downstream
+/// (`ExportService`, export sheet, drag-and-drop, README) operates on this type.
 struct ExportSubject: Equatable {
     enum Kind: Equatable { case room, house }
     var kind: Kind
@@ -9,9 +9,9 @@ struct ExportSubject: Equatable {
     var name: String
     var createdAt: Date
     var house: House
-    /// Modèle USDZ paramétrique du paquet, s'il existe.
+    /// Parametric USDZ model from package, if present.
     var usdzURL: URL?
-    /// Maillage brut du scan (pièces iPhone seulement).
+    /// Raw scan mesh (iPhone rooms only).
     var usdzMeshURL: URL?
 
     init(record: RoomRecord, house: House, packageURL: URL?) {

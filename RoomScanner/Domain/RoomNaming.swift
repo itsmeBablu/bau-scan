@@ -1,8 +1,8 @@
 import Foundation
 
-/// Nom proposé pour une pièce d'après son étiquette RoomPlan, dédoublonné
-/// (« Chambre », « Chambre 2 », …). Le rendu localisé est injecté pour rester
-/// testable indépendamment de la langue du système.
+/// Suggested room name based on RoomPlan label, deduplicated
+/// ('Bedroom', 'Bedroom 2', ...). Localized rendering is injected
+/// for testability independent of system language.
 struct RoomNaming {
     var localizedBaseName: (RoomLabel) -> String = RoomNaming.defaultBaseName
 
@@ -10,10 +10,10 @@ struct RoomNaming {
         deduplicated(localizedBaseName(label), existingNames)
     }
 
-    /// Nom d'après **toutes** les sections RoomPlan de la capture : une pièce peut en porter
-    /// plusieurs (une salle à manger ouverte sur une cuisine ⇒ « Salle à manger / Cuisine »).
-    /// `.unidentified` est écarté dès qu'une autre section existe, les doublons sont supprimés,
-    /// et une capture sans section identifiée retombe sur le nom générique dédoublonné.
+    /// Name based on all RoomPlan sections in capture: a room may have
+    /// multiple (e.g. dining room open to kitchen ⇒ 'Dining Room / Kitchen').
+    /// `\.unidentified` is omitted when another section exists, duplicates removed,
+    /// and a capture without identified section falls back to deduplicated generic name.
     func proposedName(for labels: [RoomLabel], existingNames: [String]) -> String {
         var kept: [RoomLabel] = []
         for label in labels where label != .unidentified && !kept.contains(label) { kept.append(label) }
@@ -46,8 +46,8 @@ extension RoomLabel {
     }
 }
 
-/// Libellés localisés des catégories d'objets RoomPlan (`table`, `sofa`, …) ;
-/// repli sur la catégorie brute capitalisée si aucune traduction n'existe.
+/// Localized labels for RoomPlan object categories ('table', 'sofa', ...);
+/// fallback to capitalized raw category if no translation exists.
 enum ObjectNaming {
     static func localizedName(_ category: String) -> String {
         let key = "object.\(category)"

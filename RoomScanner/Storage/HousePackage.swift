@@ -3,8 +3,8 @@ import UniformTypeIdentifiers
 
 /// Paquet `.housescan` (v2, D25) : `meta.json` (`HouseRecord`), `house.json` (`House`),
 /// `structure.json` (`StructureInput` neutre), `structure-apple.json` (`CapturedStructure`,
-/// opaque ici), `rooms/<uuid>.roomscan` (paquets v1 inchangés), `house.usdz`, `thumbnail.png`.
-/// Écrit en une opération coordonnée, comme `RoomPackage`.
+/// opaque here), `rooms/<uuid>.roomscan` (v1 bundles), `house.usdz`, `thumbnail.png`.
+/// Written in a single coordinated operation, like `RoomPackage`.
 struct HousePackage {
     var record: HouseRecord
     var house: House
@@ -16,11 +16,11 @@ struct HousePackage {
 
     typealias F = FileLayout.HousePackageFile
 
-    /// Captures brutes d'une pièce (Apple `room.json`, USDZ paramétrique, maillage), à imbriquer.
+    /// Raw captures of a room (Apple `room.json`, parametric USDZ, mesh) to bundle.
     struct RoomExtras { var capturedRoomData: Data?; var usdzData: Data?; var usdzMeshData: Data? }
 
-    /// Assemble un paquet complet depuis une structure neutre : la maison est construite par
-    /// `HouseBuilder`, chaque pièce reçoit son `.roomscan` (plan, scan, captures brutes, vignette).
+    /// Assembles full package from neutral structure: house is constructed by
+    /// `HouseBuilder`, each room receives its `.roomscan` bundle (plan, scan, raw captures, thumbnail).
     static func assemble(structure: StructureInput, name: String, capturedStructureData: Data?, usdzData: Data?,
                          roomExtras: [UUID: RoomExtras] = [:], createdAt: Date = Date()) -> HousePackage {
         let house = HouseBuilder().build(from: structure, name: name)
@@ -74,7 +74,7 @@ struct HousePackage {
         }
     }
 
-    /// URLs des paquets de pièces imbriqués.
+    /// URLs of nested room packages.
     static func roomPackageURLs(in url: URL) -> [URL] {
         let dir = url.appendingPathComponent(F.rooms, isDirectory: true)
         return ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])
@@ -89,7 +89,7 @@ struct HousePackage {
         let f = url.appendingPathComponent(F.thumbnail); return FileManager.default.fileExists(atPath: f.path) ? f : nil
     }
 
-    /// Réécrit `meta.json` et `house.json` (renommage, recalcul) sans toucher au reste.
+    /// Rewrites `meta.json` and `house.json` (rename, recalculate) preserving assets.
     static func update(record: HouseRecord, house: House, in url: URL) throws {
         try RoomPackage.coordinatedWrite(at: url, options: .forMerging) { u in
             try RoomPackage.encoder.encode(record).write(to: u.appendingPathComponent(F.meta), options: .atomic)
@@ -107,6 +107,7 @@ struct HousePackage {
 }
 
 extension UTType {
-    /// `fr.vincentlauriat.roomscanner.house`, déclaré dans les Info.plist des deux cibles.
-    static let houseScan = UTType(exportedAs: "fr.vincentlauriat.roomscanner.house", conformingTo: .package)
+    /// `io.github.itsmebablu.dwalkscan.house`, declared in Info.plist of both targets.
+    static let houseScan = UTType(exportedAs: "io.github.itsmebablu.dwalkscan.house", conformingTo: .package)
+    static let legacyHouseScan = UTType("fr.vincentlauriat.roomscanner.house")
 }

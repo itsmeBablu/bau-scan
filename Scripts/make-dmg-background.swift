@@ -14,7 +14,7 @@ NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
 NSGradient(colors: [NSColor(calibratedWhite: 0.98, alpha: 1), NSColor(calibratedWhite: 0.92, alpha: 1)])!
     .draw(in: NSRect(origin: .zero, size: size), angle: -90)
 let para = NSMutableParagraphStyle(); para.alignment = .center
-("3D Scanner" as NSString).draw(in: NSRect(x: 0, y: 300, width: 540, height: 44), withAttributes: [
+("dWalkScan" as NSString).draw(in: NSRect(x: 0, y: 300, width: 540, height: 44), withAttributes: [
     .font: NSFont.systemFont(ofSize: 28, weight: .semibold), .foregroundColor: NSColor(calibratedWhite: 0.15, alpha: 1), .paragraphStyle: para])
 ("Glissez l’app dans Applications  ·  Drag the app into Applications" as NSString).draw(in: NSRect(x: 0, y: 40, width: 540, height: 24), withAttributes: [
     .font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor(calibratedWhite: 0.45, alpha: 1), .paragraphStyle: para])
@@ -22,7 +22,7 @@ let para = NSMutableParagraphStyle(); para.alignment = .center
 let arrow = NSBezierPath(); arrow.lineWidth = 6; arrow.lineCapStyle = .round
 arrow.move(to: NSPoint(x: 215, y: 180)); arrow.line(to: NSPoint(x: 325, y: 180))
 arrow.move(to: NSPoint(x: 300, y: 200)); arrow.line(to: NSPoint(x: 325, y: 180)); arrow.line(to: NSPoint(x: 300, y: 160))
-NSColor(calibratedRed: 0.13, green: 0.36, blue: 0.86, alpha: 1).setStroke(); arrow.stroke()
+NSColor(calibratedRed: 250/255, green: 204/255, blue: 21/255, alpha: 1).setStroke(); arrow.stroke()
 NSGraphicsContext.restoreGraphicsState()
 try! rep.representation(using: .png, properties: [:])!.write(to: out)
 print("wrote \(out.path)")

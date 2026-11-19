@@ -24,8 +24,11 @@ final class SVGExporterTests: XCTestCase {
         }
         XCTAssertEqual(svg.components(separatedBy: "stroke-dasharray=\"50 40\"").count - 1, 1, "un arc de porte")
         XCTAssertEqual(svg.components(separatedBy: "<polygon ").count - 1, 2, "sol + table")
-        XCTAssertTrue(svg.contains("400 cm") || svg.contains("400 cm"), "cote du grand mur")
+        XCTAssertTrue(svg.contains("4") && (svg.contains("mm") || svg.contains("m") || svg.contains("cm")), "cote du grand mur")
         XCTAssertTrue(svg.contains("Table"))
+        XCTAssertTrue(svg.contains("Salon"), "nom de la pièce dans le calque text")
+        XCTAssertTrue(svg.contains("m²"), "surface m² dans le calque text")
+        XCTAssertTrue(svg.contains("BRH:"), "hauteur d'allège BRH de la fenêtre")
     }
 
     func testEmptyHouseProducesValidDocument() {

@@ -1,14 +1,14 @@
 import Foundation
 import simd
 
-/// Convertit un `ScanInput` (RoomPlan) en `FloorPlan` : projection au sol,
-/// rattachement des ouvertures, contour du sol, hauteurs.
+/// Converts `ScanInput` (RoomPlan) to `FloorPlan`: ground projection,
+/// opening attachment, floor polygon, ceiling heights.
 struct FloorPlanBuilder {
-    /// Tolérance de raccordement des murs (m) pour reconstituer le contour.
+    /// Wall snapping tolerance (m) to reconstruct boundary.
     var chainTolerance = 0.25
     var wallThickness = FloorPlan.defaultWallThickness
-    /// Tourne le plan pour que le mur le plus long soit horizontal (RoomPlan livre un repère
-    /// monde arbitraire : la pièce arrive inclinée). Désactivé par `HouseBuilder` (repère partagé).
+    /// Rotates plan so longest wall is horizontal (RoomPlan delivers arbitrary
+    /// world coordinates: room arrives tilted). Disabled by `HouseBuilder` (shared coordinates).
     var alignToLongestWall = true
 
     func build(from scan: ScanInput, name: String) -> FloorPlan {
@@ -18,7 +18,7 @@ struct FloorPlanBuilder {
         var objects = scan.objects.map { makeObject($0) }
         var polygon = floorPolygon(walls: walls, scan: scan)
         if alignToLongestWall, let longest = walls.max(by: { $0.length < $1.length }) {
-            // Rotation la plus petite (±90° max) qui rend ce mur horizontal.
+            // Smallest rotation (±90° max) that makes this wall horizontal.
             var theta = longest.segment.angle
             while theta > .pi / 2 { theta -= .pi }; while theta <= -.pi / 2 { theta += .pi }
             if abs(theta) > 1e-6 {
@@ -44,7 +44,7 @@ struct FloorPlanBuilder {
             ceilingHeight: ceiling)
     }
 
-    // MARK: - Éléments
+    // MARK: - Elements
 
     private func makeWall(_ s: ScanSurface) -> Wall {
         let center = Point2D(projecting: s.transform.translation)
@@ -60,7 +60,7 @@ struct FloorPlanBuilder {
     private func makeOpening(_ s: ScanSurface, walls: [Wall], floorY: Double) -> Opening {
         let center = Point2D(projecting: s.transform.translation)
         let kind: Opening.Kind = switch s.category { case .door: .door; case .window: .window; default: .opening }
-        // RoomPlan fournit le mur parent ; sinon on prend le mur le plus proche.
+        // RoomPlan provides parent wall; otherwise use nearest wall.
         let wallID = s.parentID.flatMap { pid in walls.first { $0.id == pid }?.id }
             ?? walls.min { $0.segment.distance(to: center) < $1.segment.distance(to: center) }?.id
         let bottom = Double(s.transform.translation.y) - Double(s.dimensions.y) / 2
@@ -79,10 +79,10 @@ struct FloorPlanBuilder {
                      confidence: o.confidence)
     }
 
-    // MARK: - Sol
+    // MARK: - Floor
 
-    /// Contour du sol : le polygone de la surface `floor` de RoomPlan (`polygonCorners`, coordonnées
-    /// locales de la surface → monde → plan, simplifié) ; sinon le chaînage des murs ; sinon l'englobant.
+    /// Floor contour: RoomPlan floor surface polygon (`polygonCorners`, local
+    /// surface coords → world → plan, simplified); fallback to chained walls, then bounds.
     private func floorPolygon(walls: [Wall], scan: ScanInput) -> [Point2D] {
         if let floor = scan.floors.first, floor.polygonCorners.count >= 3 {
             let world = floor.polygonCorners.map { c -> Point2D in
@@ -103,7 +103,7 @@ struct FloorPlanBuilder {
                 Point2D(x: b.maxX, y: b.maxY), Point2D(x: b.minX, y: b.maxY)]
     }
 
-    /// Altitude du sol : surface `floor` si présente, sinon bas des murs.
+    /// Floor elevation: `floor` surface if present, otherwise bottom of walls.
     private func floorLevel(of scan: ScanInput) -> Double {
         if let f = scan.floors.first { return Double(f.transform.translation.y) }
         let bottoms = scan.walls.map { Double($0.transform.translation.y) - Double($0.dimensions.y) / 2 }
@@ -112,7 +112,7 @@ struct FloorPlanBuilder {
 
     // MARK: - Helpers
 
-    /// Direction « largeur » d'une surface projetée au sol (axe X local → plan).
+    /// 'Width' direction of a surface projected to ground (local X axis → plan).
     private func planarDirection(of t: simd_float4x4) -> Point2D {
         let a = t.xAxis
         let d = Point2D(x: Double(a.x), y: -Double(a.z)).normalized

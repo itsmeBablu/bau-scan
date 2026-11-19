@@ -1,6 +1,6 @@
 #!/usr/bin/env swift
-// Génère l'icône « 3D Scanner » : fond dégradé bleu plan d'architecte, pièce en
-// isométrie (sol + deux murs) tracée en blanc, avec une cote et un faisceau LiDAR.
+// Génère les icônes dWalkScan (rebranding IBV - Babu Reddy)
+// Couleurs: Primary Yellow #facc15, Secondary #fef08a, Dark Charcoal #111110
 // Usage : swift Scripts/make-app-icon.swift [dossier AppIcon.appiconset]
 import AppKit
 

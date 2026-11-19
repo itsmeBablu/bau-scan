@@ -1,18 +1,18 @@
-# 3D Scanner
+# dWalkScan
 
 Scan the rooms of your house with the iPhone LiDAR, get **dimensioned 2D floor plans** and
 **3D models**, and share them with any 2D (PDF, SVG, DXF/CAD) or 3D (USDZ, OBJ, STL, PLY) application.
 A **Mac companion app** (same codebase) shows the plans, 3D models and measurements on the big screen,
 exports, prints and drag-and-drops them into your Mac tools. **iCloud Drive** keeps iPhone and Mac in sync
-and exposes a "3D Scanner" folder in Files and Finder that any 2D/3D app can read.
+and exposes a "dWalkScan" folder in Files and Finder that any 2D/3D app can read.
 
-> Status: **v1.0.0 released** (2026-09-10) — [download the Mac app](https://github.com/vincentlauriat/3DScanner/releases/latest) (signed, notarized DMG, auto-updates with Sparkle). Landing page: https://vincentlauriat.github.io/3DScanner/
+> Status: **v1.0.0 released** (2026-09-10) — [download the Mac app](https://github.com/BabuReddy/dWalkScan/releases/latest) (signed, notarized DMG, auto-updates with Sparkle). Landing page: https://BabuReddy.github.io/dWalkScan/
 > See [`docs/superpowers/specs/2026-09-05-3dscanner-design.md`](docs/superpowers/specs/2026-09-05-3dscanner-design.md) for the full specification (French).
 
 ## Install (Mac)
 
-Download `3DScanner-1.0.0.dmg` from the [latest release](https://github.com/vincentlauriat/3DScanner/releases/latest),
-open it and drag **3D Scanner** to Applications. The DMG is signed with a Developer ID certificate and
+Download `dWalkScan-1.0.0.dmg` from the [latest release](https://github.com/BabuReddy/dWalkScan/releases/latest),
+open it and drag **dWalkScan** to Applications. The DMG is signed with a Developer ID certificate and
 notarized by Apple, so it opens without a Gatekeeper warning. The app updates itself with Sparkle.
 
 The iPhone app is not distributed on the App Store — build and run it from Xcode (⌘R).
@@ -33,7 +33,7 @@ unit-tested on the simulator from JSON fixtures; the scan screen is tested on de
 |---|---|---|
 | Guided LiDAR room scan (Apple RoomPlan) | ✅ built (device validation pending) | Apple `RoomCaptureView`, coaching enabled |
 | Automatic room naming (Living room, Bedroom…) | ✅ built | from RoomPlan `Section.label` |
-| Dimensioned 2D floor plan (walls, doors, windows, cm dimensions, m² area) | ✅ built | Core Graphics renderer |
+| Dimensioned 2D floor plan (walls, doors, windows, mm & meters dimensions, m² area) | ✅ built | Core Graphics renderer |
 | Interactive viewer (SwiftUI `RealityView`): **3D orbit**, **2D top-down**, **AR** on iPhone (scale model on a table at 1:20/1:50, or 1:1 overlay in the real room) | ✅ built (AR on device pending) | parametric scene built from the plan; QuickLook kept as secondary quick preview |
 | Measurements list (area, perimeter, ceiling height, every wall/door/window, detected objects) | ✅ built | with confidence indicator |
 | Export 2D: PDF (A4 landscape), PNG, SVG, DXF R12 | ✅ built | hand-written writers, no dependencies |
@@ -41,7 +41,7 @@ unit-tested on the simulator from JSON fixtures; the scan screen is tested on de
 | Export data: structured plan JSON, ZIP of everything (+ README.txt) | ✅ built | |
 | Share sheet (AirDrop, Files, Mail, any installed app), Save As…, copy to `Exports/` | ✅ built | `ShareLink`, `fileExporter` |
 | Room library, rename, delete, re-export without rescanning | ✅ built | `.roomscan` packages |
-| **iCloud Drive sync** iPhone ↔ Mac, "3D Scanner" folder in Files & Finder, "Save to iCloud Drive" for exports, offline fallback, conflict-safe | ✅ built (device validation pending) | ubiquity container, `NSMetadataQuery`, `NSFileCoordinator` |
+| **iCloud Drive sync** iPhone ↔ Mac, "dWalkScan" folder in Files & Finder, "Save to iCloud Drive" for exports, offline fallback, conflict-safe | ✅ built (device validation pending) | ubiquity container, `NSMetadataQuery`, `NSFileCoordinator` |
 | **Mac companion app**: sidebar library, 2D plan, 3D viewer (mouse/trackpad orbit), measurements, File › Export (⌘E), Print (⌘P), drag & drop to other apps, Open With…, Reveal in Finder, double-click `.roomscan` | ✅ built (visual check pending) | shared codebase, `RoomScannerMac` target |
 | **Sparkle auto-update** on Mac (signed DMG, notarized) | ✅ shipped in v1.0.0 | `appcast.xml` on `main` |
 | French / English UI | ✅ built | |
@@ -73,12 +73,12 @@ The workflow uses GitHub's macOS runner with Xcode 27 to build the `RoomScanner`
 physical iPhone on iOS 18.0 or later. `Release-Local` is a Release build configuration with the
 bundle ID `io.github.itsmebablu.dwalkscan.localtest`. It uses the app's Documents directory
 for room scans, house scans and exports. iCloud sync, migration and iCloud Drive export are
-unavailable in this build. Use Files → On My iPhone → 3D Scanner or the share sheet to back up
+unavailable in this build. Use Files → On My iPhone → dWalkScan or the share sheet to back up
 scans before deleting the app or changing signing identity or bundle ID.
 
-1. Open the completed run. Under **Artifacts**, download **3DScanner-local-unsigned-ipa**.
+1. Open the completed run. Under **Artifacts**, download **dWalkScan-local-unsigned-ipa**.
    In Windows Explorer, right-click the downloaded ZIP, choose **Extract All**, and use
-   `3DScanner-local-unsigned.ipa` from the extracted folder.
+   `dWalkScan-local-unsigned.ipa` from the extracted folder.
 2. Install the desktop iTunes and iCloud packages linked on the [Sideloadly website](https://sideloadly.io/).
    Sideloadly's Windows instructions call for the web installers. Remove Microsoft Store editions
    of iTunes and iCloud if installed. Then install Sideloadly for Windows.
@@ -91,19 +91,19 @@ scans before deleting the app or changing signing identity or bundle ID.
    select your developer profile and tap **Trust**. Enable **Settings → Privacy & Security →
    Developer Mode**, restart, and confirm **Turn On** after restart. Check for Developer Mode
    after the first install attempt if it was initially absent.
-6. Open 3D Scanner and allow camera access. Save a room scan, close and reopen the app, verify
+6. Open dWalkScan and allow camera access. Save a room scan, close and reopen the app, verify
    the scan still appears in the library, then export a file and check it in Files.
 7. Free signing expires after seven days. Re-sign before expiration using the same account
    and bundle ID, or enable Sideloadly's automatic refresh and keep its Windows daemon running
    with the phone reachable over USB or configured Wi-Fi sync.
 
-For build failures, open the first failed Actions step and download **3DScanner-ios-build-logs**.
+For build failures, open the first failed Actions step and download **dWalkScan-ios-build-logs**.
 Use `generate.log` for XcodeGen or SDK setup, `xcodebuild.log` for compilation, and `package.log`
 for IPA validation. For device detection issues, try another data cable or USB port and check
 iTunes again. For signing failures, check the detailed Sideloadly error for Apple Account
 authentication or free provisioning limits. If iOS refuses to launch the app, check the
 profile, Developer Mode and signing expiration. If the app opens and crashes, share the
-3DScanner crash entry from **Settings → Privacy & Security → Analytics & Improvements →
+dWalkScan crash entry from **Settings → Privacy & Security → Analytics & Improvements →
 Analytics Data**, along with the iOS version and the action that triggered the crash.
 
 ## Project layout
@@ -133,7 +133,7 @@ See [`ARCHITECTURE_EN.md`](ARCHITECTURE_EN.md) (English, source of truth) / [`AR
 - [x] Phase 7 — iCloud Drive sync (`.roomscan` packages, Exports folder, offline fallback, conflicts)
 - [x] Phase 8 — Mac companion app (split view, menus, print, drag & drop, Open With)
 - [x] Phase 9 — Library, ZIP, settings, icons, localization, Sparkle integration
-- [x] Phase 10 — [v1.0.0 release](https://github.com/vincentlauriat/3DScanner/releases/tag/v1.0.0) (notarized Mac DMG with Sparkle appcast)
+- [x] Phase 10 — [v1.0.0 release](https://github.com/BabuReddy/dWalkScan/releases/tag/v1.0.0) (notarized Mac DMG with Sparkle appcast)
 - [ ] v2 — whole-house merge ([spec](docs/superpowers/specs/2026-09-05-3dscanner-v2-house-design.md)): domain ✅, `.housescan` storage + library ✅, multi-room capture ✅ (validated on a real house), house area & naming ✅, remaining: `.housescan` iCloud conflicts, per-level SVG/DXF layers, house AR at 1:100, glTF, compass, imperial units
 
 ## License

@@ -1,7 +1,7 @@
 import SwiftUI
 import ImageIO
 
-/// Bibliothèque : maisons (v2) puis pièces, scan (iOS), suppression, réglages.
+/// Library: houses (v2), rooms, scanning (iOS), deletion, settings.
 struct RoomListView: View {
     @Environment(RoomStore.self) private var store
     @State private var scanMode: ScanMode?
@@ -42,7 +42,12 @@ struct RoomListView: View {
             }
             .toolbar {
                 #if os(iOS)
-                ToolbarItem(placement: .cancellationAction) { CloudStatusBadge() }
+                ToolbarItem(placement: .cancellationAction) {
+                    HStack(spacing: 8) {
+                        BrandLogoView(size: 26)
+                        CloudStatusBadge()
+                    }
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button { showSettings = true } label: { Label("settings.title", systemImage: "gearshape") }
                 }
@@ -67,7 +72,7 @@ struct RoomListView: View {
         } message: { Text("list.delete.message") }
         .onAppear {
             store.reload()
-            // `-RoomScannerAutoOpenFirst YES` : ouvre la première pièce (captures d'écran, essais).
+            // `-RoomScannerAutoOpenFirst YES`: opens first room automatically (screenshots, testing).
             if UserDefaults.standard.bool(forKey: "RoomScannerAutoOpenFirst") {
                 if let first = store.houseRecords.first { path = [.house(first)] } else if let first = store.records.first { path = [.room(first)] }
             }
@@ -86,12 +91,18 @@ struct RoomListView: View {
         #if os(iOS)
         if scanSupported {
             ContentUnavailableView {
-                Label("list.empty.title", systemImage: "cube.transparent")
+                VStack(spacing: 16) {
+                    BrandLogoView(size: 72)
+                        .liquidGlass(cornerRadius: 18, tint: AppTheme.primaryYellow, hasBorder: true, shadowRadius: 8)
+                    Text("list.empty.title").font(.title2.bold())
+                }
             } description: {
                 Text("list.empty.message")
             } actions: {
                 Button { scanMode = .room } label: { Label("list.scanRoom", systemImage: "camera.viewfinder") }
                     .buttonStyle(.borderedProminent)
+                    .tint(AppTheme.primaryYellow)
+                    .foregroundStyle(AppTheme.darkCharcoal)
                 Button { scanMode = .house } label: { Label("list.scanHouse", systemImage: "house") }
                     .buttonStyle(.bordered)
             }
@@ -100,7 +111,10 @@ struct RoomListView: View {
         }
         #else
         ContentUnavailableView {
-            Label("list.empty.title", systemImage: "cube.transparent")
+            VStack(spacing: 14) {
+                BrandLogoView(size: 64)
+                Text("list.empty.title").font(.title2.bold())
+            }
         } description: {
             Text("list.empty.mac")
         }
@@ -124,12 +138,16 @@ struct RoomRow: View {
                 if let thumbnail {
                     Image(decorative: thumbnail, scale: 1).resizable().aspectRatio(contentMode: .fill)
                 } else {
-                    Image(systemName: "square.split.bottomrightquarter").font(.title2).foregroundStyle(.tint)
+                    Image(systemName: "square.split.bottomrightquarter").font(.title2).foregroundStyle(AppTheme.primaryYellow)
                 }
             }
             .frame(width: 72, height: 48)
-            .background(Color(white: 0.96))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .background(AppTheme.softBackgroundTint)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(AppTheme.primaryYellow.opacity(0.35), lineWidth: 1)
+            }
             .task(id: record.id) { thumbnail = await loadThumbnail() }
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.name).font(.headline)
@@ -139,7 +157,7 @@ struct RoomRow: View {
         }
     }
 
-    /// Vignette du paquet ; si absente (ancien paquet), rendue à la volée et mémorisée.
+    /// Package thumbnail; if missing, rendered on the fly and persisted.
     private func loadThumbnail() async -> CGImage? {
         let url = store.packageURL(for: record)
         if let f = RoomPackage.thumbnailURL(in: url), let src = CGImageSourceCreateWithURL(f as CFURL, nil),

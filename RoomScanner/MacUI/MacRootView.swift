@@ -1,8 +1,8 @@
 import SwiftUI
 import AppKit
 
-/// Fenêtre Mac : barre latérale (maisons puis pièces, recherche, badge iCloud, glisser du
-/// paquet) et détail à onglets ; exécute les actions des menus (export, impression, Finder, import).
+/// Mac window: sidebar (houses, rooms, search, iCloud status, drag export,
+/// package) and tabbed detail; executes menu actions (export, print, Finder, import).
 struct MacRootView: View {
     @Environment(RoomStore.self) private var store
     @State private var appState = MacAppState()
@@ -85,7 +85,7 @@ struct MacRootView: View {
         .frame(minWidth: 900, minHeight: 600)
     }
 
-    /// Menu contextuel et glisser du paquet, communs aux deux types de lignes.
+    /// Context menu and package drag provider common to all row types.
     private struct RowActions: ViewModifier {
         let item: LibraryItem
         let url: URL
@@ -103,7 +103,7 @@ struct MacRootView: View {
         }
     }
 
-    /// Garde la sélection en phase avec les listes (suppression, renommage, recalcul).
+    /// Keeps selection in sync with lists (delete, rename, recompute).
     private func refreshSelection() {
         switch appState.selected {
         case .room(let r):
@@ -121,7 +121,7 @@ struct MacRootView: View {
         }
     }
 
-    /// Sujet d'export de l'élément sélectionné (plan/maison rechargés depuis le paquet).
+    /// Export subject for selected item (reloaded from package).
     private func subject(for item: LibraryItem) -> ExportSubject? {
         switch item {
         case .room(let r): (try? store.plan(for: r)).map { ExportSubject(record: r, plan: $0, packageURL: store.packageURL(for: r)) }

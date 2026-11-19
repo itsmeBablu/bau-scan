@@ -59,7 +59,7 @@ final class HouseBuilderTests: XCTestCase {
         let m = HouseMeasurements(house: house)
         XCTAssertEqual(m.roomCount, 2); XCTAssertEqual(m.storyCount, 1)
         XCTAssertEqual(m.floorArea, 12 + 9, accuracy: 0.05)
-        // Le mur mitoyen (x = 4) est présent dans chaque pièce : deux murs colinéaires superposés.
+        // Party wall (x = 4) present in each room: two overlapping collinear walls.
         let shared = house.allRooms.flatMap(\.walls).filter { abs($0.start.x - 4) < 0.01 && abs($0.end.x - 4) < 0.01 }
         XCTAssertEqual(shared.count, 2)
     }

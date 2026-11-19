@@ -1,12 +1,12 @@
 import Foundation
 
-/// Racine de stockage : conteneur iCloud (phase 7) ou dossier local. Les
-/// chemins `Rooms/` et `Exports/` en découlent.
+/// Storage root: iCloud container or local directory. Associated
+/// paths `Rooms/` and `Exports/` derive from it.
 struct StorageLocation: Equatable {
     enum Kind: Equatable { case local, iCloud }
 
     let kind: Kind
-    /// Dossier contenant `Rooms/` et `Exports/` (= `Documents/` du conteneur iCloud).
+    /// Directory containing `Rooms/` and `Exports/` (= container `Documents/` folder).
     let documentsURL: URL
 
     var roomsURL: URL { documentsURL.appendingPathComponent(FileLayout.roomsFolder, isDirectory: true) }
@@ -21,21 +21,21 @@ struct StorageLocation: Equatable {
         housesURL.appendingPathComponent(id.uuidString).appendingPathExtension(FileLayout.housePackageExtension)
     }
 
-    /// Crée `Rooms/` et `Exports/` si besoin.
+    /// Creates `Rooms/` and `Exports/` directories if needed.
     func prepare() throws {
         for url in [roomsURL, exportsURL, housesURL] {
             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         }
     }
 
-    /// Dossier Documents de l'app (iOS : visible dans Fichiers ; macOS : conteneur sandbox).
+    /// App Documents directory (iOS: visible in Files app; macOS: sandbox container).
     static func local(fileManager: FileManager = .default) -> StorageLocation {
         let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
             ?? fileManager.temporaryDirectory
         return StorageLocation(kind: .local, documentsURL: docs)
     }
 
-    /// Racine jetable pour les tests.
+    /// Ephemeral storage root for unit tests.
     static func temporary() -> StorageLocation {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("RoomScanner-\(UUID().uuidString)", isDirectory: true)

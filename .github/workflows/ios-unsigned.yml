@@ -40,30 +40,30 @@ jobs:
       - name: Package and verify unsigned IPA
         run: |
           set -euo pipefail
-          app="$RUNNER_TEMP/derived-data/Build/Products/Release-Local-iphoneos/3DScanner.app"
+          app="$RUNNER_TEMP/derived-data/Build/Products/Release-Local-iphoneos/dWalkScan.app"
           staging="$(mktemp -d)"
           mkdir "$staging/Payload"
           {
-            test -x "$app/3DScanner"
+            test -x "$app/dWalkScan"
             test ! -e "$app/_CodeSignature"
             test ! -e "$app/embedded.mobileprovision"
             bundle_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")"
             minimum_os="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$app/Info.plist")"
-            architectures="$(xcrun lipo -archs "$app/3DScanner")"
+            architectures="$(xcrun lipo -archs "$app/dWalkScan")"
             printf 'Bundle ID: %s\nMinimum iOS: %s\nArchitectures: %s\n' "$bundle_id" "$minimum_os" "$architectures"
             test "$bundle_id" = 'io.github.itsmebablu.dwalkscan.localtest'
             test "$minimum_os" = '18.0'
             test "$architectures" = 'arm64'
-            ditto "$app" "$staging/Payload/3DScanner.app"
-            (cd "$staging" && ditto -c -k --keepParent Payload "$RUNNER_TEMP/3DScanner-local-unsigned.ipa")
-            unzip -tq "$RUNNER_TEMP/3DScanner-local-unsigned.ipa"
+            ditto "$app" "$staging/Payload/dWalkScan.app"
+            (cd "$staging" && ditto -c -k --keepParent Payload "$RUNNER_TEMP/dWalkScan-local-unsigned.ipa")
+            unzip -tq "$RUNNER_TEMP/dWalkScan-local-unsigned.ipa"
           } 2>&1 | tee build-logs/package.log
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
-          name: 3DScanner-local-unsigned-ipa
-          path: ${{ runner.temp }}/3DScanner-local-unsigned.ipa
+          name: dWalkScan-local-unsigned-ipa
+          path: ${{ runner.temp }}/dWalkScan-local-unsigned.ipa
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
@@ -72,6 +72,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: 3DScanner-ios-build-logs
+          name: dWalkScan-ios-build-logs
           path: build-logs/
           retention-days: 7

@@ -17,7 +17,7 @@ final class HousePackageTests: XCTestCase {
         try? FileManager.default.removeItem(at: location.documentsURL)
     }
 
-    /// Maison à deux niveaux construite depuis la structure synthétique, avec ses paquets de pièces.
+    /// Two-level house built from synthetic structure, with room packages.
     private func housePackage(name: String = "Maison", createdAt: Date = Date()) -> HousePackage {
         let structure = SyntheticRooms.twoStoryHouse()
         let house = HouseBuilder().build(from: structure, name: name)
@@ -76,7 +76,7 @@ final class HousePackageTests: XCTestCase {
 
     func testHouseIsRebuiltFromStructureKeepingRoomNames() throws {
         var pkg = housePackage()
-        // Le `house.json` stocké est volontairement obsolète (noms personnalisés, plan vide).
+        // Stored `house.json` is intentionally obsolete (custom names, empty plan).
         pkg.house.stories[0].rooms[0].name = "Séjour"
         var stale = pkg.house; stale.stories[0].rooms[0].walls = []
         pkg.house = stale
@@ -89,10 +89,10 @@ final class HousePackageTests: XCTestCase {
         XCTAssertEqual(store.houseRecords.first?.roomCount, rebuilt.allRooms.count)
     }
 
-    /// Montée de version de schéma : une maison enregistrée avant la v2 phase 5 porte des noms
-    /// automatiques issus de la première section seulement, et une surface qui somme les pièces.
-    /// À la relecture, les deux sont recalculés et le paquet réécrit — c'est ce qui rend le
-    /// correctif visible sur une maison déjà scannée, sans nouveau scan.
+    /// Schema version bump: house saved before v2 phase 5 has names
+    /// derived from first section only, and area summing individual rooms.
+    /// On reload, both are recalculated and package rewritten - ensuring
+    /// fix is visible on already scanned house without rescanning.
     func testSchemaMigrationRecomputesAutomaticNamesAndArea() throws {
         var pkg = housePackage()
         pkg.house.stories[0].rooms[0].name = "Ancien nom automatique"
@@ -110,8 +110,8 @@ final class HousePackageTests: XCTestCase {
         XCTAssertEqual(try HousePackage.readRecord(from: store.packageURL(for: pkg.record)), record, "meta.json réécrit")
     }
 
-    /// La bibliothèque doit afficher la surface corrigée sans qu'on ouvre la maison :
-    /// `reload()` migre les paquets d'un schéma antérieur.
+    /// Library must display corrected area without opening the house:
+    /// `reload()` migrates packages from previous schema.
     func testReloadMigratesStaleSchemaSoTheLibraryShowsTheCorrectedArea() throws {
         var pkg = housePackage()
         pkg.record.schemaVersion = 1
@@ -143,7 +143,7 @@ final class HousePackageTests: XCTestCase {
     }
 
     func testUTTypeAndLibraryItem() {
-        XCTAssertEqual(UTType.houseScan.identifier, "fr.vincentlauriat.roomscanner.house")
+        XCTAssertEqual(UTType.houseScan.identifier, "io.github.itsmebablu.dwalkscan.house")
         XCTAssertTrue(UTType.houseScan.conforms(to: .package))
         let pkg = housePackage()
         let item = LibraryItem.house(pkg.record)

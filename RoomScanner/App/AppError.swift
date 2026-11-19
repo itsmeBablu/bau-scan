@@ -1,7 +1,7 @@
 import Foundation
 
-/// Erreurs métier affichées à l'utilisateur. Chaque cas a une cause identifiée
-/// et un message localisé ; aucune erreur n'est masquée.
+/// Domain errors presented to the user. Each case has an identified cause
+/// and localized message; no errors are silenced.
 enum AppError: LocalizedError, Equatable {
     case unsupportedDevice
     case cameraDenied

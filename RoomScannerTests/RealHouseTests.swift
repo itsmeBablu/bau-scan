@@ -1,10 +1,10 @@
 import XCTest
 @testable import RoomScanner
 
-/// Première maison réelle (3 pièces de plain-pied, iPhone 16 Pro, 2026-09-05) : ce que
-/// `StructureBuilder` livre vraiment, et les deux défauts qu'elle a révélés — des pièces qui
-/// se recouvrent (la somme de leurs surfaces surestime la maison) et une capture portant
-/// deux sections RoomPlan à la fois (salle à manger ouverte sur cuisine).
+/// First real house (3 ground-floor rooms, iPhone 16 Pro, 2026-09-05): what
+/// `StructureBuilder` actually delivers, and two defects revealed - rooms that
+/// overlap (sum of areas overestimates house) and single capture spanning
+/// two RoomPlan sections simultaneously (dining room open to kitchen).
 final class RealHouseTests: XCTestCase {
     /// Noms indépendants de la langue du système : on teste la composition, pas la traduction.
     private var builder: HouseBuilder {
@@ -22,9 +22,9 @@ final class RealHouseTests: XCTestCase {
     func testStructureCarriesApplesMergedSurfaces() throws {
         let structure = try loadStructure()
         XCTAssertEqual(structure.rooms.count, 3)
-        // D26 : `StructureBuilder` reconstruit les murs (52 par pièce → 48 fusionnés) et
-        // fusionne les 3 sols en un seul. Aucun mur n'est partagé entre deux pièces : le mur
-        // mitoyen n'est pas un doublon repérable par identité, on ne dédoublonne donc jamais nous-mêmes.
+        // D26: `StructureBuilder` rebuilds walls (52 per room -> 48 merged) and
+        // merges 3 floors into one. No wall shared between rooms: party wall
+        // is not identifiable duplicate, so we never dedup manually.
         XCTAssertEqual(structure.mergedWalls.count, 48)
         XCTAssertEqual(structure.mergedFloors.count, 1)
         XCTAssertEqual(structure.rooms.reduce(0) { $0 + $1.walls.count }, 52)
@@ -45,8 +45,8 @@ final class RealHouseTests: XCTestCase {
         let rooms = house.allRooms
         XCTAssertEqual(rooms.count, 3)
 
-        // Valeurs de référence : intégration sur grille de 1 cm des trois polygones de sol
-        // (sonde validée à 0,0 % contre l'aire du lacet de chaque pièce prise isolément).
+        // Reference values: 1 cm grid integration of 3 floor polygons
+        // (probe validated at 0.0% against polygon shoelace area of each individual room).
         let sum = rooms.reduce(0) { $0 + RoomMeasurements(plan: $1).floorArea }
         XCTAssertEqual(sum, 78.40, accuracy: 0.05, "somme des pièces — l'ancienne valeur annoncée")
 

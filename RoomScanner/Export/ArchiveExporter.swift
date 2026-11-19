@@ -1,8 +1,8 @@
 import Foundation
 
-/// ZIP « tout » : chaque export disponible + `README.txt`, sans dépendance —
-/// `NSFileCoordinator` avec `.forUploading` produit une archive ZIP d'un dossier
-/// sur iOS comme sur macOS.
+/// ZIP 'all': every available export format + `README.txt`, dependency-free —
+/// `NSFileCoordinator` with `.forUploading` produces a ZIP archive of a directory
+/// on both iOS and macOS.
 enum ArchiveExporter {
     enum ArchiveError: LocalizedError {
         case coordination(Error), noArchive
@@ -14,7 +14,7 @@ enum ArchiveExporter {
         }
     }
 
-    /// Compresse `directory` dans `destination` (écrasée).
+    /// Compresses `directory` into `destination` (overwritten).
     static func zip(directory: URL, to destination: URL) throws {
         var coordinationError: NSError?
         var copyError: Error?
@@ -31,12 +31,12 @@ enum ArchiveExporter {
         guard produced else { throw ArchiveError.noArchive }
     }
 
-    /// README.txt de l'archive : pièce, mesures, liste des fichiers et leur usage.
+    /// Archive README.txt: room, measurements, file inventory and intended usage.
     static func readme(record: RoomRecord, plan: FloorPlan, files: [(name: String, format: ExportFormat)], locale: Locale = .current) -> String {
         readme(subject: ExportSubject(record: record, house: House(room: plan), packageURL: nil), files: files, locale: locale)
     }
 
-    /// README.txt d'un sujet : une pièce donne ses mesures détaillées, une maison ses niveaux et pièces.
+    /// Subject README.txt: a room provides detailed measurements, a house its stories and rooms.
     static func readme(subject: ExportSubject, files: [(name: String, format: ExportFormat)], locale: Locale = .current) -> String {
         let df = DateFormatter(); df.locale = locale; df.dateStyle = .long; df.timeStyle = .short
         let scanned = String(localized: "readme.scannedOn \(df.string(from: subject.createdAt))")
@@ -56,7 +56,7 @@ enum ArchiveExporter {
                 body.append("  \(StoryNaming.localizedName(for: story.index)) : \(names)")
             }
         }
-        var s = "3D Scanner — \(subject.name)\n" + String(repeating: "=", count: 13 + subject.name.count) + "\n\n"
+        var s = "dWalkScan — \(subject.name)\n" + String(repeating: "=", count: 11 + subject.name.count) + "\n\n"
         s += body.joined(separator: "\n") + "\n\n" + String(localized: "readme.files") + "\n"
         for f in files {
             s += "  \(f.name)\n      \(String(localized: String.LocalizationValue(f.format.descriptionKey)))\n"

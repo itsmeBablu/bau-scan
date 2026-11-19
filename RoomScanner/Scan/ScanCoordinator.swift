@@ -5,38 +5,38 @@ import ARKit
 import RoomPlan
 import AVFoundation
 
-/// Pilote une session RoomPlan : possède l'`ARSession` (réutilisée entre les pièces en mode
-/// maison), la `RoomCaptureView`, et reçoit le résultat.
+/// Drives a RoomPlan session: manages the `ARSession` (reused across rooms in
+/// house mode), the `RoomCaptureView`, and receives results.
 ///
-/// Mode maison (v2) : chaque pièce se termine par `stop(pauseARSession: false)` pour que la
-/// suivante partage le même repère monde ; `finishHouse()` fusionne les `CapturedRoom` avec
-/// `StructureBuilder` en une `CapturedStructure`.
+/// House mode: each room ends with `stop(pauseARSession: false)` so
+/// subsequent rooms share world coordinates; `finishHouse()` merges `CapturedRoom`s with
+/// `StructureBuilder` into a `CapturedStructure`.
 @Observable
 @MainActor
 final class ScanCoordinator {
     enum State: Equatable {
         case idle, scanning, processing
         case finished(ScanResult)
-        /// Mode maison : une pièce vient d'être capturée, on attend « Pièce suivante » ou « Terminer ».
+        /// House mode: room captured, awaiting 'Next Room' or 'Finish'.
         case roomCaptured(Int)
-        /// Mode maison : fusion en cours.
+        /// House mode: alignment in progress.
         case merging
         case finishedHouse(HouseScanResult)
         case failed(AppError)
     }
 
-    /// Résultat maison prêt à être enregistré.
+    /// House result ready to be saved.
     struct HouseScanResult: Equatable {
         let structure: StructureInput
         let capturedStructureData: Data
         let usdzData: Data?
-        /// Captures par pièce (clé : identifiant de la pièce) — `room.json`, USDZ paramétrique et maillage.
+        /// Captures per room (key: room ID) — `room.json`, parametric USDZ, and mesh.
         let rooms: [UUID: RoomCapture]
         struct RoomCapture: Equatable { let capturedRoomData: Data; let usdzData: Data?; let usdzMeshData: Data? }
         static func == (a: HouseScanResult, b: HouseScanResult) -> Bool { a.structure.id == b.structure.id }
     }
 
-    /// Résultat prêt à être enregistré.
+    /// Result ready to be saved.
     struct ScanResult: Equatable {
         let scan: ScanInput
         let capturedRoomData: Data
@@ -47,11 +47,11 @@ final class ScanCoordinator {
 
     private(set) var state: State = .idle
     let mode: ScanMode
-    /// Pièces capturées en mode maison (repère monde partagé).
+    /// Rooms captured in house mode (shared world coordinate space).
     private(set) var capturedRooms: [CapturedRoom] = []
     let arSession: ARSession
     let captureView: RoomCaptureView
-    /// `RoomCaptureViewDelegate` exige `NSCoding` : on le porte par un objet dédié.
+    /// `RoomCaptureViewDelegate` requires `NSCoding`: carried by dedicated helper object.
     private let delegateProxy = CaptureViewDelegateProxy()
 
     static var isSupported: Bool { RoomCaptureSession.isSupported }
@@ -66,7 +66,7 @@ final class ScanCoordinator {
         captureView.delegate = delegateProxy
     }
 
-    /// Démarre le scan (demande l'accès caméra si nécessaire).
+    /// Starts scan (requests camera permission if needed).
     func start() {
         guard Self.isSupported else { state = .failed(.unsupportedDevice); return }
         switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -88,21 +88,21 @@ final class ScanCoordinator {
         captureView.captureSession.run(configuration: config)
     }
 
-    /// L'utilisateur termine la pièce : RoomPlan post-traite puis appelle `didPresent`.
-    /// En mode maison, l'`ARSession` reste active pour la pièce suivante.
+    /// User completes room: RoomPlan post-processes and calls `didPresent`.
+    /// In house mode, `ARSession` remains active for next room.
     func finish() {
         guard state == .scanning else { return }
         state = .processing
         if mode == .house { captureView.captureSession.stop(pauseARSession: false) } else { captureView.captureSession.stop() }
     }
 
-    /// Mode maison : démarre la pièce suivante dans le même repère.
+    /// House mode: starts next room in the same coordinate space.
     func nextRoom() {
         guard mode == .house, case .roomCaptured = state else { return }
         run()
     }
 
-    /// Mode maison : fusionne les pièces capturées (`StructureBuilder`) puis prépare le résultat.
+    /// House mode: merges captured rooms (`StructureBuilder`) and prepares result.
     func finishHouse() {
         guard mode == .house, case .roomCaptured = state, !capturedRooms.isEmpty else { return }
         state = .merging
@@ -123,7 +123,7 @@ final class ScanCoordinator {
         state = .failed(.scanCancelled)
     }
 
-    // MARK: Résultat RoomPlan
+    // MARK: - RoomPlan Result
 
     private func receive(room: CapturedRoom?, error: (any Error)?) {
         if let error {
@@ -164,7 +164,7 @@ final class ScanCoordinator {
         }
     }
 
-    /// Message humain pour les erreurs RoomPlan les plus fréquentes.
+    /// User-friendly messages for common RoomPlan errors.
     static func describe(_ error: any Error) -> String {
         let text = String(describing: error)
         let known: [(String, String)] = [
@@ -184,8 +184,8 @@ final class ScanCoordinator {
     }
 }
 
-/// Delegate de `RoomCaptureView`. Le protocole exige `NSCoding` (la vue est
-/// archivable) : on l'implémente à vide, l'objet n'est jamais archivé.
+/// `RoomCaptureView` delegate. Protocol requires `NSCoding` (view is
+/// archivable): stub implementation, object is never archived.
 final class CaptureViewDelegateProxy: NSObject, RoomCaptureViewDelegate {
     var onResult: ((CapturedRoom?, (any Error)?) -> Void)?
 

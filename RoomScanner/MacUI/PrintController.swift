@@ -1,8 +1,8 @@
 import AppKit
 import CoreGraphics
 
-/// Impression du plan : le PDF vectoriel de `PlanRenderer` (A4 paysage) est dessiné
-/// par une `NSView` dédiée et confié à `NSPrintOperation` — même rendu qu'à l'export.
+/// Plan printing: vector PDF from `PlanRenderer` (A4 landscape) is drawn
+/// via dedicated `NSView` and passed to `NSPrintOperation`.
 @MainActor
 enum PrintController {
     static func printPlan(_ house: House, title: String, locale: Locale = .current, window: NSWindow?) {
@@ -23,7 +23,7 @@ enum PrintController {
         if let window { op.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil) } else { op.run() }
     }
 
-    /// Vue d'une page PDF, à l'échelle 1 pt = 1 pt.
+    /// View of a PDF page at 1 pt = 1 pt scale.
     final class PDFPageView: NSView {
         let document: CGPDFDocument
         init(document: CGPDFDocument, frame: NSRect) { self.document = document; super.init(frame: frame) }

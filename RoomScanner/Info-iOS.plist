@@ -5,27 +5,27 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>3D Scanner</string>
+	<string>dWalkScan</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>3D Scanner room scan</string>
+			<string>dWalkScan room scan</string>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>fr.vincentlauriat.roomscanner.room</string>
+				<string>io.github.itsmebablu.dwalkscan.room</string>
 			</array>
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>3D Scanner house scan</string>
+			<string>dWalkScan house scan</string>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>fr.vincentlauriat.roomscanner.house</string>
+				<string>io.github.itsmebablu.dwalkscan.house</string>
 			</array>
 		</dict>
 	</array>
@@ -36,7 +36,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>3DScanner</string>
+	<string>dWalkScan</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -46,15 +46,15 @@
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>3D Scanner utilise la caméra et le LiDAR pour scanner la pièce.</string>
+	<string>dWalkScan uses the camera and LiDAR to scan rooms.</string>
 	<key>NSUbiquitousContainers</key>
 	<dict>
-		<key>iCloud.fr.vincentlauriat.roomscanner</key>
+		<key>iCloud.io.github.itsmebablu.dwalkscan</key>
 		<dict>
 			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
 			<true/>
 			<key>NSUbiquitousContainerName</key>
-			<string>3D Scanner</string>
+			<string>dWalkScan</string>
 			<key>NSUbiquitousContainerSupportedFolderLevels</key>
 			<string>Any</string>
 		</dict>
@@ -88,9 +88,9 @@
 				<string>com.apple.package</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>3D Scanner room scan</string>
+			<string>dWalkScan room scan</string>
 			<key>UTTypeIdentifier</key>
-			<string>fr.vincentlauriat.roomscanner.room</string>
+			<string>io.github.itsmebablu.dwalkscan.room</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -105,9 +105,9 @@
 				<string>com.apple.package</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>3D Scanner house scan</string>
+			<string>dWalkScan house scan</string>
 			<key>UTTypeIdentifier</key>
-			<string>fr.vincentlauriat.roomscanner.house</string>
+			<string>io.github.itsmebablu.dwalkscan.house</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

@@ -20,7 +20,7 @@ final class RoomNamingTests: XCTestCase {
         XCTAssertEqual(naming.proposedName(for: .unidentified, existingNames: ["Pièce"]), "Pièce 2")
     }
 
-    // MARK: - Noms composés (une capture peut porter plusieurs sections)
+    // MARK: - Compound names (a capture may carry multiple sections)
 
     func testCompositeNameJoinsEverySection() {
         XCTAssertEqual(naming.proposedName(for: [.livingRoom, .bedroom], existingNames: []), "Salon / Chambre")

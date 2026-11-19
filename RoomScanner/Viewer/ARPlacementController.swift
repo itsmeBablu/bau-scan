@@ -3,8 +3,8 @@ import Foundation
 import RealityKit
 import Observation
 
-/// Mode AR (iOS) : suivi spatial, ancrage de la maquette sur un plan horizontal,
-/// échelle 1:20 / 1:50 / 1:1, réinitialisation.
+/// AR mode (iOS): spatial tracking, horizontal plane anchor for model,
+/// scale 1:20 / 1:50 / 1:1, reset.
 @Observable
 @MainActor
 final class ARPlacementController {
@@ -25,7 +25,7 @@ final class ARPlacementController {
         Task { await session.stop() }
     }
 
-    /// Détache la scène de l'ancre AR (retour aux modes 3D / 2D).
+    /// Detaches scene from AR anchor (returning to 3D / 2D modes).
     func detach(_ root: Entity) {
         guard let anchor else { return }
         root.removeFromParent()
@@ -46,7 +46,7 @@ final class ARPlacementController {
     }
 
     private func attach(_ root: Entity, scale: ARScale) {
-        // Table pour la maquette, sol pour la superposition 1:1.
+        // Table for tabletop AR, floor for 1:1 scale overlay.
         let classification: AnchoringComponent.Target.Classification = scale == .real ? .floor : .any
         let anchor = AnchorEntity(.plane(.horizontal, classification: classification, minimumBounds: SIMD2(0.3, 0.3)))
         let parent = root.parent

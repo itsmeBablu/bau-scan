@@ -21,7 +21,7 @@ final class RoomPackageTests: XCTestCase {
     }
 
     func testUTType() {
-        XCTAssertEqual(UTType.roomScan.identifier, "fr.vincentlauriat.roomscanner.room")
+        XCTAssertEqual(UTType.roomScan.identifier, "io.github.itsmebablu.dwalkscan.room")
         XCTAssertTrue(UTType.roomScan.conforms(to: .package))
     }
 

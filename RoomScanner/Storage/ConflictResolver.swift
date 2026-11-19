@@ -1,12 +1,12 @@
 import Foundation
 
-/// Conflits iCloud sur un paquet `.roomscan` (édition simultanée iPhone / Mac) :
-/// **la version la plus récente gagne**, l'autre est conservée comme pièce
-/// « (conflit) » avec un nouvel identifiant — un scan n'est jamais perdu (D17).
+/// iCloud conflicts on `.roomscan` packages (simultaneous edit on iPhone / Mac):
+/// **most recent version wins**, other version is preserved as
+/// '(conflict)' with a fresh UUID — scans are never lost.
 enum ConflictResolver {
     struct Version { var date: Date; var isCurrent: Bool }
 
-    /// Index de la version gagnante (la plus récente ; à égalité, la version courante).
+    /// Index of winning version (most recent; on tie, current version).
     static func winnerIndex(_ versions: [Version]) -> Int? {
         guard !versions.isEmpty else { return nil }
         return versions.indices.max { a, b in
@@ -16,8 +16,8 @@ enum ConflictResolver {
         }
     }
 
-    /// Copie un paquet sous un nouvel identifiant, nom suffixé, dans `directory` (par défaut le
-    /// dossier du paquet). Renvoie la fiche de la copie ; son URL est `directory/<id>.roomscan`.
+    /// Copies a package with a new ID, suffixed name, into `directory` (by default
+    /// package folder). Returns copy record; URL is `directory/<id>.roomscan`.
     @discardableResult
     static func duplicateAsConflictCopy(packageAt url: URL, suffix: String, into directory: URL? = nil, fileManager fm: FileManager = .default) throws -> RoomRecord {
         let record = try RoomPackage.readRecord(from: url)
@@ -29,8 +29,8 @@ enum ConflictResolver {
         let dir = directory ?? url.deletingLastPathComponent()
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
         let dest = dir.appendingPathComponent(newID.uuidString).appendingPathExtension(FileLayout.packageExtension)
-        // Lecture de la source et écriture de la cible coordonnées : iCloud peut être en train
-        // de matérialiser la source, et la cible doit apparaître complète d'un coup.
+        // Coordinated source read and target write: iCloud may be
+        // downloading source, and target must appear atomically.
         var coordError: NSError?; var copyError: Error?
         NSFileCoordinator().coordinate(readingItemAt: url, options: [], writingItemAt: dest, options: .forReplacing, error: &coordError) { src, dst in
             do { try fm.copyItem(at: src, to: dst) } catch { copyError = error }
@@ -41,9 +41,9 @@ enum ConflictResolver {
         return copyRecord
     }
 
-    /// Résout les versions en conflit d'un paquet : la gagnante devient la version courante,
-    /// **chaque** version perdante est conservée comme pièce « (conflit) » (trois appareils
-    /// peuvent produire plusieurs versions). Renvoie les copies créées.
+    /// Resolves conflicting versions of a package: winner becomes current version,
+    /// each losing version is preserved as '(conflict)' package.
+    /// can produce multiple versions). Returns created copies.
     @discardableResult
     static func resolve(packageAt url: URL, suffix: String) throws -> [RoomRecord] {
         guard let others = NSFileVersion.unresolvedConflictVersionsOfItem(at: url), !others.isEmpty else { return [] }
@@ -52,11 +52,11 @@ enum ConflictResolver {
         versions += others.map { Version(date: $0.modificationDate ?? .distantPast, isCurrent: false) }
         let winner = winnerIndex(versions) ?? 0
         var copies: [RoomRecord] = []
-        // 1. Les versions distantes perdantes → copies « (conflit) ».
+        // 1. Losing remote versions → '(conflict)' copies.
         for (i, v) in others.enumerated() where i + 1 != winner {
             copies.append(try keepAsConflictCopy(version: v, of: url, suffix: suffix))
         }
-        // 2. Si une version distante gagne : l'actuelle devient une copie, puis est remplacée.
+        // 2. If remote version wins: current becomes a copy, then replaced.
         if winner > 0 {
             copies.append(try duplicateAsConflictCopy(packageAt: url, suffix: suffix))
             let winning = others[winner - 1]
@@ -67,7 +67,7 @@ enum ConflictResolver {
         return copies
     }
 
-    /// Matérialise une `NSFileVersion` en pièce « (conflit) » à côté du paquet.
+    /// Materializes a `NSFileVersion` as '(conflict)' package beside original.
     private static func keepAsConflictCopy(version: NSFileVersion, of url: URL, suffix: String) throws -> RoomRecord {
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("conflict-\(UUID().uuidString).roomscan")
         defer { try? FileManager.default.removeItem(at: tmp) }

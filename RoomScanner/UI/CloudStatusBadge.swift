@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Pastille d'état iCloud Drive dans la bibliothèque : local / iCloud / téléchargements
-/// en cours, avec explication au toucher ou au clic.
+/// iCloud Drive status indicator in library: local / iCloud / downloads
+/// in progress, with explanation on tap or click.
 struct CloudStatusBadge: View {
     @Environment(RoomStore.self) private var store
     @State private var showing = false

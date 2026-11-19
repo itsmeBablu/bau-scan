@@ -5,42 +5,42 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>3D Scanner</string>
+	<string>dWalkScan</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>3D Scanner room scan</string>
+			<string>dWalkScan room scan</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>fr.vincentlauriat.roomscanner.room</string>
+				<string>io.github.itsmebablu.dwalkscan.room</string>
 			</array>
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>3D Scanner house scan</string>
+			<string>dWalkScan house scan</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>fr.vincentlauriat.roomscanner.house</string>
+				<string>io.github.itsmebablu.dwalkscan.house</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
-	<string>fr.vincentlauriat.roomscanner</string>
+	<string>io.github.itsmebablu.dwalkscan</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>3DScanner</string>
+	<string>dWalkScan</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -52,15 +52,15 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 Vincent Lauriat</string>
+	<string>© 2026 Babu Reddy</string>
 	<key>NSUbiquitousContainers</key>
 	<dict>
-		<key>iCloud.fr.vincentlauriat.roomscanner</key>
+		<key>iCloud.io.github.itsmebablu.dwalkscan</key>
 		<dict>
 			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
 			<true/>
 			<key>NSUbiquitousContainerName</key>
-			<string>3D Scanner</string>
+			<string>dWalkScan</string>
 			<key>NSUbiquitousContainerSupportedFolderLevels</key>
 			<string>Any</string>
 		</dict>
@@ -72,7 +72,7 @@
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
 	<key>SUFeedURL</key>
-	<string>https://raw.githubusercontent.com/vincentlauriat/3DScanner/main/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/itsmeBablu/d-walk-scan/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>qSGDP0w1B/HVt1++Bxip35K+OUI6NUvJUSxmfY9rbhE=</string>
 	<key>SUScheduledCheckInterval</key>
@@ -85,9 +85,9 @@
 				<string>com.apple.package</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>3D Scanner room scan</string>
+			<string>dWalkScan room scan</string>
 			<key>UTTypeIdentifier</key>
-			<string>fr.vincentlauriat.roomscanner.room</string>
+			<string>io.github.itsmebablu.dwalkscan.room</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -102,9 +102,9 @@
 				<string>com.apple.package</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>3D Scanner house scan</string>
+			<string>dWalkScan house scan</string>
 			<key>UTTypeIdentifier</key>
-			<string>fr.vincentlauriat.roomscanner.house</string>
+			<string>io.github.itsmebablu.dwalkscan.house</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

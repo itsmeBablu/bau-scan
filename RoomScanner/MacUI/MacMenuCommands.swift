@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Menus macOS : Fichier › Importer… (⌘O), Exporter… (⌘E) avec sous-menu par format,
-/// Imprimer… (⌘P), Révéler dans le Finder (⇧⌘R), Ouvrir le dossier 3D Scanner.
+/// macOS menus: File › Import... (⌘O), Export... (⌘E) format submenu,
+/// Print... (⌘P), Reveal in Finder (⇧⌘R), Open dWalkScan Folder.
 struct MacMenuCommands: Commands {
     @FocusedValue(\.macAppState) private var state
     let updater: UpdaterController

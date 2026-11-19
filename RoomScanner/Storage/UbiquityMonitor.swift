@@ -1,6 +1,6 @@
 import Foundation
 
-/// État iCloud d'un paquet `.roomscan`, dérivé des attributs `NSMetadataItem`.
+/// iCloud state of `.roomscan` package, derived from `NSMetadataItem` attributes.
 struct CloudItemStatus: Equatable {
     enum Download: Equatable { case current, downloaded, notDownloaded }
     var url: URL
@@ -11,7 +11,7 @@ struct CloudItemStatus: Equatable {
     var percentDownloaded: Double
     var hasUnresolvedConflicts: Bool
 
-    /// Le paquet est-il lisible localement ?
+    /// Is the package readable locally?
     var isAvailableLocally: Bool { download != .notDownloaded }
 
     init(url: URL, download: Download = .current, isDownloading: Bool = false, isUploading: Bool = false, isUploaded: Bool = true, percentDownloaded: Double = 100, hasUnresolvedConflicts: Bool = false) {
@@ -19,7 +19,7 @@ struct CloudItemStatus: Equatable {
         self.isUploaded = isUploaded; self.percentDownloaded = percentDownloaded; self.hasUnresolvedConflicts = hasUnresolvedConflicts
     }
 
-    /// Depuis un dictionnaire d'attributs (`NSMetadataItem.values(forAttributes:)`), testable sans iCloud.
+    /// From attribute dictionary (`NSMetadataItem.values(forAttributes:)`), testable without iCloud.
     init?(attributes a: [String: Any]) {
         guard let url = a[NSMetadataItemURLKey] as? URL else { return nil }
         let status = a[NSMetadataUbiquitousItemDownloadingStatusKey] as? String
@@ -44,8 +44,8 @@ struct CloudItemStatus: Equatable {
     ]
 }
 
-/// Observe en continu les `.roomscan` et `.housescan` du conteneur iCloud (`NSMetadataQuery`) et
-/// déclenche le téléchargement de ceux qui ne sont pas encore sur l'appareil.
+/// Continuously monitors `.roomscan` and `.housescan` in iCloud container (`NSMetadataQuery`) and
+/// triggers background download for packages not yet on device.
 @MainActor
 final class UbiquityMonitor {
     private let query = NSMetadataQuery()
@@ -76,7 +76,7 @@ final class UbiquityMonitor {
     }
 
     deinit {
-        // Le store peut être libéré sans `stop()` (fenêtre fermée) : la requête ne doit pas survivre.
+        // Store may be released without `stop()` (window closed): query must not outlive it.
         query.stop()
         observers.forEach(NotificationCenter.default.removeObserver)
     }

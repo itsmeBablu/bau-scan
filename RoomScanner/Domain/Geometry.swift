@@ -1,8 +1,8 @@
 import Foundation
 import simd
 
-/// Point du plan 2D, en mètres. Repère : X vers la droite, Y vers le haut de la
-/// feuille. Un point RoomPlan (x, y, z) se projette en (x, −z) : vue de dessus.
+/// 2D plan point in meters. Coordinates: X right, Y up on the
+/// sheet. A RoomPlan point (x, y, z) projects to (x, -z): top-down view.
 struct Point2D: Codable, Equatable, Hashable {
     var x: Double
     var y: Double
@@ -11,7 +11,7 @@ struct Point2D: Codable, Equatable, Hashable {
 
     init(x: Double, y: Double) { self.x = x; self.y = y }
 
-    /// Projection au sol d'une position RoomPlan (Y vers le haut, sol = plan XZ).
+    /// Ground projection of a RoomPlan position (Y up, floor = XZ plane).
     init(projecting v: SIMD3<Float>) { self.init(x: Double(v.x), y: -Double(v.z)) }
 
     func distance(to other: Point2D) -> Double { (self - other).length }
@@ -30,7 +30,7 @@ struct Size2D: Codable, Equatable, Hashable {
     var depth: Double
 }
 
-/// Segment 2D orienté (start → end).
+/// Oriented 2D segment (start → end).
 struct Segment2D: Codable, Equatable, Hashable {
     var start: Point2D
     var end: Point2D
@@ -38,12 +38,12 @@ struct Segment2D: Codable, Equatable, Hashable {
     var length: Double { start.distance(to: end) }
     var midpoint: Point2D { (start + end) * 0.5 }
     var direction: Point2D { (end - start).normalized }
-    /// Angle du segment par rapport à l'axe X, en radians, dans ]−π, π].
+    /// Segment angle relative to X axis, in radians, in ]-π, π].
     var angle: Double { atan2(end.y - start.y, end.x - start.x) }
-    /// Normale unitaire à gauche du sens de parcours.
+    /// Unit normal to the left of traversal direction.
     var leftNormal: Point2D { let d = direction; return Point2D(x: -d.y, y: d.x) }
 
-    /// Distance du point au segment (et non à la droite portante).
+    /// Distance from point to segment (clamped to endpoints).
     func distance(to p: Point2D) -> Double {
         let ab = end - start
         let ab2 = ab.x * ab.x + ab.y * ab.y
@@ -53,7 +53,7 @@ struct Segment2D: Codable, Equatable, Hashable {
     }
 }
 
-/// Rectangle englobant axis-aligned, en mètres.
+/// Axis-aligned bounding box, in meters.
 struct Rect2D: Codable, Equatable, Hashable {
     var minX: Double
     var minY: Double
@@ -81,8 +81,8 @@ struct Rect2D: Codable, Equatable, Hashable {
 }
 
 enum Polygon2D {
-    /// Aire signée (formule du lacet) ; positive si le contour est parcouru
-    /// dans le sens trigonométrique. Retourne 0 pour moins de 3 points.
+    /// Signed area (shoelace formula); positive if contour is traversed
+    /// counterclockwise. Returns 0 for fewer than 3 points.
     static func signedArea(_ pts: [Point2D]) -> Double {
         guard pts.count >= 3 else { return 0 }
         var s = 0.0
@@ -95,7 +95,41 @@ enum Polygon2D {
 
     static func area(_ pts: [Point2D]) -> Double { abs(signedArea(pts)) }
 
-    /// Test point-dans-polygone (parité des croisements).
+    /// Geometric center (centroid) of a 2D polygon.
+    static func centroid(_ pts: [Point2D]) -> Point2D {
+        guard pts.count >= 3 else { return pts.first ?? .zero }
+        var cx = 0.0, cy = 0.0
+        let a6 = 6 * signedArea(pts)
+        guard abs(a6) > 1e-12 else {
+            let sum = pts.reduce(Point2D.zero, +)
+            return sum * (1.0 / Double(pts.count))
+        }
+        for i in pts.indices {
+            let p0 = pts[i], p1 = pts[(i + 1) % pts.count]
+            let cross = p0.x * p1.y - p1.x * p0.y
+            cx += (p0.x + p1.x) * cross
+            cy += (p0.y + p1.y) * cross
+        }
+        return Point2D(x: cx / a6, y: cy / a6)
+    }
+
+    /// Guaranteed interior point of polygon for placing labels (name, area).
+    static func interiorPoint(_ pts: [Point2D], fallback: Point2D = .zero) -> Point2D {
+        guard pts.count >= 3 else { return fallback }
+        let c = centroid(pts)
+        if contains(pts, c) { return c }
+        if contains(pts, fallback) { return fallback }
+        // If centroid falls outside a concave room (e.g. L-shaped),
+        // search for centroid of a valid triangle from ear-clipping triangulation.
+        let tris = triangulate(pts)
+        for (i, j, k) in tris {
+            let triCenter = (pts[i] + pts[j] + pts[k]) * (1.0 / 3.0)
+            if contains(pts, triCenter) { return triCenter }
+        }
+        return pts.first ?? fallback
+    }
+
+    /// Point-in-polygon test (ray casting parity).
     static func contains(_ pts: [Point2D], _ p: Point2D) -> Bool {
         guard pts.count >= 3 else { return false }
         var inside = false
@@ -111,10 +145,10 @@ enum Polygon2D {
         return inside
     }
 
-    /// Triangulation d'un polygone simple (convexe ou concave, sans trou) par
-    /// découpage d'oreilles. Retourne des triplets d'indices dans `pts`.
-    /// Supprime les sommets quasi colinéaires (distance à la corde < `tolerance`) et les doublons.
-    /// RoomPlan livre des contours de sol à 40+ points dont la plupart sont alignés.
+    /// Triangulation of a simple polygon (convex or concave, without holes) via
+    /// ear clipping. Returns index triplets in `pts`.
+    /// Removes nearly collinear vertices (chord distance < `tolerance`) and duplicates.
+    /// RoomPlan produces floor polygons with 40+ vertices, most of which are collinear.
     static func simplified(_ pts: [Point2D], tolerance: Double = 0.01) -> [Point2D] {
         guard pts.count > 3 else { return pts }
         var out = pts
@@ -132,11 +166,11 @@ enum Polygon2D {
 
     static func triangulate(_ pts: [Point2D]) -> [(Int, Int, Int)] { triangulation(pts).triangles }
 
-    /// Comme `triangulate`, en signalant si tout le polygone a pu être découpé (`complete`).
-    /// `false` = contour dégénéré (auto-intersection, sommets dupliqués) : le résultat est partiel.
+    /// Like `triangulate`, reporting whether the whole polygon could be clipped (`complete`).
+    /// `false` = degenerate contour (self-intersection, duplicate vertices): partial result.
     static func triangulation(_ pts: [Point2D]) -> (triangles: [(Int, Int, Int)], complete: Bool) {
         guard pts.count >= 3 else { return ([], false) }
-        // Travaille toujours dans le sens trigonométrique.
+        // Always processes in counterclockwise order.
         let ccw = signedArea(pts) >= 0
         var idx = Array(pts.indices)
         if !ccw { idx.reverse() }
@@ -148,9 +182,9 @@ enum Polygon2D {
             for i in idx.indices {
                 let ia = idx[(i + idx.count - 1) % idx.count], ib = idx[i], ic = idx[(i + 1) % idx.count]
                 let a = pts[ia], b = pts[ib], c = pts[ic]
-                // Sommet convexe ?
+                // Convex vertex?
                 if cross(b - a, c - b) <= 1e-12 { continue }
-                // Aucun autre sommet dans le triangle ?
+                // No other vertex inside triangle?
                 var contains = false
                 for j in idx where j != ia && j != ib && j != ic {
                     if pointInTriangle(pts[j], a, b, c) { contains = true; break }
@@ -161,11 +195,11 @@ enum Polygon2D {
                 earFound = true
                 break
             }
-            if !earFound { break }   // polygone dégénéré : on s'arrête proprement
+            if !earFound { break }   // degenerate polygon: clean exit
         }
         var complete = idx.count == 3
         if idx.count == 3 {
-            // Dernier triplet : ignoré s'il est plat (sommets alignés), sinon il produirait une normale NaN.
+            // Last triplet: ignored if flat (collinear vertices) to avoid NaN normal.
             let a = pts[idx[0]], b = pts[idx[1]], c = pts[idx[2]]
             if abs(cross(b - a, c - a)) > 1e-12 { tris.append((idx[0], idx[1], idx[2])) }
             else if tris.isEmpty { complete = false }
@@ -173,10 +207,10 @@ enum Polygon2D {
         return (tris, complete)
     }
 
-    /// Découpe `subject` par un polygone **convexe** parcouru dans le sens trigonométrique
-    /// (Sutherland–Hodgman). La convexité du découpeur est la condition de validité de
-    /// l'algorithme : on ne découpe donc jamais que par des triangles issus de `triangulate`,
-    /// jamais par un contour de pièce (concave, et piégeux sur les arêtes colinéaires).
+    /// Clips `subject` against a **convex** counterclockwise polygon
+    /// (Sutherland-Hodgman). Convexity of clipper is required for
+    /// algorithm validity: clipping is always performed using triangles from `triangulate`,
+    /// never against an arbitrary concave room contour.
     static func clip(_ subject: [Point2D], byConvex clipper: [Point2D]) -> [Point2D] {
         guard subject.count >= 3, clipper.count >= 3 else { return [] }
         var out = subject
@@ -197,15 +231,15 @@ enum Polygon2D {
         return out
     }
 
-    /// Aire de l'intersection de plusieurs polygones simples (0 si elle est vide).
+    /// Intersection area of multiple simple polygons (0 if disjoint).
     static func intersectionArea(_ polygons: [[Point2D]]) -> Double {
         intersectionPieces(polygons).reduce(0) { $0 + area($1) }
     }
 
-    /// Aire de l'**union** de plusieurs polygones simples, par inclusion–exclusion avec
-    /// élagage dès qu'une intersection est vide. Les pièces d'une maison se recouvrent
-    /// légèrement (épaisseur des murs, contours de scan imprécis) : sommer leurs aires
-    /// surestime la surface — mesuré à +2,14 m² sur la première maison réelle.
+    /// Area of the **union** of multiple simple polygons via inclusion-exclusion with
+    /// prunes early when intersection is empty. Adjacent rooms overlap
+    /// slightly (wall thickness, scan boundary inaccuracy); summing their areas
+    /// overestimates area — measured at +2.14 m² on initial real scans.
     static func unionArea(_ polygons: [[Point2D]]) -> Double {
         let polys = polygons.filter { $0.count >= 3 }
         guard !polys.isEmpty else { return 0 }
@@ -233,7 +267,7 @@ enum Polygon2D {
         return pieces
     }
 
-    /// Chaque morceau convexe est redécoupé par chaque triangle du polygone.
+    /// Each convex piece is iteratively clipped by each polygon triangle.
     private static func clipPieces(_ pieces: [[Point2D]], by polygon: [Point2D]) -> [[Point2D]] {
         let tris = convexPieces(of: polygon)
         guard !tris.isEmpty else { return [] }
@@ -251,8 +285,8 @@ enum Polygon2D {
         triangulate(polygon).map { [polygon[$0.0], polygon[$0.1], polygon[$0.2]] }
     }
 
-    /// Intersection du segment `p1p2` avec la **droite** `ab` (les deux sont sécants par
-    /// construction : `p1` et `p2` sont de part et d'autre de `ab`).
+    /// Intersection of segment `p1p2` with **line** `ab` (known to intersect
+    /// construction: `p1` and `p2` lie on opposite sides of `ab`).
     private static func lineIntersection(_ p1: Point2D, _ p2: Point2D, _ a: Point2D, _ b: Point2D) -> Point2D? {
         let d1 = p2 - p1, d2 = b - a
         let den = cross(d1, d2)
@@ -275,10 +309,10 @@ enum Polygon2D {
         return pts.indices.reduce(0.0) { $0 + pts[$1].distance(to: pts[($1 + 1) % pts.count]) }
     }
 
-    /// Chaîne des segments (murs) en un contour fermé : chaque extrémité est
-    /// raccordée à l'extrémité la plus proche d'un segment non encore utilisé,
-    /// dans la limite de `tolerance`. Retourne nil si la chaîne ne se referme
-    /// pas (mur manquant, scan partiel).
+    /// Chains segments (walls) into a closed contour: each endpoint is
+    /// connected to the nearest endpoint of an unused segment,
+    /// within `tolerance`. Returns nil if chain does not close
+    /// (missing wall, partial scan).
     static func chain(_ segments: [Segment2D], tolerance: Double) -> [Point2D]? {
         guard segments.count >= 3 else { return nil }
         var remaining = segments
@@ -300,7 +334,7 @@ enum Polygon2D {
             let next = bestReversed ? current.start : current.end
             contour.append(next)
         }
-        // Fermeture : le dernier point doit rejoindre le premier.
+        // Closure: the final point must connect back to the first point.
         guard contour.first!.isClose(to: contour.last!, tolerance: tolerance) else { return nil }
         contour.removeLast()
         return contour
@@ -310,7 +344,7 @@ enum Polygon2D {
 extension simd_float4x4 {
     /// Translation (colonne 3).
     var translation: SIMD3<Float> { SIMD3(columns.3.x, columns.3.y, columns.3.z) }
-    /// Axe X local (colonne 0), c'est-à-dire la direction « largeur » d'une surface RoomPlan.
+    /// Local X axis (column 0), representing the 'width' direction of a RoomPlan surface.
     var xAxis: SIMD3<Float> { SIMD3(columns.0.x, columns.0.y, columns.0.z) }
     /// Axe Y local (colonne 1).
     var yAxis: SIMD3<Float> { SIMD3(columns.1.x, columns.1.y, columns.1.z) }

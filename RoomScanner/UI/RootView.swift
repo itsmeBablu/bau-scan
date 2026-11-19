@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Écran racine : la bibliothèque, avec le `RoomStore` injecté dans l'environnement.
+/// Root screen: library with `RoomStore` injected into the environment.
 struct RootView: View {
     @State private var store = RoomStore(location: RootView.initialLocation(), allowsCloud: RootView.allowsCloud)
 
@@ -15,8 +15,8 @@ struct RootView: View {
 
     static var hasForcedRoot: Bool { UserDefaults.standard.string(forKey: "RoomScannerStorageRoot") != nil }
 
-    /// `-RoomScannerStorageRoot <dossier>` au lancement force une racine locale
-    /// (démonstrations, captures d'écran, tests) ; sinon le stockage normal.
+    /// `-RoomScannerStorageRoot <path>` at launch forces a custom local root
+    /// (demos, screenshots, tests); otherwise standard storage.
     static func initialLocation() -> StorageLocation {
         if let path = UserDefaults.standard.string(forKey: "RoomScannerStorageRoot") {
             return StorageLocation(kind: .local, documentsURL: URL(fileURLWithPath: path, isDirectory: true))

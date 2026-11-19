@@ -1,4 +1,4 @@
-# 3D Scanner v2 — Maison entière (brouillon à valider)
+# dWalkScan v2 — Maison entière (brouillon à valider)
 
 **Statut** : proposition rédigée le 2026-09-05 à l'issue de la v1, **non validée par Vincent**. À relire après la première utilisation réelle de la v1 sur iPhone : les retours terrain (précision, ergonomie du scan, formats réellement utilisés) peuvent changer les priorités ci-dessous.
 

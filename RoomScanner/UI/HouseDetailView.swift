@@ -1,9 +1,9 @@
 import SwiftUI
 import ImageIO
 
-/// Détail d'une maison (v2) : sélecteur de niveau, onglets Plan 2D / Visualiseur / Mesures,
-/// export (⌘E), titre renommable. Le sélecteur de niveau s'applique aux trois onglets
-/// (« Tous les niveaux » superpose les étages en 3D).
+/// House detail view: story picker, 2D Plan / 3D Viewer / Measurements tabs,
+/// export (⌘E), renamable title.
+/// ('All stories' overlays stories in 3D).
 struct HouseDetailView: View {
     @Environment(RoomStore.self) private var store
     let record: HouseRecord
@@ -57,7 +57,7 @@ struct HouseDetailView: View {
         .task(id: record.id) { load() }
     }
 
-    /// Maison réduite au niveau sélectionné (plan 2D, mesures) ; `nil` = tous les niveaux.
+    /// House filtered to selected story (2D plan, measurements); `nil` = all stories.
     private func shown(_ house: House) -> House {
         guard let storyIndex, let story = house.stories.first(where: { $0.index == storyIndex }) else { return house }
         return House(id: house.id, name: house.name, stories: [story])
@@ -83,6 +83,8 @@ struct HouseDetailView: View {
                     .accessibilityIdentifier("house.storyPicker")
                 }
             }
+            .padding(4)
+            .liquidGlass(cornerRadius: 12, tint: AppTheme.primaryYellow, hasBorder: true, shadowRadius: 6)
             .padding(.horizontal)
             .padding(.vertical, 8)
             switch tab {
@@ -117,16 +119,17 @@ struct HouseDetailView: View {
     }
 }
 
-/// Mesures d'une maison : totaux puis une section par niveau et par pièce.
+/// House measurements: overall totals followed by a section per story and room.
 struct HouseMeasuresView: View {
     let house: House
+    @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
 
     var body: some View {
         let hm = HouseMeasurements(house: house)
         List {
-            // La surface de la maison est l'union des pièces d'un même niveau : elle est plus
-            // petite que la somme des pièces listées plus bas (les mitoyennes se recouvrent).
-            // Le libellé et la note l'expliquent pour que les deux chiffres se lisent ensemble.
+            // House area is the union of rooms on the same story: it is smaller
+            // than the sum of rooms below because adjoining rooms share walls.
+            // Explanatory note clarifies the difference between union and arithmetic sum.
             Section("measures.summary") {
                 row(Text("house.area"), MeasurementFormat.squareMeters(hm.floorArea))
                 row(Text("house.rooms"), "\(hm.roomCount)")
@@ -137,7 +140,7 @@ struct HouseMeasuresView: View {
                 Section(StoryNaming.localizedName(for: story.index)) {
                     ForEach(story.rooms) { room in
                         let m = RoomMeasurements(plan: room)
-                        row(Text(room.name), "\(MeasurementFormat.squareMeters(m.floorArea)) · \(MeasurementFormat.meters(m.perimeter))")
+                        row(Text(room.name), "\(MeasurementFormat.squareMeters(m.floorArea)) · \(MeasurementFormat.length(m.perimeter, unit: unit))")
                     }
                 }
             }
@@ -149,7 +152,7 @@ struct HouseMeasuresView: View {
     }
 }
 
-/// Ligne de bibliothèque d'une maison : vignette du premier niveau, pièces, niveaux, surface.
+/// House library row: first story thumbnail, rooms count, stories count, area.
 struct HouseRow: View {
     @Environment(RoomStore.self) private var store
     let record: HouseRecord

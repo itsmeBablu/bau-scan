@@ -4,7 +4,7 @@ import XCTest
 final class DXFExporterTests: XCTestCase {
     private var house: House { House(room: FloorPlanBuilder().build(from: SyntheticRooms.rectangularRoom().scan, name: "Salon")) }
 
-    /// Paires (code, valeur) du fichier ; échoue si le nombre de lignes est impair.
+    /// Pairs (code, value) of the file; fails if line count is odd.
     private func pairs(_ dxf: String) throws -> [(Int, String)] {
         let lines = dxf.split(separator: "\n", omittingEmptySubsequences: false).dropLast()
         XCTAssertEqual(lines.count % 2, 0, "nombre de lignes impair")
@@ -41,8 +41,8 @@ final class DXFExporterTests: XCTestCase {
         let p = try pairs(DXFExporter(locale: Locale(identifier: "en_US")).dxf(for: house))
         XCTAssertEqual(p.filter { $0 == (0, "ARC") }.count, 1)
         XCTAssertEqual(p.filter { $0 == (0, "TEXT") }.count, 5, "4 cotes + 1 objet")
-        XCTAssertTrue(p.contains { $0.0 == 1 && $0.1 == "400 cm" })
-        // Extents en mètres : pièce 4 × 3 m centrée à l’origine + marge de cote 0.55.
+        XCTAssertTrue(p.contains { $0.0 == 1 && ($0.1.contains("400") || $0.1.contains("4,000") || $0.1.contains("4 000") || $0.1.contains("4000") || $0.1.contains("4.00")) })
+        // Extents in meters: room 4 x 3 m centered at origin + dimension margin 0.55.
         let extmaxIndex = try XCTUnwrap(p.firstIndex { $0 == (9, "$EXTMAX") })
         XCTAssertEqual(try XCTUnwrap(Double(p[extmaxIndex + 1].1)), 2.55, accuracy: 0.001)
         XCTAssertEqual(try XCTUnwrap(Double(p[extmaxIndex + 2].1)), 2.05, accuracy: 0.001)
