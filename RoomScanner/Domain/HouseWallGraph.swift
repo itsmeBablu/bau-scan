@@ -10,8 +10,8 @@ struct HouseWallSettings {
 
 struct ResolvedWall {
     enum WallType { case exterior, interior }
-    enum ThicknessSource { case measured, defaultValue }
-    let id: Int
+    enum ThicknessSource { case measured, entered, defaultValue }
+    var id: Int
     var segment: Segment2D
     var footprints: [[Point2D]] = []
     let thickness: Double
@@ -32,14 +32,48 @@ struct HouseWallGraph {
     let walls: [ResolvedWall]
     let openingHosts: [OpeningHost]
 
+    func hostThickness(roomID: UUID, openingID: UUID) -> Double {
+        let host = openingHosts.first { $0.roomID == roomID && $0.openingID == openingID }
+        return walls.first { host?.wallIDs.contains($0.id) == true }?.thickness ?? 0.115
+    }
+
+    func panelOwner(roomID: UUID, opening: Opening, house: House) -> Bool {
+        let hosts = openingHosts.first { $0.roomID == roomID && $0.openingID == opening.id }?.wallIDs ?? []
+        guard !hosts.isEmpty else { return true }
+        var accepted: [(Opening.Kind, Point2D, [Int])] = []
+        for room in house.allRooms {
+            for candidate in room.openings {
+                let candidateHosts = openingHosts.first { $0.roomID == room.id && $0.openingID == candidate.id }?.wallIDs ?? []
+                let center = room.transform.apply(candidate.center)
+                let duplicate = accepted.contains {
+                    $0.0 == candidate.kind && $0.1.distance(to: center) <= 0.5 &&
+                    !Set($0.2).isDisjoint(with: candidateHosts)
+                }
+                if room.id == roomID && candidate.id == opening.id { return !duplicate }
+                if !duplicate { accepted.append((candidate.kind, center, candidateHosts)) }
+            }
+        }
+        return true
+    }
+
     private struct Source {
         let roomID: UUID
         let wallID: UUID
         let segment: Segment2D
         let inward: Point2D
+        let thickness: Double
     }
 
     init(house: House, settings: HouseWallSettings = HouseWallSettings()) {
+        if house.stories.count > 1 {
+            var all: [ResolvedWall] = [],hosts: [OpeningHost] = []
+            for story in house.stories {
+                let graph = Self(house:House(id:house.id,name:house.name,stories:[story]),settings:settings),offset = all.count
+                all += graph.walls.map { wall in var copy = wall; copy.id += offset; return copy }
+                hosts += graph.openingHosts.map { OpeningHost(roomID:$0.roomID,openingID:$0.openingID,wallIDs:$0.wallIDs.map { $0+offset }) }
+            }
+            walls = all; openingHosts = hosts; return
+        }
         var sources: [Source] = []
         for room in house.allRooms {
             let polygon = room.floorPolygon.map(room.transform.apply)
@@ -48,7 +82,7 @@ struct HouseWallGraph {
                 let normal = segment.leftNormal
                 let probe = segment.midpoint + normal * 0.02
                 let inward = Polygon2D.contains(polygon, probe) ? normal : normal * -1
-                sources.append(Source(roomID: room.id, wallID: wall.id, segment: segment, inward: inward))
+                sources.append(Source(roomID:room.id,wallID:wall.id,segment:segment,inward:inward,thickness:wall.thickness))
             }
         }
         var cuts = sources.map { [0.0, $0.segment.length] }
@@ -95,7 +129,10 @@ struct HouseWallGraph {
                 let peer = peers.first.map { sources[$0] }
                 let gap = peer.map { abs(Self.dot($0.segment.midpoint - midpoint, source.segment.leftNormal)) }
                 let measured = gap.map { $0 >= 0.05 && $0 <= 0.50 } ?? false
-                let thickness = measured ? gap! : (peer == nil ? settings.exteriorThickness : settings.interiorThickness)
+                let entered = ([source.thickness]+peers.map { sources[$0].thickness }).filter {
+                    $0.isFinite && $0 > 0 && $0 <= 2 && abs($0-FloorPlan.defaultWallThickness) > 0.000001
+                }.max()
+                let thickness = entered ?? (measured ? (gap ?? settings.interiorThickness) : (peer == nil ? settings.exteriorThickness : settings.interiorThickness))
                 let offset: Point2D
                 if let peer {
                     offset = source.segment.leftNormal * (Self.dot(peer.segment.midpoint - midpoint, source.segment.leftNormal) / 2)
@@ -109,7 +146,7 @@ struct HouseWallGraph {
                 let other = Set(peers.map { sources[$0].roomID })
                 resolved.append(ResolvedWall(id: resolved.count, segment: segment, thickness: thickness,
                     wallType: peer == nil ? .exterior : .interior,
-                    thicknessSource: measured ? .measured : .defaultValue,
+                    thicknessSource: entered != nil ? .entered : measured ? .measured : .defaultValue,
                     roomIdsOnSideA: positive ? own : other, roomIdsOnSideB: positive ? other : own,
                     sourceWallIds: Set([source.wallID] + peers.map { sources[$0].wallID })))
             }

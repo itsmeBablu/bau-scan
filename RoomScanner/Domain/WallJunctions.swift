@@ -45,7 +45,7 @@ enum WallJunctions {
     }
 
     /// Disjoint convex pieces of subject outside a convex clip polygon.
-    private static func subtract(_ subject: [Point2D], convex clip: [Point2D]) -> [[Point2D]] {
+    static func subtract(_ subject: [Point2D], convex clip: [Point2D]) -> [[Point2D]] {
         var remaining = subject
         var result: [[Point2D]] = []
         for index in clip.indices {

@@ -6,6 +6,22 @@ import XCTest
 /// overlap (sum of areas overestimates house) and single capture spanning
 /// two RoomPlan sections simultaneously (dining room open to kitchen).
 final class RealHouseTests: XCTestCase {
+    func testResolvedDXFWallPolylineDiagnostics() throws {
+        let house = try builder.build(from: loadStructure(), name: "Real")
+        let before = house.allRooms.reduce(0) { count, room in
+            count + room.walls.reduce(0) { count, wall in
+                count + PlanRenderer().wallPieces(wall, openings: room.openings.filter { $0.wallID == wall.id }).count
+            }
+        }
+        let dxf = DXFExporter().dxf(for: house)
+        let after = dxf.components(separatedBy: "0\nPOLYLINE\n8\nWALLS\n").count - 1
+        print("Real-house DXF wall polylines before=\(before), after=\(after)")
+        XCTAssertGreaterThan(before, 0)
+        XCTAssertGreaterThan(after, 0)
+        let graph = HouseWallGraph(house: house)
+        let expected = ResolvedWallGeometry.solids(house: house, graph: graph).filter { $0.bottom == 0 }.count
+        XCTAssertEqual(after, expected)
+    }
     /// Noms indépendants de la langue du système : on teste la composition, pas la traduction.
     private var builder: HouseBuilder {
         var b = HouseBuilder()

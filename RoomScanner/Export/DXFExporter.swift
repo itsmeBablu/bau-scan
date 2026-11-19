@@ -31,19 +31,18 @@ struct DXFExporter {
     }
 
     func dxf(for house: House) -> String {
-        var e = Entities(fmt: fmt, locale: locale)
+        var e = Entities(fmt:fmt,locale:locale)
+        let graph = HouseWallGraph(house: house)
+        for solid in ResolvedWallGeometry.solids(house: house, graph: graph) where solid.bottom == 0 {
+            e.polyline(solid.footprint, layer: .walls)
+        }
         let renderer = PlanRenderer()
-        let hiddenDoors = PlanRenderer.duplicateDoorIndices(in: house.allRooms)
+        let hiddenDoors = PlanRenderer.duplicateDoorIndices(in:house.allRooms)
         for room in house.allRooms {
             let t = room.transform
             let side = PlanRenderer.InteriorSide(polygon: room.floorPolygon, fallback: room.bounds.center)
             if room.floorPolygon.count >= 3 { e.polyline(room.floorPolygon.map(t.apply), layer: .floor) }
             for wall in room.walls {
-                let ops = room.openings.filter { $0.wallID == wall.id }
-                for piece in renderer.wallPieces(wall, openings: ops) {
-                    let n = piece.leftNormal * (wall.thickness / 2)
-                    e.polyline([piece.start + n, piece.end + n, piece.end - n, piece.start - n].map(t.apply), layer: .walls)
-                }
                 let seg = wall.segment
                 guard seg.length >= PlanRenderer.minimumDimensionedLength else { continue }
                 let outward = side.inward(of: seg) * -1
@@ -72,7 +71,7 @@ struct DXFExporter {
                     let a2 = atan2(leafEnd.y - hinge.y, leafEnd.x - hinge.x) + t.rotation
                     e.arc(center: t.apply(hinge), radius: o.width, from: a1, to: a2, layer: .doors)
                 case .window:
-                    let n = seg.leftNormal * (FloorPlan.defaultWallThickness * 0.3)
+                    let n = seg.leftNormal * (graph.hostThickness(roomID: room.id, openingID: o.id) * 0.3)
                     e.line(t.apply(seg.start + n), t.apply(seg.end + n), layer: .windows)
                     e.line(t.apply(seg.start - n), t.apply(seg.end - n), layer: .windows)
                     e.line(t.apply(seg.start + n), t.apply(seg.start - n), layer: .windows)

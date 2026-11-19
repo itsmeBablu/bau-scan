@@ -70,38 +70,36 @@ final class PlanSceneBuilderTests: XCTestCase {
         let house = House(room: plan())
         let root = PlanSceneBuilder().makeScene(for: house)
         XCTAssertEqual(root.name, "house")
-        XCTAssertEqual(root.children.count, 1)
-        let room = root.children[0]
+        XCTAssertEqual(root.children.filter { $0.name.hasPrefix("room:") }.count, 1)
+        let room = root.children.first { $0.name.hasPrefix("room:") }!
         XCTAssertTrue(room.name.hasPrefix("room:"))
-        let walls = room.children.first { $0.name == "walls" }!
-        XCTAssertNotNil(walls.children.first { $0.name == "wall-junctions" })
-        XCTAssertEqual(walls.children.filter { $0.name != "wall-junctions" }.count, 1 + 1 + 3 + 4, "est + ouest pleins, sud avec porte, nord avec fenêtre")
-        XCTAssertNotNil(room.children.first { $0.name == "floor" })
+        let walls = root.children.first { $0.name == "walls" }!
+        let solids = ResolvedWallGeometry.solids(house:house,graph:HouseWallGraph(house:house))
+        XCTAssertEqual(walls.children.count,solids.count)
+        XCTAssertNotNil(root.children.first { $0.name == "floor" })
         XCTAssertEqual(room.children.first { $0.name == "panels" }?.children.count, 2)
         XCTAssertEqual(room.children.first { $0.name == "objects" }?.children.count, 1)
         XCTAssertNil(room.children.first { $0.name == "dimensions" }, "cotes désactivées par défaut")
     }
 
-    func testWallPlacementInRealityKitSpace() {
+    func testWallPlacementInRealityKitSpace() throws {
         let p = plan()
         let root = PlanSceneBuilder().makeScene(for: House(room: p))
-        let walls = root.children[0].children.first { $0.name == "walls" }!
-        // East wall: x = 2, center at z = 0 (y_plan = 0 -> z = 0), height 2.5 -> center y = 1.25
-        let east = walls.children.first { abs($0.position.x - 2) < 0.01 }!
-        XCTAssertEqual(east.position.y, 1.25, accuracy: 0.001)
-        XCTAssertEqual(east.position.z, 0, accuracy: 0.001)
-        // North wall (y_plan = 1.5) -> z = -1.5
-        XCTAssertTrue(walls.children.contains { abs($0.position.z + 1.5) < 0.01 })
+        let walls = try XCTUnwrap(root.children.first { $0.name == "walls" })
+        let bounds = walls.visualBounds(relativeTo: root)
+        XCTAssertGreaterThan(bounds.extents.x, 4)
+        XCTAssertGreaterThan(bounds.extents.z, 3)
+        XCTAssertEqual(bounds.extents.y, 2.5, accuracy: 0.001)
     }
-
     func testDimensionsAndMultiRoomPlacement() {
         var b = PlanSceneBuilder(); b.options.showDimensions = true
         var a = plan(); var c = plan()
         c.id = UUID(); c.transform = Transform2D(translation: Point2D(x: 10, y: 0), rotation: .pi / 2)
         let root = b.makeScene(for: House(name: "Maison", stories: [Story(index: 0, rooms: [a, c])]))
-        XCTAssertEqual(root.children.count, 2)
-        XCTAssertEqual(root.children[1].position.x, 10, accuracy: 0.001)
-        XCTAssertEqual(root.children[0].children.first { $0.name == "dimensions" }?.children.count, 4)
+        let rooms = root.children.filter { $0.name.hasPrefix("room:") }
+        XCTAssertEqual(rooms.count, 2)
+        XCTAssertEqual(rooms[1].position.x, 10, accuracy: 0.001)
+        XCTAssertEqual(root.children.first { $0.name.hasPrefix("room:") }!.children.first { $0.name == "dimensions" }?.children.count, 4)
         a.name = "x"  // évite l'avertissement de variable non mutée
     }
 
@@ -123,7 +121,7 @@ final class PlanSceneBuilderTests: XCTestCase {
         let plan = FloorPlanBuilder().build(from: SyntheticRooms.rectangularRoom().scan, name: "Salon")
         var b = PlanSceneBuilder(); b.options.showDimensions = true; b.options.flattenWalls = true
         let root = b.makeScene(for: House(room: plan))
-        let dims = try XCTUnwrap(root.children[0].children.first { $0.name == "dimensions" })
+        let dims = try XCTUnwrap(root.children.first { $0.name.hasPrefix("room:") }!.children.first { $0.name == "dimensions" })
         XCTAssertEqual(dims.children.count, 4)
         for label in dims.children {
             XCTAssertNil(label.components[BillboardComponent.self], "à plat, pas de billboard en vue zénithale")

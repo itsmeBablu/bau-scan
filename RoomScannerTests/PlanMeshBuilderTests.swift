@@ -20,15 +20,19 @@ final class PlanMeshBuilderTests: XCTestCase {
     func testGroupsAndCounts() {
         let mesh = PlanMeshBuilder().build(House(room: plan))
         XCTAssertEqual(mesh.groups.map(\.name), ["walls", "doors", "windows", "floor", "objects"])
-        // Walls: south (2 portions + lintel), east, north (2 portions + sill + lintel), west = 9 boxes x 12 triangles.
-        let boxes = plan.walls.reduce(0) { acc, wall in acc + WallGeometry().wallBoxes(wall, openings: plan.openings.filter { $0.wallID == wall.id }).count }
-        XCTAssertEqual(boxes, 9)
-        let joins = StudioWallJoins.mesh(room: plan, visible: Set(plan.walls.map(\.id)))
-        XCTAssertFalse(joins.isEmpty)
-        XCTAssertEqual(mesh.groups[0].triangles.count, boxes * 12 + joins.triangles.count)
+        let boxes = plan.walls.reduce(0) { count,wall in count+WallGeometry().wallBoxes(wall,openings:plan.openings.filter { $0.wallID == wall.id }).count }
+        XCTAssertEqual(boxes,9)
+        let solids = ResolvedWallGeometry.solids(house:House(room:plan),graph:HouseWallGraph(house:House(room:plan)))
+        XCTAssertEqual(mesh.groups[0].triangles.count,solids.reduce(0) { $0+4*$1.footprint.count-4 })
+        let signedVolume = mesh.groups[0].triangles.reduce(0.0) { volume,index in
+            let t = mesh.triangles[index]
+            return volume+Double(simd_dot(mesh.positions[Int(t.x)],simd_cross(mesh.positions[Int(t.y)],mesh.positions[Int(t.z)])))/6
+        }
+        let expected = (4.73*3.73-12)*2.5-(0.9*2+1.2)*0.365
+        XCTAssertEqual(abs(signedVolume),expected,accuracy:0.001,"Closed wall volume minus door/window voids")
         XCTAssertEqual(mesh.groups[1].triangles.count, 12, "un panneau de porte")
         XCTAssertEqual(mesh.groups[2].triangles.count, 12, "un vitrage")
-        XCTAssertEqual(mesh.groups[3].triangles.count, 2 * 2 + 4 * 2, "dalle rectangulaire : dessus, dessous, 4 flancs")
+        XCTAssertEqual(mesh.groups[3].triangles.count, 16, "two non-overlapping triangular floor prisms")
         XCTAssertEqual(mesh.groups[4].triangles.count, 12, "une table")
         XCTAssertEqual(mesh.positions.count, mesh.normals.count)
         XCTAssertTrue(mesh.triangles.allSatisfy { Int($0.max()) < mesh.positions.count })
@@ -39,8 +43,8 @@ final class PlanMeshBuilderTests: XCTestCase {
         let mesh = PlanMeshBuilder().build(House(room: plan))
         let b = try XCTUnwrap(mesh.bounds)
         // 4 x 3 m centered at origin, 10 cm walls centered on segment; 5 cm slab below floor; 2.5 m ceiling.
-        XCTAssertEqual(b.min.x, -2.05, accuracy: 0.001); XCTAssertEqual(b.max.x, 2.05, accuracy: 0.001)
-        XCTAssertEqual(b.min.z, -1.55, accuracy: 0.001); XCTAssertEqual(b.max.z, 1.55, accuracy: 0.001)
+        XCTAssertEqual(b.min.x, -2.365, accuracy: 0.001); XCTAssertEqual(b.max.x, 2.365, accuracy: 0.001)
+        XCTAssertEqual(b.min.z, -1.865, accuracy: 0.001); XCTAssertEqual(b.max.z, 1.865, accuracy: 0.001)
         XCTAssertEqual(b.min.y, -0.05, accuracy: 0.001); XCTAssertEqual(b.max.y, 2.5, accuracy: 0.001)
     }
 
@@ -68,14 +72,13 @@ final class PlanMeshBuilderTests: XCTestCase {
     func testFloorNormalsPointOutward() {
         let mesh = PlanMeshBuilder().build(House(room: plan))
         let floor = mesh.groups.first { $0.name == "floor" }!
-        let centroid = SIMD3<Float>(0, -0.025, 0)
         for i in floor.triangles {
             let t = mesh.triangles[i]
             let c = (mesh.positions[Int(t.x)] + mesh.positions[Int(t.y)] + mesh.positions[Int(t.z)]) / 3
             let n = mesh.normals[Int(t.x)]
             if abs(c.y) < 1e-5 { XCTAssertGreaterThan(n.y, 0.99, "dessus") }
             else if abs(c.y + 0.05) < 1e-5 { XCTAssertLessThan(n.y, -0.99, "dessous") }
-            else { XCTAssertGreaterThan(simd_dot(n, c - centroid), 0, "flanc") }
+            else { XCTAssertEqual(abs(n.y), 0, accuracy: 0.000001, "vertical prism sides") }
         }
     }
 

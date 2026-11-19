@@ -2,6 +2,61 @@ import XCTest
 @testable import RoomScanner
 
 final class HouseWallGraphTests: XCTestCase {
+    func testCoincidentStoreysNeverMergeWallsOrLoseFloors() {
+        var lower = FloorPlanBuilder().build(from:SyntheticRooms.rectangularRoom().scan,name:"Lower")
+        lower.openings = []; lower.objects = []
+        var upper = lower; upper.id = UUID(); upper.story = 1
+        let house = House(name:"Storeys",stories:[.init(index:0,rooms:[lower]),.init(index:1,rooms:[upper])])
+        let graph = HouseWallGraph(house:house)
+        XCTAssertEqual(graph.walls.count,8)
+        XCTAssertTrue(graph.walls.allSatisfy { $0.wallType == .exterior })
+        XCTAssertEqual(Set(graph.walls.map(\.id)).count,8)
+        XCTAssertEqual(HouseFloorGeometry.pieces(house:house).reduce(0) { $0+Polygon2D.area($1.polygon) },24,accuracy:0.00001)
+    }
+    func testExistingEnteredWallAndSlabThicknessRemainEffective() {
+        var room = FloorPlanBuilder().build(from:SyntheticRooms.rectangularRoom().scan,name:"Room")
+        room.openings = []; room.objects = []; room.floorSlabThickness = 0.2
+        for i in room.walls.indices { room.walls[i].thickness = 0.4 }
+        let graph = HouseWallGraph(house:House(room:room))
+        XCTAssertTrue(graph.walls.allSatisfy { $0.thickness == 0.4 && $0.thicknessSource == .entered })
+        XCTAssertEqual(RoomMeasurements(plan:room).floorArea,12,accuracy:0.00001)
+        XCTAssertEqual(PlanMeshBuilder().build(House(room:room)).bounds?.min.y ?? 0,-0.2,accuracy:0.00001)
+    }
+    func testRectangularRoomGeometryBaseline() {
+        let scan = SyntheticRooms.rectangularRoom(origin: .zero, width: 4, depth: 3)
+        var room = FloorPlanBuilder().build(from: scan, name: "Baseline")
+        room.openings = []
+        room.objects = []
+        let graph = HouseWallGraph(house: House(room: room))
+        XCTAssertEqual(graph.walls.count, 4)
+        let area = graph.walls.flatMap(\.footprints).reduce(0) { $0 + Polygon2D.area($1) }
+        XCTAssertEqual(area, 4.73 * 3.73 - 12, accuracy: 0.000001)
+        XCTAssertEqual(RoomMeasurements(plan: room).floorArea, 12, accuracy: 0.000001)
+        assertDisjoint(graph)
+    }
+    func testFloorPiecesPreserveUnionAreaWithoutOverlap() throws {
+        var house = try HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(), name: "Floors")
+        house.stories[0].rooms[1].transform.translation.x = -0.2
+        let pieces = HouseFloorGeometry.pieces(house: house)
+        let polygons = house.allRooms.map { room in room.floorPolygon.map(room.transform.apply) }
+        XCTAssertEqual(pieces.reduce(0) { $0 + Polygon2D.area($1.polygon) }, Polygon2D.unionArea(polygons), accuracy: 0.000001)
+        for i in pieces.indices {
+            for j in pieces.indices where j > i {
+                XCTAssertLessThanOrEqual(Polygon2D.intersectionArea([pieces[i].polygon, pieces[j].polygon]), 0.000001)
+            }
+        }
+    }
+    func testResolvedSolidsHavePositiveHeightAndValidFootprints() throws {
+        let house = try HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(), name: "Solids")
+        let graph = HouseWallGraph(house: house)
+        let solids = ResolvedWallGeometry.solids(house: house, graph: graph)
+        XCTAssertFalse(solids.isEmpty)
+        for solid in solids {
+            XCTAssertGreaterThan(solid.top, solid.bottom)
+            XCTAssertGreaterThan(Polygon2D.area(solid.footprint), 0)
+            XCTAssertTrue(graph.walls.contains { $0.id == solid.wallID })
+        }
+    }
     func testPartialSharedWallKeepsExteriorRemainder() throws {
         let structure = StructureInput(rooms: [
             SyntheticRooms.rectangularRoom(origin: .zero, width: 4, depth: 6),

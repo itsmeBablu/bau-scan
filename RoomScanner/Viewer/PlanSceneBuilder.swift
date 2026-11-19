@@ -56,8 +56,59 @@ struct PlanSceneBuilder {
     func makeScene(for house: House) -> Entity {
         let root = Entity()
         root.name = Names.root
-        for room in house.allRooms {
+        let graph = HouseWallGraph(house: house)
+        let resolvedWalls = Entity()
+        resolvedWalls.name = Names.walls
+        for solid in ResolvedWallGeometry.solids(house: house, graph: graph) {
+            var triangles = TriangleMesh()
+            let shown = ResolvedWallGeometry.Solid(wallID: solid.wallID, footprint: solid.footprint,
+                bottom: options.flattenWalls ? 0 : solid.bottom,
+                top: options.flattenWalls ? Double(options.flattenedHeight) : solid.top)
+            if options.flattenWalls && solid.bottom > 0 { continue }
+            PlanMeshBuilder.addSolid(shown, to: &triangles)
+            var descriptor = MeshDescriptor(name: "wall:\(solid.wallID)")
+            descriptor.positions = MeshBuffers.Positions(triangles.positions)
+            descriptor.normals = MeshBuffers.Normals(triangles.normals)
+            descriptor.primitives = .triangles(triangles.triangles.flatMap { [$0.x, $0.y, $0.z] })
+            if let resource = try? MeshResource.generate(from: [descriptor]) {
+                resolvedWalls.addChild(ModelEntity(mesh: resource, materials: [wallMaterial]))
+            }
+        }
+        root.addChild(resolvedWalls)
+        let floorPieces = HouseFloorGeometry.pieces(house: house)
+        var floorTexture: TextureResource?
+        if options.showFloorTexture {
+            var renderer = PlanRenderer()
+            renderer.options.locale = options.locale
+            renderer.options.showObjects = false
+            if let image = renderer.floorTextureImage(house, bounds: house.bounds, pixelsPerMeter: options.floorTexturePixelsPerMeter) {
+                floorTexture = try? TextureResource.generate(from: image, options: .init(semantic: .color))
+            }
+        }
+        let count = house.allRooms.count
+        for (i, room) in house.allRooms.enumerated() {
             let e = makeRoom(room)
+            e.children.filter { $0.name == Names.walls || $0.name == Names.panels || $0.name == Names.floor }.forEach { $0.removeFromParent() }
+            let panels = Entity()
+            panels.name = Names.panels
+            for opening in room.openings {
+                guard graph.panelOwner(roomID: room.id, opening: opening, house: house) else { continue }
+                if var box = panelBox(opening, wall: room.wall(withID: opening.wallID)) {
+                    box.thickness = graph.hostThickness(roomID: room.id, openingID: opening.id) * 0.35
+                    panels.addChild(makeBox(box, material: opening.kind == .window ? glassMaterial : doorMaterial))
+                }
+            }
+            e.addChild(panels)
+            for piece in floorPieces where piece.roomID == room.id {
+                // Pieces are already in house coordinates and belong under root.
+                if let resource = try? Self.floorMesh(polygon: piece.polygon, bounds: house.bounds) {
+                    var material = UnlitMaterial(color: platformColor(PlanRenderer.roomTint(i)))
+                    if let texture = floorTexture { material.color = .init(texture: .init(texture)) }
+                    let floor = ModelEntity(mesh: resource, materials: [material])
+                    floor.name = Names.floor
+                    root.addChild(floor)
+                }
+            }
             e.name = Names.roomPrefix + room.id.uuidString
             e.position = SIMD3(Float(room.transform.translation.x), 0, Float(-room.transform.translation.y))
             e.orientation = simd_quatf(angle: Float(room.transform.rotation), axis: SIMD3(0, 1, 0))
