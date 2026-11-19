@@ -136,6 +136,13 @@ final class GeometryTests: XCTestCase {
         XCTAssertEqual(Polygon2D.unionArea([]), 0)
     }
 
+    func testUnionOfTenOverlappingRooms() {
+        let rooms = (0..<10).map { rect(Double($0), 0, Double($0) + 2, 3) }
+        XCTAssertEqual(Polygon2D.unionArea(rooms), 33, accuracy: 0.01)
+        XCTAssertEqual(Polygon2D.unionArea(Array(repeating: rect(0, 0, 4, 3), count: 10)), 12, accuracy: 0.01)
+        XCTAssertEqual(Polygon2D.unionArea(Array(rooms.reversed())), 33, accuracy: 0.01)
+    }
+
     func testClipByConvexKeepsTheCommonPart() {
         let clipped = Polygon2D.clip(rect(0, 0, 2, 2), byConvex: rect(1, 1, 3, 3))
         XCTAssertEqual(Polygon2D.area(clipped), 1, accuracy: 1e-9)
