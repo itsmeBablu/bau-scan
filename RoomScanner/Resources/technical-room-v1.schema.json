@@ -1,0 +1,1783 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "coordinateSystem": {
+      "const": "rightHandedYUp",
+      "type": "string"
+    },
+    "units": {
+      "const": "m",
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "shellID": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "shellToRoom": {
+      "$ref": "#/$defs/transform"
+    },
+    "northAzimuthDeg": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "const": "deg"
+        },
+        "source": {
+          "enum": [
+            "measured",
+            "entered",
+            "estimated",
+            "manufacturer"
+          ]
+        },
+        "method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "accuracyMm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "source",
+        "method",
+        "accuracyMm"
+      ]
+    },
+    "pipeRuns": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pipe"
+      }
+    },
+    "equipment": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/equipment"
+      }
+    },
+    "fittings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/fitting"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "unit": {
+            "const": "text"
+          },
+          "source": {
+            "enum": [
+              "measured",
+              "entered",
+              "estimated",
+              "manufacturer"
+            ]
+          },
+          "method": {
+            "type": "string",
+            "minLength": 1
+          },
+          "accuracyMm": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          }
+        },
+        "required": [
+          "value",
+          "unit",
+          "source",
+          "method",
+          "accuracyMm"
+        ]
+      }
+    },
+    "photos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reference": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "unit": {
+                "const": "text"
+              },
+              "source": {
+                "enum": [
+                  "measured",
+                  "entered",
+                  "estimated",
+                  "manufacturer"
+                ]
+              },
+              "method": {
+                "type": "string",
+                "minLength": 1
+              },
+              "accuracyMm": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            },
+            "required": [
+              "value",
+              "unit",
+              "source",
+              "method",
+              "accuracyMm"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "reference"
+        ]
+      }
+    },
+    "totalsByMedium": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "type": "number",
+            "minimum": 0
+          },
+          "unit": {
+            "const": "m"
+          },
+          "source": {
+            "enum": [
+              "measured",
+              "entered",
+              "estimated",
+              "manufacturer"
+            ]
+          },
+          "method": {
+            "type": "string",
+            "minLength": 1
+          },
+          "accuracyMm": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          }
+        },
+        "required": [
+          "value",
+          "unit",
+          "source",
+          "method",
+          "accuracyMm"
+        ]
+      }
+    },
+    "totalsByDN": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "type": "number",
+            "minimum": 0
+          },
+          "unit": {
+            "const": "m"
+          },
+          "source": {
+            "enum": [
+              "measured",
+              "entered",
+              "estimated",
+              "manufacturer"
+            ]
+          },
+          "method": {
+            "type": "string",
+            "minLength": 1
+          },
+          "accuracyMm": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          }
+        },
+        "required": [
+          "value",
+          "unit",
+          "source",
+          "method",
+          "accuracyMm"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "coordinateSystem",
+    "units",
+    "id",
+    "shellID",
+    "shellToRoom",
+    "pipeRuns",
+    "equipment",
+    "fittings",
+    "notes",
+    "photos",
+    "totalsByMedium",
+    "totalsByDN"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "translation": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ]
+            },
+            "xAxis": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ]
+            },
+            "yAxis": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ]
+            },
+            "zAxis": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ]
+            }
+          },
+          "required": [
+            "translation",
+            "xAxis",
+            "yAxis",
+            "zAxis"
+          ]
+        },
+        "unit": {
+          "const": "m"
+        },
+        "source": {
+          "enum": [
+            "measured",
+            "entered",
+            "estimated",
+            "manufacturer"
+          ]
+        },
+        "method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "accuracyMm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "source",
+        "method",
+        "accuracyMm"
+      ]
+    },
+    "hit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "position": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ]
+            },
+            "unit": {
+              "const": "m"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "normal": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ]
+            },
+            "unit": {
+              "const": "unitless"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        }
+      },
+      "required": [
+        "position",
+        "normal"
+      ]
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "position": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ]
+            },
+            "unit": {
+              "const": "m"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "direction": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ]
+            },
+            "unit": {
+              "const": "unitless"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "nominalDN": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "unit": {
+              "const": "text"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "medium": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "enum": [
+                "heatingSupply",
+                "heatingReturn",
+                "coldWater",
+                "hotWater",
+                "circulation",
+                "waste",
+                "gas",
+                "condensate",
+                "refrigerant",
+                "ventilation",
+                "other"
+              ]
+            },
+            "unit": {
+              "const": "category"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "position",
+        "direction",
+        "medium"
+      ]
+    },
+    "pipe": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "medium": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "enum": [
+                "heatingSupply",
+                "heatingReturn",
+                "coldWater",
+                "hotWater",
+                "circulation",
+                "waste",
+                "gas",
+                "condensate",
+                "refrigerant",
+                "ventilation",
+                "other"
+              ]
+            },
+            "unit": {
+              "const": "category"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "systemLabel": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "unit": {
+              "const": "text"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "material": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "unit": {
+              "const": "text"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "nominalDN": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "unit": {
+              "const": "text"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "outerDiameterMm": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "wallThicknessMm": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "insulationThicknessMm": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "surfaceHits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hit"
+          },
+          "minItems": 2
+        },
+        "centerlineStandoff": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "m"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "connectedPorts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "centerline": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "z": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "z"
+                ]
+              },
+              "minItems": 2
+            },
+            "unit": {
+              "const": "m"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "length": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "m"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "elevationMin": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "number"
+            },
+            "unit": {
+              "const": "m"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "elevationMax": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "number"
+            },
+            "unit": {
+              "const": "m"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "medium",
+        "systemLabel",
+        "material",
+        "outerDiameterMm",
+        "surfaceHits",
+        "connectedPorts",
+        "centerline",
+        "length",
+        "elevationMin",
+        "elevationMax"
+      ]
+    },
+    "equipment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "enum": [
+                "boiler",
+                "heatPump",
+                "bufferTank",
+                "dhwTank",
+                "manifold",
+                "pump",
+                "expansionVessel",
+                "meter",
+                "valveGroup",
+                "electricalPanel",
+                "other"
+              ]
+            },
+            "unit": {
+              "const": "category"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "name": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "unit": {
+              "const": "text"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "manufacturer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "unit": {
+              "const": "text"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "unit": {
+              "const": "text"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "center": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ]
+            },
+            "unit": {
+              "const": "m"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "size": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "y": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "z": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ]
+            },
+            "unit": {
+              "const": "m"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "rotation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "number"
+            },
+            "unit": {
+              "const": "rad"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/port"
+          }
+        },
+        "photoRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "name",
+        "center",
+        "size",
+        "rotation",
+        "ports",
+        "photoRefs"
+      ]
+    },
+    "fitting": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "enum": [
+                "valve",
+                "elbow",
+                "tee",
+                "reducer",
+                "flange",
+                "cross",
+                "cap",
+                "other"
+              ]
+            },
+            "unit": {
+              "const": "category"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "position": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ]
+            },
+            "unit": {
+              "const": "m"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "nominalDN": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "unit": {
+              "const": "text"
+            },
+            "source": {
+              "enum": [
+                "measured",
+                "entered",
+                "estimated",
+                "manufacturer"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accuracyMm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "value",
+            "unit",
+            "source",
+            "method",
+            "accuracyMm"
+          ]
+        },
+        "hostPipeRunId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "position",
+        "hostPipeRunId"
+      ]
+    }
+  }
+}
