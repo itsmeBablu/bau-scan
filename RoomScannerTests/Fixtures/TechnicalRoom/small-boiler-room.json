@@ -1,0 +1,316 @@
+{
+  "schemaVersion": 1,
+  "coordinateSystem": "rightHandedYUp",
+  "units": "m",
+  "id": "00000000-0000-4000-8000-000000000001",
+  "shellID": "00000000-0000-4000-8000-000000000002",
+  "shellToRoom": {
+    "value": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "yAxis": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "zAxis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    "unit": "m",
+    "source": "estimated",
+    "method": "identityShellFrame",
+    "accuracyMm": null
+  },
+  "pipeRuns": [
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "medium": {
+        "value": "heatingSupply",
+        "unit": "category",
+        "source": "entered",
+        "method": "manualEntry",
+        "accuracyMm": null
+      },
+      "systemLabel": {
+        "value": "Heating",
+        "unit": "text",
+        "source": "entered",
+        "method": "manualEntry",
+        "accuracyMm": null
+      },
+      "material": {
+        "value": "copper",
+        "unit": "text",
+        "source": "entered",
+        "method": "manualEntry",
+        "accuracyMm": null
+      },
+      "nominalDN": {
+        "value": "DN20",
+        "unit": "text",
+        "source": "entered",
+        "method": "manualEntry",
+        "accuracyMm": null
+      },
+      "outerDiameterMm": {
+        "value": 22,
+        "unit": "mm",
+        "source": "entered",
+        "method": "caliper",
+        "accuracyMm": null
+      },
+      "surfaceHits": [
+        {
+          "position": {
+            "value": {
+              "x": 0,
+              "y": 1,
+              "z": 1
+            },
+            "unit": "m",
+            "source": "measured",
+            "method": "meshRaycast",
+            "accuracyMm": null
+          },
+          "normal": {
+            "value": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "unit": "unitless",
+            "source": "estimated",
+            "method": "meshNormal",
+            "accuracyMm": null
+          }
+        },
+        {
+          "position": {
+            "value": {
+              "x": 2,
+              "y": 1,
+              "z": 1
+            },
+            "unit": "m",
+            "source": "measured",
+            "method": "meshRaycast",
+            "accuracyMm": null
+          },
+          "normal": {
+            "value": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "unit": "unitless",
+            "source": "estimated",
+            "method": "meshNormal",
+            "accuracyMm": null
+          }
+        }
+      ],
+      "connectedPorts": [
+        "00000000-0000-4000-8000-000000000005"
+      ],
+      "centerline": {
+        "value": [
+          {
+            "x": 0,
+            "y": 1,
+            "z": 0.989
+          },
+          {
+            "x": 2,
+            "y": 1,
+            "z": 0.989
+          }
+        ],
+        "unit": "m",
+        "source": "estimated",
+        "method": "surfaceHitsMinusOuterRadius",
+        "accuracyMm": null
+      },
+      "length": {
+        "value": 2,
+        "unit": "m",
+        "source": "estimated",
+        "method": "sumOfCenterlineSegments",
+        "accuracyMm": null
+      },
+      "elevationMin": {
+        "value": 1,
+        "unit": "m",
+        "source": "estimated",
+        "method": "centerlineMinimumY",
+        "accuracyMm": null
+      },
+      "elevationMax": {
+        "value": 1,
+        "unit": "m",
+        "source": "estimated",
+        "method": "centerlineMaximumY",
+        "accuracyMm": null
+      }
+    }
+  ],
+  "equipment": [
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "type": {
+        "value": "boiler",
+        "unit": "category",
+        "source": "entered",
+        "method": "manualEntry",
+        "accuracyMm": null
+      },
+      "name": {
+        "value": "Boiler",
+        "unit": "text",
+        "source": "entered",
+        "method": "manualEntry",
+        "accuracyMm": null
+      },
+      "center": {
+        "value": {
+          "x": 1,
+          "y": 0.8,
+          "z": 2
+        },
+        "unit": "m",
+        "source": "entered",
+        "method": "manualEntry",
+        "accuracyMm": null
+      },
+      "size": {
+        "value": {
+          "x": 0.6,
+          "y": 1.6,
+          "z": 0.5
+        },
+        "unit": "m",
+        "source": "manufacturer",
+        "method": "dataPlate",
+        "accuracyMm": null
+      },
+      "rotation": {
+        "value": 0,
+        "unit": "rad",
+        "source": "entered",
+        "method": "manualEntry",
+        "accuracyMm": null
+      },
+      "ports": [
+        {
+          "id": "00000000-0000-4000-8000-000000000005",
+          "position": {
+            "value": {
+              "x": 2,
+              "y": 1,
+              "z": 0.989
+            },
+            "unit": "m",
+            "source": "entered",
+            "method": "manualEntry",
+            "accuracyMm": null
+          },
+          "direction": {
+            "value": {
+              "x": -1,
+              "y": 0,
+              "z": 0
+            },
+            "unit": "unitless",
+            "source": "entered",
+            "method": "manualEntry",
+            "accuracyMm": null
+          },
+          "nominalDN": {
+            "value": "DN20",
+            "unit": "text",
+            "source": "entered",
+            "method": "manualEntry",
+            "accuracyMm": null
+          },
+          "medium": {
+            "value": "heatingSupply",
+            "unit": "category",
+            "source": "entered",
+            "method": "manualEntry",
+            "accuracyMm": null
+          }
+        }
+      ],
+      "photoRefs": []
+    }
+  ],
+  "fittings": [
+    {
+      "id": "00000000-0000-4000-8000-000000000006",
+      "type": {
+        "value": "valve",
+        "unit": "category",
+        "source": "entered",
+        "method": "manualEntry",
+        "accuracyMm": null
+      },
+      "position": {
+        "value": {
+          "x": 1,
+          "y": 1,
+          "z": 0.989
+        },
+        "unit": "m",
+        "source": "entered",
+        "method": "manualEntry",
+        "accuracyMm": null
+      },
+      "nominalDN": {
+        "value": "DN20",
+        "unit": "text",
+        "source": "entered",
+        "method": "manualEntry",
+        "accuracyMm": null
+      },
+      "hostPipeRunId": "00000000-0000-4000-8000-000000000003"
+    }
+  ],
+  "notes": [
+    {
+      "value": "Device validation pending",
+      "unit": "text",
+      "source": "entered",
+      "method": "manualEntry",
+      "accuracyMm": null
+    }
+  ],
+  "photos": [],
+  "totalsByMedium": {
+    "heatingSupply": {
+      "value": 2,
+      "unit": "m",
+      "source": "estimated",
+      "method": "sumOfRunLengths",
+      "accuracyMm": null
+    }
+  },
+  "totalsByDN": {
+    "DN20": {
+      "value": 2,
+      "unit": "m",
+      "source": "estimated",
+      "method": "sumOfRunLengths",
+      "accuracyMm": null
+    }
+  }
+}
