@@ -67,6 +67,9 @@ enum ArchiveExporter {
         }
         var s = "dWalkScan — \(subject.name)\n" + String(repeating: "=", count: 11 + subject.name.count) + "\n\n"
         s += body.joined(separator: "\n") + "\n\n" + AppLanguage.text("readme.files",locale:locale) + "\n"
+        if files.contains(where:{ $0.format.isRoomPlanScan }) {
+            s += AppLanguage.text("USDZ: RoomPlan scan (not cleaned). Original captured assets.",locale:locale)+"\n\n"
+        }
         for f in files {
             s += "  \(f.name)\n      \(AppLanguage.text(f.format.descriptionKey,locale:locale))\n"
         }

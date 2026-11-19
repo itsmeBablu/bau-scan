@@ -1,6 +1,7 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "USDZ: RoomPlan scan (not cleaned). Original captured assets.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"USDZ: RoomPlan scan (not cleaned). Original captured assets."}},"de":{"stringUnit":{"state":"translated","value":"USDZ: RoomPlan-Aufnahme (nicht bereinigt). Unveränderte Originaldaten."}}}},
     "Open in new window": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Open in new window"}},"de":{"stringUnit":{"state":"translated","value":"In neuem Fenster öffnen"}}}},
     "Exports survey photos organised by level and room with an index.csv metadata table (scan coordinates, no GPS).": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Exports survey photos organised by level and room with an index.csv metadata table (scan coordinates, no GPS)."}},"de":{"stringUnit":{"state":"translated","value":"Exportiert Aufnahmefotos nach Etage und Raum mit einer index.csv-Metadatentabelle (Scan-Koordinaten, kein GPS)."}}}},
     "Include in ZIP Package": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Include in ZIP Package"}},"de":{"stringUnit":{"state":"translated","value":"In ZIP-Paket aufnehmen"}}}},
@@ -1141,13 +1142,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "USDZ (mesh)"
+            "value": "RoomPlan scan (not cleaned) — USDZ mesh"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "USDZ (Netzmodell)"
+            "value": "RoomPlan-Aufnahme (nicht bereinigt) — USDZ-Mesh"
           }
         }
       }
@@ -1158,13 +1159,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Raw scan mesh captured by the iPhone (large, faithful)."
+            "value": "RoomPlan scan (not cleaned). Original scan mesh captured by the iPhone."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unbearbeitetes, vom iPhone erfasstes Netzmodell. Gerätevalidierung ausstehend."
+            "value": "RoomPlan-Aufnahme (nicht bereinigt). Originales vom iPhone erfasstes Scan-Mesh."
           }
         }
       }
@@ -1175,13 +1176,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "RoomPlan scan (not cleaned)"
+            "value": "RoomPlan scan (not cleaned) — USDZ"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "USDZ"
+            "value": "RoomPlan-Aufnahme (nicht bereinigt) — USDZ"
           }
         }
       }
@@ -1192,13 +1193,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apple 3D model (walls, floors, objects): Preview, Reality Composer, Blender."
+            "value": "RoomPlan scan (not cleaned). Original Apple parametric model, preserved as captured."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "RoomPlan-Aufnahme (nicht bereinigt): Wände, Böden und Objekte."
+            "value": "RoomPlan-Aufnahme (nicht bereinigt). Originales parametrisches Apple-Modell, unverändert erhalten."
           }
         }
       }
