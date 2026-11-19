@@ -24,6 +24,17 @@ final class ExportServiceTests: XCTestCase {
         }
     }
 
+    func testVectorExportsRespectMeasurementUnit() throws {
+        for format in [ExportFormat.svg, .dxf] {
+            let meters = try ExportService(unit: .meters).data(for: house, format: format, title: "Units")
+            let millimeters = try ExportService(unit: .millimeters).data(for: house, format: format, title: "Units")
+            XCTAssertNotEqual(meters, millimeters)
+            let text = try XCTUnwrap(String(data: meters, encoding: format == .svg ? .utf8 : .windowsCP1252))
+            XCTAssertTrue(text.contains("4.00 m"))
+            XCTAssertFalse(text.contains("4000 mm"))
+        }
+    }
+
     func testScratchDirectoriesAreUniqueAndPurgedByAge() throws {
         let a = try ExportService.scratchDirectory(), b = try ExportService.scratchDirectory()
         XCTAssertNotEqual(a, b)

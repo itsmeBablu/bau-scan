@@ -30,6 +30,7 @@ final class UpdaterController {
     }
 
     func checkForUpdates() {
+        guard isConfigured else { return }
         controller.checkForUpdates(nil)
         refresh()
     }

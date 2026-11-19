@@ -7,6 +7,7 @@ import Foundation
 /// the plan (`PlanMeshBuilder`) or converted from scan mesh (`ModelIOConverter`).
 struct ExportService {
     var locale: Locale = .current
+    var unit: MeasurementUnit = MeasurementUnit(rawValue: UserDefaults.standard.string(forKey: "measurementUnit") ?? "") ?? .both
     var pageSize = CGSize(width: 842, height: 595)  // A4 paysage, points
     var pngPixelScale: CGFloat = 3
 
@@ -100,13 +101,14 @@ struct ExportService {
     func data(for house: House, format: ExportFormat, title: String) throws -> Data {
         var renderer = PlanRenderer()
         renderer.options.locale = locale
+        renderer.options.unit = unit
         switch format {
         case .pdf: return renderer.pdfData(house, size: pageSize, title: title)
         case .png:
             guard let d = renderer.pngData(house, pageSize: pageSize, pixelScale: pngPixelScale) else { throw ExportError.missingSource("png") }
             return d
-        case .svg: return SVGExporter(locale: locale).data(for: house)
-        case .dxf: return DXFExporter(locale: locale).data(for: house)
+        case .svg: return SVGExporter(locale: locale, unit: unit).data(for: house)
+        case .dxf: return DXFExporter(locale: locale, unit: unit).data(for: house)
         case .json:
             // Single room remains `FloorPlan` (v1 compatibility); house is encoded in full.
             if house.stories.count == 1, house.stories[0].rooms.count == 1 { return try RoomPackage.encoder.encode(house.stories[0].rooms[0]) }

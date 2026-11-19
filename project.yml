@@ -188,9 +188,9 @@ targets:
         LSApplicationCategoryType: public.app-category.graphics-design
         # Sparkle auto-updater feed URL.
         SUFeedURL: "https://raw.githubusercontent.com/itsmeBablu/d-walk-scan/main/appcast.xml"
-        # Sparkle public EdDSA key.
-        SUPublicEDKey: "qSGDP0w1B/HVt1++Bxip35K+OUI6NUvJUSxmfY9rbhE="
-        SUEnableAutomaticChecks: true
+        # Add this fork's public EdDSA key and signed appcast before enabling updates.
+        SUPublicEDKey: ""
+        SUEnableAutomaticChecks: false
         SUScheduledCheckInterval: 86400
         SUAutomaticallyUpdate: false
         # Sandboxed app installer support via XPC service.

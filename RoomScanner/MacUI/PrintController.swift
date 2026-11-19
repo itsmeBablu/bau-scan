@@ -7,6 +7,7 @@ import CoreGraphics
 enum PrintController {
     static func printPlan(_ house: House, title: String, locale: Locale = .current, window: NSWindow?) {
         var renderer = PlanRenderer(); renderer.options.locale = locale
+        renderer.options.unit = ExportService().unit
         let pageSize = CGSize(width: 842, height: 595)
         let data = renderer.pdfData(house, size: pageSize, title: title)
         guard let provider = CGDataProvider(data: data as CFData), let pdf = CGPDFDocument(provider) else { return }

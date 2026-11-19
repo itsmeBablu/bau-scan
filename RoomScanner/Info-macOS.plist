@@ -68,13 +68,13 @@
 	<key>SUAutomaticallyUpdate</key>
 	<false/>
 	<key>SUEnableAutomaticChecks</key>
-	<true/>
+	<false/>
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
 	<key>SUFeedURL</key>
 	<string>https://raw.githubusercontent.com/itsmeBablu/d-walk-scan/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>qSGDP0w1B/HVt1++Bxip35K+OUI6NUvJUSxmfY9rbhE=</string>
+	<string></string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
 	<key>UTExportedTypeDeclarations</key>
