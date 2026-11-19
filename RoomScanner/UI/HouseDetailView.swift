@@ -83,8 +83,6 @@ struct HouseDetailView: View {
                     .accessibilityIdentifier("house.storyPicker")
                 }
             }
-            .padding(4)
-            .liquidGlass(cornerRadius: 12, tint: AppTheme.primaryYellow, hasBorder: true, shadowRadius: 6)
             .padding(.horizontal)
             .padding(.vertical, 8)
             switch tab {

@@ -29,7 +29,7 @@ struct PlanSceneBuilder {
     struct Options {
         var showObjects = true
         var showDimensions = false
-        var showFloorTexture = true
+        var showFloorTexture = false
         /// Flattened walls (2D mode): visual height when `flattenWalls` is true.
         var flattenWalls = false
         var flattenedHeight: Float = 0.02
@@ -55,9 +55,8 @@ struct PlanSceneBuilder {
     func makeScene(for house: House) -> Entity {
         let root = Entity()
         root.name = Names.root
-        let count = house.allRooms.count
-        for (i, room) in house.allRooms.enumerated() {
-            let e = makeRoom(room, floorTint: count > 1 ? PlanRenderer.roomTint(i) : nil)
+        for room in house.allRooms {
+            let e = makeRoom(room)
             e.name = Names.roomPrefix + room.id.uuidString
             e.position = SIMD3(Float(room.transform.translation.x), 0, Float(-room.transform.translation.y))
             e.orientation = simd_quatf(angle: Float(room.transform.rotation), axis: SIMD3(0, 1, 0))
@@ -126,10 +125,12 @@ struct PlanSceneBuilder {
         guard !b.isEmpty else { return nil }
         let mesh = (try? Self.floorMesh(polygon: room.floorPolygon, bounds: b))
             ?? MeshResource.generatePlane(width: Float(b.width), depth: Float(b.height))
-        var material: RealityKit.Material = UnlitMaterial(color: tint.map(platformColor) ?? PlatformColor(white: 0.95, alpha: 1))
+        let floorColor = tint.map(platformColor) ?? PlatformColor(red: 0.66, green: 0.58, blue: 0.47, alpha: 1)
+        var material: RealityKit.Material = SimpleMaterial(color: floorColor, roughness: 0.8, isMetallic: false)
         if options.showFloorTexture {
             var r = PlanRenderer(); r.options.locale = options.locale; r.options.showObjects = false
-            if let tint { r.options.floorColor = tint }
+            r.options.floorColor = floorColor.cgColor
+            r.options.tintRooms = false
             if let img = r.floorTextureImage(House(room: untransformed(room)), bounds: b, pixelsPerMeter: options.floorTexturePixelsPerMeter),
                let tex = try? TextureResource.generate(from: img, options: .init(semantic: .color)) {
                 var m = UnlitMaterial(); m.color = .init(texture: .init(tex)); material = m
@@ -171,7 +172,7 @@ struct PlanSceneBuilder {
 
     private func makeObject(_ o: PlacedObject) -> Entity {
         let mesh = MeshResource.generateBox(width: Float(o.size.width), height: Float(o.height), depth: Float(o.size.depth), cornerRadius: 0.01)
-        let e = ModelEntity(mesh: mesh, materials: [objectMaterial])
+        let e = ModelEntity(mesh: mesh, materials: [objectMaterial(for: o.category)])
         e.name = "object:\(o.category)"
         e.position = SIMD3(Float(o.center.x), Float(o.height / 2), Float(-o.center.y))
         e.orientation = simd_quatf(angle: Float(o.angle), axis: SIMD3(0, 1, 0))
@@ -192,7 +193,7 @@ struct PlanSceneBuilder {
     /// billboard text viewed from top-down could otherwise appear flipped.
     private func makeDimensionLabel(_ wall: Wall, room: FloorPlan) -> Entity {
         let text = MeasurementFormat.length(wall.length, unit: .both, locale: options.locale)
-        let color = PlatformColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 1)
+        let color = PlatformColor(white: 0.12, alpha: 1)
         let mid = wall.segment.midpoint
         guard options.flattenWalls else {
             let label = makeLabel(text, size: 0.16, color: color)
@@ -238,5 +239,27 @@ struct PlanSceneBuilder {
     private var wallMaterial: RealityKit.Material { SimpleMaterial(color: PlatformColor(white: 0.93, alpha: 1), roughness: 0.8, isMetallic: false) }
     private var doorMaterial: RealityKit.Material { SimpleMaterial(color: PlatformColor(red: 0.62, green: 0.45, blue: 0.30, alpha: 1), roughness: 0.6, isMetallic: false) }
     private var glassMaterial: RealityKit.Material { SimpleMaterial(color: PlatformColor(red: 0.45, green: 0.72, blue: 1.0, alpha: 0.35), roughness: 0.1, isMetallic: false) }
-    private var objectMaterial: RealityKit.Material { SimpleMaterial(color: PlatformColor(white: 0.55, alpha: 0.55), roughness: 0.7, isMetallic: false) }
+    /// RoomPlan stores object categories, not photographed surface colours.
+    /// Use opaque, natural materials appropriate to the detected category.
+    private func objectMaterial(for category: String) -> RealityKit.Material {
+        let color: PlatformColor
+        let metallic: Bool
+        switch category.lowercased() {
+        case "table", "storage":
+            color = PlatformColor(red: 0.54, green: 0.40, blue: 0.28, alpha: 1); metallic = false
+        case "chair", "sofa":
+            color = PlatformColor(red: 0.34, green: 0.40, blue: 0.44, alpha: 1); metallic = false
+        case "bed":
+            color = PlatformColor(red: 0.78, green: 0.76, blue: 0.71, alpha: 1); metallic = false
+        case "sink", "toilet", "bathtub", "washerdryer", "dishwasher":
+            color = PlatformColor(white: 0.88, alpha: 1); metallic = false
+        case "refrigerator", "stove", "oven":
+            color = PlatformColor(white: 0.56, alpha: 1); metallic = true
+        case "television":
+            color = PlatformColor(white: 0.09, alpha: 1); metallic = false
+        default:
+            color = PlatformColor(white: 0.55, alpha: 1); metallic = false
+        }
+        return SimpleMaterial(color: color, roughness: metallic ? 0.35 : 0.75, isMetallic: metallic)
+    }
 }

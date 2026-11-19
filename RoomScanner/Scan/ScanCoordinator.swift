@@ -5,20 +5,14 @@ import ARKit
 import RoomPlan
 import AVFoundation
 
-/// Drives a RoomPlan session: manages the `ARSession` (reused across rooms in
-/// house mode), the `RoomCaptureView`, and receives results.
-///
-/// House mode: each room ends with `stop(pauseARSession: false)` so
-/// subsequent rooms share world coordinates; `finishHouse()` merges `CapturedRoom`s with
-/// `StructureBuilder` into a `CapturedStructure`.
+/// Drives RoomPlan capture. House mode captures connected space continuously,
+/// then builds a structure after the user finishes once.
 @Observable
 @MainActor
 final class ScanCoordinator {
     enum State: Equatable {
         case idle, scanning, processing
         case finished(ScanResult)
-        /// House mode: room captured, awaiting 'Next Room' or 'Finish'.
-        case roomCaptured(Int)
         /// House mode: alignment in progress.
         case merging
         case finishedHouse(HouseScanResult)
@@ -46,6 +40,8 @@ final class ScanCoordinator {
     }
 
     private(set) var state: State = .idle
+    /// Prevents late camera-permission and processing callbacks from reviving a dismissed scan.
+    private var active = false
     let mode: ScanMode
     /// Rooms captured in house mode (shared world coordinate space).
     private(set) var capturedRooms: [CapturedRoom] = []
@@ -58,6 +54,7 @@ final class ScanCoordinator {
 
     init(mode: ScanMode = .room, arSession: ARSession = ARSession()) {
         self.mode = mode
+        // Preserve the explicit session ownership used by the stable pre-change capture flow.
         self.arSession = arSession
         self.captureView = RoomCaptureView(frame: .zero, arSession: arSession)
         delegateProxy.onResult = { [weak self] room, error in
@@ -68,13 +65,18 @@ final class ScanCoordinator {
 
     /// Starts scan (requests camera permission if needed).
     func start() {
+        guard !active else { return }
+        active = true
         guard Self.isSupported else { state = .failed(.unsupportedDevice); return }
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .denied, .restricted:
             state = .failed(.cameraDenied)
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { granted in
-                Task { @MainActor in granted ? self.run() : (self.state = .failed(.cameraDenied)) }
+                Task { @MainActor in
+                    guard self.active else { return }
+                    granted ? self.run() : (self.state = .failed(.cameraDenied))
+                }
             }
         default:
             run()
@@ -82,6 +84,7 @@ final class ScanCoordinator {
     }
 
     private func run() {
+        guard active else { return }
         var config = RoomCaptureSession.Configuration()
         config.isCoachingEnabled = true
         state = .scanning
@@ -96,15 +99,9 @@ final class ScanCoordinator {
         if mode == .house { captureView.captureSession.stop(pauseARSession: false) } else { captureView.captureSession.stop() }
     }
 
-    /// House mode: starts next room in the same coordinate space.
-    func nextRoom() {
-        guard mode == .house, case .roomCaptured = state else { return }
-        run()
-    }
-
     /// House mode: merges captured rooms (`StructureBuilder`) and prepares result.
-    func finishHouse() {
-        guard mode == .house, case .roomCaptured = state, !capturedRooms.isEmpty else { return }
+    private func finishHouse() {
+        guard mode == .house, state == .processing, !capturedRooms.isEmpty else { return }
         state = .merging
         captureView.captureSession.stop()
         let rooms = capturedRooms
@@ -113,27 +110,42 @@ final class ScanCoordinator {
                 let structure = try await StructureBuilder(options: [.beautifyObjects]).capturedStructure(from: rooms)
                 self?.receive(structure: structure)
             } catch {
-                self?.state = .failed(.scanFailed(Self.describe(error)))
+                if self?.active == true { self?.state = .failed(.scanFailed(Self.describe(error))) }
             }
         }
     }
 
     func cancel() {
+        active = false
         captureView.captureSession.stop()
         state = .failed(.scanCancelled)
+    }
+
+    func stop() {
+        active = false
+        if state == .scanning {
+            captureView.captureSession.stop()
+            state = .idle
+        }
+        // House capture keeps tracking alive between rooms; always release the camera on dismissal.
+        arSession.pause()
     }
 
     // MARK: - RoomPlan Result
 
     private func receive(room: CapturedRoom?, error: (any Error)?) {
+        guard active else { return }
         if let error {
             state = .failed(.scanFailed(Self.describe(error)))
             return
         }
+        guard state == .processing else { return }
         guard let room else { state = .failed(.scanFailed("no result")); return }
         if mode == .house {
             capturedRooms.append(room)
-            state = .roomCaptured(capturedRooms.count)
+            // The user walks through the connected space in one capture and finishes once.
+            // Keep the existing StructureBuilder/package pipeline, without an intermediate prompt.
+            finishHouse()
             return
         }
         do {
@@ -148,6 +160,7 @@ final class ScanCoordinator {
     }
 
     private func receive(structure: CapturedStructure) {
+        guard active else { return }
         do {
             let data = try CapturedStructureAdapter.encode(structure)
             let usdz = try? CapturedStructureAdapter.usdzData(for: structure)
@@ -193,7 +206,10 @@ final class CaptureViewDelegateProxy: NSObject, RoomCaptureViewDelegate {
     required init?(coder: NSCoder) { nil }
     func encode(with coder: NSCoder) {}
 
-    func captureView(shouldPresent roomDataForProcessing: CapturedRoomData, error: (any Error)?) -> Bool { true }
+    func captureView(shouldPresent roomDataForProcessing: CapturedRoomData, error: (any Error)?) -> Bool {
+        if let error { onResult?(nil, error); return false }
+        return true
+    }
 
     func captureView(didPresent processedResult: CapturedRoom, error: (any Error)?) {
         onResult?(processedResult, error)

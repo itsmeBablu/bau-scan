@@ -25,6 +25,7 @@ struct DXFExporter {
     func dxf(for house: House) -> String {
         var e = Entities(fmt: fmt)
         let renderer = PlanRenderer()
+        let hiddenDoors = PlanRenderer.duplicateDoorIndices(in: house.allRooms)
         for room in house.allRooms {
             let t = room.transform
             let side = PlanRenderer.InteriorSide(polygon: room.floorPolygon, fallback: room.bounds.center)
@@ -50,7 +51,7 @@ struct DXFExporter {
                 let pos = t.apply(seg.midpoint + outward * (PlanRenderer.dimensionOffset + 0.10))
                 e.text(MeasurementFormat.length(wall.length, unit: unit, locale: locale), at: pos, angle: readable(seg.angle + t.rotation), height: textHeight, layer: .dimensions)
             }
-            for o in room.openings {
+            for (index, o) in room.openings.enumerated() where !(hiddenDoors[room.id]?.contains(index) ?? false) {
                 let seg = o.segment
                 let inward = side.inward(of: seg)
                 let outward = inward * -1

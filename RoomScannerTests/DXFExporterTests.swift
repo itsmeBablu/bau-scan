@@ -40,7 +40,7 @@ final class DXFExporterTests: XCTestCase {
     func testEntitiesAndUnits() throws {
         let p = try pairs(DXFExporter(locale: Locale(identifier: "en_US")).dxf(for: house))
         XCTAssertEqual(p.filter { $0 == (0, "ARC") }.count, 1)
-        XCTAssertEqual(p.filter { $0 == (0, "TEXT") }.count, 5, "4 cotes + 1 objet")
+        XCTAssertEqual(p.filter { $0 == (0, "TEXT") }.count, 12, "4 wall dimensions + 1 object + 2 room labels + 4 opening dimensions + 1 sill height")
         XCTAssertTrue(p.contains { $0.0 == 1 && ($0.1.contains("400") || $0.1.contains("4,000") || $0.1.contains("4 000") || $0.1.contains("4000") || $0.1.contains("4.00")) })
         // Extents in meters: room 4 x 3 m centered at origin + dimension margin 0.55.
         let extmaxIndex = try XCTUnwrap(p.firstIndex { $0 == (9, "$EXTMAX") })
@@ -50,7 +50,7 @@ final class DXFExporterTests: XCTestCase {
     }
 
     func testCodePageAndAccentsAreCP1252() throws {
-        var plan = FloorPlanBuilder().build(from: SyntheticRooms.rectangularRoom().scan, name: "Salon")
+        var plan = FloorPlanBuilder().build(from: SyntheticRooms.rectangularRoom().scan, name: "Séjour")
         plan.objects[0].category = "television"   // « Télévision » en français
         let exporter = DXFExporter(locale: Locale(identifier: "fr_FR"))
         let text = exporter.dxf(for: House(room: plan))

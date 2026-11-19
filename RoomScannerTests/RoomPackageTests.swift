@@ -25,6 +25,26 @@ final class RoomPackageTests: XCTestCase {
         XCTAssertTrue(UTType.roomScan.conforms(to: .package))
     }
 
+    func testTechnicalRoomAnnotationsSurvivePackageReadAndRename() throws {
+        var package = makePackage()
+        let technical = TechnicalRoom.capturedShell(id: package.plan.id, notes: "  Boiler access restricted  ")
+        let data = try TechnicalRoomJSONExporter.data(for: technical)
+        package.technicalRoomData = data
+        let url = location.packageURL(for: package.record.id)
+        try package.write(to: url)
+        XCTAssertEqual(try RoomPackage.read(from: url).technicalRoomData, data)
+        package.record.name = "Plant room"
+        package.plan.name = package.record.name
+        try RoomPackage.update(record: package.record, plan: package.plan, in: url)
+        let reopened = try RoomPackage.read(from: url)
+        XCTAssertEqual(reopened.technicalRoomData, data)
+        let decoded = try JSONDecoder().decode(TechnicalRoom.self, from: XCTUnwrap(reopened.technicalRoomData))
+        XCTAssertEqual(decoded.shellID, package.plan.id)
+        XCTAssertEqual(decoded.notes.first?.value, "Boiler access restricted")
+        XCTAssertTrue(decoded.equipment.isEmpty)
+        XCTAssertTrue(decoded.pipeRuns.isEmpty)
+    }
+
     func testWriteThenReadRoundTrip() throws {
         let pkg = makePackage()
         let url = location.packageURL(for: pkg.record.id)

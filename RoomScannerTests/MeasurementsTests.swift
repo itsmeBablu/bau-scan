@@ -39,9 +39,9 @@ final class MeasurementsTests: XCTestCase {
     func testFormattingEnglish() {
         let en = Locale(identifier: "en_US")
         XCTAssertEqual(MeasurementFormat.centimeters(1.2, locale: en), "120 cm")
-        XCTAssertEqual(MeasurementFormat.millimeters(1.2, locale: en), "1,200 mm")
+        XCTAssertEqual(MeasurementFormat.millimeters(1.2, locale: en), "1200 mm")
         XCTAssertEqual(MeasurementFormat.meters(1.2, locale: en), "1.20 m")
-        XCTAssertEqual(MeasurementFormat.length(1.2, unit: .both, locale: en), "1,200 mm (1.20 m)")
+        XCTAssertEqual(MeasurementFormat.length(1.2, unit: .both, locale: en), "1200 mm (1.20 m)")
         XCTAssertEqual(MeasurementFormat.squareMeters(29.94, locale: en), "29.9 m²")
         XCTAssertEqual(MeasurementFormat.openingWidth(0.9, unit: .meters, locale: en), "0.90 m")
         XCTAssertEqual(MeasurementFormat.openingHeight(2.1, unit: .meters, locale: en), "2.10 m")

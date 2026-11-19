@@ -21,6 +21,8 @@ struct RoomPackage {
     /// Raw scan mesh (`CapturedRoom.export(.mesh)`), optional.
     var usdzMeshData: Data?
     var thumbnailPNG: Data?
+    /// Optional Technik Room annotations; existing room/house packages do not require this file.
+    var technicalRoomData: Data? = nil
 
     /// ISO 8601 dates with fractional seconds: readable in `meta.json`
     /// and stable on roundtrip (standard `.iso8601` strategy truncates subseconds).
@@ -61,6 +63,7 @@ struct RoomPackage {
         if let usdzData { try usdzData.write(to: staging.appendingPathComponent(FileLayout.PackageFile.usdz)) }
         if let usdzMeshData { try usdzMeshData.write(to: staging.appendingPathComponent(FileLayout.PackageFile.usdzMesh)) }
         if let thumbnailPNG { try thumbnailPNG.write(to: staging.appendingPathComponent(FileLayout.PackageFile.thumbnail)) }
+        if let technicalRoomData { try technicalRoomData.write(to: staging.appendingPathComponent("technical-room.json")) }
 
         try fileManager.createDirectory(at: packageURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Self.coordinatedWrite(at: packageURL, options: .forReplacing) { url in
@@ -103,7 +106,8 @@ struct RoomPackage {
             let plan = try decoder.decode(FloorPlan.self, from: Data(contentsOf: url.appendingPathComponent(F.plan)))
             let scan = try optional(F.scan).map { try decoder.decode(ScanInput.self, from: $0) }
             return RoomPackage(record: record, plan: plan, scan: scan, capturedRoomData: optional(F.capturedRoom),
-                               usdzData: optional(F.usdz), usdzMeshData: optional(F.usdzMesh), thumbnailPNG: optional(F.thumbnail))
+                               usdzData: optional(F.usdz), usdzMeshData: optional(F.usdzMesh), thumbnailPNG: optional(F.thumbnail),
+                               technicalRoomData: optional("technical-room.json"))
         }
     }
 

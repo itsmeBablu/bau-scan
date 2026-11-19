@@ -35,6 +35,9 @@ struct PlanRenderer {
         var objectFill = CGColor(red: 254/255, green: 240/255, blue: 138/255, alpha: 0.5) // #fef08a
         var objectStroke = CGColor(red: 39/255, green: 32/255, blue: 0/255, alpha: 1) // #272000
         var textColor = CGColor(red: 17/255, green: 17/255, blue: 16/255, alpha: 1) // #111110
+        /// Multiplier for in-plan labels and dimensions. The interactive 2D viewer exposes this to users.
+        var textScale: CGFloat = 1
+        var showLabelBackground = true
         var windowColor = CGColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 1) // #facc15
         /// House: each room receives a distinct floor tint (`PlanRenderer.roomTint`).
         var tintRooms = true
@@ -196,7 +199,10 @@ struct PlanRenderer {
                              y: area.midY - planH / 2 + margin * ppm - bounds.minY * ppm)
         let mapper = Mapper(origin: origin, ppm: ppm)
 
-        for (i, room) in rooms.enumerated() { drawRoom(room, mapper: mapper, floor: floorColor(forRoomAt: i, of: rooms.count), in: ctx) }
+        let hiddenDoors = Self.duplicateDoorIndices(in: rooms)
+        for (i, room) in rooms.enumerated() {
+            drawRoom(room, mapper: mapper, floor: floorColor(forRoomAt: i, of: rooms.count), hiddenDoors: hiddenDoors[room.id] ?? [], in: ctx)
+        }
         if titleHeight > 0 { drawTitleBlock(house, rooms: rooms, scaleDenominator: scaleDenominator, in: ctx, size: size, height: titleHeight) }
     }
 
@@ -232,7 +238,7 @@ struct PlanRenderer {
         func length(_ m: Double) -> CGFloat { CGFloat(m * ppm) }
     }
 
-    private func drawRoom(_ room: FloorPlan, mapper base: Mapper, floor floorColor: CGColor, in ctx: CGContext) {
+    private func drawRoom(_ room: FloorPlan, mapper base: Mapper, floor floorColor: CGColor, hiddenDoors: Set<Int> = [], in ctx: CGContext) {
         var mapper = base; mapper.transform = room.transform
         let side = InteriorSide(polygon: room.floorPolygon, fallback: room.bounds.center)
 
@@ -256,7 +262,9 @@ struct PlanRenderer {
         }
         ctx.strokePath()
         // Doors / windows / openings
-        for o in room.openings { drawOpening(o, side: side, mapper: mapper, in: ctx) }
+        for (index, o) in room.openings.enumerated() where !hiddenDoors.contains(index) {
+            drawOpening(o, side: side, mapper: mapper, in: ctx)
+        }
         // Dimensions
         if options.showDimensions {
             for wall in room.walls { drawDimension(wall, side: side, mapper: mapper, in: ctx) }
@@ -265,6 +273,28 @@ struct PlanRenderer {
         if options.showRoomLabels {
             drawRoomLabel(room, mapper: mapper, in: ctx)
         }
+    }
+
+    /// A shared doorway may be captured from each adjoining room. Keep one swing
+    /// symbol without altering either room's wall cutout or measured opening.
+    static func duplicateDoorIndices(in rooms: [FloorPlan]) -> [UUID: Set<Int>] {
+        var shown: [(segment: Segment2D, story: Int)] = []
+        var hidden: [UUID: Set<Int>] = [:]
+        for room in rooms {
+            for (index, opening) in room.openings.enumerated() where opening.kind == .door {
+                let segment = Segment2D(start: room.transform.apply(opening.segment.start), end: room.transform.apply(opening.segment.end))
+                let duplicate = shown.contains { previous in
+                    guard previous.story == room.story,
+                          abs(previous.segment.length - segment.length) < 0.10,
+                          previous.segment.midpoint.distance(to: segment.midpoint) < 0.15 else { return false }
+                    let a = previous.segment.direction, b = segment.direction
+                    return abs(a.x * b.x + a.y * b.y) > 0.98
+                }
+                if duplicate { hidden[room.id, default: []].insert(index) }
+                else { shown.append((segment, room.story)) }
+            }
+        }
+        return hidden
     }
 
     /// Splits wall path around attached openings.
@@ -331,7 +361,7 @@ struct PlanRenderer {
         if options.showOpeningDimensions {
             let widthStr = MeasurementFormat.openingWidth(o.width, unit: options.unit, locale: options.locale)
             let heightStr = MeasurementFormat.openingHeight(o.height, unit: options.unit, locale: options.locale)
-            let fontSize = max(min(mapper.length(0.16), 8.5), 3.2)
+            let fontSize = max(min(mapper.length(0.16), 8.5), 3.2) * options.textScale
             let textSpacing = Double(fontSize) / mapper.ppm * 0.70 + 0.04
 
             // Opening dimension line (Image 1 reference):
@@ -380,7 +410,7 @@ struct PlanRenderer {
         let area = Polygon2D.area(room.floorPolygon)
         let areaStr = MeasurementFormat.squareMeters(area, locale: options.locale)
 
-        let fontSize = max(min(mapper.length(0.30), 14), 8.5)
+        let fontSize = max(min(mapper.length(0.30), 14), 8.5) * options.textScale
         let subFontSize = fontSize * 0.82
 
         // Soft background pill with rounded corners, primary yellow border, and high legibility
@@ -395,7 +425,7 @@ struct PlanRenderer {
         ctx.setFillColor(CGColor(red: 255/255, green: 255/255, blue: 255/255, alpha: 0.88))
         ctx.setStrokeColor(CGColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 0.65)) // #facc15
         ctx.setLineWidth(1)
-        ctx.drawPath(using: .fillStroke)
+        if options.showLabelBackground { ctx.drawPath(using: .fillStroke) } else { ctx.beginPath() }
         ctx.restoreGState()
 
         drawText(name, at: CGPoint(x: pt.x, y: pt.y + fontSize * 0.45), angle: 0, fontSize: fontSize, weight: .bold, color: options.textColor, align: .center, in: ctx)
@@ -411,7 +441,7 @@ struct PlanRenderer {
         ctx.setFillColor(options.objectFill); ctx.setStrokeColor(options.objectStroke)
         ctx.setLineWidth(max(mapper.length(0.015), 0.6)); ctx.setLineDash(phase: 0, lengths: [])
         path(corners, mapper: mapper, in: ctx); ctx.drawPath(using: .fillStroke)
-        let fontSize = max(min(mapper.length(0.22), 11), 4)
+        let fontSize = max(min(mapper.length(0.22), 11), 4) * options.textScale
         if mapper.length(o.size.width) > fontSize * 2 {
             drawText(ObjectNaming.localizedName(o.category), at: mapper.point(o.center), angle: readable(o.angle),
                      fontSize: fontSize, color: options.objectStroke, in: ctx)
@@ -443,7 +473,7 @@ struct PlanRenderer {
             path([tip, left, right], mapper: mapper, in: ctx); ctx.fillPath()
         }
         let label = MeasurementFormat.length(wall.length, unit: options.unit, locale: options.locale)
-        let fontSize = max(min(mapper.length(0.24), 12), 4)
+        let fontSize = max(min(mapper.length(0.24), 12), 4) * options.textScale
         let textPos = seg.midpoint + off + outward * (0.12 + Double(fontSize) / mapper.ppm * 0.4)
         drawText(label, at: mapper.point(textPos), angle: readable(seg.angle), fontSize: fontSize, color: options.dimensionColor, in: ctx)
     }

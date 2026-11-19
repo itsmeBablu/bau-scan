@@ -47,18 +47,6 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>dWalkScan uses the camera and LiDAR to scan rooms.</string>
-	<key>NSUbiquitousContainers</key>
-	<dict>
-		<key>iCloud.io.github.itsmebablu.dwalkscan</key>
-		<dict>
-			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
-			<true/>
-			<key>NSUbiquitousContainerName</key>
-			<string>dWalkScan</string>
-			<key>NSUbiquitousContainerSupportedFolderLevels</key>
-			<string>Any</string>
-		</dict>
-	</dict>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UILaunchScreen</key>

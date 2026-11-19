@@ -92,7 +92,7 @@ final class CloudStorageTests: XCTestCase {
         XCTAssertEqual(store.records.map(\.name), ["Chambre"])
         let second = try store.importPackage(from: incoming)
         XCTAssertNotEqual(second.id, pkg.record.id)
-        XCTAssertEqual(Set(store.records.map(\.name)), ["Chambre", "Chambre (importé)"])
+        XCTAssertEqual(Set(store.records.map(\.name)), ["Chambre", "Chambre \(String(localized: "cloud.importedSuffix", bundle: .main))"])
         XCTAssertTrue(FileManager.default.fileExists(atPath: incoming.path), "la source n'est pas déplacée")
     }
 

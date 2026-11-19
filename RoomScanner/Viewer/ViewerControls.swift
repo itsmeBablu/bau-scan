@@ -7,19 +7,20 @@ struct ViewerControls: View {
     @State private var showQuickLook = false
 
     var body: some View {
-        HStack(spacing: 12) {
+        VStack(spacing: 8) {
             Picker("viewer.mode", selection: $state.mode) {
                 ForEach(ViewerMode.available) { mode in Text(LocalizedStringKey(mode.titleKey)).tag(mode) }
             }
             .pickerStyle(.segmented)
-            .frame(maxWidth: 260)
+            .frame(maxWidth: .infinity)
             if state.mode == .ar {
                 Picker("viewer.arScale", selection: $state.arScale) {
                     ForEach(ARScale.allCases) { s in Text(s.label).tag(s) }
                 }
-                .pickerStyle(.menu)
+                .pickerStyle(.segmented)
+                .accessibilityLabel("AR model scale")
             }
-            Spacer(minLength: 0)
+            HStack(spacing: 8) {
             Toggle(isOn: $state.showDimensions) { Image(systemName: "ruler") }
                 .toggleStyle(.button).help(Text("viewer.dimensions"))
             Toggle(isOn: $state.showObjects) { Image(systemName: "chair.lounge") }
@@ -31,12 +32,17 @@ struct ViewerControls: View {
                     .help(Text("viewer.quicklook"))
                     .quickLookPreview(usdzURL, isPresented: $showQuickLook)
             }
+            }
+            .frame(maxWidth: .infinity)
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .liquidGlass(cornerRadius: 18, tint: AppTheme.primaryYellow)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .padding(.horizontal)
         .padding(.vertical, 6)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

@@ -7,6 +7,9 @@ struct RoomListView: View {
     @State private var scanMode: ScanMode?
     @State private var showSettings = false
     @State private var pendingDeletion: [LibraryItem] = []
+    @State private var itemToRename: LibraryItem?
+    @State private var proposedName = ""
+    @State private var actionError: String?
     @State private var path: [LibraryItem] = []
 
     var body: some View {
@@ -19,14 +22,26 @@ struct RoomListView: View {
                         if !store.houseRecords.isEmpty {
                             Section("library.houses") {
                                 ForEach(store.houseRecords) { record in
-                                    NavigationLink(value: LibraryItem.house(record)) { HouseRow(record: record) }
+                                    HStack {
+                                        NavigationLink(value: LibraryItem.house(record)) { HouseRow(record: record) }
+                                        Menu { itemMenu(for: .house(record)) } label: { Image(systemName: "ellipsis.circle").padding(8) }
+                                            .accessibilityLabel("Options for \(record.name)")
+                                    }
+                                        .contextMenu { itemMenu(for: .house(record)) }
+                                        .swipeActions(edge: .trailing, allowsFullSwipe: true) { itemActions(for: .house(record)) }
                                 }
                                 .onDelete { pendingDeletion = $0.map { .house(store.houseRecords[$0]) } }
                             }
                         }
                         Section(store.houseRecords.isEmpty ? "" : "library.rooms") {
                             ForEach(store.records) { record in
-                                NavigationLink(value: LibraryItem.room(record)) { RoomRow(record: record) }
+                                HStack {
+                                    NavigationLink(value: LibraryItem.room(record)) { RoomRow(record: record) }
+                                    Menu { itemMenu(for: .room(record)) } label: { Image(systemName: "ellipsis.circle").padding(8) }
+                                        .accessibilityLabel("Options for \(record.name)")
+                                }
+                                        .contextMenu { itemMenu(for: .room(record)) }
+                                        .swipeActions(edge: .trailing, allowsFullSwipe: true) { itemActions(for: .room(record)) }
                             }
                             .onDelete { pendingDeletion = $0.map { .room(store.records[$0]) } }
                         }
@@ -43,18 +58,13 @@ struct RoomListView: View {
             .toolbar {
                 #if os(iOS)
                 ToolbarItem(placement: .cancellationAction) {
-                    HStack(spacing: 8) {
-                        BrandLogoView(size: 26)
-                        CloudStatusBadge()
-                    }
-                }
-                ToolbarItem(placement: .cancellationAction) {
                     Button { showSettings = true } label: { Label("settings.title", systemImage: "gearshape") }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button { scanMode = .room } label: { Label("list.scanRoom", systemImage: "square.split.bottomrightquarter") }
                         Button { scanMode = .house } label: { Label("list.scanHouse", systemImage: "house") }
+                        Button { scanMode = .technicalRoom } label: { Label("Scan Technik Room", systemImage: "wrench.and.screwdriver") }
                     } label: { Label("list.scan", systemImage: "camera.viewfinder") }
                     .disabled(!scanSupported)
                 }
@@ -62,7 +72,11 @@ struct RoomListView: View {
             }
             #if os(iOS)
             .fullScreenCover(item: $scanMode) { mode in
-                ScanView(mode: mode, onSaved: { path = [$0] }).environment(store)
+                if mode == .technicalRoom {
+                    TechnicalRoomScanView(onSaved: { path = [$0] }).environment(store)
+                } else {
+                    ScanView(mode: mode, onSaved: { path = [$0] }).environment(store)
+                }
             }
             #endif
         }
@@ -70,6 +84,15 @@ struct RoomListView: View {
         .confirmationDialog("list.delete.confirm \(pendingDeletion.first?.name ?? "")", isPresented: Binding(get: { !pendingDeletion.isEmpty }, set: { if !$0 { pendingDeletion = [] } }), titleVisibility: .visible) {
             Button("common.delete", role: .destructive) { confirmDeletion() }
         } message: { Text("list.delete.message") }
+        .alert("Rename", isPresented: Binding(get: { itemToRename != nil }, set: { if !$0 { itemToRename = nil } }), presenting: itemToRename) { _ in
+            TextField("Name", text: $proposedName)
+            Button("Save") { renameItem() }
+                .disabled(proposedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Button("Cancel", role: .cancel) { itemToRename = nil }
+        }
+        .alert("Unable to complete action", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
+            Button("OK") { actionError = nil }
+        } message: { Text(actionError ?? "") }
         .onAppear {
             store.reload()
             // `-RoomScannerAutoOpenFirst YES`: opens first room automatically (screenshots, testing).
@@ -105,6 +128,8 @@ struct RoomListView: View {
                     .foregroundStyle(AppTheme.darkCharcoal)
                 Button { scanMode = .house } label: { Label("list.scanHouse", systemImage: "house") }
                     .buttonStyle(.bordered)
+                Button { scanMode = .technicalRoom } label: { Label("Scan Technik Room", systemImage: "wrench.and.screwdriver") }
+                    .buttonStyle(.bordered)
             }
         } else {
             UnsupportedDeviceView()
@@ -122,8 +147,36 @@ struct RoomListView: View {
     }
 
     private func confirmDeletion() {
-        for item in pendingDeletion { try? store.delete(item) }
+        for item in pendingDeletion {
+            do { try store.delete(item) } catch { actionError = error.localizedDescription }
+        }
         pendingDeletion = []
+    }
+
+    @ViewBuilder private func itemMenu(for item: LibraryItem) -> some View {
+        Button { beginRenaming(item) } label: { Label("Rename", systemImage: "pencil") }
+        Button(role: .destructive) { pendingDeletion = [item] } label: { Label("Delete", systemImage: "trash") }
+    }
+
+    @ViewBuilder private func itemActions(for item: LibraryItem) -> some View {
+        Button(role: .destructive) { pendingDeletion = [item] } label: { Label("Delete", systemImage: "trash") }
+        Button { beginRenaming(item) } label: { Label("Rename", systemImage: "pencil") }.tint(.blue)
+    }
+
+    private func beginRenaming(_ item: LibraryItem) {
+        proposedName = item.name
+        itemToRename = item
+    }
+
+    private func renameItem() {
+        guard let itemToRename else { return }
+        do {
+            switch itemToRename {
+            case .room(let record): try store.rename(record, to: proposedName)
+            case .house(let record): try store.rename(record, to: proposedName)
+            }
+        } catch { actionError = error.localizedDescription }
+        self.itemToRename = nil
     }
 }
 

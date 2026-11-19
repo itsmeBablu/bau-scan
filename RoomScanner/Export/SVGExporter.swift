@@ -31,6 +31,7 @@ struct SVGExporter {
         }
 
         var floors = "", walls = "", doors = "", windows = "", openings = "", objects = "", dims = "", texts = ""
+        let hiddenDoors = PlanRenderer.duplicateDoorIndices(in: rooms)
         for room in rooms {
             let t = room.transform
             let side = PlanRenderer.InteriorSide(polygon: room.floorPolygon, fallback: room.bounds.center)
@@ -55,7 +56,7 @@ struct SVGExporter {
                 while angle > 90 { angle -= 180 }; while angle <= -90 { angle += 180 }
                 texts += "  <text x=\"\(mm(q.x - b.minX))\" y=\"\(mm(b.maxY - q.y))\" font-size=\"120\" fill=\"#272000\" text-anchor=\"middle\" dominant-baseline=\"middle\" transform=\"rotate(\(fmt(angle)) \(mm(q.x - b.minX)) \(mm(b.maxY - q.y)))\">\(esc(label))</text>\n"
             }
-            for o in room.openings {
+            for (index, o) in room.openings.enumerated() where !(hiddenDoors[room.id]?.contains(index) ?? false) {
                 let seg = o.segment
                 let inward = side.inward(of: seg)
                 let outward = inward * -1

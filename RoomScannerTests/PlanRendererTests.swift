@@ -3,6 +3,28 @@ import CoreGraphics
 @testable import RoomScanner
 
 final class PlanRendererTests: XCTestCase {
+    func testSharedDoorHasOneSwingWithoutChangingOtherStoriesOrDistinctDoors() throws {
+        var a = FloorPlanBuilder().build(from: SyntheticRooms.rectangularRoom().scan, name: "A")
+        let door = try XCTUnwrap(a.openings.first { $0.kind == .door })
+        a.openings = [door]
+        var b = a; b.id = UUID()
+        b.openings[0].id = UUID()
+        b.openings[0].angle += .pi
+        let hidden = PlanRenderer.duplicateDoorIndices(in: [a, b])
+        XCTAssertNil(hidden[a.id])
+        XCTAssertEqual(hidden[b.id], [0])
+        let house = House(name: "Shared doorway", stories: [Story(index: 0, rooms: [a, b])])
+        let pairs = try DXFExporterTestsSupport.pairs(DXFExporter().dxf(for: house))
+        XCTAssertEqual(pairs.filter { $0 == (0, "ARC") }.count, 1)
+        b.story = 1
+        XCTAssertTrue(PlanRenderer.duplicateDoorIndices(in: [a, b]).isEmpty)
+        b.story = 0
+        b.transform.translation.x = 4
+        XCTAssertTrue(PlanRenderer.duplicateDoorIndices(in: [a, b]).isEmpty)
+        b.transform.translation = .zero
+        b.openings[0].angle = door.angle + .pi / 2
+        XCTAssertTrue(PlanRenderer.duplicateDoorIndices(in: [a, b]).isEmpty)
+    }
     private func house() -> House {
         House(room: FloorPlanBuilder().build(from: SyntheticRooms.rectangularRoom().scan, name: "Salon"))
     }

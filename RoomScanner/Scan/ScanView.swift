@@ -3,8 +3,7 @@ import SwiftUI
 
 /// Full-screen scan view: guidance, Cancel / Done, processing,
 /// saving to `RoomStore` and returning to library.
-/// House mode: 'Next Room' captures another room in same coordinates, 'Finish House'
-/// merges and saves a `.housescan` package.
+/// House mode: one uninterrupted capture until Finish House, then a `.housescan` package.
 struct ScanView: View {
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -33,7 +32,7 @@ struct ScanView: View {
                 overlay
             }
         }
-        .onAppear { coordinator.start() }
+        .onDisappear { coordinator.stop() }
         .onChange(of: coordinator.state) { _, state in handle(state) }
         .alert(item: $saveError) { error in
             Alert(title: Text("scan.error.title"), message: Text(error.localizedDescription),
@@ -48,13 +47,13 @@ struct ScanView: View {
                     .buttonStyle(.bordered)
                 Spacer()
                 if mode == .house {
-                    Text("scan.house.room \(coordinator.capturedRooms.count + 1)")
+                    Text("House scan")
                         .font(.subheadline.weight(.semibold))
                         .padding(.horizontal, 12).padding(.vertical, 6)
                         .background(.regularMaterial, in: Capsule())
                     Spacer()
                 }
-                Button { coordinator.finish() } label: { Text(mode == .house ? "scan.finishRoom" : "scan.finish") }
+                Button { coordinator.finish() } label: { Text(mode == .house ? "scan.finishHouse" : "scan.finish") }
                     .buttonStyle(.borderedProminent)
                     .disabled(coordinator.state != .scanning)
             }
@@ -68,19 +67,6 @@ struct ScanView: View {
                 Text(coordinator.state == .merging ? "scan.merging" : "scan.processing")
             }
             .padding(24)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-        case .roomCaptured(let count):
-            VStack(spacing: 16) {
-                Image(systemName: "checkmark.circle.fill").font(.largeTitle).foregroundStyle(.green)
-                Text("scan.house.captured \(count)").font(.headline)
-                Text("scan.house.hint").font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                Button { coordinator.nextRoom() } label: { Label("scan.nextRoom", systemImage: "arrow.right.circle") }
-                    .buttonStyle(.borderedProminent)
-                Button { coordinator.finishHouse() } label: { Label("scan.finishHouse", systemImage: "house.fill") }
-                    .buttonStyle(.bordered)
-            }
-            .padding(24)
-            .frame(maxWidth: 360)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
         default:
             EmptyView()

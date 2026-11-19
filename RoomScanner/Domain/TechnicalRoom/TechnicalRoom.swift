@@ -148,4 +148,16 @@ struct TechnicalRoom: Codable, Equatable {
     var fittings: [TechnicalFitting]
     var notes: [TechnicalValue<String>]
     var photos: [TechnicalPhoto]
+
+    /// Starts an annotation document for one captured shell. Equipment is never inferred from shell geometry.
+    static func capturedShell(id: UUID, notes: String) -> TechnicalRoom {
+        let frame = TechnicalTransform(translation: .init(x: 0, y: 0, z: 0), xAxis: .init(x: 1, y: 0, z: 0),
+                                       yAxis: .init(x: 0, y: 1, z: 0), zAxis: .init(x: 0, y: 0, z: 1))
+        let trimmed = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        return TechnicalRoom(id: UUID(), shellID: id,
+            shellToRoom: TechnicalValue(value: frame, unit: "m", source: .estimated, method: "roomPlanLocalFrame", accuracyMm: nil),
+            pipeRuns: [], equipment: [], fittings: [],
+            notes: trimmed.isEmpty ? [] : [TechnicalValue(value: trimmed, unit: "text", source: .entered, method: "surveyNotes", accuracyMm: nil)],
+            photos: [])
+    }
 }

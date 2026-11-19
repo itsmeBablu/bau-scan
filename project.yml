@@ -51,17 +51,15 @@ settingGroups:
     MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
-    DEVELOPMENT_TEAM: KFLACS69T9
     SWIFT_STRICT_CONCURRENCY: minimal
   tests-common:
     SWIFT_VERSION: "5.9"
     GENERATE_INFOPLIST_FILE: YES
     CODE_SIGN_STYLE: Automatic
-    DEVELOPMENT_TEAM: KFLACS69T9
 
 targets:
   # ---------------------------------------------------------------------------
-  # iOS — RoomPlan scan + 3D/2D visualization + exports + iCloud
+  # iOS — RoomPlan scan + 3D/2D visualization + exports + local/iCloud storage
   # ---------------------------------------------------------------------------
   RoomScanner:
     type: application
@@ -78,7 +76,9 @@ targets:
       base:
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
         TARGETED_DEVICE_FAMILY: "1,2"
-        CODE_SIGN_ENTITLEMENTS: RoomScanner/RoomScanner-iOS.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.itsmebablu.dwalkscan.localtest
+        CODE_SIGN_ENTITLEMENTS: ""
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) ROOMSCANNER_LOCAL_ONLY"
       configs:
         Release-Local:
           PRODUCT_BUNDLE_IDENTIFIER: io.github.itsmebablu.dwalkscan.localtest
@@ -107,15 +107,9 @@ targets:
         NSCameraUsageDescription: "dWalkScan uses the camera and LiDAR to scan rooms."
         UIRequiredDeviceCapabilities:
           - arkit
-        # Local fallback folder visible in Files app (when iCloud is inactive).
+        # Local fallback folder visible in Files app.
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
-        # iCloud Drive container exposed as public 'dWalkScan' folder in Files app.
-        NSUbiquitousContainers:
-          iCloud.io.github.itsmebablu.dwalkscan:
-            NSUbiquitousContainerIsDocumentScopePublic: true
-            NSUbiquitousContainerName: "dWalkScan"
-            NSUbiquitousContainerSupportedFolderLevels: Any
         # Package .roomscan: full scan bundle treated as single document.
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: io.github.itsmebablu.dwalkscan.room
@@ -187,7 +181,7 @@ targets:
         NSHumanReadableCopyright: "© 2026 Babu Reddy"
         LSApplicationCategoryType: public.app-category.graphics-design
         # Sparkle auto-updater feed URL.
-        SUFeedURL: "https://raw.githubusercontent.com/itsmeBablu/d-walk-scan/main/appcast.xml"
+        SUFeedURL: "https://raw.githubusercontent.com/itsmeBablu/bau-scan/main/appcast.xml"
         # Add this fork's public EdDSA key and signed appcast before enabling updates.
         SUPublicEDKey: ""
         SUEnableAutomaticChecks: false

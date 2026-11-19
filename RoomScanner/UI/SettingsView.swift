@@ -48,12 +48,14 @@ struct SettingsView: View {
                 Button { openLibraryFolder() } label: { Label("settings.openFolder", systemImage: "folder") }
             } header: { Text("settings.icloud.header") } footer: { Text("settings.icloud.footer") }
 
-            Section("settings.measurements.header") {
+            Section {
                 Picker("settings.measurements.unit", selection: $unit) {
                     Text("settings.unit.both").tag(MeasurementUnit.both)
                     Text("settings.unit.millimeters").tag(MeasurementUnit.millimeters)
                     Text("settings.unit.meters").tag(MeasurementUnit.meters)
                 }
+            } header: {
+                Text("settings.measurements.header")
             } footer: {
                 Text("settings.measurements.footer")
             }
@@ -82,9 +84,11 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 4)
 
-                LabeledContent("settings.about.version", value: version)
+                LabeledContent("settings.about.version") {
+                    Text(version)
+                }
                 // Redirect to GitHub repo only — project website is ignored and not redirected
-                Link(destination: URL(string: "https://github.com/itsmeBablu/d-walk-scan")!) {
+                Link(destination: URL(string: "https://github.com/itsmeBablu/bau-scan")!) {
                     Label("settings.about.source", systemImage: "chevron.left.forwardslash.chevron.right")
                 }
             }

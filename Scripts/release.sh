@@ -243,7 +243,7 @@ cat > "$ROOT/appcast.xml" <<APPCAST
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>dWalkScan</title>
-    <link>https://raw.githubusercontent.com/itsmeBablu/d-walk-scan/main/appcast.xml</link>
+    <link>https://raw.githubusercontent.com/itsmeBablu/bau-scan/main/appcast.xml</link>
     <description>dWalkScan for Mac release feed</description>
     <language>en</language>
     <item>
@@ -252,9 +252,9 @@ cat > "$ROOT/appcast.xml" <<APPCAST
       <sparkle:version>$BUILD_NUMBER</sparkle:version>
       <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/itsmeBablu/d-walk-scan/releases/tag/v$VERSION</sparkle:releaseNotesLink>
+      <sparkle:releaseNotesLink>https://github.com/itsmeBablu/bau-scan/releases/tag/v$VERSION</sparkle:releaseNotesLink>
       <enclosure
-        url="https://github.com/itsmeBablu/d-walk-scan/releases/download/v$VERSION/$APP_NAME-$VERSION.dmg"
+        url="https://github.com/itsmeBablu/bau-scan/releases/download/v$VERSION/$APP_NAME-$VERSION.dmg"
         type="application/octet-stream"
         $SIG_LINE />
     </item>

@@ -2,6 +2,16 @@ import XCTest
 @testable import RoomScanner
 
 final class TechnicalRoomTests: XCTestCase {
+    func testCapturedShellWithNoNotesValidatesWithoutInventingEquipment() throws {
+        let shellID = UUID()
+        let room = TechnicalRoom.capturedShell(id: shellID, notes: "  ")
+        let data = try TechnicalRoomJSONExporter.data(for: room)
+        try TechnicalJSONSchema.validate(data)
+        XCTAssertEqual(room.shellID, shellID)
+        XCTAssertTrue(room.notes.isEmpty)
+        XCTAssertTrue(room.pipeRuns.isEmpty)
+        XCTAssertTrue(room.equipment.isEmpty)
+    }
     private func sample(_ name: String) throws -> Data {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: name, withExtension: "json"))
         return try Data(contentsOf: url)
