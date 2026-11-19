@@ -1,143 +1,171 @@
-# dWalkScan
+<p align="center">
+  <img src="docs/assets/ibv.svg" width="96" height="96" alt="dWalkScan bau-scan logo" />
+</p>
 
-Scan the rooms of your house with the iPhone LiDAR, get **dimensioned 2D floor plans** and
-**3D models**, and share them with any 2D (PDF, SVG, DXF/CAD) or 3D (USDZ, OBJ, STL, PLY) application.
-A **Mac companion app** (same codebase) shows the plans, 3D models and measurements on the big screen,
-exports, prints and drag-and-drops them into your Mac tools. **iCloud Drive** keeps iPhone and Mac in sync
-and exposes a "dWalkScan" folder in Files and Finder that any 2D/3D app can read.
+<h1 align="center">dWalkScan (bau-scan)</h1>
 
-> Status: **v1.0.0 released** (2026-09-10) — [download the Mac app](https://github.com/BabuReddy/dWalkScan/releases/latest) (signed, notarized DMG, auto-updates with Sparkle). Landing page: https://BabuReddy.github.io/dWalkScan/
-> See [`docs/superpowers/specs/2026-09-05-3dscanner-design.md`](docs/superpowers/specs/2026-09-05-3dscanner-design.md) for the full specification (French).
+<p align="center">
+  <strong>LiDAR Room & House 3D Scanner with Precision Architectural 2D Floor Plans</strong>
+</p>
 
-## Install (Mac)
+<p align="center">
+  <a href="https://github.com/itsmeBablu/bau-scan/releases"><img src="https://img.shields.io/badge/Release-v1.0.0-facc15.svg?style=flat-square&labelColor=111110" alt="Release"></a>
+  <a href="https://developer.apple.com/ios/"><img src="https://img.shields.io/badge/iOS-18.0%2B-blue.svg?style=flat-square" alt="iOS 18.0+"></a>
+  <a href="https://developer.apple.com/macos/"><img src="https://img.shields.io/badge/macOS-15.0%2B-blue.svg?style=flat-square" alt="macOS 15.0+"></a>
+  <a href="https://developer.apple.com/augmented-reality/roomplan/"><img src="https://img.shields.io/badge/LiDAR-Apple%20RoomPlan-brightgreen.svg?style=flat-square" alt="Apple RoomPlan"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-gray.svg?style=flat-square" alt="License MIT"></a>
+</p>
 
-Download `dWalkScan-1.0.0.dmg` from the [latest release](https://github.com/BabuReddy/dWalkScan/releases/latest),
-open it and drag **dWalkScan** to Applications. The DMG is signed with a Developer ID certificate and
-notarized by Apple, so it opens without a Gatekeeper warning. The app updates itself with Sparkle.
+---
 
-The iPhone app is not distributed on the App Store — build and run it from Xcode (⌘R).
+Scan the rooms of your house with your iPhone's **LiDAR** sensor, generate **architecturally dimensioned 2D floor plans** and **3D models**, and export them directly to any 2D application (**PDF**, **SVG**, **DXF / CAD**) or 3D workflow (**USDZ**, **OBJ**, **STL**, **PLY**).
+
+A companion **Mac application** (sharing the exact same Swift codebase) displays plans, 3D models, and measurements on your desktop, with drag-and-drop support, printing, and automated exports. **iCloud Drive** keeps iPhone and Mac continuously in sync, maintaining a dedicated `dWalkScan` directory in Files and Finder.
+
+> [!NOTE]
+> **Status:** **v1.0.0 Released** — [Download the Mac App](https://github.com/itsmeBablu/bau-scan/releases/latest) (notarized DMG with Sparkle auto-updates).  
+> **iOS Distribution:** Build and run via Xcode (`⌘R`) or sideload the unsigned IPA via Sideloadly / GitHub Actions on Windows.
+
+---
+
+## Key Features
+
+### 📐 Architectural 2D Plans & Annotations
+* **Opening Dimension Lines (DIN Standard):** Opening width positioned **above** the dimension line, height positioned **below**, terminating with architectural diagonal oblique ticks (`/`).
+* **Window Parapet Height (`BRH`):** Clear window sill / parapet height (`BRH: <height>`) centered along the interior sill with **zero text overlap**.
+* **Interior Room Badges:** Centered at `Polygon2D.interiorPoint` with bold room titles and calculated $\text{m}^2$ area inside translucent badges with Primary Yellow (`#facc15`) borders.
+* **Selectable Units:** Support for millimeters (`mm`), meters (`m`), or dual format (`mm & m`), with standard English dot-decimal notation (`.`).
+* **2D Export Suite:** Vector SVG with CAD-style layers (`walls`, `doors`, `windows`, `dimensions`, `text`), DXF R12, scaled PDF (A4 landscape), and high-resolution PNG.
+
+### 🧊 3D Scanning & RealityKit Viewer
+* **Apple RoomPlan LiDAR Capture:** Real-time guided capture with surface recognition, door/window detection, and coaching indicators.
+* **Interactive Viewer:** 3D orbit viewer, top-down 2D orthographic plan, and real-world AR tabletop placement (1:20 / 1:50 scale) or 1:1 overlay.
+* **3D Export Formats:** USDZ (native parametric scene or raw scan mesh), OBJ, STL, and PLY.
+
+### 🎨 Design System & Liquid Glass
+* **Custom Brand Palette:**
+  * **Primary Yellow:** `#facc15` (Brand focus, dimension accents, and active states).
+  * **Secondary Yellow:** `#fef08a` / `#fef3c7` (Badge surfaces and subtle highlights).
+  * **Dark Charcoal:** `#111110` / `#272000` (High-contrast typography and CAD walls).
+* **Native Liquid Glass:** Blur-backed cards (`.liquidGlass()` and `.liquidGlassCard()`) tailored for iOS 18+ and macOS 15+.
+
+---
+
+## Feature Matrix
+
+| Feature | Status | Technology / Notes |
+|---|---|---|
+| **LiDAR Room Capture** | ✅ Built | Apple `RoomCaptureView`, real-time coaching |
+| **Architectural 2D Plan** | ✅ Built | Core Graphics, diagonal ticks, top width, bottom height, `BRH:` sill height |
+| **Room Badges & Area** | ✅ Built | Centered at `interiorPoint`, bold title + $\text{m}^2$ calculation |
+| **Units: mm & meters** | ✅ Built | Configurable `mm`, `m`, `both` with English dot-decimal (`.`) standard |
+| **Interactive 3D / AR Viewer** | ✅ Built | SwiftUI `RealityView`, orbit controls, 1:20 / 1:50 AR tabletop scale |
+| **Detailed Measurements** | ✅ Built | Area, perimeter, ceiling height range, doors, windows, objects |
+| **2D Exports** | ✅ Built | PDF (A4 Landscape), PNG, SVG (layered), DXF R12 |
+| **3D Exports** | ✅ Built | USDZ, OBJ, STL, PLY (plan mesh + raw scan mesh) |
+| **Mac Companion App** | ✅ Built | SwiftUI macOS 15+, split view, drag & drop, printing (⌘P) |
+| **iCloud Drive Sync** | ✅ Built | Multi-device sync, `.roomscan` packages, conflict-safe |
+| **Multi-Room House Merge** | 🚧 v2 | `StructureBuilder`, multi-story floor alignment, `.housescan` packages |
+
+---
 
 ## Requirements
 
-- iPhone **Pro** model with LiDAR (12 Pro or later; developed against iPhone 15/16/17 Pro), iOS **18.0**+ — scanning happens only on iPhone (RoomPlan does not exist on macOS)
-- Mac with **macOS 15.0**+ for the companion app (Apple Silicon or Intel)
-- An iCloud account signed in on both devices (optional — the apps fall back to local storage)
-- Xcode 27, `xcodegen` (`brew install xcodegen`)
+* **iOS:** iPhone **Pro** model with LiDAR (iPhone 12 Pro through 17 Pro), running **iOS 18.0+**.
+* **macOS:** Mac with Apple Silicon or Intel running **macOS 15.0+**.
+* **Development Environment:** Xcode 16+ or 27 with `xcodegen` (`brew install xcodegen`).
+* **iCloud:** Apple Account signed in on devices for automatic synchronization (local storage used as fallback).
 
-The iOS Simulator cannot run RoomPlan (no LiDAR). The conversion/export engine is fully
-unit-tested on the simulator from JSON fixtures; the scan screen is tested on device only.
+---
 
-## Features
+## Build & Development
 
-| Feature | v1 | Notes |
-|---|---|---|
-| Guided LiDAR room scan (Apple RoomPlan) | ✅ built (device validation pending) | Apple `RoomCaptureView`, coaching enabled |
-| Automatic room naming (Living room, Bedroom…) | ✅ built | from RoomPlan `Section.label` |
-| Dimensioned 2D floor plan (walls, doors, windows, mm & meters dimensions, m² area) | ✅ built | Core Graphics renderer |
-| Interactive viewer (SwiftUI `RealityView`): **3D orbit**, **2D top-down**, **AR** on iPhone (scale model on a table at 1:20/1:50, or 1:1 overlay in the real room) | ✅ built (AR on device pending) | parametric scene built from the plan; QuickLook kept as secondary quick preview |
-| Measurements list (area, perimeter, ceiling height, every wall/door/window, detected objects) | ✅ built | with confidence indicator |
-| Export 2D: PDF (A4 landscape), PNG, SVG, DXF R12 | ✅ built | hand-written writers, no dependencies |
-| Export 3D: USDZ (parametric or raw scan mesh), OBJ, STL, PLY | ✅ built (device validation pending) | USDZ from RoomPlan; OBJ/STL/PLY from the plan mesh, or from the scan mesh via Model I/O |
-| Export data: structured plan JSON, ZIP of everything (+ README.txt) | ✅ built | |
-| Share sheet (AirDrop, Files, Mail, any installed app), Save As…, copy to `Exports/` | ✅ built | `ShareLink`, `fileExporter` |
-| Room library, rename, delete, re-export without rescanning | ✅ built | `.roomscan` packages |
-| **iCloud Drive sync** iPhone ↔ Mac, "dWalkScan" folder in Files & Finder, "Save to iCloud Drive" for exports, offline fallback, conflict-safe | ✅ built (device validation pending) | ubiquity container, `NSMetadataQuery`, `NSFileCoordinator` |
-| **Mac companion app**: sidebar library, 2D plan, 3D viewer (mouse/trackpad orbit), measurements, File › Export (⌘E), Print (⌘P), drag & drop to other apps, Open With…, Reveal in Finder, double-click `.roomscan` | ✅ built (visual check pending) | shared codebase, `RoomScannerMac` target |
-| **Sparkle auto-update** on Mac (signed DMG, notarized) | ✅ shipped in v1.0.0 | `appcast.xml` on `main` |
-| French / English UI | ✅ built | |
-| Whole-house merge (multi-room, multi-story) | 🚧 v2 | "Scan a house" mode (shared `ARSession`, RoomPlan `StructureBuilder`), `.housescan` package, house library, level picker (2D / 3D / measures), one PDF page per level, per-room floor tints — validated on a real 3-room house; floor area is the union of the rooms, rooms named from every RoomPlan section |
-| glTF / GLB export | 🔜 v2 | Model I/O cannot write glTF; custom writer |
-| Compass / north on plan, imperial units, manual edits | 🔜 v2 | |
-
-## Build
+The Xcode project is generated deterministically using [XcodeGen](https://github.com/yonaskolb/XcodeGen):
 
 ```bash
+# 1. Generate the Xcode project file
 xcodegen generate
-# iOS (simulator: everything except the RoomPlan scan itself)
+
+# 2. Build and run unit tests for iOS Simulator
 xcodebuild -scheme RoomScanner \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
   CODE_SIGNING_ALLOWED=NO build test
-# macOS (same code, same tests)
-xcodebuild -scheme RoomScannerMac -destination 'platform=macOS' build test
-```
-Run on device from Xcode (⌘R) with automatic signing. Mac release DMG: `Scripts/release.sh` (Developer ID + notarization).
 
-### Test on an iPhone from Windows
-
-On a repository you control, open **Actions → Build unsigned iPhone IPA → Run workflow**, choose
-the branch with this workflow, and click **Run workflow** again. GitHub requires the workflow file
-on the default branch before it can be dispatched. If your fork has Actions disabled, enable them
-from its **Actions** tab first.
-
-The workflow uses GitHub's macOS runner with Xcode 27 to build the `RoomScanner` scheme for a
-physical iPhone on iOS 18.0 or later. `Release-Local` is a Release build configuration with the
-bundle ID `io.github.itsmebablu.dwalkscan.localtest`. It uses the app's Documents directory
-for room scans, house scans and exports. iCloud sync, migration and iCloud Drive export are
-unavailable in this build. Use Files → On My iPhone → dWalkScan or the share sheet to back up
-scans before deleting the app or changing signing identity or bundle ID.
-
-1. Open the completed run. Under **Artifacts**, download **dWalkScan-local-unsigned-ipa**.
-   In Windows Explorer, right-click the downloaded ZIP, choose **Extract All**, and use
-   `dWalkScan-local-unsigned.ipa` from the extracted folder.
-2. Install the desktop iTunes and iCloud packages linked on the [Sideloadly website](https://sideloadly.io/).
-   Sideloadly's Windows instructions call for the web installers. Remove Microsoft Store editions
-   of iTunes and iCloud if installed. Then install Sideloadly for Windows.
-3. Connect the unlocked iPhone by USB. Accept **Trust This Computer** on the phone and enter
-   its passcode. Confirm that iTunes detects it, then select the phone in Sideloadly.
-4. Drag the IPA into Sideloadly. Enter your free Apple Account in Sideloadly and click **Start**.
-   Complete any Apple sign-in and two-factor prompts there. Sideloadly signs the app on Windows.
-   Keep the same Apple Account and effective bundle ID on subsequent installs to update in place.
-5. If prompted to trust the developer, open **Settings → General → VPN & Device Management**,
-   select your developer profile and tap **Trust**. Enable **Settings → Privacy & Security →
-   Developer Mode**, restart, and confirm **Turn On** after restart. Check for Developer Mode
-   after the first install attempt if it was initially absent.
-6. Open dWalkScan and allow camera access. Save a room scan, close and reopen the app, verify
-   the scan still appears in the library, then export a file and check it in Files.
-7. Free signing expires after seven days. Re-sign before expiration using the same account
-   and bundle ID, or enable Sideloadly's automatic refresh and keep its Windows daemon running
-   with the phone reachable over USB or configured Wi-Fi sync.
-
-For build failures, open the first failed Actions step and download **dWalkScan-ios-build-logs**.
-Use `generate.log` for XcodeGen or SDK setup, `xcodebuild.log` for compilation, and `package.log`
-for IPA validation. For device detection issues, try another data cable or USB port and check
-iTunes again. For signing failures, check the detailed Sideloadly error for Apple Account
-authentication or free provisioning limits. If iOS refuses to launch the app, check the
-profile, Developer Mode and signing expiration. If the app opens and crashes, share the
-dWalkScan crash entry from **Settings → Privacy & Security → Analytics & Improvements →
-Analytics Data**, along with the iOS version and the action that triggered the crash.
-
-## Project layout
-
-```
-RoomScanner/            Shared app source (SwiftUI, iOS 18+ / macOS 15+)
-  App/  Scan/ (iOS)  Domain/  Viewer/  Export/  Storage/  Sync/  UI/  MacUI/ (macOS)  Resources/
-RoomScannerTests/       Unit tests + CapturedRoom JSON fixtures
-docs/                   Landing page (GitHub Pages) + docs/superpowers/specs/ design specifications
-Scripts/release.sh      Mac release: build, Developer ID signing, notarization, DMG, Sparkle appcast
-project.yml             XcodeGen project definition (the .xcodeproj is generated, not versioned)
+# 3. Build and test the macOS companion app
+xcodebuild -scheme RoomScannerMac \
+  -destination 'platform=macOS' build test
 ```
 
-## Architecture
+---
 
-See [`ARCHITECTURE_EN.md`](ARCHITECTURE_EN.md) (English, source of truth) / [`ARCHITECTURE.md`](ARCHITECTURE.md) (French mirror).
+## Sideloading on Windows (No Mac Required)
 
-## Roadmap
+You can build and test **dWalkScan** on your physical iPhone directly from Windows using GitHub Actions and Sideloadly:
 
-- [x] Phase 0 — Bootstrap (public repo, two targets iOS 18 + macOS 15, plists, entitlements, tests target, landing page)
-- [x] Phase 1 — Domain model `FloorPlan` + measurements (TDD)
-- [x] Phase 2 — Local storage (`.roomscan`) + iOS scan screen
-- [x] Phase 3 — 2D renderer + measurements UI
-- [x] Phase 4 — RealityKit viewer (3D orbit, 2D top-down, AR placement on iPhone)
-- [x] Phase 5 — 2D exports (PDF, PNG, SVG, DXF)
-- [x] Phase 6 — 3D exports (USDZ, OBJ, STL, PLY)
-- [x] Phase 7 — iCloud Drive sync (`.roomscan` packages, Exports folder, offline fallback, conflicts)
-- [x] Phase 8 — Mac companion app (split view, menus, print, drag & drop, Open With)
-- [x] Phase 9 — Library, ZIP, settings, icons, localization, Sparkle integration
-- [x] Phase 10 — [v1.0.0 release](https://github.com/BabuReddy/dWalkScan/releases/tag/v1.0.0) (notarized Mac DMG with Sparkle appcast)
-- [ ] v2 — whole-house merge ([spec](docs/superpowers/specs/2026-09-05-3dscanner-v2-house-design.md)): domain ✅, `.housescan` storage + library ✅, multi-room capture ✅ (validated on a real house), house area & naming ✅, remaining: `.housescan` iCloud conflicts, per-level SVG/DXF layers, house AR at 1:100, glTF, compass, imperial units
+<details>
+<summary><strong>Click to expand step-by-step Windows sideloading guide</strong></summary>
+
+### 1. Build the Unsigned IPA on GitHub Actions
+1. Navigate to your repository's **Actions** tab on GitHub.
+2. Select the **Build unsigned iPhone IPA** workflow from the left sidebar.
+3. Click **Run workflow**, choose `main`, and confirm.
+4. When the build finishes, scroll down to **Artifacts** and download **`dWalkScan-local-unsigned-ipa.zip`**.
+5. Extract the ZIP archive on Windows to obtain `dWalkScan-local-unsigned.ipa`.
+
+### 2. Install Sideloadly & Prerequisites
+1. Download and install **iTunes** and **iCloud** for Windows using the standalone desktop web installers (avoid the Microsoft Store versions).
+2. Download and install [Sideloadly](https://sideloadly.io/).
+
+### 3. Sign & Install onto iPhone
+1. Connect your unlocked iPhone to your PC via USB.
+2. When prompted on the iPhone, select **Trust This Computer** and enter your passcode.
+3. Open Sideloadly; verify your connected iPhone appears in the device dropdown.
+4. Drag `dWalkScan-local-unsigned.ipa` into Sideloadly.
+5. Enter your free Apple Account email and click **Start**.
+6. On the iPhone, go to **Settings → General → VPN & Device Management**, tap your developer certificate, and tap **Trust**.
+7. If iOS 16+, enable **Settings → Privacy & Security → Developer Mode** and reboot when prompted.
+8. Launch **dWalkScan**, grant camera/LiDAR permissions, and begin scanning!
+
+</details>
+
+---
+
+## Repository Structure
+
+```
+d-walk-scan/
+├── RoomScanner/             # Shared SwiftUI source (iOS 18+ & macOS 15+)
+│   ├── App/                 # App lifecycle and root routing
+│   ├── Domain/              # Geometry, FloorPlan model, and Measurements formatters
+│   ├── Export/              # PlanRenderer, SVGExporter, DXFExporter, MeshWriters
+│   ├── Scan/                # RoomCaptureView integration (iOS LiDAR)
+│   ├── Storage/             # Package handling (.roomscan / .housescan), iCloud sync
+│   ├── UI/                  # AppTheme (liquid glass), Plan2DView, 3D viewer
+│   ├── MacUI/               # macOS menus, print controllers, drag-and-drop
+│   └── Resources/           # ibv.svg, AppIcon catalogs, Localizable strings
+├── RoomScannerTests/        # Comprehensive unit tests & JSON fixtures
+├── .agents/skills/          # Upstream sync automation (sync-upstream-features)
+├── docs/                    # GitHub Pages documentation & vector assets
+├── project.yml              # XcodeGen project configuration
+└── README.md                # Project documentation
+```
+
+---
+
+## Upstream Synchronization
+
+This repository includes a specialized skill in [`.agents/skills/sync-upstream-features`](.agents/skills/sync-upstream-features) to selectively merge algorithmic improvements and fixes from upstream while strictly safeguarding:
+- Custom branding (**`BabuReddy`**, **`dWalkScan`**, **`ibv.svg`**).
+- Custom color palette (`#facc15`, `#fef08a`, `#111110`).
+- Liquid glass styling and architectural 2D annotations (opening dimensions & `BRH` parapet heights).
+
+To verify branding compliance at any time:
+```bash
+python .agents/skills/sync-upstream-features/scripts/sync-upstream.py --check-branding
+```
+
+---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-#   b a u - s c a n  
- 
+This project is licensed under the [MIT License](LICENSE).
