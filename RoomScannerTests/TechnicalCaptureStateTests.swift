@@ -2,6 +2,17 @@ import XCTest
 @testable import RoomScanner
 
 final class TechnicalCaptureStateTests: XCTestCase {
+    func testDepthProjectionUsesARCameraAxesAndRejectsInvalidDepth() throws {
+        let center = try XCTUnwrap(TechnicalDepthProjection.cameraPoint(pixelX: 100, pixelY: 80,
+            depthMetres: 2, fx: 200, fy: 200, cx: 100, cy: 80))
+        XCTAssertEqual(center, .init(x: 0, y: 0, z: -2))
+        let offset = try XCTUnwrap(TechnicalDepthProjection.cameraPoint(pixelX: 150, pixelY: 100,
+            depthMetres: 2, fx: 200, fy: 200, cx: 100, cy: 80))
+        XCTAssertEqual(offset.x, 0.5, accuracy: 1e-9)
+        XCTAssertEqual(offset.y, -0.2, accuracy: 1e-9)
+        XCTAssertNil(TechnicalDepthProjection.cameraPoint(pixelX: 0, pixelY: 0, depthMetres: .nan,
+            fx: 200, fy: 200, cx: 100, cy: 80))
+    }
     func testFrameHistoryIsBoundedAndCodable() throws {
         var history = TechnicalFrameHistory(capacity: 2)
         for timestamp in 0..<3 {

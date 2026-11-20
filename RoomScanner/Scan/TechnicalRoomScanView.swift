@@ -34,6 +34,14 @@ struct TechnicalRoomScanView: View {
                 if scanner.recovering { Text("Relocalising — checkpoint verification required").font(.caption) }
                 Button("Capture mesh snapshot") { scanner.captureMeshSnapshot() }
                     .disabled(!scanner.state.trackingNormal)
+                Button("Capture depth snapshot") { scanner.captureDepthSnapshot() }
+                    .disabled(!scanner.state.trackingNormal)
+                if let bytes = scanner.residentMemoryBytes {
+                    Text("Resident memory \(Double(bytes) / 1_048_576, specifier: "%.1f") MiB").font(.caption)
+                }
+                if let depth = scanner.depthSnapshot {
+                    Text("Depth snapshot \(depth.width) × \(depth.height)").font(.caption)
+                }
                 if let snapshot = scanner.meshSnapshot {
                     Text("Snapshot: \(snapshot.patches.count) patches\(snapshot.truncated ? " — size limit reached" : "")")
                         .font(.caption)

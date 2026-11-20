@@ -22,6 +22,8 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
     private(set) var worldMapData: Data?
     private(set) var frameHistory = TechnicalFrameHistory()
     private(set) var meshSnapshot: TechnicalMeshSnapshot?
+    private(set) var depthSnapshot: TechnicalDepthSnapshot?
+    private(set) var residentMemoryBytes: UInt64?
     private var lastRecordedTimestamp = -Double.infinity
     private var worldMap: ARWorldMap?
     private var previousTimestamp: TimeInterval?
@@ -52,6 +54,12 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
     func captureMeshSnapshot() {
         guard active, let frame = session.currentFrame else { return }
         meshSnapshot = TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate)
+    }
+
+    func captureDepthSnapshot() {
+        guard active, let frame = session.currentFrame else { return }
+        depthSnapshot = TechnicalRoomFrameProcessor.depthSnapshot(frame: frame, alignmentVerified: state.canAnnotate)
+        if depthSnapshot == nil { errorMessage = "Raw scene depth unavailable for this frame." }
     }
 
     func saveRecoveryMap() {
@@ -133,6 +141,7 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
         state.tracking(normal: frame.camera.trackingState == .normal)
         if frame.timestamp - lastRecordedTimestamp >= 1 {
             lastRecordedTimestamp = frame.timestamp
+            residentMemoryBytes = TechnicalRoomFrameProcessor.residentMemoryBytes()
             let matrix = frame.camera.transform
             let intrinsics = frame.camera.intrinsics
             frameHistory.append(TechnicalFrameRecord(timestamp: frame.timestamp,
