@@ -41,15 +41,31 @@ struct TechnicalRoomScanView: View {
             VStack(spacing: 12) {
                 TechnicalCaptureCamera(scanner: scanner, viewport: $viewport)
                     .overlay { Image(systemName: "plus").font(.title).foregroundStyle(.yellow).allowsHitTesting(false) }
+                    .frame(minHeight: 180, maxHeight: .infinity)
+                ScrollView {
+                VStack(spacing: 12) {
                 Text(message).font(.callout)
                 Text("Device validation pending · Unsaved capture preview").font(.caption).foregroundStyle(.secondary)
+                ForEach(scanner.healthWarnings, id: \.self) { warning in
+                    Label(warning, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
+                }
+                Text("Journal: \(scanner.journal.frames.count) frames · \(scanner.journal.depths.count) depth · \(scanner.journal.meshes.count) mesh snapshots")
+                    .font(.caption)
+                if scanner.journal.retentionLimited {
+                    Text("Retention limit reached: \(scanner.journal.droppedFrames) old frames and \(scanner.journal.droppedSnapshots) snapshots were discarded.")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+                if scanner.alignment.referenceLocked { Label("Reference frame locked", systemImage: "lock.fill").font(.caption) }
                 HStack {
                     Button("Save recovery map") { scanner.saveRecoveryMap() }
-                        .disabled(!scanner.state.trackingNormal)
+                        .disabled(!scanner.state.canAnnotate)
                     Button("Resume from map") { scanner.resume() }
                         .disabled(!scanner.recoveryAvailable)
                 }
-                if scanner.recovering { Text("Relocalising — checkpoint verification required").font(.caption) }
+                if scanner.recovering {
+                    Text(scanner.recoveryTrackingReady ? "Map tracking recovered — verify the independent checkpoint" : "Relocalising — annotations remain locked")
+                        .font(.caption).foregroundStyle(.orange)
+                }
                 Button("Pipe annotation") { showingPipeTool = true }
                     .disabled(!scanner.state.canAnnotate)
                 Text("Unsaved pipe runs: \(pipes.count)").font(.caption)
@@ -79,6 +95,7 @@ struct TechnicalRoomScanView: View {
                     Button(origin == nil ? "Set origin at crosshair" : "Set +X floor corner at crosshair") { setCorner() }
                         .disabled(!scanner.state.trackingNormal)
                 } else {
+                    Text("Third checkpoint: use independently measured coordinates away from the origin–X baseline.").font(.caption)
                     HStack {
                         TextField("Checkpoint X (m)", text: $checkpointX)
                         TextField("Y (m)", text: $checkpointY)
@@ -92,8 +109,13 @@ struct TechnicalRoomScanView: View {
                         Text("Checkpoint residual \(residual, specifier: "%.1f") mm")
                     }
                     Text(scanner.state.canAnnotate ? "Alignment checkpoint accepted" : "Alignment verification required")
+                    Text("\(scanner.alignment.checkpoints.count) checkpoint observations recorded").font(.caption)
                 }
                 if let error = scanner.errorMessage { Text(error).foregroundStyle(.red) }
+                }
+                .textFieldStyle(.roundedBorder)
+                }
+                .frame(maxHeight: 300)
             }
             .padding()
             .navigationTitle("Technical Room")
@@ -110,6 +132,12 @@ struct TechnicalRoomScanView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { scanner.interrupt() }
             // Resumption is explicit and always invalidates the alignment checkpoint.
+        }
+        .onChange(of: scanner.state.canAnnotate) { _, verified in
+            if !verified, !pipeHits.isEmpty {
+                pipeHits = []
+                message = "Alignment was lost. Uncommitted pipe points were cleared; verify the checkpoint before tracing again."
+            }
         }
     }
 
@@ -155,6 +183,7 @@ struct TechnicalRoomScanView: View {
             insulationThicknessMm: .init(value: insulationValue, unit: "mm", source: .entered, method: "manualEntry", accuracyMm: nil),
             surfaceHits: pipeHits, connectedPorts: [])
         pipes.append(pipe)
+        scanner.lockReference()
         if let viewport { scanner.showPipe(pipe, in: viewport) }
         pipeHits = []
         showingPipeTool = false
@@ -224,6 +253,7 @@ struct TechnicalRoomScanView: View {
             size: .init(value: .init(x: width, y: height, z: depth), unit: "m", source: .entered, method: "manualDimensionsRequireVerification", accuracyMm: nil),
             rotation: .init(value: yaw * .pi / 180, unit: "rad", source: .entered, method: "manualYaw", accuracyMm: nil), ports: [], photoRefs: [])
         equipment.append(item)
+        scanner.lockReference()
         scanner.showEquipment(item, in: viewport)
         equipmentError = nil
         showingEquipmentTool = false
@@ -278,6 +308,7 @@ private final class TechnicalCameraHost: UIViewController {
         self.scanner = scanner
         super.init(nibName: nil, bundle: nil)
         camera.session = scanner.session
+        camera.environment.background = .cameraFeed()
         camera.debugOptions.insert(.showSceneUnderstanding)
     }
     required init?(coder: NSCoder) { nil }
@@ -286,9 +317,7 @@ private final class TechnicalCameraHost: UIViewController {
         super.viewDidAppear(animated)
         scanner.start()
     }
-    override func viewDidDisappear(_ animated: Bool) {
-        super.viewDidDisappear(animated)
-        scanner.stop()
-    }
+    // Modal annotation sheets must not destroy the capture. The representable's
+    // dismantle hook owns final teardown; scenePhase handles real interruptions.
 }
 #endif

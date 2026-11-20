@@ -3,6 +3,25 @@ import ARKit
 import Darwin
 
 enum TechnicalRoomFrameProcessor {
+    /// Sparse validity sampling avoids copying a depth image on every diagnostics update.
+    static func depthCoverage(frame: ARFrame) -> Double? {
+        guard let buffer = frame.sceneDepth?.depthMap,
+              CVPixelBufferGetPixelFormatType(buffer) == kCVPixelFormatType_DepthFloat32 else { return nil }
+        CVPixelBufferLockBaseAddress(buffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+        guard let base = CVPixelBufferGetBaseAddress(buffer) else { return nil }
+        let width = CVPixelBufferGetWidth(buffer), height = CVPixelBufferGetHeight(buffer)
+        let rowBytes = CVPixelBufferGetBytesPerRow(buffer)
+        var valid = 0, total = 0
+        for y in stride(from: 0, to: height, by: max(1, height / 20)) {
+            let row = base.advanced(by: y * rowBytes).assumingMemoryBound(to: Float.self)
+            for x in stride(from: 0, to: width, by: max(1, width / 20)) {
+                total += 1
+                if row[x].isFinite && row[x] > 0 { valid += 1 }
+            }
+        }
+        return total > 0 ? Double(valid) / Double(total) : nil
+    }
     /// Copies one raw scene-depth frame. No temporal smoothing is presented as raw depth.
     static func depthSnapshot(frame: ARFrame, alignmentVerified: Bool) -> TechnicalDepthSnapshot? {
         guard let depth = frame.sceneDepth else { return nil }

@@ -9,14 +9,15 @@ import simd
 /// Device validation pending.
 @Observable
 @MainActor
-final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
+final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDelegate {
     let session = ARSession()
     private(set) var state = TechnicalCaptureState()
     private(set) var errorMessage: String?
     private(set) var frameCount = 0
     private(set) var meshAnchorCount = 0
     private(set) var lastTimestamp: TimeInterval?
-    private(set) var referenceFrame: TechnicalTransform?
+    private(set) var alignment = TechnicalAlignmentSurvey()
+    var referenceFrame: TechnicalTransform? { alignment.referenceFrame }
     private(set) var fps = 0.0
     private(set) var recoveryAvailable = false
     private(set) var recovering = false
@@ -25,9 +26,15 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
     private(set) var meshSnapshot: TechnicalMeshSnapshot?
     private(set) var depthSnapshot: TechnicalDepthSnapshot?
     private(set) var residentMemoryBytes: UInt64?
+    private(set) var journal = TechnicalCaptureJournal()
+    private(set) var healthWarnings: [String] = []
+    private(set) var recoveryTrackingReady = false
     private var lastRecordedTimestamp = -Double.infinity
-    private var worldMap: ARWorldMap?
+    private var firstTimestamp: Double?
+    private var previousTracking = ""
+    private var requestingPermission = false
     private var previousTimestamp: TimeInterval?
+    private var minimumFrameTimestamp = -Double.infinity
     private var active = false
     private var generation = 0
     private var pipeAnchors: [UUID: AnchorEntity] = [:]
@@ -35,6 +42,7 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
 
     func showEquipment(_ equipment: TechnicalEquipment, in viewport: ARView) {
         guard state.canAnnotate, let referenceFrame else { return }
+        lockReference()
         removeEquipment(id: equipment.id)
         let center = TechnicalReferenceFrame.inverseApply(referenceFrame, to: equipment.center.value)
         let size = equipment.size.value
@@ -57,6 +65,7 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
 
     func showPipe(_ pipe: TechnicalPipeRun, in viewport: ARView) {
         guard state.canAnnotate, let referenceFrame else { return }
+        lockReference()
         removePipe(id: pipe.id)
         let anchor = AnchorEntity(world: SIMD3<Float>.zero)
         let points = pipe.centerline.value.map { TechnicalReferenceFrame.inverseApply(referenceFrame, to: $0) }
@@ -87,51 +96,76 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
     }
 
     func start() {
-        guard !active else { return }
+        guard !active, !requestingPermission else { return }
+        // A stopped survey retains its coordinate frame and annotations. Never restart it in a fresh AR world.
+        guard state.phase != .stopped else {
+            errorMessage = "This survey is stopped. Open a new survey rather than replacing its reference frame."; return
+        }
+        requestingPermission = true
         generation += 1
         let requestGeneration = generation
         AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
             Task { @MainActor in
                 guard let self, self.generation == requestGeneration else { return }
+                self.requestingPermission = false
                 guard granted else { self.errorMessage = "Camera permission required"; return }
                 self.run()
             }
         }
     }
 
-    func interrupt() { guard active else { return }; state.interrupt(); session.pause() }
+    func interrupt() {
+        guard active else { return }
+        invalidateAlignment()
+        record(.interrupted, "Capture interrupted; checkpoint revalidation required")
+        session.pause()
+    }
 
     func captureMeshSnapshot() {
         guard active, let frame = session.currentFrame else { return }
         meshSnapshot = TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate)
+        if let meshSnapshot { journal.append(meshSnapshot) }
     }
 
     func captureDepthSnapshot() {
         guard active, let frame = session.currentFrame else { return }
         depthSnapshot = TechnicalRoomFrameProcessor.depthSnapshot(frame: frame, alignmentVerified: state.canAnnotate)
+        if let depthSnapshot { journal.append(depthSnapshot) }
         if depthSnapshot == nil { errorMessage = "Raw scene depth unavailable for this frame." }
     }
 
     func saveRecoveryMap() {
-        guard active, state.trackingNormal else { return }
+        guard active, state.canAnnotate else { return }
         let requestGeneration = generation
         session.getCurrentWorldMap { [weak self] map, error in
             Task { @MainActor in
                 guard let self, self.active, self.generation == requestGeneration else { return }
+                guard self.state.canAnnotate else { self.errorMessage = "Alignment changed while saving the map. Verify the checkpoint and save again."; return }
                 guard let map else { self.errorMessage = error?.localizedDescription ?? "World map unavailable"; return }
                 do {
-                    self.worldMapData = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true)
-                    self.worldMap = map
+                    let data = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true)
+                    guard data.count <= 64 * 1_048_576 else { self.errorMessage = "Recovery map exceeds the 64 MiB retention limit."; return }
+                    self.worldMapData = data
                     self.recoveryAvailable = true
+                    self.record(.recoverySaved, "Secure world map archived")
                 } catch { self.errorMessage = error.localizedDescription }
             }
         }
     }
 
     func resume() {
-        guard active, let worldMap else { errorMessage = "Save a recovery map before an interruption."; return }
-        recovering = true
-        run(recoveryMap: worldMap)
+        guard active, let worldMapData else { errorMessage = "Save a recovery map before an interruption."; return }
+        do {
+            guard let map = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: worldMapData) else {
+                errorMessage = "The recovery map cannot be restored."; return
+            }
+            generation += 1
+            recovering = true
+            recoveryTrackingReady = false
+            invalidateAlignment()
+            record(.recoveryStarted, "Restored world map; waiting for relocalisation and checkpoint")
+            run(recoveryMap: map)
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func hit(at point: CGPoint, viewport: ARView) -> TechnicalPoint3? {
@@ -162,6 +196,10 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
 
     private func run(recoveryMap: ARWorldMap? = nil) {
         guard ARWorldTrackingConfiguration.isSupported else { errorMessage = "World tracking unavailable"; return }
+        // ARKit's delegate protocol predates actor isolation. Its callbacks are
+        // deliberately delivered on the main queue for the MainActor conformance.
+        session.delegate = self
+        session.delegateQueue = .main
         let configuration = ARWorldTrackingConfiguration()
         if ARWorldTrackingConfiguration.supportsSceneReconstruction(.meshWithClassification) {
             configuration.sceneReconstruction = .meshWithClassification
@@ -174,13 +212,22 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
         configuration.initialWorldMap = recoveryMap
         active = true
         state.start()
+        errorMessage = nil
         previousTimestamp = nil
+        lastRecordedTimestamp = -Double.infinity
+        firstTimestamp = nil
+        record(.started, recoveryMap == nil ? "New AR capture" : "AR recovery capture")
+        // Ignore frames queued before this run/recovery request.
+        minimumFrameTimestamp = session.currentFrame?.timestamp ?? -Double.infinity
         if recoveryMap != nil { session.run(configuration, options: [.resetTracking, .removeExistingAnchors]) }
         else { session.run(configuration) }
     }
 
     func stop() {
+        guard active || requestingPermission else { return }
         generation += 1
+        requestingPermission = false
+        record(.stopped, "Capture stopped; retained evidence remains in memory")
         active = false
         session.pause()
         state.stop()
@@ -191,47 +238,101 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
     }
 
     func setReference(origin: TechnicalPoint3, xCorner: TechnicalPoint3) throws {
-        referenceFrame = try TechnicalReferenceFrame.transform(origin: origin, xCorner: xCorner)
-        state.interrupt()
+        try alignment.define(origin: origin, xCorner: xCorner)
+        invalidateAlignment()
+        record(.referenceDefined, "Two floor corners defined the reference frame")
         state.tracking(normal: session.currentFrame?.camera.trackingState == .normal)
     }
 
     func verifyCheckpoint(observed: TechnicalPoint3, expected: TechnicalPoint3, thresholdMm: Double) {
-        guard let referenceFrame else { return }
-        let transformed = TechnicalReferenceFrame.apply(referenceFrame, to: observed)
-        state.verify(residualMm: transformed.distance(to: expected) * 1000, thresholdMm: thresholdMm)
-        if state.canAnnotate { recovering = false }
+        guard active, state.trackingNormal else { errorMessage = "Normal tracking is required before checking alignment."; return }
+        guard !recovering || recoveryTrackingReady else { errorMessage = "Wait for world-map relocalisation before checking the point."; return }
+        do {
+            let checkpoint = try alignment.check(observed: observed, expected: expected, thresholdMm: thresholdMm, timestamp: lastTimestamp ?? 0)
+            state.verify(residualMm: checkpoint.residualMm, thresholdMm: checkpoint.thresholdMm)
+            record(.checkpoint, "Residual \(checkpoint.residualMm) mm; tolerance \(thresholdMm) mm; accepted: \(checkpoint.accepted)")
+            errorMessage = nil
+            if state.canAnnotate { recovering = false }
+            updateAnnotationVisibility()
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func lockReference() {
+        if !alignment.referenceLocked {
+            alignment.lockReference()
+            record(.referenceLocked, "First annotation locked the reference frame")
+        }
+    }
+
+    private func invalidateAlignment() {
+        state.interrupt()
+        recoveryTrackingReady = false
+        updateAnnotationVisibility()
+    }
+
+    private func updateAnnotationVisibility() {
+        for anchor in pipeAnchors.values { anchor.isEnabled = state.canAnnotate }
+        for anchor in equipmentAnchors.values { anchor.isEnabled = state.canAnnotate }
+    }
+
+    private func record(_ kind: TechnicalCaptureJournal.Event.Kind, _ message: String) {
+        journal.append(.init(timestamp: lastTimestamp ?? 0, kind: kind, message: message, alignmentVerified: state.canAnnotate,
+                             referenceFrame: referenceFrame, checkpoint: kind == .checkpoint ? alignment.checkpoints.last : nil))
     }
 
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
-        guard active else { return }
+        guard active, frame.timestamp > minimumFrameTimestamp else { return }
         frameCount += 1
-        if let previousTimestamp, frame.timestamp > previousTimestamp { fps = 1 / (frame.timestamp - previousTimestamp) }
+        if firstTimestamp == nil { firstTimestamp = frame.timestamp }
+        if let previousTimestamp, frame.timestamp > previousTimestamp {
+            let instantaneous = 1 / (frame.timestamp - previousTimestamp)
+            fps = fps == 0 ? instantaneous : fps * 0.9 + instantaneous * 0.1
+        }
         previousTimestamp = frame.timestamp
         lastTimestamp = frame.timestamp
         meshAnchorCount = frame.anchors.compactMap { $0 as? ARMeshAnchor }.count
         state.tracking(normal: frame.camera.trackingState == .normal)
+        if recovering {
+            recoveryTrackingReady = frame.camera.trackingState == .normal &&
+                (frame.worldMappingStatus == .mapped || frame.worldMappingStatus == .extending)
+        }
+        updateAnnotationVisibility()
+        let tracking = String(describing: frame.camera.trackingState)
+        if tracking != previousTracking {
+            previousTracking = tracking
+            record(.trackingChanged, tracking)
+        }
         if frame.timestamp - lastRecordedTimestamp >= 1 {
             lastRecordedTimestamp = frame.timestamp
             residentMemoryBytes = TechnicalRoomFrameProcessor.residentMemoryBytes()
             let matrix = frame.camera.transform
             let intrinsics = frame.camera.intrinsics
-            frameHistory.append(TechnicalFrameRecord(timestamp: frame.timestamp,
+            let record = TechnicalFrameRecord(timestamp: frame.timestamp,
                 cameraTransform: (0..<4).flatMap { column in (0..<4).map { Double(matrix[column][$0]) } },
                 intrinsics: (0..<3).flatMap { column in (0..<3).map { Double(intrinsics[column][$0]) } },
                 imageWidth: Int(frame.camera.imageResolution.width), imageHeight: Int(frame.camera.imageResolution.height),
                 tracking: String(describing: frame.camera.trackingState),
                 hasSceneDepth: frame.sceneDepth != nil, hasSmoothedSceneDepth: frame.smoothedSceneDepth != nil,
-                alignmentVerified: state.canAnnotate))
+                alignmentVerified: state.canAnnotate)
+            frameHistory.append(record)
+            journal.append(record)
+            healthWarnings = TechnicalCaptureHealth.warnings(for: .init(trackingNormal: state.trackingNormal, fps: fps,
+                residentMemoryBytes: residentMemoryBytes, ambientIntensity: frame.lightEstimate.map { Double($0.ambientIntensity) },
+                depthCoverage: TechnicalRoomFrameProcessor.depthCoverage(frame: frame), elapsedSeconds: frame.timestamp - (firstTimestamp ?? frame.timestamp)))
         }
     }
 
-    func sessionWasInterrupted(_ session: ARSession) { guard active else { return }; state.interrupt() }
-    func sessionInterruptionEnded(_ session: ARSession) { guard active else { return }; state.interrupt() }
+    func sessionWasInterrupted(_ session: ARSession) {
+        guard active else { return }; invalidateAlignment(); record(.interrupted, "AR session interruption")
+    }
+    func sessionInterruptionEnded(_ session: ARSession) {
+        guard active else { return }; invalidateAlignment(); record(.interrupted, "Interruption ended; restore map and verify checkpoint")
+    }
     func session(_ session: ARSession, didFailWithError error: Error) {
         guard active else { return }
         errorMessage = error.localizedDescription
-        state.interrupt()
+        invalidateAlignment()
+        record(.failure, error.localizedDescription)
     }
 }
 #endif

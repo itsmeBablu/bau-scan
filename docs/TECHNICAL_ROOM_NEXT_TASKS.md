@@ -13,6 +13,41 @@ This document is a handoff for continuing the dedicated Technical Room scanner o
 
 ## Next implementation order
 
+### T2 implementation status — 20 November 2026
+
+Branch: `codex/technical-room-t2-alignment`. Implementation and simulator verification do not establish device accuracy.
+
+- Added a Codable in-memory journal retaining frame metadata, multiple raw-depth snapshots, multiple copied mesh snapshots, alignment events, and checkpoint evidence across interruptions.
+- Retention is bounded: 3,600 frame records, 2,000 events, and approximately 64 MiB of copied snapshot payload. Dropped-record counts are visible; this is not a whole-process memory limit or disk persistence.
+- Locked the reference frame after the first retained annotation. Invalid/non-finite corners are rejected. A third checkpoint must be independently measured and away from the origin–X baseline; observed coordinates, residual, tolerance, and acceptance are retained.
+- Recovery securely unarchives the saved world map. Tracking recovery alone cannot unlock annotation: relocalisation and a new checkpoint are required. Unverified annotation overlays are hidden and unfinished pipe points are cleared.
+- Added tracking, smoothed-FPS, resident-memory, low-light, and incomplete-depth warnings. The technical camera remains visible while its controls scroll; annotation sheets no longer tear down the native capture host.
+- House scanning and `.roomscan`/`.housescan` formats were not modified. Technical evidence remains unsaved in memory until the independent T4 package is implemented.
+- Automated verification: complete macOS scheme passed 173 tests; complete iOS simulator scheme passed 168 tests, both with zero failures. The final callback-isolation/stale-frame integration changes passed a focused iOS rerun of all 22 Technical Room tests.
+- Physical iPhone validation is blocked: no iPhone was connected, and the user confirmed that it was unavailable. AR/depth/mesh and relocalisation remain **device validation pending**.
+
+Changed files for T2:
+
+- `RoomScanner/Domain/TechnicalRoom/TechnicalAlignmentSurvey.swift`
+- `RoomScanner/Domain/TechnicalRoom/TechnicalCaptureJournal.swift`
+- `RoomScanner/Domain/TechnicalRoom/TechnicalCaptureHealth.swift`
+- `RoomScanner/Domain/TechnicalRoom/TechnicalCaptureState.swift`
+- `RoomScanner/TechnicalRoom/Capture/TechnicalRoomScanCoordinator.swift`
+- `RoomScanner/TechnicalRoom/Capture/TechnicalRoomFrameProcessor.swift`
+- `RoomScanner/Scan/TechnicalRoomScanView.swift`
+- `RoomScannerTests/TechnicalAlignmentSurveyTests.swift`
+- `RoomScannerTests/TechnicalCaptureJournalTests.swift`
+- `docs/TECHNICAL_ROOM_NEXT_TASKS.md`
+
+#### Required physical T2 acceptance checklist
+
+1. On an iPhone 14 Pro, start Technical Room capture and verify live camera frames, nonzero mesh patches, and raw-depth snapshots with calibration metadata. Capture several snapshots and verify earlier snapshots remain in the journal.
+2. Set two floor corners, independently measure a third checkpoint away from their baseline, and compare the displayed residual. Check both accepted and rejected tolerances without claiming certified accuracy.
+3. Add a pipe and equipment item, open/close their sheets, and verify the camera session continues. Confirm that changing the reference after annotations is rejected.
+4. Save a recovery map, background the app or interrupt tracking, and verify overlays disappear and annotation tools lock. Restore the map; normal tracking alone must not unlock annotations. Recheck the physical checkpoint before continuing.
+5. Confirm pending pipe points are cleared on alignment loss. Revisit lighting/depth gaps and review the capture-health warnings. Close the scanner and confirm the camera indicator turns off.
+6. Record the device/OS, observations, residuals, failures, and any lost evidence. Do not mark T2 device-validated or populate `accuracyMm` until this has actually been performed.
+
 ### 1. Finish T2 capture and alignment
 
 - Add a durable in-memory capture journal for frame metadata, depth snapshots, mesh snapshots, timestamps, tracking state, and alignment status.
