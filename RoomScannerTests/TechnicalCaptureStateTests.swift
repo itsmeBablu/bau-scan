@@ -2,6 +2,12 @@ import XCTest
 @testable import RoomScanner
 
 final class TechnicalCaptureStateTests: XCTestCase {
+    func testRoomToSessionRoundTrip() throws {
+        let frame = try TechnicalReferenceFrame.transform(origin: .init(x: 3, y: 1, z: 4), xCorner: .init(x: 4, y: 1, z: 6))
+        let original = TechnicalPoint3(x: -2, y: 2.7, z: 8)
+        let room = TechnicalReferenceFrame.apply(frame, to: original)
+        XCTAssertEqual(TechnicalReferenceFrame.inverseApply(frame, to: room).distance(to: original), 0, accuracy: 1e-9)
+    }
     func testDepthProjectionUsesARCameraAxesAndRejectsInvalidDepth() throws {
         let center = try XCTUnwrap(TechnicalDepthProjection.cameraPoint(pixelX: 100, pixelY: 80,
             depthMetres: 2, fx: 200, fy: 200, cx: 100, cy: 80))

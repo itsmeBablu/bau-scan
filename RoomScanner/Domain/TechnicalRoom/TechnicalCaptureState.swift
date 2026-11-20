@@ -49,4 +49,12 @@ enum TechnicalReferenceFrame {
               y: t.translation.y + t.xAxis.y * p.x + t.yAxis.y * p.y + t.zAxis.y * p.z,
               z: t.translation.z + t.xAxis.z * p.x + t.yAxis.z * p.y + t.zAxis.z * p.z)
     }
+
+    /// Inverse of a rigid orthonormal shell-to-room transform.
+    static func inverseApply(_ t: TechnicalTransform, to p: TechnicalPoint3) -> TechnicalPoint3 {
+        let x = p.x - t.translation.x, y = p.y - t.translation.y, z = p.z - t.translation.z
+        return .init(x: t.xAxis.x * x + t.xAxis.y * y + t.xAxis.z * z,
+                     y: t.yAxis.x * x + t.yAxis.y * y + t.yAxis.z * z,
+                     z: t.zAxis.x * x + t.zAxis.y * y + t.zAxis.z * z)
+    }
 }

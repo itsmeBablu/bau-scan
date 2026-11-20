@@ -23,6 +23,8 @@ struct TechnicalRoomScanView: View {
     @State private var insulation = "0"
     @State private var medium = TechnicalMedium.heatingSupply
     @State private var showingPipeTool = false
+    @State private var showingPipeReview = false
+    @State private var material = ""
     let onSaved: (LibraryItem) -> Void
 
     var body: some View {
@@ -42,6 +44,7 @@ struct TechnicalRoomScanView: View {
                 Button("Pipe annotation") { showingPipeTool = true }
                     .disabled(!scanner.state.canAnnotate)
                 Text("Unsaved pipe runs: \(pipes.count)").font(.caption)
+                Button("Review pipe runs") { showingPipeReview = true }.disabled(pipes.isEmpty)
                 Button("Capture mesh snapshot") { scanner.captureMeshSnapshot() }
                     .disabled(!scanner.state.trackingNormal)
                 Button("Capture depth snapshot") { scanner.captureDepthSnapshot() }
@@ -91,6 +94,7 @@ struct TechnicalRoomScanView: View {
         }
         .onDisappear { scanner.stop() }
         .sheet(isPresented: $showingPipeTool) { pipeTool }
+        .sheet(isPresented: $showingPipeReview) { pipeReview }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { scanner.interrupt() }
             // Resumption is explicit and always invalidates the alignment checkpoint.
@@ -115,6 +119,7 @@ struct TechnicalRoomScanView: View {
                 }
                 TextField("Measured outside diameter (mm)", text: $diameter)
                 TextField("DN designation (optional)", text: $nominalDN)
+                TextField("Material", text: $material)
                 TextField("Insulation thickness (mm)", text: $insulation)
                 Button("Keep pipe run in preview") { keepPipe() }
                     .disabled(!scanner.state.canAnnotate || pipeHits.count < 2)
@@ -132,15 +137,37 @@ struct TechnicalRoomScanView: View {
         }
         let pipe = TechnicalPipeRun(id: UUID(), medium: .init(value: medium, unit: "category", source: .entered, method: "userSelection", accuracyMm: nil),
             systemLabel: .init(value: medium.rawValue, unit: "text", source: .entered, method: "userSelection", accuracyMm: nil),
-            material: .init(value: "unspecified", unit: "text", source: .entered, method: "notSpecified", accuracyMm: nil),
+            material: .init(value: material.isEmpty ? "unspecified" : material, unit: "text", source: .entered, method: material.isEmpty ? "notSpecified" : "manualEntry", accuracyMm: nil),
             nominalDN: nominalDN.isEmpty ? nil : .init(value: nominalDN, unit: "text", source: .entered, method: "manualEntry", accuracyMm: nil),
             outerDiameterMm: .init(value: outside, unit: "mm", source: .entered, method: "manualEntryRequiresVerification", accuracyMm: nil),
             insulationThicknessMm: .init(value: insulationValue, unit: "mm", source: .entered, method: "manualEntry", accuracyMm: nil),
             surfaceHits: pipeHits, connectedPorts: [])
         pipes.append(pipe)
+        if let viewport { scanner.showPipe(pipe, in: viewport) }
         pipeHits = []
         showingPipeTool = false
         message = "Pipe retained in memory. Length \(pipe.length.value) m."
+    }
+
+    private var pipeReview: some View {
+        NavigationStack {
+            List {
+                Text("Unsaved annotations · accuracy unknown").font(.caption)
+                ForEach(pipes, id: \.id) { pipe in
+                    VStack(alignment: .leading) {
+                        Text(pipe.medium.value.rawValue)
+                        Text("\(pipe.length.value, specifier: "%.3f") m · OD \(pipe.outerDiameterMm.value, specifier: "%.1f") mm")
+                        Text(pipe.nominalDN?.value ?? "DN unspecified").font(.caption)
+                    }
+                }
+                .onDelete { offsets in
+                    for index in offsets { scanner.removePipe(id: pipes[index].id) }
+                    pipes.remove(atOffsets: offsets)
+                }
+            }
+            .navigationTitle("Pipe review")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingPipeReview = false } } }
+        }
     }
 
     private func setCorner() {

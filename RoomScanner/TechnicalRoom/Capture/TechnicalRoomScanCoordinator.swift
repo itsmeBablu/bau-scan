@@ -30,6 +30,32 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
     private var previousTimestamp: TimeInterval?
     private var active = false
     private var generation = 0
+    private var pipeAnchors: [UUID: AnchorEntity] = [:]
+
+    func showPipe(_ pipe: TechnicalPipeRun, in viewport: ARView) {
+        guard state.canAnnotate, let referenceFrame else { return }
+        removePipe(id: pipe.id)
+        let anchor = AnchorEntity(world: SIMD3<Float>.zero)
+        let points = pipe.centerline.value.map { TechnicalReferenceFrame.inverseApply(referenceFrame, to: $0) }
+        let diameter = Float((pipe.outerDiameterMm.value + 2 * (pipe.insulationThicknessMm?.value ?? 0)) / 1000)
+        guard diameter.isFinite, diameter > 0 else { return }
+        for (first, last) in zip(points, points.dropFirst()) {
+            let a = SIMD3<Float>(Float(first.x), Float(first.y), Float(first.z))
+            let b = SIMD3<Float>(Float(last.x), Float(last.y), Float(last.z))
+            let direction = b - a
+            let length = simd_length(direction)
+            guard length.isFinite, length > 0.0001 else { continue }
+            let entity = ModelEntity(mesh: .generateBox(width: diameter, height: length, depth: diameter),
+                materials: [UnlitMaterial(color: .yellow)])
+            entity.position = (a + b) / 2
+            entity.orientation = simd_quatf(from: SIMD3<Float>(0, 1, 0), to: direction / length)
+            anchor.addChild(entity)
+        }
+        viewport.scene.addAnchor(anchor)
+        pipeAnchors[pipe.id] = anchor
+    }
+
+    func removePipe(id: UUID) { pipeAnchors.removeValue(forKey: id)?.removeFromParent() }
 
     override init() {
         super.init()
@@ -135,6 +161,8 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
         active = false
         session.pause()
         state.stop()
+        for anchor in pipeAnchors.values { anchor.removeFromParent() }
+        pipeAnchors.removeAll()
     }
 
     func setReference(origin: TechnicalPoint3, xCorner: TechnicalPoint3) throws {
