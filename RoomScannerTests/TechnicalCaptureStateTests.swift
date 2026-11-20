@@ -1,0 +1,31 @@
+import XCTest
+@testable import RoomScanner
+
+final class TechnicalCaptureStateTests: XCTestCase {
+    func testAlignmentRequiredAfterInterruption() {
+        var state = TechnicalCaptureState()
+        state.start()
+        state.tracking(normal: true)
+        XCTAssertFalse(state.canAnnotate)
+        state.verify(residualMm: 20, thresholdMm: 30)
+        XCTAssertTrue(state.canAnnotate)
+        state.interrupt()
+        state.tracking(normal: true)
+        XCTAssertFalse(state.canAnnotate)
+        state.verify(residualMm: 50, thresholdMm: 30)
+        XCTAssertFalse(state.canAnnotate)
+        state.stop()
+        XCTAssertFalse(state.canAnnotate)
+    }
+
+    func testReferenceFrameMapsOriginAndAxis() throws {
+        let origin = TechnicalPoint3(x: 3, y: 1, z: 4)
+        let transform = try TechnicalReferenceFrame.transform(origin: origin, xCorner: .init(x: 3, y: 1, z: 6))
+        let zero = TechnicalReferenceFrame.apply(transform, to: origin)
+        XCTAssertEqual(zero.distance(to: .init(x: 0, y: 0, z: 0)), 0, accuracy: 1e-9)
+        let corner = TechnicalReferenceFrame.apply(transform, to: .init(x: 3, y: 1, z: 6))
+        XCTAssertEqual(corner.x, 2, accuracy: 1e-9)
+        XCTAssertEqual(corner.z, 0, accuracy: 1e-9)
+        XCTAssertThrowsError(try TechnicalReferenceFrame.transform(origin: origin, xCorner: origin))
+    }
+}
