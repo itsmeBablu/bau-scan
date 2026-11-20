@@ -32,6 +32,12 @@ struct TechnicalRoomScanView: View {
                         .disabled(!scanner.recoveryAvailable)
                 }
                 if scanner.recovering { Text("Relocalising — checkpoint verification required").font(.caption) }
+                Button("Capture mesh snapshot") { scanner.captureMeshSnapshot() }
+                    .disabled(!scanner.state.trackingNormal)
+                if let snapshot = scanner.meshSnapshot {
+                    Text("Snapshot: \(snapshot.patches.count) patches\(snapshot.truncated ? " — size limit reached" : "")")
+                        .font(.caption)
+                }
                 HStack {
                     Text("FPS \(scanner.fps, specifier: "%.0f")")
                     Text("Mesh anchors \(scanner.meshAnchorCount)")

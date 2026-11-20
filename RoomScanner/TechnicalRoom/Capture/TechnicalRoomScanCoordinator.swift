@@ -20,6 +20,9 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
     private(set) var recoveryAvailable = false
     private(set) var recovering = false
     private(set) var worldMapData: Data?
+    private(set) var frameHistory = TechnicalFrameHistory()
+    private(set) var meshSnapshot: TechnicalMeshSnapshot?
+    private var lastRecordedTimestamp = -Double.infinity
     private var worldMap: ARWorldMap?
     private var previousTimestamp: TimeInterval?
     private var active = false
@@ -45,6 +48,11 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
     }
 
     func interrupt() { guard active else { return }; state.interrupt(); session.pause() }
+
+    func captureMeshSnapshot() {
+        guard active, let frame = session.currentFrame else { return }
+        meshSnapshot = TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate)
+    }
 
     func saveRecoveryMap() {
         guard active, state.trackingNormal else { return }
@@ -123,6 +131,18 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
         lastTimestamp = frame.timestamp
         meshAnchorCount = frame.anchors.compactMap { $0 as? ARMeshAnchor }.count
         state.tracking(normal: frame.camera.trackingState == .normal)
+        if frame.timestamp - lastRecordedTimestamp >= 1 {
+            lastRecordedTimestamp = frame.timestamp
+            let matrix = frame.camera.transform
+            let intrinsics = frame.camera.intrinsics
+            frameHistory.append(TechnicalFrameRecord(timestamp: frame.timestamp,
+                cameraTransform: (0..<4).flatMap { column in (0..<4).map { Double(matrix[column][$0]) } },
+                intrinsics: (0..<3).flatMap { column in (0..<3).map { Double(intrinsics[column][$0]) } },
+                imageWidth: Int(frame.camera.imageResolution.width), imageHeight: Int(frame.camera.imageResolution.height),
+                tracking: String(describing: frame.camera.trackingState),
+                hasSceneDepth: frame.sceneDepth != nil, hasSmoothedSceneDepth: frame.smoothedSceneDepth != nil,
+                alignmentVerified: state.canAnnotate))
+        }
     }
 
     func sessionWasInterrupted(_ session: ARSession) { guard active else { return }; state.interrupt() }

@@ -2,6 +2,18 @@ import XCTest
 @testable import RoomScanner
 
 final class TechnicalCaptureStateTests: XCTestCase {
+    func testFrameHistoryIsBoundedAndCodable() throws {
+        var history = TechnicalFrameHistory(capacity: 2)
+        for timestamp in 0..<3 {
+            history.append(.init(timestamp: Double(timestamp), cameraTransform: Array(repeating: 0, count: 16),
+                intrinsics: Array(repeating: 0, count: 9), imageWidth: 1920, imageHeight: 1440,
+                tracking: "normal", hasSceneDepth: true, hasSmoothedSceneDepth: true, alignmentVerified: false))
+        }
+        XCTAssertEqual(history.records.map(\.timestamp), [1, 2])
+        XCTAssertEqual(history.droppedCount, 1)
+        let data = try JSONEncoder().encode(history.records)
+        XCTAssertEqual(try JSONDecoder().decode([TechnicalFrameRecord].self, from: data), history.records)
+    }
     func testTrackingRecoveryAloneDoesNotRestoreAnnotationPermission() {
         var state = TechnicalCaptureState()
         state.start()
