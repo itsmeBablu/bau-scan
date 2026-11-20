@@ -10,6 +10,8 @@ struct MacRootView: View {
     @State private var search = ""
     @State private var exportSheet: ExportRequest?
     @State private var errorMessage: String?
+    @State private var showingTechnicalLibrary = false
+    @State private var technicalImport: URL?
 
     struct ExportRequest: Identifiable { let id = UUID(); let subject: ExportSubject; let format: ExportFormat? }
 
@@ -41,7 +43,10 @@ struct MacRootView: View {
             }
             .searchable(text: $search, placement: .sidebar, prompt: Text("mac.search"))
             .navigationSplitViewColumnWidth(min: 220, ideal: 260)
-            .toolbar { ToolbarItem(placement: .automatic) { CloudStatusBadge() } }
+            .toolbar {
+                ToolbarItem(placement: .automatic) { CloudStatusBadge() }
+                ToolbarItem(placement: .automatic) { Button("Technical Rooms") { technicalImport = nil; showingTechnicalLibrary = true } }
+            }
             .overlay { if isEmpty { Text("list.empty.title").foregroundStyle(.secondary).font(.callout) } }
         } detail: {
             switch appState.selected {
@@ -73,12 +78,14 @@ struct MacRootView: View {
             perform(action)
         }
         .onOpenURL { url in
+            if url.pathExtension == "technicalroom" { technicalImport = url; showingTechnicalLibrary = true; return }
             guard [FileLayout.packageExtension, FileLayout.housePackageExtension].contains(url.pathExtension) else { return }
             do { appState.selected = try store.importAny(from: url) } catch { errorMessage = error.localizedDescription }
         }
         .sheet(item: $exportSheet) { req in
             ExportSheet(subject: req.subject, initialFormat: req.format).environment(store)
         }
+        .sheet(isPresented: $showingTechnicalLibrary) { TechnicalRoomLibraryView(importURL: technicalImport) }
         .alert("mac.actionFailed", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("common.ok") { errorMessage = nil }
         } message: { Text(errorMessage ?? "") }

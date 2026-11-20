@@ -122,6 +122,11 @@ targets:
             UTTypeConformsTo: [com.apple.package]
             UTTypeTagSpecification:
               public.filename-extension: [housescan]
+          - UTTypeIdentifier: io.github.itsmebablu.dwalkscan.technicalroom
+            UTTypeDescription: dWalkScan technical survey
+            UTTypeConformsTo: [com.apple.package]
+            UTTypeTagSpecification:
+              public.filename-extension: [technicalroom]
         CFBundleDocumentTypes:
           - CFBundleTypeName: dWalkScan room scan
             LSHandlerRank: Owner
@@ -129,6 +134,9 @@ targets:
           - CFBundleTypeName: dWalkScan house scan
             LSHandlerRank: Owner
             LSItemContentTypes: [io.github.itsmebablu.dwalkscan.house]
+          - CFBundleTypeName: dWalkScan technical survey
+            LSHandlerRank: Owner
+            LSItemContentTypes: [io.github.itsmebablu.dwalkscan.technicalroom]
 
   RoomScannerTests:
     type: bundle.unit-test
@@ -205,6 +213,11 @@ targets:
             UTTypeConformsTo: [com.apple.package]
             UTTypeTagSpecification:
               public.filename-extension: [housescan]
+          - UTTypeIdentifier: io.github.itsmebablu.dwalkscan.technicalroom
+            UTTypeDescription: dWalkScan technical survey
+            UTTypeConformsTo: [com.apple.package]
+            UTTypeTagSpecification:
+              public.filename-extension: [technicalroom]
         CFBundleDocumentTypes:
           - CFBundleTypeName: dWalkScan room scan
             CFBundleTypeRole: Viewer
@@ -214,6 +227,10 @@ targets:
             CFBundleTypeRole: Viewer
             LSHandlerRank: Owner
             LSItemContentTypes: [io.github.itsmebablu.dwalkscan.house]
+          - CFBundleTypeName: dWalkScan technical survey
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Owner
+            LSItemContentTypes: [io.github.itsmebablu.dwalkscan.technicalroom]
 
   RoomScannerMacTests:
     type: bundle.unit-test

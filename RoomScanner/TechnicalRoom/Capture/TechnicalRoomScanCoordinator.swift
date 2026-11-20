@@ -11,7 +11,7 @@ import UIKit
 @Observable
 @MainActor
 final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDelegate {
-    let captureID = UUID()
+    private(set) var captureID = UUID()
     let session = ARSession()
     private(set) var state = TechnicalCaptureState()
     private(set) var errorMessage: String?
@@ -33,8 +33,10 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     private(set) var recoveryTrackingReady = false
     private var lastRecordedTimestamp = -Double.infinity
     private var firstTimestamp: Double?
+    var hasLiveFrames: Bool { firstTimestamp != nil }
     private var previousTracking = ""
     private var requestingPermission = false
+    private var restorationFailed = false
     private var previousTimestamp: TimeInterval?
     private var minimumFrameTimestamp = -Double.infinity
     private var active = false
@@ -130,7 +132,20 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
         session.delegateQueue = .main
     }
 
+    func restoreSurvey(_ package: TechnicalRoomPackage) throws {
+        guard !active, !requestingPermission, package.worldMapData != nil else {
+            restorationFailed = true
+            throw TechnicalAnnotationHistory.EditError.alignmentRequired
+        }
+        do { try package.validate() } catch { restorationFailed = true; errorMessage = error.localizedDescription; throw error }
+        captureID = package.document.room.shellID
+        alignment = package.alignment; journal = package.journal
+        worldMapData = package.worldMapData; recoveryAvailable = true
+        recovering = true; recoveryTrackingReady = false
+    }
+
     func start() {
+        guard !restorationFailed else { errorMessage = "This stored survey cannot start a fresh AR world. Use stored-property editing or restore a valid map."; return }
         guard !active, !requestingPermission else { return }
         // A stopped survey retains its coordinate frame and annotations. Never restart it in a fresh AR world.
         guard state.phase != .stopped else {
@@ -144,7 +159,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
                 guard let self, self.generation == requestGeneration else { return }
                 self.requestingPermission = false
                 guard granted else { self.errorMessage = "Camera permission required"; return }
-                self.run()
+                if let data = self.worldMapData { self.startRecovery(data) } else { self.run() }
             }
         }
     }
@@ -190,6 +205,10 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
 
     func resume() {
         guard active, let worldMapData else { errorMessage = "Save a recovery map before an interruption."; return }
+        startRecovery(worldMapData)
+    }
+
+    private func startRecovery(_ worldMapData: Data) {
         do {
             guard let map = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: worldMapData) else {
                 errorMessage = "The recovery map cannot be restored."; return

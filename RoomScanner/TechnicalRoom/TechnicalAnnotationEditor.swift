@@ -26,6 +26,8 @@ struct TechnicalAnnotationEditor: View {
     @State private var ductID: UUID?
     @State private var fittingType = TechnicalFittingType.valve
     @State private var direction = TechnicalPoint3(x: 1, y: 0, z: 0)
+    @State private var portMedium = TechnicalMedium.other
+    @State private var portDN = ""
     @State private var ductPoints: [TechnicalValue<TechnicalPoint3>] = []
     @State private var ductWidth = 0.2
     @State private var ductHeight = 0.1
@@ -84,6 +86,11 @@ struct TechnicalAnnotationEditor: View {
         }
         .onChange(of: ductID) { _, id in
             if let item = history.document.ducts.first(where: { $0.id == id }) { ductWidth = item.width.value; ductHeight = item.height.value }
+        }
+        .onChange(of: portID) { _, id in
+            if let port = history.room.equipment.flatMap(\.ports).first(where: { $0.id == id }) {
+                direction = port.direction.value; portMedium = port.medium.value; portDN = port.nominalDN?.value ?? ""
+            }
         }
         .onChange(of: scanner.state.canAnnotate) { _, verified in
             if !verified { ductPoints = []; measurementStart = nil }
@@ -177,13 +184,17 @@ struct TechnicalAnnotationEditor: View {
             TextField("Port direction X", value: $direction.x, format: .number)
             TextField("Port direction Y", value: $direction.y, format: .number)
             TextField("Port direction Z", value: $direction.z, format: .number)
+            Picker("Port medium", selection: $portMedium) {
+                ForEach(TechnicalMedium.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }
+            TextField("Port DN (optional)", text: $portDN)
             Button("Add port at crosshair") { withHit { value in change { doc in
                 guard let i = doc.room.equipment.firstIndex(where: { $0.id == equipmentID }) else { throw TechnicalAnnotationHistory.EditError.missingReference }
                 let length = direction.distance(to: .init(x: 0, y: 0, z: 0))
                 guard length.isFinite, length > 1e-9 else { throw TechnicalAnnotationHistory.EditError.invalidGeometry }
                 doc.room.equipment[i].ports.append(.init(id: UUID(), position: value.position,
                     direction: entered(.init(x: direction.x / length, y: direction.y / length, z: direction.z / length), "unitless"),
-                    medium: entered(TechnicalMedium.other, "category")))
+                    nominalDN: portDN.isEmpty ? nil : entered(portDN, "text"), medium: entered(portMedium, "category")))
             } } }
             Picker("Port", selection: $portID) {
                 Text("Choose port").tag(UUID?.none)
@@ -195,6 +206,15 @@ struct TechnicalAnnotationEditor: View {
                 try history.connect(pipeID: pipeID, endpoint: endpoint, portID: portID, capture: scanner.state)
             } }
             Button("Delete selected port", role: .destructive) { perform { if let portID { try history.deletePort(portID, capture: scanner.state) } } }
+            Button("Update selected port properties") { change { doc in
+                let length = direction.distance(to: .init(x: 0, y: 0, z: 0))
+                guard length.isFinite, length > 1e-9 else { throw TechnicalAnnotationHistory.EditError.invalidGeometry }
+                guard let i = doc.room.equipment.firstIndex(where: { $0.ports.contains(where: { $0.id == portID }) }),
+                      let j = doc.room.equipment[i].ports.firstIndex(where: { $0.id == portID }) else { throw TechnicalAnnotationHistory.EditError.missingReference }
+                doc.room.equipment[i].ports[j].direction = entered(.init(x: direction.x / length, y: direction.y / length, z: direction.z / length), "unitless")
+                doc.room.equipment[i].ports[j].medium = entered(portMedium, "category")
+                doc.room.equipment[i].ports[j].nominalDN = portDN.isEmpty ? nil : entered(portDN, "text")
+            } }
         }
     }
     private var ductSection: some View {
@@ -289,7 +309,12 @@ struct TechnicalAnnotationEditor: View {
         perform { try history.edit(capture: scanner.state, mutation) }
     }
     private func perform(_ operation: () throws -> Void) {
-        do { try operation(); scanner.lockReference(); error = nil } catch { self.error = error.localizedDescription }
+        let before = history.document
+        do {
+            try operation()
+            if history.document != before { scanner.lockReference() }
+            error = nil
+        } catch { self.error = error.localizedDescription }
     }
     private func withHit(_ operation: (TechnicalSurfaceHit) throws -> Void) {
         do {

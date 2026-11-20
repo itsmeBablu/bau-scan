@@ -71,6 +71,42 @@ T3 implementation on `codex/technical-room-t3-annotations` adds a separate `Tech
 
 ### 3. Independent persistence (T4)
 
+T4 implementation on `codex/technical-room-t4-persistence` creates a separate local library under `Documents/TechnicalRooms/<UUID>.technicalroom/`. It supports capture save with a rendered thumbnail, library reopen and manual property edits on iOS/Mac, photos/notes viewing, package import/export, recoverable deletion, and iOS AR resumption from a securely restored map. Reopened AR capture never trusts an old checkpoint: relocalisation and a new physical checkpoint are required. Save freezes capture evidence and releases the camera before writing; failed saves retain the frozen in-memory survey for retry.
+
+The first independent package format is version 1. There is no earlier `.technicalroom` format to migrate. Unknown versions are rejected without rewriting the source; migrations must be added explicitly when a real successor format exists. The room/house formats and House Scanner remain unchanged.
+
+Package contents:
+
+- `manifest.json`: identity, name, creation/modification dates, format version, checkpoint-at-save flag, and `deviceValidationPending` status. Dates use Foundation Codable's seconds-since-2001 representation.
+- `technical-room.json`: unchanged Technical Room v1 interchange, including canonical raw observations and their provenance.
+- `annotations.json`: annotation document with ducts, port connections, measurements, length calibration and point overrides. It omits photo bytes. Consumers use `effectiveRoom`/effective duct points for adjusted geometry; original raw surface hits remain available. Length correction does not rescale the AR geometry.
+- `survey.json`: reference corners/frame, reference lock, checkpoint observations, residuals and tolerances.
+- `capture.json`: bounded frame/depth/mesh journal and events. AR frame timestamps remain session-local; snapshot eviction uses capture order, including across restored sessions.
+- `world-map.archive`: optional secure ARWorldMap archive; Mac preserves these opaque bytes without importing ARKit.
+- `thumbnail.png` and `photos/<UUID>.jpg`: optional rendered thumbnail and user-selected JPEG survey-photo copies.
+
+Storage is coordinated and staged. A failed replacement restores the old package; an interrupted replacement backup is recovered on library reload if the canonical item is missing. Uncommitted staging directories are not promoted automatically. File-size limits, SI units, canonical asset paths, symlink boundaries, reference evidence and journal structure are validated. Invalid/unsupported library items are reported without preventing healthy surveys from loading. Recoverable deletion moves one item into the library's private `.Trash` folder.
+
+Final T2–T4 automated verification: **190 macOS tests and 185 iOS simulator tests passed**, with zero failures. A final focused macOS package run passed all nine tests, including opening an already-owned package without creating a duplicate. AR hardware acceptance is still pending; no engineering accuracy or DIN-compliance claim is made.
+
+T4 file inventory:
+
+- `RoomScanner/Storage/TechnicalRoomPackage.swift`
+- `RoomScanner/Storage/TechnicalRoomLibraryStore.swift`
+- `RoomScanner/TechnicalRoom/TechnicalRoomLibraryView.swift`
+- `RoomScanner/TechnicalRoom/Capture/TechnicalRoomScanCoordinator.swift`
+- `RoomScanner/TechnicalRoom/TechnicalAnnotationEditor.swift`
+- `RoomScanner/Scan/TechnicalRoomScanView.swift`
+- `RoomScanner/Domain/TechnicalRoom/TechnicalAlignmentSurvey.swift`
+- `RoomScanner/Domain/TechnicalRoom/TechnicalCaptureJournal.swift`
+- `RoomScanner/Domain/TechnicalRoom/TechnicalAnnotationHistory.swift`
+- `RoomScanner/UI/RoomListView.swift`, `RoomScanner/UI/RootView.swift`, and `RoomScanner/MacUI/MacRootView.swift`
+- `RoomScanner/Info-iOS.plist`, `RoomScanner/Info-macOS.plist`, and `project.yml` (new type registration only)
+- `RoomScannerTests/TechnicalRoomPackageTests.swift`, `RoomScannerTests/TechnicalCaptureJournalTests.swift`, and `RoomScannerTests/TechnicalAnnotationTests.swift`
+- `docs/TECHNICAL_ROOM_NEXT_TASKS.md`
+
+Remaining physical T3/T4 checks: drag and snap points on real surfaces; verify pipe/duct/fitting/port placement; take and view survey photos; save, close, reopen and export a real survey; restore its world map and confirm annotation tools remain locked until the checkpoint passes. An unavailable iPhone blocks these checks, not the completed platform-independent storage tests. T5–T8 remain future milestones.
+
 - Create `Documents/TechnicalRooms/<UUID>.technicalroom/` without changing existing room/house packages.
 - Store metadata, technical-room JSON, survey/alignment data, raw mesh/geometry references, annotations, measurements, photos, and thumbnail.
 - Support save, reopen, edit, export, and schema migration tests for the technical package.

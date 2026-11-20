@@ -28,6 +28,16 @@
 				<string>io.github.itsmebablu.dwalkscan.house</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>dWalkScan technical survey</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>io.github.itsmebablu.dwalkscan.technicalroom</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
@@ -101,6 +111,23 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>housescan</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.apple.package</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>dWalkScan technical survey</string>
+			<key>UTTypeIdentifier</key>
+			<string>io.github.itsmebablu.dwalkscan.technicalroom</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>technicalroom</string>
 				</array>
 			</dict>
 		</dict>

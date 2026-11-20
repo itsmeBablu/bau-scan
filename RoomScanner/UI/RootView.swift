@@ -12,6 +12,8 @@ struct RootView: View {
         #endif
     }
     @State private var importError: String?
+    @State private var technicalImport: URL?
+    @State private var showingTechnicalImport = false
 
     static var hasForcedRoot: Bool { UserDefaults.standard.string(forKey: "RoomScannerStorageRoot") != nil }
 
@@ -29,9 +31,11 @@ struct RootView: View {
             .environment(store)
             .task { await store.activateCloudIfAvailable() }
             .onOpenURL { url in
+                if url.pathExtension == "technicalroom" { technicalImport = url; showingTechnicalImport = true; return }
                 guard [FileLayout.packageExtension, FileLayout.housePackageExtension].contains(url.pathExtension) else { return }
                 do { try store.importAny(from: url) } catch { importError = error.localizedDescription }
             }
+            .sheet(isPresented: $showingTechnicalImport) { TechnicalRoomLibraryView(importURL: technicalImport) }
             .alert("cloud.importFailed", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
                 Button("common.ok") { importError = nil }
             } message: { Text(importError ?? "") }

@@ -7,7 +7,7 @@ import RealityKit
 struct TechnicalRoomScanView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
-    @State private var scanner = TechnicalRoomScanCoordinator()
+    @State private var scanner: TechnicalRoomScanCoordinator
     @State private var viewport: ARView?
     @State private var origin: TechnicalPoint3?
     @State private var frameDefined = false
@@ -39,7 +39,34 @@ struct TechnicalRoomScanView: View {
     @State private var equipmentHeight = ""
     @State private var equipmentYaw = "0"
     @State private var equipmentError: String?
-    let onSaved: (LibraryItem) -> Void
+    @State private var saving = false
+    @State private var awaitingThumbnail = false
+    @State private var saveRequestID = UUID()
+    @State private var confirmingClose = false
+    @State private var saveThumbnail: Data?
+    @State private var frozenCheckpointAccepted = false
+    let onSaved: (UUID) -> Void
+    private let previousManifest: TechnicalRoomManifest?
+
+    init(restoring package: TechnicalRoomPackage? = nil, onSaved: @escaping (UUID) -> Void) {
+        let scanner = TechnicalRoomScanCoordinator()
+        if let package {
+            do { try scanner.restoreSurvey(package) }
+            catch { _message = State(initialValue: error.localizedDescription) }
+            _history = State(initialValue: TechnicalAnnotationHistory(document: package.document))
+            _frameDefined = State(initialValue: package.alignment.referenceFrame != nil)
+            _origin = State(initialValue: package.alignment.origin)
+            if let checkpoint = package.alignment.checkpoints.last {
+                _checkpointX = State(initialValue: String(checkpoint.expected.x))
+                _checkpointY = State(initialValue: String(checkpoint.expected.y))
+                _checkpointZ = State(initialValue: String(checkpoint.expected.z))
+                _threshold = State(initialValue: String(checkpoint.thresholdMm))
+            }
+        }
+        _scanner = State(initialValue: scanner)
+        previousManifest = package?.manifest
+        self.onSaved = onSaved
+    }
 
     var body: some View {
         NavigationStack {
@@ -58,7 +85,7 @@ struct TechnicalRoomScanView: View {
                 ScrollView {
                 VStack(spacing: 12) {
                 Text(message).font(.callout)
-                Text("Device validation pending · Unsaved capture preview").font(.caption).foregroundStyle(.secondary)
+                Text("Device validation pending · Unsaved technical survey").font(.caption).foregroundStyle(.secondary)
                 ForEach(scanner.healthWarnings, id: \.self) { warning in
                     Label(warning, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
                 }
@@ -142,19 +169,32 @@ struct TechnicalRoomScanView: View {
                 .frame(maxHeight: 300)
             }
             .padding()
+            .disabled(saving)
             .navigationTitle("Technical Room")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { scanner.stop(); dismiss() }
+                    Button("Close") {
+                        if scanner.journal.frames.isEmpty { scanner.stop(); dismiss() } else { confirmingClose = true }
+                    }.disabled(saving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(saving ? "Saving…" : "Save survey") { saveSurvey() }
+                        .disabled(saving || !frameDefined || !pipeHits.isEmpty || (saveThumbnail == nil && !scanner.hasLiveFrames))
                 }
             }
         }
         .onDisappear { scanner.stop() }
-        .sheet(isPresented: $showingPipeTool) { pipeTool }
+        .interactiveDismissDisabled(saving || !scanner.journal.frames.isEmpty)
+        .confirmationDialog("Close this unsaved technical survey?", isPresented: $confirmingClose, titleVisibility: .visible) {
+            Button("Save survey") { saveSurvey() }.disabled(!frameDefined)
+            Button("Discard unsaved capture", role: .destructive) { scanner.stop(); dismiss() }
+        } message: { Text("Capture evidence and annotations are only retained after saving a .technicalroom package.") }
+        .sheet(isPresented: $showingPipeTool) { pipeTool.presentationDetents([.medium, .large]).presentationBackgroundInteraction(.enabled(upThrough: .medium)) }
         .sheet(isPresented: $showingPipeReview) { pipeReview }
         .sheet(isPresented: $showingEquipmentTool) { equipmentTool }
         .sheet(isPresented: $showingAnnotations) {
             TechnicalAnnotationEditor(history: $history, scanner: scanner, hit: crosshairHit) { selectedPoints = $0 }
+                .presentationDetents([.medium, .large]).presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .onChange(of: history.document) { _, document in
             if let viewport { scanner.syncAnnotations(document, in: viewport) }
@@ -164,6 +204,7 @@ struct TechnicalRoomScanView: View {
             // Resumption is explicit and always invalidates the alignment checkpoint.
         }
         .onChange(of: scanner.state.canAnnotate) { _, verified in
+            if verified, let viewport { scanner.syncAnnotations(history.document, in: viewport) }
             if !verified, !pipeHits.isEmpty {
                 pipeHits = []
                 message = "Alignment was lost. Uncommitted pipe points were cleared; verify the checkpoint before tracing again."
@@ -332,6 +373,42 @@ struct TechnicalRoomScanView: View {
                 axis: pointAxis, gridMetres: pointGrid, snapPoints: points.enumerated().filter { $0.offset != index }.map(\.element))
             try history.move(target: target, index: index, to: point, observation: hit, capture: scanner.state)
         } catch { message = error.localizedDescription }
+    }
+    private func saveSurvey() {
+        guard !saving, pipeHits.isEmpty else { message = "Keep or discard unfinished pipe points before saving."; return }
+        guard saveThumbnail != nil || scanner.hasLiveFrames else { message = "Wait for live camera frames before saving this AR capture."; return }
+        if let saveThumbnail { saving = true; persistSurvey(thumbnail: saveThumbnail); return }
+        guard let viewport else { return }
+        saving = true; awaitingThumbnail = true
+        let request = UUID(); saveRequestID = request
+        scanner.captureMeshSnapshot(); scanner.captureDepthSnapshot()
+        viewport.snapshot(saveToHDR: false) { image in
+            Task { @MainActor in
+                guard awaitingThumbnail, saveRequestID == request else { return }
+                awaitingThumbnail = false
+                guard let png = image?.pngData() else { saving = false; message = "Thumbnail capture failed. Please retry saving."; return }
+                frozenCheckpointAccepted = scanner.state.canAnnotate
+                saveThumbnail = png
+                scanner.stop() // Freeze journal/evidence before writing, and release the camera promptly.
+                persistSurvey(thumbnail: png)
+            }
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(8))
+            if awaitingThumbnail, saveRequestID == request { awaitingThumbnail = false; saving = false; message = "Camera snapshot timed out. Retry when the camera is live." }
+        }
+    }
+    private func persistSurvey(thumbnail: Data) {
+        var manifest = previousManifest ?? TechnicalRoomManifest(id: history.room.id, name: "Technik Room")
+        manifest.modifiedAt = Date(); manifest.checkpointAcceptedAtSave = frozenCheckpointAccepted
+        let package = TechnicalRoomPackage(manifest: manifest, document: history.document, alignment: scanner.alignment,
+            journal: scanner.journal, worldMapData: scanner.worldMapData, thumbnailPNG: thumbnail)
+        Task { @MainActor in
+            do {
+                try await TechnicalRoomLibraryStore().save(package)
+                saving = false; onSaved(package.manifest.id); dismiss()
+            } catch { saving = false; message = "Capture retained in memory; retry Save. \(error.localizedDescription)" }
+        }
     }
 }
 
