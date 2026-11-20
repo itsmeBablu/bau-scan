@@ -2,6 +2,16 @@ import XCTest
 @testable import RoomScanner
 
 final class TechnicalCaptureStateTests: XCTestCase {
+    func testLateCallbacksCannotReviveStoppedCapture() {
+        var state = TechnicalCaptureState()
+        state.start()
+        state.stop()
+        state.tracking(normal: true)
+        state.interrupt()
+        state.verify(residualMm: 0, thresholdMm: 30)
+        XCTAssertEqual(state.phase, .stopped)
+        XCTAssertFalse(state.canAnnotate)
+    }
     func testAlignmentRequiredAfterInterruption() {
         var state = TechnicalCaptureState()
         state.start()

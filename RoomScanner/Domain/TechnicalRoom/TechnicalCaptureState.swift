@@ -10,12 +10,16 @@ struct TechnicalCaptureState: Equatable {
 
     mutating func start() { phase = .alignmentRequired; trackingNormal = false; checkpointResidualMm = nil }
     mutating func tracking(normal: Bool) {
+        guard phase != .stopped && phase != .idle else { return }
         trackingNormal = normal
         if !normal && phase != .stopped { phase = .alignmentRequired; checkpointResidualMm = nil }
     }
-    mutating func interrupt() { phase = .alignmentRequired; trackingNormal = false; checkpointResidualMm = nil }
+    mutating func interrupt() {
+        guard phase != .stopped && phase != .idle else { return }
+        phase = .alignmentRequired; trackingNormal = false; checkpointResidualMm = nil
+    }
     mutating func verify(residualMm: Double, thresholdMm: Double) {
-        guard trackingNormal, residualMm.isFinite, residualMm >= 0,
+        guard phase != .stopped, trackingNormal, residualMm.isFinite, residualMm >= 0,
               thresholdMm.isFinite, thresholdMm > 0 else { return }
         checkpointResidualMm = residualMm
         phase = residualMm <= thresholdMm ? .capturing : .alignmentRequired

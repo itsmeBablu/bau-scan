@@ -1,96 +1,111 @@
-#if canImport(RoomPlan)
+#if os(iOS)
 import SwiftUI
+import RealityKit
 
-/// Dedicated single-room workflow. House capture and house packages are independent.
+/// Independent technical capture preview. Device validation pending.
+/// Saving is introduced with the independent technical package milestone.
 struct TechnicalRoomScanView: View {
-    @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @State private var coordinator = ScanCoordinator(mode: .room)
-    @State private var started = false
-    @State private var active = true
-    @State private var notes = ""
-    @State private var errorMessage: String?
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var scanner = TechnicalRoomScanCoordinator()
+    @State private var viewport: ARView?
+    @State private var origin: TechnicalPoint3?
+    @State private var frameDefined = false
+    @State private var checkpointX = ""
+    @State private var checkpointY = ""
+    @State private var checkpointZ = ""
+    @State private var threshold = "30"
+    @State private var message = "Aim at the first known floor corner."
     let onSaved: (LibraryItem) -> Void
 
     var body: some View {
         NavigationStack {
-            Group {
-                if !started {
-                    Form {
-                        Section("One Technik Room") {
-                            Text("Scan one room slowly. Cover the walls, floor and ceiling, then revisit visible equipment from several angles before finishing.")
-                            Text("RoomPlan captures the room shell and supported objects. Pipe diameters, connections and equipment details need manual verification.")
-                                .foregroundStyle(.secondary)
-                        }
-                        Section("Room notes") {
-                            TextField("Equipment, access or survey notes", text: $notes, axis: .vertical)
-                        }
-                        Button("Start single-room scan") { started = true }
-                            .disabled(!ScanCoordinator.isSupported)
-                    }
+            VStack(spacing: 12) {
+                TechnicalCaptureCamera(scanner: scanner, viewport: $viewport)
+                    .overlay { Image(systemName: "plus").font(.title).foregroundStyle(.yellow).allowsHitTesting(false) }
+                Text(message).font(.callout)
+                Text("Device validation pending · Unsaved capture preview").font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Text("FPS \(scanner.fps, specifier: "%.0f")")
+                    Text("Mesh anchors \(scanner.meshAnchorCount)")
+                    Text(scanner.state.phase.rawValue)
+                }.font(.caption)
+                if !frameDefined {
+                    Button(origin == nil ? "Set origin at crosshair" : "Set +X floor corner at crosshair") { setCorner() }
+                        .disabled(!scanner.state.trackingNormal)
                 } else {
-                    capture
+                    HStack {
+                        TextField("Checkpoint X (m)", text: $checkpointX)
+                        TextField("Y (m)", text: $checkpointY)
+                        TextField("Z (m)", text: $checkpointZ)
+                    }
+                    HStack {
+                        TextField("Tolerance (mm)", text: $threshold)
+                        Button("Check point at crosshair") { verify() }
+                    }
+                    if let residual = scanner.state.checkpointResidualMm {
+                        Text("Checkpoint residual \(residual, specifier: "%.1f") mm")
+                    }
+                    Text(scanner.state.canAnnotate ? "Alignment checkpoint accepted" : "Alignment verification required")
                 }
+                if let error = scanner.errorMessage { Text(error).foregroundStyle(.red) }
             }
-            .navigationTitle("Technik Room")
-            .navigationBarTitleDisplayMode(.inline)
+            .padding()
+            .navigationTitle("Technical Room")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel) { active = false; coordinator.cancel(); dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    if started {
-                        Button("Finish room") { coordinator.finish() }
-                            .disabled(coordinator.state != .scanning)
-                    }
+                    Button("Close") { scanner.stop(); dismiss() }
                 }
             }
         }
-        .onChange(of: coordinator.state) { _, state in receive(state) }
-        .onDisappear { active = false; coordinator.stop() }
-        .alert("Technik Room", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
-            Button("OK") { dismiss() }
-        } message: { Text(errorMessage ?? "") }
-    }
-
-    @ViewBuilder private var capture: some View {
-        switch coordinator.state {
-        case .failed(.cameraDenied): CameraDeniedView(onClose: { dismiss() })
-        case .failed(.unsupportedDevice): UnsupportedDeviceView(onClose: { dismiss() })
-        default:
-            RoomCaptureViewRepresentable(coordinator: coordinator)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay {
-                    if coordinator.state == .processing {
-                        ProgressView("Preparing room…").padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-                    }
-                }
+        .onDisappear { scanner.stop() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { scanner.interrupt() }
+            // A new preview is required after backgrounding until world-map recovery is implemented.
         }
     }
 
-    private func receive(_ state: ScanCoordinator.State) {
-        guard active else { return }
-        switch state {
-        case .finished(let result):
+    private func setCorner() {
+        guard let viewport, let hit = scanner.hit(at: CGPoint(x: viewport.bounds.midX, y: viewport.bounds.midY), viewport: viewport) else {
+            message = "No reliable surface hit. Move slowly and try again."; return
+        }
+        if let origin {
             do {
-                let existing = Set(store.records.map(\.name))
-                var name = "Technik Room"
-                var index = 2
-                while existing.contains(name) { name = "Technik Room \(index)"; index += 1 }
-                let plan = FloorPlanBuilder().build(from: result.scan, name: name)
-                let technical = TechnicalRoom.capturedShell(id: plan.id, notes: notes)
-                let package = RoomPackage(record: RoomRecord(plan: plan), plan: plan, scan: result.scan,
-                    capturedRoomData: result.capturedRoomData, usdzData: result.usdzData, usdzMeshData: result.usdzMeshData,
-                    thumbnailPNG: PlanRenderer.thumbnailPNG(for: plan), technicalRoomData: try TechnicalRoomJSONExporter.data(for: technical))
-                let record = try store.save(package)
-                active = false
-                onSaved(.room(record))
-                dismiss()
-            } catch { errorMessage = error.localizedDescription }
-        case .failed(let error) where error != .scanCancelled && error != .cameraDenied && error != .unsupportedDevice:
-            errorMessage = error.localizedDescription
-        default: break
+                try scanner.setReference(origin: origin, xCorner: hit)
+                frameDefined = true
+                message = "Enter the independently measured coordinates of a third checkpoint, then aim at it."
+            } catch { message = "Choose two distinct floor corners more than 10 cm apart." }
+        } else {
+            origin = hit
+            message = "Aim at the second known floor corner along the intended +X axis."
         }
     }
+
+    private func verify() {
+        guard let x = Double(checkpointX), let y = Double(checkpointY), let z = Double(checkpointZ),
+              let tolerance = Double(threshold), tolerance > 0,
+              let viewport,
+              let point = scanner.hit(at: CGPoint(x: viewport.bounds.midX, y: viewport.bounds.midY), viewport: viewport) else {
+            message = "Enter valid coordinates and tolerance, and aim at a tracked surface."; return
+        }
+        scanner.verifyCheckpoint(observed: point, expected: .init(x: x, y: y, z: z), thresholdMm: tolerance)
+    }
+}
+
+private struct TechnicalCaptureCamera: UIViewRepresentable {
+    let scanner: TechnicalRoomScanCoordinator
+    @Binding var viewport: ARView?
+
+    func makeUIView(context: Context) -> ARView {
+        let view = ARView(frame: .zero, cameraMode: .ar, automaticallyConfigureSession: false)
+        view.session = scanner.session
+        view.debugOptions.insert(.showSceneUnderstanding)
+        DispatchQueue.main.async {
+            viewport = view
+            scanner.start()
+        }
+        return view
+    }
+    func updateUIView(_ view: ARView, context: Context) {}
 }
 #endif
