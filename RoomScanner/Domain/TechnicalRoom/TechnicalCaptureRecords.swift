@@ -20,6 +20,9 @@ struct TechnicalMeshSnapshot: Codable, Equatable {
         /// Vertices transformed into the original ARSession coordinates.
         let vertices: [TechnicalPoint3]
         let triangleIndices: [UInt32]
+        /// Optional sRGB samples from the capture camera; nil entries were not visible.
+        /// Older surveys have no colours and remain readable.
+        var colors: [TechnicalPoint3?]? = nil
     }
     let timestamp: Double
     let patches: [Patch]

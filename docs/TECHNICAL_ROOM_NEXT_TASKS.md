@@ -120,6 +120,19 @@ Remaining physical T3/T4 checks: drag and snap points on real surfaces; verify p
 
 ### 5. Recognition and exports (T7–T8)
 
+2026-11-20 saved-scan and export increment:
+
+- The real saved phone survey was copied read-only for diagnosis: 97 frame records, one depth snapshot and one mesh snapshot (~79,970 vertices) decode correctly. It has no recovery map or checkpoint; that prevents aligned AR resumption, not offline viewing.
+- Saved surveys now open in a dedicated orbit/zoom mesh viewer, with a separate details tab and a visible Technical Rooms section in the main library. House capture and house package formats are unchanged.
+- Future Technical Room captures sample camera YCbCr colours only where current LiDAR depth agrees with the projected mesh vertex. A bounded 5 mm colour cache collects different viewpoints every three seconds while tracking is normal; colours are baked into the saved mesh. No AR frame buffers are retained. Missing samples stay grey. This is sampled face colour, not photographic UV reconstruction; old surveys cannot recover scene colours from a thumbnail.
+- Optional per-vertex sRGB samples extend `capture.json`; the new reader accepts earlier surveys without colours. Coloured snapshots are included in the existing retention budget and colour range/count validation. Older app builds should not be used to open newly coloured surveys.
+- Export menu: full `.technicalroom` package, JSON (annotations/alignment/raw snapshots), OBJ (vertex-colour extension), USDZ (camera-coloured face texture), and metre-unit DXF 3DFACE mesh with Z-up CAD coordinates. OBJ vertex-colour support depends on the receiving CAD/3D application. CAD mesh exports are scan geometry, not solid/BIM reconstruction or engineering-certified measurements.
+- Direct DWG export is not implemented: an appropriate licensed DWG writer is required. DXF is available for conversion in CAD software. No misleading renamed DWG file is produced.
+- User confirmed no MEP model/dataset is available and asked to skip DWG. Recognition remains a separate future model/data project; DWG is excluded from this increment.
+- Automatic MEP recognition is not implemented: no trained pipe/duct/component model or labelled training dataset is bundled. Existing manual annotations remain available; RoomPlan furniture recognition is not substituted for MEP recognition.
+- Physical validation remains required for colour projection/coverage, performance, saved viewer interaction, and CAD application interoperability. Automated USDZ export/reopen and package round-trip checks do not establish live AR or measurement accuracy.
+- Verification: final macOS suite 198/198 passed; iOS simulator suite 193/193 passed, followed by 17/17 focused package/mesh tests after the final DXF-colour and USDZ-metre-scale additions. The updated reader also reopened the unmodified phone-survey copy with all 79,970 vertices. The signed iPhone build passes; live hardware colour capture remains unverified.
+
 - Investigate Core ML/Vision only as a separate, confirmable recognition layer.
 - Never treat furniture recognition as MEP recognition; never invent pipe routes or DN values.
 - Add technical PDF, DXF, CSV schedules, unresolved-items report, and linked USDZ/raw mesh exports after the data and validation layers are stable.

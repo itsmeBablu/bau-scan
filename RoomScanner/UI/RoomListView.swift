@@ -8,6 +8,7 @@ struct RoomListView: View {
     @State private var showSettings = false
     @State private var showTechnicalLibrary = false
     @State private var savedTechnicalID: UUID?
+    @State private var technicalRooms = TechnicalRoomLibraryStore()
     @State private var pendingDeletion: [LibraryItem] = []
     @State private var itemToRename: LibraryItem?
     @State private var proposedName = ""
@@ -17,10 +18,28 @@ struct RoomListView: View {
     var body: some View {
         NavigationStack(path: $path) {
             Group {
-                if store.records.isEmpty && store.houseRecords.isEmpty {
+                if store.records.isEmpty && store.houseRecords.isEmpty && technicalRooms.records.isEmpty {
                     emptyState
                 } else {
                     List {
+                        if !technicalRooms.records.isEmpty {
+                            Section("Technical Rooms") {
+                                ForEach(technicalRooms.records) { record in
+                                    Button { savedTechnicalID = record.id; showTechnicalLibrary = true } label: {
+                                        HStack(spacing: 12) {
+                                            Image(systemName: "cube.transparent").font(.title2).frame(width: 42)
+                                            VStack(alignment: .leading) {
+                                                Text(record.name).font(.headline)
+                                                Text("Open saved 3D scan").font(.caption).foregroundStyle(.secondary)
+                                            }
+                                            Spacer()
+                                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                                        }.contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
                         if !store.houseRecords.isEmpty {
                             Section("library.houses") {
                                 ForEach(store.houseRecords) { record in
@@ -76,7 +95,10 @@ struct RoomListView: View {
                 #endif
             }
             #if os(iOS)
-            .fullScreenCover(item: $scanMode, onDismiss: { if savedTechnicalID != nil { showTechnicalLibrary = true } }) { mode in
+            .fullScreenCover(item: $scanMode, onDismiss: {
+                reloadTechnicalRooms()
+                if savedTechnicalID != nil { showTechnicalLibrary = true }
+            }) { mode in
                 if mode == .technicalRoom {
                     TechnicalRoomScanView(onSaved: { savedTechnicalID = $0 })
                 } else {
@@ -86,7 +108,7 @@ struct RoomListView: View {
             #endif
         }
         .sheet(isPresented: $showSettings) { SettingsView().environment(store) }
-        .sheet(isPresented: $showTechnicalLibrary, onDismiss: { savedTechnicalID = nil }) { TechnicalRoomLibraryView(initialSelection: savedTechnicalID) }
+        .sheet(isPresented: $showTechnicalLibrary, onDismiss: { savedTechnicalID = nil; reloadTechnicalRooms() }) { TechnicalRoomLibraryView(initialSelection: savedTechnicalID) }
         .confirmationDialog("list.delete.confirm \(pendingDeletion.first?.name ?? "")", isPresented: Binding(get: { !pendingDeletion.isEmpty }, set: { if !$0 { pendingDeletion = [] } }), titleVisibility: .visible) {
             Button("common.delete", role: .destructive) { confirmDeletion() }
         } message: { Text("list.delete.message") }
@@ -101,11 +123,16 @@ struct RoomListView: View {
         } message: { Text(actionError ?? "") }
         .onAppear {
             store.reload()
+            reloadTechnicalRooms()
             // `-RoomScannerAutoOpenFirst YES`: opens first room automatically (screenshots, testing).
             if UserDefaults.standard.bool(forKey: "RoomScannerAutoOpenFirst") {
                 if let first = store.houseRecords.first { path = [.house(first)] } else if let first = store.records.first { path = [.room(first)] }
             }
         }
+    }
+
+    private func reloadTechnicalRooms() {
+        do { try technicalRooms.reload() } catch { actionError = error.localizedDescription }
     }
 
     private var scanSupported: Bool {

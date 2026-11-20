@@ -73,6 +73,14 @@ private struct TechnicalPackageDocument: FileDocument {
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { wrapper }
 }
 
+private struct TechnicalExportDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.data] }
+    let data: Data
+    init(data: Data) { self.data = data }
+    init(configuration: ReadConfiguration) throws { data = configuration.file.regularFileContents ?? Data() }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
+}
+
 private struct TechnicalStoredRoomView: View {
     let id: UUID
     let library: TechnicalRoomLibraryStore
@@ -81,25 +89,50 @@ private struct TechnicalStoredRoomView: View {
     @State private var busy = false
     @State private var exporting = false
     @State private var exportDocument: TechnicalPackageDocument?
+    @State private var meshExporting = false
+    @State private var meshDocument: TechnicalExportDocument?
+    @State private var meshType: UTType = .data
+    @State private var meshFilename = "Technical Room"
     @State private var note = ""
     @State private var success = ""
+    @State private var tab = Tab.scan
+    private enum Tab: Hashable { case scan, details }
     #if os(iOS)
     @State private var resuming = false
     #endif
 
     var body: some View {
         Group {
-            if package != nil { editor }
+            if let package {
+                VStack(spacing: 0) {
+                    Picker("Saved survey view", selection: $tab) {
+                        Text("3D scan").tag(Tab.scan)
+                        Text("Survey details").tag(Tab.details)
+                    }
+                    .pickerStyle(.segmented).padding(.horizontal).padding(.vertical, 8)
+                    if tab == .scan { TechnicalSavedScanView(package: package) }
+                    else { editor }
+                }
+            }
             else if let error { ContentUnavailableView(error, systemImage: "exclamationmark.triangle") }
-            else { ProgressView() }
+            else { ProgressView("Opening saved survey…") }
         }
         .navigationTitle(package?.manifest.name ?? "Technical survey")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button("Save") { save() }.disabled(package == nil || busy) }
             ToolbarItem(placement: .primaryAction) {
-                Button("Export package") { Task { @MainActor in
-                    save(exportAfter: true)
-                } }.disabled(package == nil || busy)
+                if tab == .details { Button("Save changes") { save() }.disabled(package == nil || busy) }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Menu("Export", systemImage: "square.and.arrow.up") {
+                    Button("Full survey package") { save(exportAfter: true) }
+                    ForEach(TechnicalMeshExporter.Format.allCases, id: \.self) { format in
+                        Button(format.rawValue.uppercased()) { exportMesh(format) }
+                    }
+                    Text("DWG requires conversion from DXF in a CAD application.")
+                }.disabled(package == nil || busy)
             }
         }
         .task {
@@ -107,6 +140,10 @@ private struct TechnicalStoredRoomView: View {
         }
         .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .technicalRoom,
                       defaultFilename: package?.manifest.name ?? "Technical Room") { result in
+            if case .failure(let failure) = result { error = failure.localizedDescription }
+        }
+        .fileExporter(isPresented: $meshExporting, document: meshDocument, contentType: meshType,
+                      defaultFilename: meshFilename) { result in
             if case .failure(let failure) = result { error = failure.localizedDescription }
         }
         #if os(iOS)
@@ -132,6 +169,10 @@ private struct TechnicalStoredRoomView: View {
                 Text(success).font(.caption).foregroundStyle(.secondary)
                 #if os(iOS)
                 Button("Resume AR survey from saved map") { resuming = true }.disabled(package?.worldMapData == nil || busy)
+                if package?.worldMapData == nil {
+                    Text("No recovery map was saved, so aligned AR capture cannot resume. You can still open the saved geometry in the 3D scan tab.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 #endif
             }
             if let current = package {
@@ -211,6 +252,28 @@ private struct TechnicalStoredRoomView: View {
             do {
                 try await library.save(value); package = value; note = ""; success = "Saved"
                 if exportAfter { exportDocument = try TechnicalPackageDocument(url: library.url(for: id)); exporting = true }
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+
+    private func exportMesh(_ format: TechnicalMeshExporter.Format) {
+        guard let current = package else { return }
+        busy = true
+        Task { @MainActor in
+            defer { busy = false }
+            do {
+                let data = try await Task.detached(priority: .userInitiated) {
+                    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+                    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                    defer { try? FileManager.default.removeItem(at: directory) }
+                    let url = directory.appendingPathComponent("TechnicalRoom.\(format.rawValue)")
+                    try TechnicalMeshExporter.write(current, format: format, to: url)
+                    return try Data(contentsOf: url)
+                }.value
+                meshDocument = TechnicalExportDocument(data: data)
+                meshType = UTType(filenameExtension: format.rawValue) ?? .data
+                meshFilename = current.manifest.name + "." + format.rawValue
+                meshExporting = true
             } catch { self.error = error.localizedDescription }
         }
     }

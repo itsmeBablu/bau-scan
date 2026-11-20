@@ -41,6 +41,8 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     private var minimumFrameTimestamp = -Double.infinity
     private var active = false
     private var generation = 0
+    private var sceneColors = TechnicalSceneColorCache()
+    private var lastColorSampleTimestamp = -Double.infinity
     private var pipeAnchors: [UUID: AnchorEntity] = [:]
     private var equipmentAnchors: [UUID: AnchorEntity] = [:]
     private var auxiliaryAnchor: AnchorEntity?
@@ -173,7 +175,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
 
     func captureMeshSnapshot() {
         guard active, let frame = session.currentFrame else { return }
-        meshSnapshot = TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate)
+        meshSnapshot = sceneColors.merge(TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate))
         if let meshSnapshot { journal.append(meshSnapshot) }
     }
 
@@ -375,6 +377,11 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
             healthWarnings = TechnicalCaptureHealth.warnings(for: .init(trackingNormal: state.trackingNormal, fps: fps,
                 residentMemoryBytes: residentMemoryBytes, ambientIntensity: frame.lightEstimate.map { Double($0.ambientIntensity) },
                 depthCoverage: TechnicalRoomFrameProcessor.depthCoverage(frame: frame), elapsedSeconds: frame.timestamp - (firstTimestamp ?? frame.timestamp)))
+            if state.trackingNormal, frame.timestamp - lastColorSampleTimestamp >= 3,
+               (residentMemoryBytes ?? 0) < 800 * 1_048_576 {
+                lastColorSampleTimestamp = frame.timestamp
+                _ = sceneColors.merge(TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate))
+            }
         }
     }
 

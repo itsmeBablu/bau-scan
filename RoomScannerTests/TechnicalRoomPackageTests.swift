@@ -1,4 +1,5 @@
 import XCTest
+import SceneKit
 @testable import RoomScanner
 
 final class TechnicalRoomPackageTests: XCTestCase {
@@ -22,6 +23,48 @@ final class TechnicalRoomPackageTests: XCTestCase {
         journal.append(.init(timestamp: 3, patches: [], alignmentVerified: false, truncated: true))
         return .init(manifest: .init(id: room.id, name: "Boiler room"), document: .init(room: room), alignment: alignment,
                      journal: journal, worldMapData: Data([1, 2, 3]), thumbnailPNG: Data([137, 80, 78, 71]))
+    }
+    func testPortableMeshExportsIncludeGeometryAndReopenUSDZ() throws {
+        var value = try package()
+        let color = TechnicalPoint3(x: 1, y: 0.25, z: 0)
+        value.journal.append(TechnicalMeshSnapshot(timestamp: 4, patches: [
+            .init(anchorID: UUID(), vertices: [.init(x: 0, y: 0, z: 0), .init(x: 1, y: 0, z: 0), .init(x: 0, y: 1, z: 0)],
+                  triangleIndices: [0, 1, 2], colors: [color, color, color])
+        ], alignmentVerified: false, truncated: false))
+        for format in TechnicalMeshExporter.Format.allCases {
+            let url = root.appendingPathComponent("mesh.\(format.rawValue)")
+            try TechnicalMeshExporter.write(value, format: format, to: url)
+            let data = try Data(contentsOf: url)
+            XCTAssertFalse(data.isEmpty)
+            switch format {
+            case .json:
+                let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+                XCTAssertEqual(json["units"] as? String, "m")
+                XCTAssertNotNil(json["document"])
+                XCTAssertEqual((json["meshes"] as? [Any])?.count, 2)
+            case .obj:
+                let text = try XCTUnwrap(String(data: data, encoding: .utf8))
+                XCTAssertTrue(text.contains("f 1 2 3\n"))
+                XCTAssertTrue(text.contains("1.0 0.25 0.0\n"))
+            case .dxf:
+                let text = try XCTUnwrap(String(data: data, encoding: .utf8))
+                XCTAssertTrue(text.contains("$INSUNITS\n70\n6\n"))
+                XCTAssertTrue(text.contains("420\n16728064\n"))
+                XCTAssertEqual(text.components(separatedBy: "3DFACE").count - 1, 1)
+                XCTAssertTrue(text.hasSuffix("0\nEOF\n"))
+            case .usdz:
+                XCTAssertEqual(Array(data.prefix(2)), [0x50, 0x4b], "USDZ must be a ZIP archive, not renamed text.")
+                let scene = try SCNScene(url: url, options: [.convertUnitsToMeters: 1.0])
+                XCTAssertFalse(scene.rootNode.childNodes.isEmpty)
+                XCTAssertTrue(scene.rootNode.childNodes.contains { $0.geometry != nil || !$0.childNodes.isEmpty })
+                let bounds = scene.rootNode.boundingBox
+                XCTAssertEqual(Double(bounds.max.x - bounds.min.x), 1, accuracy: 0.001)
+            }
+        }
+        try value.journal.validate()
+        let saved = root.appendingPathComponent("coloured.technicalroom")
+        try value.write(to: saved)
+        XCTAssertEqual(try TechnicalRoomPackage.read(from: saved).journal, value.journal)
     }
     func testIndependentPackageRoundTripIncludesEvidencePhotosAndRecoveryBytes() throws {
         var package = try package()

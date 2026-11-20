@@ -435,7 +435,7 @@ private final class TechnicalCameraHost: UIViewController {
         super.init(nibName: nil, bundle: nil)
         camera.session = scanner.session
         camera.environment.background = .cameraFeed()
-        camera.debugOptions.insert(.showSceneUnderstanding)
+        // Keep camera colours visible; debug classification overlays obscure evidence photos.
     }
     required init?(coder: NSCoder) { nil }
     override func loadView() { view = camera }
