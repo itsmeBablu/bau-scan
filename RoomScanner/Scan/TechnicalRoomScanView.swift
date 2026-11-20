@@ -25,6 +25,15 @@ struct TechnicalRoomScanView: View {
     @State private var showingPipeTool = false
     @State private var showingPipeReview = false
     @State private var material = ""
+    @State private var equipment: [TechnicalEquipment] = []
+    @State private var showingEquipmentTool = false
+    @State private var equipmentType = TechnicalEquipmentType.boiler
+    @State private var equipmentName = ""
+    @State private var equipmentWidth = ""
+    @State private var equipmentDepth = ""
+    @State private var equipmentHeight = ""
+    @State private var equipmentYaw = "0"
+    @State private var equipmentError: String?
     let onSaved: (LibraryItem) -> Void
 
     var body: some View {
@@ -45,6 +54,8 @@ struct TechnicalRoomScanView: View {
                     .disabled(!scanner.state.canAnnotate)
                 Text("Unsaved pipe runs: \(pipes.count)").font(.caption)
                 Button("Review pipe runs") { showingPipeReview = true }.disabled(pipes.isEmpty)
+                Button("Place equipment") { showingEquipmentTool = true }.disabled(!scanner.state.canAnnotate)
+                Text("Unsaved equipment: \(equipment.count)").font(.caption)
                 Button("Capture mesh snapshot") { scanner.captureMeshSnapshot() }
                     .disabled(!scanner.state.trackingNormal)
                 Button("Capture depth snapshot") { scanner.captureDepthSnapshot() }
@@ -95,6 +106,7 @@ struct TechnicalRoomScanView: View {
         .onDisappear { scanner.stop() }
         .sheet(isPresented: $showingPipeTool) { pipeTool }
         .sheet(isPresented: $showingPipeReview) { pipeReview }
+        .sheet(isPresented: $showingEquipmentTool) { equipmentTool }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { scanner.interrupt() }
             // Resumption is explicit and always invalidates the alignment checkpoint.
@@ -168,6 +180,53 @@ struct TechnicalRoomScanView: View {
             .navigationTitle("Pipe review")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingPipeReview = false } } }
         }
+    }
+
+    private var equipmentTool: some View {
+        NavigationStack {
+            Form {
+                Text("The crosshair hit sets the equipment base centre. Enter verified dimensions in metres.")
+                Picker("Type", selection: $equipmentType) {
+                    ForEach(TechnicalEquipmentType.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                TextField("Name", text: $equipmentName)
+                TextField("Width (m)", text: $equipmentWidth)
+                TextField("Depth (m)", text: $equipmentDepth)
+                TextField("Height (m)", text: $equipmentHeight)
+                TextField("Rotation around +Y (degrees)", text: $equipmentYaw)
+                Button("Place at crosshair") { placeEquipment() }.disabled(!scanner.state.canAnnotate)
+                if let equipmentError { Text(equipmentError).foregroundStyle(.red) }
+                Section("Unsaved equipment") {
+                    ForEach(equipment, id: \.id) { item in Text(item.name.value) }
+                        .onDelete { offsets in
+                            for index in offsets { scanner.removeEquipment(id: equipment[index].id) }
+                            equipment.remove(atOffsets: offsets)
+                        }
+                }
+            }
+            .navigationTitle("Manual equipment")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Back to camera") { showingEquipmentTool = false } } }
+        }
+    }
+
+    private func placeEquipment() {
+        guard let width = Double(equipmentWidth), let depth = Double(equipmentDepth), let height = Double(equipmentHeight),
+              let yaw = Double(equipmentYaw), [width, depth, height, yaw].allSatisfy({ $0.isFinite }),
+              width > 0, depth > 0, height > 0, width < 100, depth < 100, height < 100,
+              let viewport, let hit = scanner.surfaceHit(at: CGPoint(x: viewport.bounds.midX, y: viewport.bounds.midY), viewport: viewport) else {
+            equipmentError = "Enter positive dimensions and aim at a tracked base position with verified alignment."; return
+        }
+        let base = hit.position.value
+        let item = TechnicalEquipment(id: UUID(),
+            type: .init(value: equipmentType, unit: "category", source: .entered, method: "manualSelection", accuracyMm: nil),
+            name: .init(value: equipmentName.isEmpty ? equipmentType.rawValue : equipmentName, unit: "text", source: .entered, method: "manualEntry", accuracyMm: nil),
+            center: .init(value: .init(x: base.x, y: base.y + height / 2, z: base.z), unit: "m", source: .estimated, method: "surfaceBasePlusEnteredHalfHeight", accuracyMm: nil),
+            size: .init(value: .init(x: width, y: height, z: depth), unit: "m", source: .entered, method: "manualDimensionsRequireVerification", accuracyMm: nil),
+            rotation: .init(value: yaw * .pi / 180, unit: "rad", source: .entered, method: "manualYaw", accuracyMm: nil), ports: [], photoRefs: [])
+        equipment.append(item)
+        scanner.showEquipment(item, in: viewport)
+        equipmentError = nil
+        showingEquipmentTool = false
     }
 
     private func setCorner() {

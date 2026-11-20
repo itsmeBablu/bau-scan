@@ -31,6 +31,29 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
     private var active = false
     private var generation = 0
     private var pipeAnchors: [UUID: AnchorEntity] = [:]
+    private var equipmentAnchors: [UUID: AnchorEntity] = [:]
+
+    func showEquipment(_ equipment: TechnicalEquipment, in viewport: ARView) {
+        guard state.canAnnotate, let referenceFrame else { return }
+        removeEquipment(id: equipment.id)
+        let center = TechnicalReferenceFrame.inverseApply(referenceFrame, to: equipment.center.value)
+        let size = equipment.size.value
+        let yaw = equipment.rotation.value
+        let roomX = TechnicalPoint3(x: equipment.center.value.x + cos(yaw), y: equipment.center.value.y,
+                                    z: equipment.center.value.z - sin(yaw))
+        let axis = TechnicalReferenceFrame.inverseApply(referenceFrame, to: roomX)
+        let worldYaw = atan2(-(axis.z - center.z), axis.x - center.x)
+        let model = ModelEntity(mesh: .generateBox(width: Float(size.x), height: Float(size.y), depth: Float(size.z)),
+                                materials: [SimpleMaterial(color: .cyan.withAlphaComponent(0.5), isMetallic: false)])
+        model.position = SIMD3(Float(center.x), Float(center.y), Float(center.z))
+        model.orientation = simd_quatf(angle: Float(worldYaw), axis: SIMD3(0, 1, 0))
+        let anchor = AnchorEntity(world: SIMD3<Float>.zero)
+        anchor.addChild(model)
+        viewport.scene.addAnchor(anchor)
+        equipmentAnchors[equipment.id] = anchor
+    }
+
+    func removeEquipment(id: UUID) { equipmentAnchors.removeValue(forKey: id)?.removeFromParent() }
 
     func showPipe(_ pipe: TechnicalPipeRun, in viewport: ARView) {
         guard state.canAnnotate, let referenceFrame else { return }
@@ -163,6 +186,8 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
         state.stop()
         for anchor in pipeAnchors.values { anchor.removeFromParent() }
         pipeAnchors.removeAll()
+        for anchor in equipmentAnchors.values { anchor.removeFromParent() }
+        equipmentAnchors.removeAll()
     }
 
     func setReference(origin: TechnicalPoint3, xCorner: TechnicalPoint3) throws {

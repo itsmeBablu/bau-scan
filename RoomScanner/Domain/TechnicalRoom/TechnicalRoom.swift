@@ -94,7 +94,7 @@ struct TechnicalPipeRun: Codable, Equatable {
     }
 }
 
-enum TechnicalEquipmentType: String, Codable {
+enum TechnicalEquipmentType: String, Codable, CaseIterable {
     case boiler, heatPump, bufferTank, dhwTank, manifold, pump, expansionVessel
     case meter, valveGroup, electricalPanel, other
 }
