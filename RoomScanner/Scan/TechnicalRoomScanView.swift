@@ -16,6 +16,13 @@ struct TechnicalRoomScanView: View {
     @State private var checkpointZ = ""
     @State private var threshold = "30"
     @State private var message = "Aim at the first known floor corner."
+    @State private var pipeHits: [TechnicalSurfaceHit] = []
+    @State private var pipes: [TechnicalPipeRun] = []
+    @State private var diameter = ""
+    @State private var nominalDN = ""
+    @State private var insulation = "0"
+    @State private var medium = TechnicalMedium.heatingSupply
+    @State private var showingPipeTool = false
     let onSaved: (LibraryItem) -> Void
 
     var body: some View {
@@ -32,6 +39,9 @@ struct TechnicalRoomScanView: View {
                         .disabled(!scanner.recoveryAvailable)
                 }
                 if scanner.recovering { Text("Relocalising — checkpoint verification required").font(.caption) }
+                Button("Pipe annotation") { showingPipeTool = true }
+                    .disabled(!scanner.state.canAnnotate)
+                Text("Unsaved pipe runs: \(pipes.count)").font(.caption)
                 Button("Capture mesh snapshot") { scanner.captureMeshSnapshot() }
                     .disabled(!scanner.state.trackingNormal)
                 Button("Capture depth snapshot") { scanner.captureDepthSnapshot() }
@@ -80,10 +90,57 @@ struct TechnicalRoomScanView: View {
             }
         }
         .onDisappear { scanner.stop() }
+        .sheet(isPresented: $showingPipeTool) { pipeTool }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { scanner.interrupt() }
             // Resumption is explicit and always invalidates the alignment checkpoint.
         }
+    }
+
+    private var pipeTool: some View {
+        NavigationStack {
+            Form {
+                Text("Aim the camera crosshair at the visible pipe surface. Close this sheet to adjust the camera view between points.")
+                Text("Points: \(pipeHits.count)")
+                Button("Add crosshair point") {
+                    guard let viewport,
+                          let hit = scanner.surfaceHit(at: CGPoint(x: viewport.bounds.midX, y: viewport.bounds.midY), viewport: viewport) else {
+                        message = "Alignment or surface hit unavailable."; return
+                    }
+                    pipeHits.append(hit)
+                }.disabled(!scanner.state.canAnnotate)
+                Button("Undo point") { if !pipeHits.isEmpty { pipeHits.removeLast() } }
+                Picker("Medium", selection: $medium) {
+                    ForEach(TechnicalMedium.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                TextField("Measured outside diameter (mm)", text: $diameter)
+                TextField("DN designation (optional)", text: $nominalDN)
+                TextField("Insulation thickness (mm)", text: $insulation)
+                Button("Keep pipe run in preview") { keepPipe() }
+                    .disabled(!scanner.state.canAnnotate || pipeHits.count < 2)
+                Text("Accuracy unknown. This does not save a survey package.").font(.caption)
+            }
+            .navigationTitle("Pipe route")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Back to camera") { showingPipeTool = false } } }
+        }
+    }
+
+    private func keepPipe() {
+        guard scanner.state.canAnnotate, let outside = Double(diameter), outside.isFinite, outside > 0,
+              let insulationValue = Double(insulation), insulationValue.isFinite, insulationValue >= 0 else {
+            message = "Enter a positive outside diameter and nonnegative insulation thickness."; return
+        }
+        let pipe = TechnicalPipeRun(id: UUID(), medium: .init(value: medium, unit: "category", source: .entered, method: "userSelection", accuracyMm: nil),
+            systemLabel: .init(value: medium.rawValue, unit: "text", source: .entered, method: "userSelection", accuracyMm: nil),
+            material: .init(value: "unspecified", unit: "text", source: .entered, method: "notSpecified", accuracyMm: nil),
+            nominalDN: nominalDN.isEmpty ? nil : .init(value: nominalDN, unit: "text", source: .entered, method: "manualEntry", accuracyMm: nil),
+            outerDiameterMm: .init(value: outside, unit: "mm", source: .entered, method: "manualEntryRequiresVerification", accuracyMm: nil),
+            insulationThicknessMm: .init(value: insulationValue, unit: "mm", source: .entered, method: "manualEntry", accuracyMm: nil),
+            surfaceHits: pipeHits, connectedPorts: [])
+        pipes.append(pipe)
+        pipeHits = []
+        showingPipeTool = false
+        message = "Pipe retained in memory. Length \(pipe.length.value) m."
     }
 
     private func setCorner() {

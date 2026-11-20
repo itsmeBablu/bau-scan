@@ -3,6 +3,7 @@ import ARKit
 import AVFoundation
 import Observation
 import RealityKit
+import simd
 
 /// Dedicated technical capture. Never owns or runs a RoomCaptureSession.
 /// Device validation pending.
@@ -90,6 +91,24 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
               let result = session.raycast(query).first else { return nil }
         let p = result.worldTransform.columns.3
         return .init(x: Double(p.x), y: Double(p.y), z: Double(p.z))
+    }
+
+    func surfaceHit(at point: CGPoint, viewport: ARView) -> TechnicalSurfaceHit? {
+        guard state.canAnnotate, let referenceFrame,
+              let query = viewport.makeRaycastQuery(from: point, allowing: .estimatedPlane, alignment: .any),
+              let result = session.raycast(query).first,
+              let camera = session.currentFrame?.camera else { return nil }
+        let p = result.worldTransform.columns.3
+        var n = SIMD3<Float>(result.worldTransform.columns.1.x, result.worldTransform.columns.1.y, result.worldTransform.columns.1.z)
+        let cameraPosition = camera.transform.columns.3
+        let towardCamera = SIMD3<Float>(cameraPosition.x - p.x, cameraPosition.y - p.y, cameraPosition.z - p.z)
+        if simd_dot(n, towardCamera) < 0 { n = -n }
+        let position = TechnicalReferenceFrame.apply(referenceFrame, to: .init(x: Double(p.x), y: Double(p.y), z: Double(p.z)))
+        var rotation = referenceFrame
+        rotation.translation = .init(x: 0, y: 0, z: 0)
+        let normal = TechnicalReferenceFrame.apply(rotation, to: .init(x: Double(n.x), y: Double(n.y), z: Double(n.z)))
+        return TechnicalSurfaceHit(position: .init(value: position, unit: "m", source: .measured, method: "estimatedPlaneOrMeshRaycast", accuracyMm: nil),
+            normal: .init(value: normal, unit: "unitless", source: .estimated, method: "raycastSurfaceNormalTowardCamera", accuracyMm: nil))
     }
 
     private func run(recoveryMap: ARWorldMap? = nil) {
