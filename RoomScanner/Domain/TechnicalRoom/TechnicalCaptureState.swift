@@ -2,7 +2,7 @@ import Foundation
 
 /// Capture permission is revoked after any interruption until alignment is checked.
 struct TechnicalCaptureState: Equatable {
-    enum Phase: String { case idle, capturing, alignmentRequired, stopped, failed }
+    enum Phase: String, Codable { case idle, capturing, alignmentRequired, stopped, failed }
     private(set) var phase: Phase = .idle
     private(set) var trackingNormal = false
     private(set) var checkpointResidualMm: Double?
@@ -19,7 +19,8 @@ struct TechnicalCaptureState: Equatable {
         phase = .alignmentRequired; trackingNormal = false; checkpointResidualMm = nil
     }
     mutating func verify(residualMm: Double, thresholdMm: Double) {
-        guard phase != .stopped, trackingNormal, residualMm.isFinite, residualMm >= 0,
+        guard phase == .alignmentRequired || phase == .capturing else { return }
+        guard trackingNormal, residualMm.isFinite, residualMm >= 0,
               thresholdMm.isFinite, thresholdMm > 0 else { return }
         checkpointResidualMm = residualMm
         phase = residualMm <= thresholdMm ? .capturing : .alignmentRequired
@@ -31,6 +32,7 @@ enum TechnicalReferenceFrame {
     enum FrameError: Error { case invalidBaseline }
     /// Gravity supplies +Y. Two floor corners establish origin and horizontal +X.
     static func transform(origin: TechnicalPoint3, xCorner: TechnicalPoint3) throws -> TechnicalTransform {
+        guard [origin.x, origin.y, origin.z, xCorner.x, xCorner.y, xCorner.z].allSatisfy(\.isFinite) else { throw FrameError.invalidBaseline }
         let dx = xCorner.x - origin.x, dz = xCorner.z - origin.z
         let length = sqrt(dx * dx + dz * dz)
         guard length.isFinite, length > 0.1 else { throw FrameError.invalidBaseline }
