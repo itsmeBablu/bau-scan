@@ -17,7 +17,13 @@ struct TechnicalRoomScanView: View {
     @State private var threshold = "30"
     @State private var message = "Aim at the first known floor corner."
     @State private var pipeHits: [TechnicalSurfaceHit] = []
-    @State private var pipes: [TechnicalPipeRun] = []
+    @State private var history = TechnicalAnnotationHistory(room: .capturedShell(id: UUID(), notes: ""))
+    private var pipes: [TechnicalPipeRun] { history.room.pipeRuns }
+    private var equipment: [TechnicalEquipment] { history.room.equipment }
+    @State private var showingAnnotations = false
+    @State private var selectedPoints: TechnicalAnnotationTarget?
+    @State private var pointAxis = TechnicalPointEditing.Axis.free
+    @State private var pointGrid = 0.01
     @State private var diameter = ""
     @State private var nominalDN = ""
     @State private var insulation = "0"
@@ -25,7 +31,6 @@ struct TechnicalRoomScanView: View {
     @State private var showingPipeTool = false
     @State private var showingPipeReview = false
     @State private var material = ""
-    @State private var equipment: [TechnicalEquipment] = []
     @State private var showingEquipmentTool = false
     @State private var equipmentType = TechnicalEquipmentType.boiler
     @State private var equipmentName = ""
@@ -41,6 +46,14 @@ struct TechnicalRoomScanView: View {
             VStack(spacing: 12) {
                 TechnicalCaptureCamera(scanner: scanner, viewport: $viewport)
                     .overlay { Image(systemName: "plus").font(.title).foregroundStyle(.yellow).allowsHitTesting(false) }
+                    .overlay {
+                        if let selectedPoints, let viewport, scanner.state.canAnnotate, let reference = scanner.referenceFrame {
+                            TechnicalControlPointOverlay(points: history.document.points(for: selectedPoints), reference: reference, viewport: viewport) { index, location in
+                                movePoint(target: selectedPoints, index: index, screen: location)
+                            }
+                        }
+                    }
+                    .coordinateSpace(name: "technicalCapture")
                     .frame(minHeight: 180, maxHeight: .infinity)
                 ScrollView {
                 VStack(spacing: 12) {
@@ -71,6 +84,17 @@ struct TechnicalRoomScanView: View {
                 Text("Unsaved pipe runs: \(pipes.count)").font(.caption)
                 Button("Review pipe runs") { showingPipeReview = true }.disabled(pipes.isEmpty)
                 Button("Place equipment") { showingEquipmentTool = true }.disabled(!scanner.state.canAnnotate)
+                Button("Annotation tools") { showingAnnotations = true }.disabled(!scanner.state.canAnnotate)
+                HStack {
+                    Button("Undo") { history.undo() }.disabled(!history.canUndo || !scanner.state.canAnnotate)
+                    Button("Redo") { history.redo() }.disabled(!history.canRedo || !scanner.state.canAnnotate)
+                }
+                if selectedPoints != nil {
+                    Text("Drag numbered surface control points in the camera view.").font(.caption)
+                    Picker("Axis lock", selection: $pointAxis) { ForEach(TechnicalPointEditing.Axis.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
+                    TextField("Snap grid (m; 0 disables)", value: $pointGrid, format: .number)
+                    Button("Finish point editing") { selectedPoints = nil }
+                }
                 Text("Unsaved equipment: \(equipment.count)").font(.caption)
                 Button("Capture mesh snapshot") { scanner.captureMeshSnapshot() }
                     .disabled(!scanner.state.trackingNormal)
@@ -129,6 +153,12 @@ struct TechnicalRoomScanView: View {
         .sheet(isPresented: $showingPipeTool) { pipeTool }
         .sheet(isPresented: $showingPipeReview) { pipeReview }
         .sheet(isPresented: $showingEquipmentTool) { equipmentTool }
+        .sheet(isPresented: $showingAnnotations) {
+            TechnicalAnnotationEditor(history: $history, scanner: scanner, hit: crosshairHit) { selectedPoints = $0 }
+        }
+        .onChange(of: history.document) { _, document in
+            if let viewport { scanner.syncAnnotations(document, in: viewport) }
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { scanner.interrupt() }
             // Resumption is explicit and always invalidates the alignment checkpoint.
@@ -182,7 +212,8 @@ struct TechnicalRoomScanView: View {
             outerDiameterMm: .init(value: outside, unit: "mm", source: .entered, method: "manualEntryRequiresVerification", accuracyMm: nil),
             insulationThicknessMm: .init(value: insulationValue, unit: "mm", source: .entered, method: "manualEntry", accuracyMm: nil),
             surfaceHits: pipeHits, connectedPorts: [])
-        pipes.append(pipe)
+        do { try history.addPipe(pipe, capture: scanner.state) }
+        catch { message = error.localizedDescription; return }
         scanner.lockReference()
         if let viewport { scanner.showPipe(pipe, in: viewport) }
         pipeHits = []
@@ -202,8 +233,8 @@ struct TechnicalRoomScanView: View {
                     }
                 }
                 .onDelete { offsets in
-                    for index in offsets { scanner.removePipe(id: pipes[index].id) }
-                    pipes.remove(atOffsets: offsets)
+                    let ids = offsets.map { pipes[$0].id }
+                    for id in ids { do { try history.deletePipe(id, capture: scanner.state) } catch { message = error.localizedDescription } }
                 }
             }
             .navigationTitle("Pipe review")
@@ -228,8 +259,8 @@ struct TechnicalRoomScanView: View {
                 Section("Unsaved equipment") {
                     ForEach(equipment, id: \.id) { item in Text(item.name.value) }
                         .onDelete { offsets in
-                            for index in offsets { scanner.removeEquipment(id: equipment[index].id) }
-                            equipment.remove(atOffsets: offsets)
+                            let ids = offsets.map { equipment[$0].id }
+                            for id in ids { do { try history.deleteEquipment(id, capture: scanner.state) } catch { message = error.localizedDescription } }
                         }
                 }
             }
@@ -252,7 +283,8 @@ struct TechnicalRoomScanView: View {
             center: .init(value: .init(x: base.x, y: base.y + height / 2, z: base.z), unit: "m", source: .estimated, method: "surfaceBasePlusEnteredHalfHeight", accuracyMm: nil),
             size: .init(value: .init(x: width, y: height, z: depth), unit: "m", source: .entered, method: "manualDimensionsRequireVerification", accuracyMm: nil),
             rotation: .init(value: yaw * .pi / 180, unit: "rad", source: .entered, method: "manualYaw", accuracyMm: nil), ports: [], photoRefs: [])
-        equipment.append(item)
+        do { try history.edit(capture: scanner.state) { $0.room.equipment.append(item) } }
+        catch { equipmentError = error.localizedDescription; return }
         scanner.lockReference()
         scanner.showEquipment(item, in: viewport)
         equipmentError = nil
@@ -266,6 +298,9 @@ struct TechnicalRoomScanView: View {
         if let origin {
             do {
                 try scanner.setReference(origin: origin, xCorner: hit)
+                var room = TechnicalRoom.capturedShell(id: scanner.captureID, notes: "")
+                if let reference = scanner.referenceFrame { room.shellToRoom.value = reference; room.shellToRoom.method = "twoFloorCornersAndGravity" }
+                history = TechnicalAnnotationHistory(room: room)
                 frameDefined = true
                 message = "Enter the independently measured coordinates of a third checkpoint, then aim at it."
             } catch { message = "Choose two distinct floor corners more than 10 cm apart." }
@@ -283,6 +318,20 @@ struct TechnicalRoomScanView: View {
             message = "Enter valid coordinates and tolerance, and aim at a tracked surface."; return
         }
         scanner.verifyCheckpoint(observed: point, expected: .init(x: x, y: y, z: z), thresholdMm: tolerance)
+    }
+
+    private func crosshairHit() -> TechnicalSurfaceHit? {
+        guard let viewport else { return nil }
+        return scanner.surfaceHit(at: CGPoint(x: viewport.bounds.midX, y: viewport.bounds.midY), viewport: viewport)
+    }
+    private func movePoint(target: TechnicalAnnotationTarget, index: Int, screen: CGPoint) {
+        guard let viewport, let hit = scanner.surfaceHit(at: screen, viewport: viewport) else { message = "No tracked surface at the dropped point."; return }
+        let points = history.document.points(for: target)
+        do {
+            let point = try TechnicalPointEditing.adjust(hit.position.value, origin: index > 0 ? points[index - 1] : nil,
+                axis: pointAxis, gridMetres: pointGrid, snapPoints: points.enumerated().filter { $0.offset != index }.map(\.element))
+            try history.move(target: target, index: index, to: point, observation: hit, capture: scanner.state)
+        } catch { message = error.localizedDescription }
     }
 }
 

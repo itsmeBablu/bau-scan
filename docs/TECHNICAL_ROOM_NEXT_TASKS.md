@@ -59,6 +59,8 @@ Changed files for T2:
 
 ### 2. Finish T3 manual annotation foundation
 
+T3 implementation on `codex/technical-room-t3-annotations` adds a separate `TechnicalAnnotationDocument`, transactional bounded undo/redo, manual rectangular duct routes, fittings and ports, endpoint-to-port connections and warnings, measurements and length-only calibration, raw-preserving control-point overrides, camera point dragging, snapping/axis locks, equipment/property editing, photos and notes. Domain code remains Foundation-only and Technical Room v1 interchange is unchanged. The complete macOS scheme passed 179 tests and the focused iOS annotation/schema run passed 12 tests. AR dragging, raycasts and placement remain device-validation-pending. Disk persistence is the next T4 milestone.
+
 - Add manual duct routes with rectangular width/height and provenance.
 - Add fittings (elbow, tee, reducer, flange, valve) and host relationships.
 - Add equipment ports and pipe-to-port connections, including unconnected-end warnings.

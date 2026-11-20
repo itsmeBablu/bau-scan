@@ -4,12 +4,14 @@ import AVFoundation
 import Observation
 import RealityKit
 import simd
+import UIKit
 
 /// Dedicated technical capture. Never owns or runs a RoomCaptureSession.
 /// Device validation pending.
 @Observable
 @MainActor
 final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDelegate {
+    let captureID = UUID()
     let session = ARSession()
     private(set) var state = TechnicalCaptureState()
     private(set) var errorMessage: String?
@@ -39,6 +41,39 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     private var generation = 0
     private var pipeAnchors: [UUID: AnchorEntity] = [:]
     private var equipmentAnchors: [UUID: AnchorEntity] = [:]
+    private var auxiliaryAnchor: AnchorEntity?
+
+    func syncAnnotations(_ document: TechnicalAnnotationDocument, in viewport: ARView) {
+        guard state.canAnnotate, let referenceFrame else { return }
+        for anchor in pipeAnchors.values { anchor.removeFromParent() }; pipeAnchors.removeAll()
+        for anchor in equipmentAnchors.values { anchor.removeFromParent() }; equipmentAnchors.removeAll()
+        auxiliaryAnchor?.removeFromParent()
+        for pipe in document.effectiveRoom.pipeRuns { showPipe(pipe, in: viewport) }
+        for equipment in document.room.equipment { showEquipment(equipment, in: viewport) }
+        let root = AnchorEntity(world: .zero)
+        func world(_ point: TechnicalPoint3) -> SIMD3<Float> {
+            let p = TechnicalReferenceFrame.inverseApply(referenceFrame, to: point)
+            return SIMD3(Float(p.x), Float(p.y), Float(p.z))
+        }
+        func segment(_ start: TechnicalPoint3, _ end: TechnicalPoint3, width: Float, depth: Float, color: UIColor) {
+            let a = world(start), b = world(end), length = simd_distance(a, b)
+            guard length.isFinite, length > 0.0001 else { return }
+            let entity = ModelEntity(mesh: .generateBox(width: width, height: length, depth: depth), materials: [SimpleMaterial(color: color, isMetallic: false)])
+            entity.position = (a + b) / 2; entity.orientation = simd_quatf(from: SIMD3<Float>(0, 1, 0), to: (b - a) / length)
+            root.addChild(entity)
+        }
+        for duct in document.ducts {
+            let points = document.points(for: .duct(duct.id))
+            for (a, b) in zip(points, points.dropFirst()) { segment(a, b, width: Float(duct.width.value), depth: Float(duct.height.value), color: .systemGray) }
+        }
+        for measurement in document.measurements { segment(measurement.start.value, measurement.end.value, width: 0.004, depth: 0.004, color: .darkGray) }
+        for point in document.room.fittings.map({ $0.position.value }) + document.room.equipment.flatMap({ $0.ports.map { $0.position.value } }) {
+            let marker = ModelEntity(mesh: .generateSphere(radius: 0.025), materials: [SimpleMaterial(color: .systemBlue, isMetallic: false)])
+            marker.position = world(point); root.addChild(marker)
+        }
+        viewport.scene.addAnchor(root); auxiliaryAnchor = root
+        if !document.ducts.isEmpty || !document.measurements.isEmpty { lockReference() }
+    }
 
     func showEquipment(_ equipment: TechnicalEquipment, in viewport: ARView) {
         guard state.canAnnotate, let referenceFrame else { return }
@@ -235,6 +270,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
         pipeAnchors.removeAll()
         for anchor in equipmentAnchors.values { anchor.removeFromParent() }
         equipmentAnchors.removeAll()
+        auxiliaryAnchor?.removeFromParent(); auxiliaryAnchor = nil
     }
 
     func setReference(origin: TechnicalPoint3, xCorner: TechnicalPoint3) throws {
@@ -273,6 +309,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     private func updateAnnotationVisibility() {
         for anchor in pipeAnchors.values { anchor.isEnabled = state.canAnnotate }
         for anchor in equipmentAnchors.values { anchor.isEnabled = state.canAnnotate }
+        auxiliaryAnchor?.isEnabled = state.canAnnotate
     }
 
     private func record(_ kind: TechnicalCaptureJournal.Event.Kind, _ message: String) {
