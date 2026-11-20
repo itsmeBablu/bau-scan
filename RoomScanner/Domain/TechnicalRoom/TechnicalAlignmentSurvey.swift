@@ -38,6 +38,21 @@ struct TechnicalAlignmentSurvey: Codable, Equatable {
 
     mutating func lockReference() { if referenceFrame != nil { referenceLocked = true } }
 
+    func validate() throws {
+        guard let referenceFrame else {
+            guard origin == nil, xCorner == nil, !referenceLocked, checkpoints.isEmpty else { throw SurveyError.invalidCheckpoint }
+            return
+        }
+        guard let origin, let xCorner, try TechnicalReferenceFrame.transform(origin: origin, xCorner: xCorner) == referenceFrame else { throw SurveyError.invalidCheckpoint }
+        for checkpoint in checkpoints {
+            let transformed = TechnicalReferenceFrame.apply(referenceFrame, to: checkpoint.observedInSession)
+            guard [checkpoint.timestamp, checkpoint.thresholdMm, checkpoint.residualMm, checkpoint.expected.x, checkpoint.expected.y, checkpoint.expected.z].allSatisfy(\.isFinite),
+                  checkpoint.thresholdMm > 0, checkpoint.residualMm >= 0, abs(checkpoint.expected.z) > 0.1,
+                  transformed.distance(to: checkpoint.observedInRoom) < 1e-8,
+                  abs(transformed.distance(to: checkpoint.expected) * 1000 - checkpoint.residualMm) < 1e-6 else { throw SurveyError.invalidCheckpoint }
+        }
+    }
+
     @discardableResult mutating func check(observed: TechnicalPoint3, expected: TechnicalPoint3,
                                           thresholdMm: Double, timestamp: Double) throws -> Checkpoint {
         guard let referenceFrame else { throw SurveyError.missingReference }

@@ -85,6 +85,9 @@ struct TechnicalAnnotationHistory {
         guard Set(ids).count == ids.count else { throw EditError.duplicateID }
         func positive(_ value: Double) -> Bool { value.isFinite && value > 0 && value < 100_000 }
         func normal(_ value: TechnicalPoint3) -> Bool { TechnicalPointEditing.valid(value) && value.distance(to: .init(x: 0, y: 0, z: 0)) > 1e-9 }
+        func metres<T: Codable & Equatable>(_ value: TechnicalValue<T>) -> Bool {
+            value.unit == "m" && !value.method.isEmpty && (value.accuracyMm.map { $0.isFinite && $0 >= 0 } ?? true)
+        }
         for pipe in room.pipeRuns + doc.effectiveRoom.pipeRuns {
             guard positive(pipe.outerDiameterMm.value), (pipe.insulationThicknessMm?.value ?? 0).isFinite,
                   (pipe.insulationThicknessMm?.value ?? 0) >= 0, pipe.surfaceHits.count >= 2,
@@ -100,12 +103,14 @@ struct TechnicalAnnotationHistory {
                   item.rotation.value.isFinite, item.ports.allSatisfy({ TechnicalPointEditing.valid($0.position.value) && normal($0.direction.value) }) else { throw EditError.invalidGeometry }
         }
         for duct in doc.ducts {
-            guard positive(duct.width.value), positive(duct.height.value), duct.points.count >= 2,
+            guard positive(duct.width.value), positive(duct.height.value), metres(duct.width), metres(duct.height),
+                  duct.points.allSatisfy(metres), duct.points.count >= 2,
                   doc.points(for: .duct(duct.id)).allSatisfy(TechnicalPointEditing.valid) else { throw EditError.invalidGeometry }
         }
-        guard doc.measurements.allSatisfy({ TechnicalPointEditing.valid($0.start.value) && TechnicalPointEditing.valid($0.end.value) && positive($0.length) }) else { throw EditError.invalidGeometry }
+        guard doc.measurements.allSatisfy({ metres($0.start) && metres($0.end) && TechnicalPointEditing.valid($0.start.value) && TechnicalPointEditing.valid($0.end.value) && positive($0.length) }) else { throw EditError.invalidGeometry }
         if let value = doc.calibration {
             guard let measurement = doc.measurements.first(where: { $0.id == value.measurementID }),
+                  metres(value.referenceLength), metres(value.observedLength),
                   abs(measurement.length - value.observedLength.value) < 1e-9, positive(value.referenceLength.value),
                   positive(value.observedLength.value), positive(value.factor) else { throw EditError.invalidGeometry }
         }
@@ -118,7 +123,7 @@ struct TechnicalAnnotationHistory {
         var editedPoints: Set<String> = []
         for edit in doc.pointOverrides {
             let count = room.pipeRuns.first { $0.id == edit.objectID }?.surfaceHits.count ?? doc.ducts.first { $0.id == edit.objectID }?.points.count ?? 0
-            guard edit.pointIndex >= 0, edit.pointIndex < count, TechnicalPointEditing.valid(edit.position.value) else { throw EditError.invalidGeometry }
+            guard edit.pointIndex >= 0, edit.pointIndex < count, metres(edit.position), TechnicalPointEditing.valid(edit.position.value) else { throw EditError.invalidGeometry }
             guard editedPoints.insert("\(edit.objectID)/\(edit.pointIndex)").inserted else { throw EditError.duplicateID }
             if let observation = edit.observation {
                 guard TechnicalPointEditing.valid(observation.position.value), normal(observation.normal.value) else { throw EditError.invalidGeometry }

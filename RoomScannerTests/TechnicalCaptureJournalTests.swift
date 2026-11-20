@@ -40,6 +40,13 @@ final class TechnicalCaptureJournalTests: XCTestCase {
         XCTAssertEqual(journal.meshes.count, 1)
         XCTAssertEqual(journal.droppedSnapshots, 1)
     }
+    func testSnapshotEvictionUsesCaptureOrderAfterSessionTimeOriginChanges() {
+        var journal = TechnicalCaptureJournal(snapshotBudget: 530)
+        journal.append(mesh(1000)); journal.append(depth(10)); journal.append(mesh(11))
+        XCTAssertEqual(journal.depths.map(\.timestamp), [10])
+        XCTAssertEqual(journal.meshes.map(\.timestamp), [11])
+        XCTAssertEqual(journal.droppedSnapshots, 1)
+    }
     func testFrameAndEventLimitsAreExplicit() {
         var journal = TechnicalCaptureJournal(frameCapacity: 1, eventCapacity: 1)
         for timestamp in [1.0, 2.0] {

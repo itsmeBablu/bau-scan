@@ -84,4 +84,13 @@ final class TechnicalAnnotationTests: XCTestCase {
         XCTAssertEqual(snapped, origin)
         XCTAssertThrowsError(try TechnicalPointEditing.adjust(.init(x: .infinity, y: 0, z: 0), origin: nil, axis: .free, gridMetres: 0, snapPoints: []))
     }
+    func testSidecarDimensionsCannotSilentlyUseMillimetresAsMetres() throws {
+        var history = try history()
+        let points = history.room.pipeRuns[0].surfaceHits.map(\.position)
+        let original = history.document
+        XCTAssertThrowsError(try history.edit(capture: capture) {
+            $0.ducts.append(.init(id: UUID(), width: value(200, "mm"), height: value(0.2), points: points))
+        })
+        XCTAssertEqual(history.document, original)
+    }
 }
