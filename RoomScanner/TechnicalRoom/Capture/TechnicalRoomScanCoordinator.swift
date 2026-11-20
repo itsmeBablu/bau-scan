@@ -17,6 +17,10 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
     private(set) var lastTimestamp: TimeInterval?
     private(set) var referenceFrame: TechnicalTransform?
     private(set) var fps = 0.0
+    private(set) var recoveryAvailable = false
+    private(set) var recovering = false
+    private(set) var worldMapData: Data?
+    private var worldMap: ARWorldMap?
     private var previousTimestamp: TimeInterval?
     private var active = false
     private var generation = 0
@@ -42,6 +46,28 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
 
     func interrupt() { guard active else { return }; state.interrupt(); session.pause() }
 
+    func saveRecoveryMap() {
+        guard active, state.trackingNormal else { return }
+        let requestGeneration = generation
+        session.getCurrentWorldMap { [weak self] map, error in
+            Task { @MainActor in
+                guard let self, self.active, self.generation == requestGeneration else { return }
+                guard let map else { self.errorMessage = error?.localizedDescription ?? "World map unavailable"; return }
+                do {
+                    self.worldMapData = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true)
+                    self.worldMap = map
+                    self.recoveryAvailable = true
+                } catch { self.errorMessage = error.localizedDescription }
+            }
+        }
+    }
+
+    func resume() {
+        guard active, let worldMap else { errorMessage = "Save a recovery map before an interruption."; return }
+        recovering = true
+        run(recoveryMap: worldMap)
+    }
+
     func hit(at point: CGPoint, viewport: ARView) -> TechnicalPoint3? {
         guard active, state.trackingNormal,
               let query = viewport.makeRaycastQuery(from: point, allowing: .estimatedPlane, alignment: .any),
@@ -50,7 +76,7 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
         return .init(x: Double(p.x), y: Double(p.y), z: Double(p.z))
     }
 
-    private func run() {
+    private func run(recoveryMap: ARWorldMap? = nil) {
         guard ARWorldTrackingConfiguration.isSupported else { errorMessage = "World tracking unavailable"; return }
         let configuration = ARWorldTrackingConfiguration()
         if ARWorldTrackingConfiguration.supportsSceneReconstruction(.meshWithClassification) {
@@ -61,9 +87,12 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) { configuration.frameSemantics.insert(.sceneDepth) }
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.smoothedSceneDepth) { configuration.frameSemantics.insert(.smoothedSceneDepth) }
         configuration.planeDetection = [.horizontal, .vertical]
+        configuration.initialWorldMap = recoveryMap
         active = true
         state.start()
-        session.run(configuration)
+        previousTimestamp = nil
+        if recoveryMap != nil { session.run(configuration, options: [.resetTracking, .removeExistingAnchors]) }
+        else { session.run(configuration) }
     }
 
     func stop() {
@@ -83,6 +112,7 @@ final class TechnicalRoomScanCoordinator: NSObject, ARSessionDelegate {
         guard let referenceFrame else { return }
         let transformed = TechnicalReferenceFrame.apply(referenceFrame, to: observed)
         state.verify(residualMm: transformed.distance(to: expected) * 1000, thresholdMm: thresholdMm)
+        if state.canAnnotate { recovering = false }
     }
 
     func session(_ session: ARSession, didUpdate frame: ARFrame) {

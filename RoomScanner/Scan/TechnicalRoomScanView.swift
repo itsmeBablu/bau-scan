@@ -26,6 +26,13 @@ struct TechnicalRoomScanView: View {
                 Text(message).font(.callout)
                 Text("Device validation pending · Unsaved capture preview").font(.caption).foregroundStyle(.secondary)
                 HStack {
+                    Button("Save recovery map") { scanner.saveRecoveryMap() }
+                        .disabled(!scanner.state.trackingNormal)
+                    Button("Resume from map") { scanner.resume() }
+                        .disabled(!scanner.recoveryAvailable)
+                }
+                if scanner.recovering { Text("Relocalising — checkpoint verification required").font(.caption) }
+                HStack {
                     Text("FPS \(scanner.fps, specifier: "%.0f")")
                     Text("Mesh anchors \(scanner.meshAnchorCount)")
                     Text(scanner.state.phase.rawValue)
@@ -61,7 +68,7 @@ struct TechnicalRoomScanView: View {
         .onDisappear { scanner.stop() }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { scanner.interrupt() }
-            // A new preview is required after backgrounding until world-map recovery is implemented.
+            // Resumption is explicit and always invalidates the alignment checkpoint.
         }
     }
 
@@ -92,20 +99,39 @@ struct TechnicalRoomScanView: View {
     }
 }
 
-private struct TechnicalCaptureCamera: UIViewRepresentable {
+private struct TechnicalCaptureCamera: UIViewControllerRepresentable {
     let scanner: TechnicalRoomScanCoordinator
     @Binding var viewport: ARView?
 
-    func makeUIView(context: Context) -> ARView {
-        let view = ARView(frame: .zero, cameraMode: .ar, automaticallyConfigureSession: false)
-        view.session = scanner.session
-        view.debugOptions.insert(.showSceneUnderstanding)
-        DispatchQueue.main.async {
-            viewport = view
-            scanner.start()
-        }
-        return view
+    func makeUIViewController(context: Context) -> TechnicalCameraHost {
+        let host = TechnicalCameraHost(scanner: scanner)
+        DispatchQueue.main.async { viewport = host.camera }
+        return host
     }
-    func updateUIView(_ view: ARView, context: Context) {}
+    func updateUIViewController(_ controller: TechnicalCameraHost, context: Context) {}
+    static func dismantleUIViewController(_ controller: TechnicalCameraHost, coordinator: ()) {
+        controller.scanner.stop()
+    }
+}
+
+private final class TechnicalCameraHost: UIViewController {
+    let scanner: TechnicalRoomScanCoordinator
+    let camera = ARView(frame: .zero, cameraMode: .ar, automaticallyConfigureSession: false)
+    init(scanner: TechnicalRoomScanCoordinator) {
+        self.scanner = scanner
+        super.init(nibName: nil, bundle: nil)
+        camera.session = scanner.session
+        camera.debugOptions.insert(.showSceneUnderstanding)
+    }
+    required init?(coder: NSCoder) { nil }
+    override func loadView() { view = camera }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        scanner.start()
+    }
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        scanner.stop()
+    }
 }
 #endif

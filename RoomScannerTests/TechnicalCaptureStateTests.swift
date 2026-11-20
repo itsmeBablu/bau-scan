@@ -2,6 +2,21 @@ import XCTest
 @testable import RoomScanner
 
 final class TechnicalCaptureStateTests: XCTestCase {
+    func testTrackingRecoveryAloneDoesNotRestoreAnnotationPermission() {
+        var state = TechnicalCaptureState()
+        state.start()
+        state.tracking(normal: true)
+        state.verify(residualMm: 10, thresholdMm: 30)
+        XCTAssertTrue(state.canAnnotate)
+        state.interrupt()
+        state.tracking(normal: true)
+        XCTAssertFalse(state.canAnnotate)
+        XCTAssertNil(state.checkpointResidualMm)
+        state.verify(residualMm: 40, thresholdMm: 30)
+        XCTAssertFalse(state.canAnnotate)
+        state.verify(residualMm: 15, thresholdMm: 30)
+        XCTAssertTrue(state.canAnnotate)
+    }
     func testLateCallbacksCannotReviveStoppedCapture() {
         var state = TechnicalCaptureState()
         state.start()
