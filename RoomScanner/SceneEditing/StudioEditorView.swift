@@ -37,12 +37,16 @@ struct StudioEditorView: View {
     @State private var moving = false
     @State private var snapping = true
     @State private var allowOverlap = false
-    @State private var cutaway = true
+    @State private var cutaway = false
     @State private var showPlan = false
     @State private var reset = 0
     @State private var story: Int
-    @State private var showInspector = true
+    @State private var showInspector = false
     @State private var showAppearance = false
+    @State private var showModelLibrary = false
+    @State private var landscape = false
+    @State private var canvasWidth: CGFloat = 393
+    @State private var modelSearch = ""
     @State private var error: String?
     @State private var status = ""
     @State private var busy = false
@@ -61,72 +65,32 @@ struct StudioEditorView: View {
         _story = State(initialValue: document.shell.stories.first?.index ?? 0)
     }
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Picker("Interaction",selection: $moving) { Text("Orbit").tag(false); Text("Move objects").tag(true) }.pickerStyle(.segmented).labelsHidden().frame(maxWidth: 260)
-                Spacer()
-                Button { showPlan.toggle() } label: { Label(showPlan ? "3D" : "2D",systemImage: showPlan ? "cube" : "square") }
-                Button { reset += 1 } label: { Label("Reset camera",systemImage: "scope") }.labelStyle(.iconOnly)
-                Button { showInspector.toggle() } label: { Label("Objects",systemImage: "slider.horizontal.3") }.labelStyle(.iconOnly)
-            }.padding(10)
-            if session.document.shell.stories.count > 1 {
-                Picker("Floor",selection: $story) {
-                    ForEach(session.document.shell.stories,id: \.index) { Text(StoryNaming.localizedName(for: $0.index)).tag($0.index) }
-                }.padding(.horizontal)
-            }
-            if showPlan { Plan2DView(house: House(id: session.document.shell.id,name: session.document.title,stories: session.document.plan.stories.filter { $0.index == story })) }
-            else {
-                StudioViewport(controller: controller,document: session.document,story: story,cutaway: cutaway,selected: session.selectedID,moving: moving,reset: reset)
-                    .frame(minHeight: 200,maxHeight: .infinity)
-            }
-            if showInspector {
-                inspector.frame(maxHeight: 270)
-            }
-            HStack {
-                Text(busy ? "Working…" : status.isEmpty ? moving ? "Drag an object to move it. Changes are design edits." : "Tap furniture to select · drag to orbit · pinch to zoom" : status)
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                Spacer()
-                Text(session.dirty || !hasSaved ? "Unsaved design" : "Design saved").font(.caption).foregroundStyle(.secondary)
-            }.padding(10)
-        }
+        editorLayout
         .disabled(busy).allowsHitTesting(!busy)
         .navigationTitle(session.document.source == .technical ? "Technik Studio" : "House Studio")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden,for: .navigationBar)
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { size in landscape = size.width > size.height; canvasWidth = size.width }
+        .sheet(isPresented: Binding(get: { showInspector && !landscape },set: { if !landscape { showInspector = $0 } })) {
+            NavigationStack {
+                inspector.navigationTitle("Object properties")
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showInspector = false } } }
+            }
+            .sheet(item: $equipmentEditor) { item in equipmentSheet(item) }
+            .presentationDetents([.medium,.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+        }
         #else
         .frame(minWidth: 760,minHeight: 650)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) { closeButton }
+            ToolbarItem(placement: .automatic) { undoButton }
+            ToolbarItem(placement: .automatic) { designOptions }
+            ToolbarItem(placement: .confirmationAction) { saveButton }
+        }
         #endif
         .tint(.blue)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Close") { if session.dirty { confirmClose = true } else { dismiss() } }.disabled(busy)
-            }
-            ToolbarItem(placement: .automatic) {
-                Button { session.undo() } label: { Label("Undo",systemImage: "arrow.uturn.backward") }.disabled(session.undoStack.isEmpty || busy)
-            }
-            ToolbarItem(placement: .automatic) {
-                Menu {
-                    Button("Redo") { session.redo() }.disabled(session.redoStack.isEmpty)
-                    Button("Appearance") { showAppearance = true }
-                    Toggle("Cutaway walls",isOn: $cutaway)
-                    Toggle("Snap · 5 cm grid and walls",isOn: $snapping)
-                    Toggle("Allow overlaps · intentional connections",isOn: $allowOverlap)
-                    Button("Check current floor overlaps") { checkOverlaps() }
-                    Divider()
-                    Menu("Add model") {
-                        ForEach(SceneFurniture.allCases) { family in Button(family.title) { add(family) } }
-                    }.disabled(session.document.objects.count >= 500)
-                    Button("Import design project…") { importing = true }
-                    Menu("Export edited design") {
-                        Button("PNG image · current view") { image() }.disabled(showPlan)
-                        ForEach(StudioExporter.Format.allCases,id: \.self) { format in Button(format == .project ? "Editable project · JSON" : format == .obj ? "OBJ + materials · current floor · ZIP" : format == .usdz ? "USDZ · current floor" : format.rawValue.uppercased()) { export(format) } }
-                    }
-                } label: { Label("Design options",systemImage: "ellipsis.circle") }.disabled(busy)
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { save() }.disabled(busy || (!session.dirty && hasSaved))
-            }
-        }
         .onAppear {
             hasSaved = FileManager.default.fileExists(atPath: storageURL.path)
             controller.onSelect = { session.selectedID = $0 }
@@ -148,16 +112,194 @@ struct StudioEditorView: View {
             Button("Discard unsaved edits",role: .destructive) { dismiss() }
         }
         .sheet(isPresented: $showAppearance) { appearance }
-        .sheet(item: $equipmentEditor) { item in
-            StudioTechnicalDataView(data: item.technicalData ?? .init()) { data in
-                var updated = item; updated.technicalData = data; try session.update(updated)
-            }
-        }
+        .sheet(isPresented: $showModelLibrary) { modelLibrary }
+        #if os(macOS)
+        .sheet(item: $equipmentEditor) { item in equipmentSheet(item) }
+        #endif
         .alert("Studio",isPresented: Binding(get: { error != nil },set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
         .fileExporter(isPresented: $exporting,document: exportFile,contentType: exportType,defaultFilename: exportName) { result in
             if case .failure(let failure) = result { error = failure.localizedDescription }
         }
         .fileImporter(isPresented: $importing,allowedContentTypes: [.json]) { result in importProject(result) }
+    }
+
+    @ViewBuilder private var editorLayout: some View {
+        #if os(iOS)
+        ZStack {
+            viewport.ignoresSafeArea()
+            VStack(spacing: 0) {
+                phoneHeader.padding(.horizontal,16).padding(.top,8)
+                Spacer(minLength: 12)
+                if !landscape {
+                    VStack(spacing: 10) {
+                        selectionHUD
+                        if busy { ProgressView("Working…").padding(10).background(.regularMaterial,in: Capsule()) }
+                        else if !status.isEmpty { Text(status).font(.caption).padding(10).background(.regularMaterial,in: Capsule()) }
+                        phoneInteraction
+                        HStack(spacing: 0) { phoneDockActions }.padding(.horizontal,8).padding(.vertical,6).background(.regularMaterial,in: Capsule())
+                    }.padding(.horizontal,16).padding(.bottom,8)
+                }
+            }
+            if landscape {
+                HStack(alignment: .bottom,spacing: 12) {
+                    VStack(spacing: 0) { phoneDockActions }.padding(6).frame(width: 92).background(.regularMaterial,in: Capsule())
+                    VStack(spacing: 10) {
+                        Spacer()
+                        if busy { ProgressView("Working…").padding(8).background(.regularMaterial,in: Capsule()) }
+                        phoneInteraction
+                    }.frame(maxWidth: .infinity)
+                    if showInspector {
+                        NavigationStack {
+                            inspector.navigationTitle("Object properties")
+                                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showInspector = false } } }
+                        }.frame(width: min(310,canvasWidth*0.38)).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 24)).clipShape(RoundedRectangle(cornerRadius: 24))
+                            .sheet(item: $equipmentEditor) { item in equipmentSheet(item) }
+                    }
+                }.padding(.horizontal,16).padding(.top,76).padding(.bottom,8)
+            }
+        }
+            .foregroundStyle(.primary)
+        #else
+        VStack(spacing: 0) {
+            HStack {
+                Picker("Interaction",selection: $moving) { Text("Orbit").tag(false); Text("Move objects").tag(true) }.pickerStyle(.segmented).labelsHidden().frame(maxWidth: 260)
+                Spacer()
+                Button { showPlan.toggle() } label: { Label(showPlan ? "3D" : "2D",systemImage: showPlan ? "cube" : "square") }
+                Button { reset += 1 } label: { Label("Reset camera",systemImage: "scope") }.labelStyle(.iconOnly)
+                Button { showInspector.toggle() } label: { Label("Objects",systemImage: "slider.horizontal.3") }.labelStyle(.iconOnly)
+            }.padding(10)
+            if session.document.shell.stories.count > 1 {
+                Picker("Floor",selection: $story) {
+                    ForEach(session.document.shell.stories,id: \.index) { Text(StoryNaming.localizedName(for: $0.index)).tag($0.index) }
+                }.padding(.horizontal)
+            }
+            viewport
+            if showInspector {
+                inspector.frame(maxHeight: 270)
+            }
+            HStack {
+                Text(busy ? "Working…" : status.isEmpty ? moving ? "Drag an object to move it. Changes are design edits." : "Tap furniture to select · drag to orbit · pinch to zoom" : status)
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                Spacer()
+                Text(session.dirty || !hasSaved ? "Unsaved design" : "Design saved").font(.caption).foregroundStyle(.secondary)
+            }.padding(10)
+        }
+        #endif
+    }
+    private var phoneHeader: some View {
+        HStack(spacing: 12) {
+            Button { requestClose() } label: { Image(systemName: "xmark").frame(width: 44,height: 44) }
+                .accessibilityLabel("Close Studio").background(.regularMaterial,in: Circle())
+            VStack(alignment: .leading,spacing: 2) {
+                Text(session.document.source == .technical ? "Technik Studio" : "House Studio").font(.headline)
+                Text(session.dirty || !hasSaved ? "Unsaved design" : "Design saved").font(.caption).foregroundStyle(.secondary)
+            }.padding(.horizontal,14).padding(.vertical,8).background(.regularMaterial,in: Capsule())
+            Spacer(minLength: 0)
+            saveButton.buttonStyle(.borderedProminent).buttonBorderShape(.capsule).foregroundStyle(.white)
+        }
+    }
+    @ViewBuilder private var selectionHUD: some View {
+        if let item = session.selected {
+            HStack {
+                VStack(alignment: .leading,spacing: 3) {
+                    Text(item.name).font(.subheadline.bold())
+                    Text("\(item.size.x,specifier: "%.2f") × \(item.size.y,specifier: "%.2f") × \(item.size.z,specifier: "%.2f") m").font(.caption).monospacedDigit()
+                }
+                Spacer()
+                Button("Edit") { showInspector = true }.buttonStyle(.bordered)
+            }.padding(14).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 20))
+        }
+    }
+    private var phoneInteraction: some View {
+        HStack(spacing: 10) {
+            undoButton.labelStyle(.iconOnly).frame(width: 44,height: 44)
+            Picker("Interaction",selection: $moving) { Text("Orbit").tag(false); Text("Move").tag(true) }
+                .pickerStyle(.segmented).labelsHidden().frame(width: landscape && showInspector ? 120 : 180)
+            Button { reset += 1 } label: { Image(systemName: "scope").frame(width: 44,height: 44) }.accessibilityLabel("Reset camera")
+        }.padding(4).background(.regularMaterial,in: Capsule())
+    }
+    @ViewBuilder private var phoneDockActions: some View {
+        Button { showModelLibrary = true } label: { dockLabel("Models",icon: "sofa.fill") }
+        Button { showInspector.toggle() } label: { dockLabel("Edit",icon: "slider.horizontal.3") }
+        Button { showAppearance = true } label: { dockLabel("Appearance",icon: "paintpalette") }
+        Menu { designActions } label: { dockLabel("More",icon: "ellipsis") }
+    }
+    @ViewBuilder private var viewport: some View {
+        if showPlan { Plan2DView(house: House(id: session.document.shell.id,name: session.document.title,stories: session.document.plan.stories.filter { $0.index == story })) }
+        else {
+            StudioViewport(controller: controller,document: session.document,story: story,cutaway: cutaway,selected: session.selectedID,moving: moving,reset: reset)
+                .frame(maxWidth: .infinity,minHeight: 200,maxHeight: .infinity)
+        }
+    }
+    private var closeButton: some View { Button("Close") { requestClose() }.disabled(busy) }
+    private func equipmentSheet(_ item: SceneEditObject) -> some View {
+        StudioTechnicalDataView(data: item.technicalData ?? .init()) { data in
+            var updated = item; updated.technicalData = data; try session.update(updated)
+        }
+    }
+    private func requestClose() { if session.dirty { confirmClose = true } else { dismiss() } }
+    private var saveButton: some View { Button("Save") { save() }.disabled(busy || (!session.dirty && hasSaved)) }
+    private var undoButton: some View { Button { session.undo() } label: { Label("Undo",systemImage: "arrow.uturn.backward") }.disabled(session.undoStack.isEmpty || busy) }
+    private var catalogue: [SceneFurniture] {
+        if session.document.source == .technical { return [.pipe,.roundDuct,.rectangularDuct,.boiler,.tank,.radiator,.pump,.manifold,.electricalPanel,.box,.cylinder] }
+        return [.sofa,.bed,.chair,.table,.television,.cabinet,.refrigerator,.stove,.sink,.toilet,.bathtub,.shower,.washer,.radiator,.box,.cylinder]
+    }
+    private var modelMenu: some View { ForEach(catalogue) { family in Button(family.title) { add(family) } }.disabled(session.document.objects.count >= 500) }
+    private var designOptions: some View {
+        Menu { designActions } label: { Label("Design options",systemImage: "ellipsis.circle") }.disabled(busy)
+    }
+    @ViewBuilder private var designActions: some View {
+                    undoButton
+                    Button("Redo") { session.redo() }.disabled(session.redoStack.isEmpty)
+                    Button(showPlan ? "Show 3D" : "Show 2D plan") { showPlan.toggle() }
+                    Button("Reset camera") { reset += 1 }
+                    if session.document.shell.stories.count > 1 {
+                        Picker("Floor",selection: $story) { ForEach(session.document.shell.stories,id: \.index) { Text(StoryNaming.localizedName(for: $0.index)).tag($0.index) } }
+                    }
+                    Button("Appearance") { showAppearance = true }
+                    Toggle("Cutaway view · hide front walls",isOn: $cutaway)
+                    Toggle("Snap · 5 cm grid and walls",isOn: $snapping)
+                    Toggle("Allow overlaps · intentional connections",isOn: $allowOverlap)
+                    Button("Check current floor overlaps") { checkOverlaps() }
+                    Divider()
+                    Menu("Add model") { modelMenu }
+                    Button("Import design project…") { importing = true }
+                    Menu("Export edited design") {
+                        Button("PNG image · current view") { image() }.disabled(showPlan)
+                        ForEach(StudioExporter.Format.allCases,id: \.self) { format in Button(format == .project ? "Editable project · JSON" : format == .obj ? "OBJ + materials · current floor · ZIP" : format == .usdz ? "USDZ · current floor" : format.rawValue.uppercased()) { export(format) } }
+                    }
+    }
+    private func dockLabel(_ title: String,icon: String) -> some View {
+        VStack(spacing: 5) {
+            Image(systemName: icon).font(.system(size: 21,weight: .medium))
+            Text(title).font(.caption2.weight(.medium)).lineLimit(1)
+        }.frame(maxWidth: .infinity,minHeight: 48).contentShape(Rectangle())
+    }
+    private var modelLibrary: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 130),spacing: 12)],spacing: 12) {
+                    ForEach(catalogue.filter { modelSearch.isEmpty || $0.title.localizedCaseInsensitiveContains(modelSearch) }) { family in
+                        Button { add(family) } label: {
+                            VStack(spacing: 10) {
+                                Image(systemName: family.symbol).font(.title2)
+                                Text(family.title).font(.subheadline.weight(.semibold))
+                                Text("\(family.defaultSize.x,specifier: "%.2f") × \(family.defaultSize.y,specifier: "%.2f") × \(family.defaultSize.z,specifier: "%.2f") m").font(.caption2).foregroundStyle(.secondary)
+                            }.frame(maxWidth: .infinity,minHeight: 100).padding(8)
+                                .background(.quaternary,in: RoundedRectangle(cornerRadius: 18))
+                        }.buttonStyle(.plain).disabled(session.document.objects.count >= 500)
+                    }
+                }.padding()
+            }
+            .searchable(text: $modelSearch,prompt: "Find a model")
+            .navigationTitle(session.document.source == .technical ? "MEP models" : "Furniture")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showModelLibrary = false } } }
+        }
+        #if os(iOS)
+        .presentationDetents([.medium,.large]).presentationDragIndicator(.visible)
+        #else
+        .frame(minWidth: 500,minHeight: 500)
+        #endif
     }
     private var inspector: some View {
         Form {
@@ -167,8 +309,11 @@ struct StudioEditorView: View {
                     ForEach(session.document.objects.filter { $0.story == story }) { Text($0.name).tag(Optional($0.id)) }
                 }
                 if let item = session.selected {
-                    StudioObjectFields(item: item) { updated in perform { try update(updated) } }
+                    StudioObjectFields(item: item,catalogue: catalogue,replace: { family in replace(item,with: family) }) { updated in perform { try update(updated) } }
                         .id(item.id)
+                    if session.document.source != .technical {
+                        Button("Use furniture default size") { replace(item,with: item.family) }
+                    }
                     if session.document.source == .technical {
                         Button("Equipment data · German references") { equipmentEditor = item }
                     }
@@ -219,6 +364,8 @@ struct StudioEditorView: View {
         }
         #if os(macOS)
         .frame(minWidth: 450,minHeight: 400)
+        #else
+        .presentationDetents([.medium,.large]).presentationDragIndicator(.visible)
         #endif
     }
     private func colorBinding(wall: Bool) -> Binding<Color> {
@@ -235,12 +382,21 @@ struct StudioEditorView: View {
         }
         try session.update(item)
     }
+    private func replace(_ item: SceneEditObject,with family: SceneFurniture) {
+        perform {
+            var next = item; next.replaceFamily(family,preserveMeasurements: session.document.source == .technical)
+            next = try StudioPlacement.available(next,in: session.document,allowOverlap: allowOverlap)
+            try session.update(next)
+            status = session.document.source == .technical ? "Element type changed. Survey dimensions and orientation are preserved." : "Using default \(family.title.lowercased()) dimensions. Fit scanned size restores the scan envelope."
+        }
+    }
     private func add(_ family: SceneFurniture) {
         let bounds = session.document.shell.bounds,size = family.defaultSize
         let item = SceneEditObject(origin: "User-added design model; not scan evidence",name: family.title,family: family,position: .init(x: bounds.isEmpty ? 0 : bounds.center.x,y: size.y/2,z: bounds.isEmpty ? 0 : -bounds.center.y),size: size,story: story)
         perform {
             let placed = try StudioPlacement.available(item,in: session.document,allowOverlap: allowOverlap)
             try session.change { $0.objects.append(placed) }; session.selectedID = placed.id
+            showModelLibrary = false
         }
     }
     private func duplicate(_ item: SceneEditObject) {
@@ -297,14 +453,12 @@ struct StudioEditorView: View {
 
 private struct StudioObjectFields: View {
     let item: SceneEditObject
+    let catalogue: [SceneFurniture]
+    let replace: (SceneFurniture) -> Void
     let update: (SceneEditObject) -> Void
     var body: some View {
         TextField("Name",text: field(\.name))
-        Picker("Model",selection: Binding(get: { item.family },set: { family in
-            var next = item; next.family = family
-            if ![SceneFurniture.pipe,.roundDuct,.rectangularDuct,.cylinder,.box].contains(family) { next.axis = nil; next.crossAxis = nil }
-            update(next)
-        })) { ForEach(SceneFurniture.allCases) { Text($0.title).tag($0) } }
+        Picker("Model",selection: Binding(get: { item.family },set: replace)) { ForEach(catalogue.contains(item.family) ? catalogue : catalogue+[item.family]) { Text($0.title).tag($0) } }
         HStack { number("X (m)",\.position.x); number("Y (m)",\.position.y); number("Z (m)",\.position.z) }
         HStack { number("Width (m)",\.size.x); number("Height / length (m)",\.size.y); number("Depth (m)",\.size.z) }
         TextField("Rotation (degrees)",value: Binding(get: { item.yaw*180 / .pi },set: { var next = item; next.yaw = $0 * .pi/180; update(next) }),format: .number)

@@ -26,12 +26,15 @@ struct SettingsView: View {
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("common.close") { dismiss() } } }
         }
         #else
-        form.frame(width: 480).frame(minHeight: 420)
+        NavigationStack { form }.frame(width: 480).frame(minHeight: 420)
         #endif
     }
 
     private var form: some View {
         Form {
+            Section("Accounts") {
+                NavigationLink { GoogleAccountSettingsView() } label: { Label("Google account & AI",systemImage: "person.crop.circle") }
+            }
             Section {
                 #if !ROOMSCANNER_LOCAL_ONLY
                 Toggle("settings.icloud.toggle", isOn: $useICloud)

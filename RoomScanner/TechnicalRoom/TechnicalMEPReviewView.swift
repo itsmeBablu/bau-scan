@@ -38,13 +38,9 @@ struct TechnicalMEPReviewView: View {
             Section("Google AI mode") {
                 Toggle("Google AI mode",isOn: $aiEnabled)
                 if aiEnabled {
-                TechnicalGoogleAIConnection()
+                TechnicalGoogleAIStatus()
                 Text("Select up to five viewpoints for Gemini recognition. Nothing is sent automatically. If free quota is unavailable, local detection still works.")
                     .font(.caption).foregroundStyle(.secondary)
-                DisclosureGroup("Connection settings") {
-                    TextField("HTTPS Google AI service URL",text: $endpoint).autocorrectionDisabled()
-                    Text("The Gemini key stays on your backend. Google sign-in supplies the user ID token.").font(.caption)
-                }
                 if package.evidence.keyframes.isEmpty {
                     Text("This survey has no calibrated camera images. Make a new scan for AI image recognition; local mesh detection can still be used.")
                         .font(.callout)

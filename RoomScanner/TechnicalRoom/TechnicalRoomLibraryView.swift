@@ -187,7 +187,7 @@ private struct TechnicalStoredRoomView: View {
         .task {
             do { package = try await library.read(id) } catch { self.error = error.localizedDescription }
         }
-        .sheet(item: $studioDocument) { document in
+        .studioPresentation(item: $studioDocument) { document in
             NavigationStack { StudioProjectView(seed: document,storageRoot: library.root.deletingLastPathComponent()) }
         }
         .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .technicalRoom,

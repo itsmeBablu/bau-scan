@@ -1,6 +1,10 @@
 import XCTest
 import SceneKit
 import ModelIO
+#if os(iOS)
+import SwiftUI
+import UIKit
+#endif
 @testable import RoomScanner
 
 final class SceneStudioTests: XCTestCase {
@@ -112,8 +116,54 @@ final class SceneStudioTests: XCTestCase {
         let large = StudioSceneBuilder.model(wide)
         XCTAssertGreaterThan(large.childNodes.count,small.childNodes.count,"Wider sofa adds cushions")
         XCTAssertEqual(wide.scanReference?.size.x,original.size.x)
-        wide.family = .bed
-        XCTAssertEqual(wide.size.x,3.5,"Style replacement retains chosen dimensions")
+        wide.replaceFamily(.bed)
+        XCTAssertEqual(wide.size,SceneFurniture.bed.defaultSize,"Replacement uses the new model defaults")
+        XCTAssertEqual(wide.scanReference?.size,original.size)
+    }
+    func testBedToSofaResetsDimensionsAndKeepsOriginalScanReference() {
+        var item = seed().objects[0]
+        let reference = item.scanReference
+        item.replaceFamily(.bed)
+        XCTAssertEqual(item.name,"Bed")
+        XCTAssertEqual(item.size.z,2)
+        item.replaceFamily(.sofa)
+        XCTAssertEqual(item.name,"Sofa")
+        XCTAssertEqual(item.size,SceneFurniture.sofa.defaultSize)
+        XCTAssertEqual(item.position.y,item.size.y/2,accuracy: 0.0001)
+        XCTAssertEqual(item.scanReference,reference)
+    }
+    func testTechnicalReclassificationPreservesRouteMeasurements() {
+        var item = SceneEditObject(origin: "Survey",name: "Pipe",family: .pipe,position: .init(x: 1,y: 2,z: 3),size: .init(x: 0.12,y: 2.4,z: 0.12),axis: .init(x: 1,y: 0,z: 0))
+        let original = item
+        item.replaceFamily(.roundDuct,preserveMeasurements: true)
+        XCTAssertEqual(item.size,original.size)
+        XCTAssertEqual(item.position,original.position)
+        XCTAssertEqual(item.axis,original.axis)
+    }
+    func testPortraitCameraFramesWholeRoomRatherThanClippingSideWalls() {
+        let portrait = StudioCameraFraming.distance(width: 8,height: 2.8,depth: 5,aspect: 393.0/852)
+        let landscape = StudioCameraFraming.distance(width: 8,height: 2.8,depth: 5,aspect: 852.0/393)
+        XCTAssertGreaterThan(portrait,landscape)
+        let radius = sqrt(8*8+2.8*2.8+5*5)/2
+        let projectedHalfAngle = asin(radius/portrait)
+        XCTAssertLessThan(projectedHalfAngle,atan(tan(21 * .pi/180)*393/852))
+    }
+    @MainActor func testReturningFrom2DReattachesSceneToNewViewport() {
+        let document = seed(),controller = StudioSceneController()
+        let first = SCNView(frame: CGRect(x: 0,y: 0,width: 393,height: 852))
+        controller.view = first; controller.configure(document,story: 0,cutaway: false,selected: nil,moving: false,reset: 0)
+        XCTAssertNotNil(first.scene)
+        let replacement = SCNView(frame: CGRect(x: 0,y: 0,width: 393,height: 852))
+        controller.view = replacement; controller.configure(document,story: 0,cutaway: false,selected: nil,moving: false,reset: 0)
+        XCTAssertNotNil(replacement.scene)
+        XCTAssertTrue(replacement.scene?.rootNode.childNodes.contains { $0.name?.hasPrefix("object:") == true } == true)
+    }
+    @MainActor func testFullWallViewIncludesEveryScannedWallWithoutChangingShell() {
+        let document = seed(),original = document.shell
+        let full = StudioSceneBuilder.scene(document,story: document.shell.stories[0].index,cutaway: false)
+        let expected = document.shell.stories[0].rooms.reduce(0) { $0+$1.walls.filter { $0.length > 0 }.count }
+        XCTAssertEqual(full.rootNode.childNodes.filter { $0.name == "shell:wall" }.count,expected)
+        XCTAssertEqual(document.shell,original)
     }
     func testHorizontalPipeHasFullLengthInEditedPlan() {
         let item = SceneEditObject(origin: "test",name: "Pipe",family: .pipe,position: .init(x: 0,y: 1,z: 0),size: .init(x: 0.1,y: 2,z: 0.1),axis: .init(x: 1,y: 0,z: 0))
@@ -193,4 +243,44 @@ final class SceneStudioTests: XCTestCase {
         room.openings = [.init(id: UUID(),kind: .door,wallID: b.id,center: .init(x: 0,y: 0.25),width: 0.5,height: 2,sillHeight: 0,angle: .pi/2,confidence: .high)]
         XCTAssertTrue(StudioWallJoins.mesh(room: room,visible: [a.id,b.id]).isEmpty)
     }
+    #if os(iOS)
+    @MainActor func testPhoneStudioKeepsCanvasFullHeightWithInspectorClosed() async throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0,y: 0,width: 393,height: 852)
+        let location = StorageLocation.temporary()
+        let hosting = UIHostingController(rootView: NavigationStack {
+            StudioEditorView(document: seed(),storageURL: location.documentsURL.appendingPathComponent("design.json"))
+        })
+        window.rootViewController = hosting; window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        try await Task.sleep(for: .milliseconds(300))
+        hosting.view.layoutIfNeeded()
+        func sceneViews(_ view: UIView) -> [SCNView] { (view as? SCNView).map { [$0] } ?? view.subviews.flatMap(sceneViews) }
+        let canvas = try XCTUnwrap(sceneViews(hosting.view).first)
+        XCTAssertGreaterThan(canvas.bounds.height,650,"Floating controls must not shrink the canvas into a short panel")
+        let image = UIGraphicsImageRenderer(bounds: hosting.view.bounds).image { _ in hosting.view.drawHierarchy(in: hosting.view.bounds,afterScreenUpdates: true) }
+        let png = try XCTUnwrap(image.pngData())
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dwalk-fullscreen-studio-"+UUID().uuidString+".png")
+        try png.write(to: url); print("STUDIO_PHONE_LAYOUT="+url.path)
+    }
+    @MainActor func testLandscapeStudioKeepsCanvasBehindFloatingControls() async throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0,y: 0,width: 852,height: 393)
+        let hosting = UIHostingController(rootView: NavigationStack {
+            StudioEditorView(document: seed(),storageURL: FileManager.default.temporaryDirectory.appendingPathComponent("landscape-design.json"))
+        })
+        window.rootViewController = hosting; window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        try await Task.sleep(for: .milliseconds(300)); hosting.view.layoutIfNeeded()
+        func canvases(_ view: UIView) -> [SCNView] { (view as? SCNView).map { [$0] } ?? view.subviews.flatMap(canvases) }
+        let canvas = try XCTUnwrap(canvases(hosting.view).first)
+        XCTAssertGreaterThan(canvas.bounds.width,750)
+        XCTAssertGreaterThan(canvas.bounds.height,300)
+        let image = UIGraphicsImageRenderer(bounds: hosting.view.bounds).image { _ in hosting.view.drawHierarchy(in: hosting.view.bounds,afterScreenUpdates: true) }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dwalk-landscape-studio-"+UUID().uuidString+".png")
+        try XCTUnwrap(image.pngData()).write(to: url); print("STUDIO_LANDSCAPE_LAYOUT="+url.path)
+    }
+    #endif
 }

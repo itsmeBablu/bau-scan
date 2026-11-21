@@ -1,6 +1,6 @@
 # Design Studio
 
-Open **Studio** from the iPhone library toolbar or **Design Studio** from the Mac sidebar. Choose **House** or **Technik Room**, then a saved scan. Saved room/House screens also offer **3D Edit** in Options; saved technical surveys offer a Technik Studio action.
+On iPhone, open a House/Room row's **Options (•••) → Studio**. Studio opens directly for that scan, full screen, with floating tools and a pull-up object inspector. Saved detail screens also offer **3D Edit** in Options. The Mac sidebar retains **Design Studio**, with House and Technik Room sections; saved technical surveys offer a Technik Studio action.
 
 ## Independent storage
 
@@ -10,9 +10,11 @@ Studio copies the shell and recognised object dimensions into a separate design.
 
 Recognised RoomPlan objects become native parametric models. Available families include sofas, beds, chairs, tables, TVs, cabinets, appliances, bathroom fixtures, radiators and generic boxes/cylinders. Construction uses bounded native shapes and PBR materials; this is an independent native implementation inspired by SmartBau's parametric approach, not a bundled copy of its Three.js renderer or an imported model collection.
 
-Models fit the scan bounding dimensions. Sofas vary cushion count, beds adapt pillow count, cabinets vary module count and radiators vary section count. Model replacement retains chosen dimensions. **Fit scanned size** and **Restore scan position** restore saved references. Appearance remains a generic representation rather than exact identification of a manufacturer's furniture.
+Initial models fit the scan bounding dimensions. Sofas vary cushion count, beds adapt pillow count, cabinets vary module count and radiators vary section count. Choosing a different model loads that model's default size (for example, Sofa no longer inherits Bed dimensions). **Fit scanned size** and **Restore scan position** explicitly restore saved references. Appearance remains a generic representation rather than exact identification of a manufacturer's furniture.
 
-Tap/click an object or choose it in the inspector. Choose **Move objects** to drag on its horizontal plane. Edit XYZ, dimensions and yaw numerically for precision. Orbit mode retains camera controls. Undo/redo supports design edits. Native forms, menus, file panels and unsaved-change protection are used on both platforms.
+Tap/click an object or choose it in the inspector. Choose **Move** to drag on its horizontal plane. Edit XYZ, dimensions and yaw numerically for precision. Orbit mode retains camera controls. Undo/redo supports design edits. Native forms, menus, file panels and unsaved-change protection are used on both platforms.
+
+On iPhone the scene occupies the entire Studio canvas behind floating controls. The labelled Models, Edit, Appearance and More dock opens separate panels; Orbit/Move, undo and camera reset occupy a compact accessory control. Models has a searchable icon catalogue. Portrait uses a pull-up inspector; landscape moves the dock to the side and can show the inspector alongside the scene. The inspector is initially hidden. Controls use system materials and adaptive foreground colours. The House and Technik catalogues are distinct. House replacement uses model defaults; Technik reclassification preserves its survey dimensions and orientation.
 
 House appearance offers Natural, Scandinavian, Modern, Industrial and Pastel palettes, custom wall/floor colours, day/night and summer/winter lighting mood. Rounded shapes, a small repeating floor texture, ambient occlusion and one shadow light aim toward the supplied references, without claiming identical offline-render quality. Season is presentation only. Geometry/texture sizes and object counts are bounded; real iPhone performance still needs profiling.
 
@@ -30,6 +32,10 @@ Drag placement can snap to a 0.05 m grid and nearby wall surfaces. Numeric entri
 
 Studio wall mitres fill only solid endpoints within 0.025 m, with bounded corner geometry. Openings, larger gaps and cutaway visibility are respected. Original wall measurements and assumed wall thickness remain unchanged.
 
+All scanned walls are visible initially. **Cutaway view · hide front walls** is an explicit display option, off by default; it never removes walls from the project or export. Missing surfaces not present in the original scan are not invented.
+
+Camera framing accounts for the viewport aspect ratio and includes the shell and object extents, so portrait does not clip side walls. Rotation reframes the scene after the native viewport lays out. Returning from 2D reattaches the 3D scene to its replacement viewport. House model replacement also updates an uncustomised model name; **Use furniture default size** resets existing design dimensions without requiring a different model selection.
+
 ## Export
 
 - PNG: 1920 × 1440 rendering of the current camera, cutaway and lighting, with selection highlight removed; save using the native file panel.
@@ -42,3 +48,5 @@ Live transparent AR recognition overlays are a proposed next stage, not part of 
 ## Validation · 2026-11-21
 
 233 Mac tests and 228 iOS simulator tests passed, along with the signed generic iPhone build. Studio checks cover original-package byte preservation, project round trips, provenance/invalid data, smart furniture fitting, accepted-only MEP seeds, rectangular-duct orientation, sharp technical envelopes, oriented overlap checks, touching faces, snapping, wall joins/openings, image rendering and JSON/PDF/SVG/DXF/USDZ/OBJ exports. Mac UI checks exercised the mode picker, object inspector and unsaved-save-and-close flow. Accessibility automation intermittently timed out during repeated navigation; full gesture usability and iPhone performance/accuracy testing remain pending. No cloud AI calls, billing changes or new recognition models were introduced by Studio.
+
+The presentation/default-sizing revision passed 238 Mac tests and 235 iOS tests, including rendered portrait and landscape control layouts, full-height/full-width canvas assertions, all-wall rendering, model-default replacement, technical reclassification, aspect-aware camera framing and 2D-to-3D reattachment. Google login and service configuration now live only in Settings → Google account & AI; scanning, photo and review screens show status without initiating login.

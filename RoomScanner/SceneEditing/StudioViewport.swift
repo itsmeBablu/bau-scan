@@ -2,6 +2,15 @@ import SwiftUI
 import SceneKit
 import Metal
 
+enum StudioCameraFraming {
+    static func distance(width: Double,height: Double,depth: Double,aspect: Double) -> Double {
+        let radius = max(0.5,sqrt(width*width+height*height+depth*depth)/2)
+        let verticalHalfAngle = 21*Double.pi/180
+        let halfAngle = min(verticalHalfAngle,atan(tan(verticalHalfAngle)*max(0.1,aspect)))
+        return radius/sin(halfAngle)*1.08
+    }
+}
+
 @MainActor final class StudioSceneController: NSObject {
     weak var view: SCNView?
     let camera = SCNNode()
@@ -9,6 +18,7 @@ import Metal
     private var previousStory: Int?
     private var previousCutaway = false
     private var resetToken = 0
+    private var lastAspect = 0.0
     private var selected: UUID?
     private var dragNode: SCNNode?
     private var dragStart: SIMD3<Float>?
@@ -19,7 +29,7 @@ import Metal
     func configure(_ document: SceneEditDocument,story: Int,cutaway: Bool,selected: UUID?,moving: Bool,reset: Int) {
         guard let view else { return }
         self.moving = moving; view.allowsCameraControl = !moving
-        if previous != document || previousStory != story || previousCutaway != cutaway {
+        if view.scene == nil || previous != document || previousStory != story || previousCutaway != cutaway {
             let scene = StudioSceneBuilder.scene(document,story: story,cutaway: cutaway)
             scene.rootNode.addChildNode(camera); view.scene = scene; view.pointOfView = camera
             if previous == nil || previousStory != story { frame(document,story: story) }
@@ -27,6 +37,10 @@ import Metal
         }
         if resetToken != reset { resetToken = reset; frame(document,story: story) }
         self.selected = selected; highlight(selected)
+        applyCameraAppearance(document)
+        viewportDidLayout()
+    }
+    private func applyCameraAppearance(_ document: SceneEditDocument) {
         camera.camera?.screenSpaceAmbientOcclusionIntensity = document.source == .technical ? 0 : 0.55
         camera.camera?.screenSpaceAmbientOcclusionRadius = 0.25
         camera.camera?.screenSpaceAmbientOcclusionBias = 0.03
@@ -34,17 +48,30 @@ import Metal
         camera.camera?.wantsExposureAdaptation = false
         camera.camera?.exposureOffset = document.source == .technical ? 0 : -0.2
     }
+    func viewportDidLayout() {
+        guard let view,view.bounds.width > 0,view.bounds.height > 0,let document = previous,let story = previousStory else { return }
+        let aspect = Double(view.bounds.width/view.bounds.height)
+        guard abs(aspect-lastAspect) > 0.01 else { return }
+        lastAspect = aspect; frame(document,story: story)
+    }
     private func frame(_ document: SceneEditDocument,story: Int) {
         let house = House(name: "",stories: document.shell.stories.filter { $0.index == story })
         var bounds = house.bounds
-        if bounds.isEmpty {
-            bounds = Rect2D.bounding(document.objects.filter { $0.story == story }.map { .init(x: $0.position.x,y: -$0.position.z) })
+        let items = document.objects.filter { $0.story == story }
+        var lowest = 0.0,highest = max(1,house.allRooms.flatMap(\.walls).map(\.height).max() ?? 1)
+        for item in items {
+            for point in StudioPlacement.corners(item) {
+                bounds = bounds.union(.init(x: point.x,y: -point.z))
+                lowest = min(lowest,point.y); highest = max(highest,point.y)
+            }
         }
-        let center = bounds.isEmpty ? SIMD3<Float>(0,0.7,0) : SIMD3(Float(bounds.center.x),0.7,Float(-bounds.center.y))
-        let radius = Float(max(bounds.width,bounds.height,3))
+        let center = bounds.isEmpty ? SIMD3<Float>(0,0.7,0) : SIMD3(Float(bounds.center.x),Float((highest+lowest)/2),Float(-bounds.center.y))
+        let aspect = view.map { $0.bounds.width > 0 && $0.bounds.height > 0 ? Double($0.bounds.width/$0.bounds.height) : 1 } ?? 1
+        let distance = Float(StudioCameraFraming.distance(width: max(1,bounds.width),height: highest-lowest,depth: max(1,bounds.height),aspect: aspect))
         camera.camera = SCNCamera(); camera.camera?.fieldOfView = 42
-        camera.camera?.zNear = 0.02; camera.camera?.zFar = 4000
-        camera.simdPosition = center+SIMD3(radius*1.05,radius*0.95,radius*1.05)
+        applyCameraAppearance(document)
+        camera.camera?.zNear = 0.02; camera.camera?.zFar = Double(max(4000,distance*3))
+        camera.simdPosition = center+simd_normalize(SIMD3<Float>(1.05,0.95,1.05))*distance
         camera.look(at: SCNVector3(center.x,center.y,center.z))
         view?.defaultCameraController.target = SCNVector3(center.x,center.y,center.z)
     }
@@ -131,7 +158,7 @@ struct StudioViewport: UIViewRepresentable {
     let reset: Int
     func makeCoordinator() -> Gestures { .init(controller) }
     func makeUIView(context: Context) -> SCNView {
-        let view = SCNView(); view.antialiasingMode = .multisampling4X
+        let view = StudioIOSSceneView(); view.studio = controller; view.antialiasingMode = .multisampling4X
         view.preferredFramesPerSecond = 30; view.autoenablesDefaultLighting = false
         controller.view = view
         let tap = UITapGestureRecognizer(target: context.coordinator,action: #selector(Gestures.tap(_:)))
@@ -162,6 +189,10 @@ struct StudioViewport: UIViewRepresentable {
         }
     }
 }
+private final class StudioIOSSceneView: SCNView {
+    weak var studio: StudioSceneController?
+    override func layoutSubviews() { super.layoutSubviews(); studio?.viewportDidLayout() }
+}
 #else
 struct StudioViewport: NSViewRepresentable {
     let controller: StudioSceneController
@@ -182,6 +213,7 @@ struct StudioViewport: NSViewRepresentable {
 }
 final class StudioMacSceneView: SCNView {
     weak var studio: StudioSceneController?
+    override func layout() { super.layout(); studio?.viewportDidLayout() }
     private var start: CGPoint?
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow,from: nil); start = p

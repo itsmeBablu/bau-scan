@@ -6,6 +6,17 @@ enum SceneFurniture: String,Codable,CaseIterable,Identifiable {
     case sofa, bed, chair, table, television, cabinet, refrigerator, stove, sink, toilet, bathtub, shower, washer
     case radiator, boiler, tank, pump, manifold, electricalPanel, pipe, roundDuct, rectangularDuct, box, cylinder
     var id: String { rawValue }
+    var symbol: String {
+        switch self {
+        case .sofa: "sofa.fill"; case .bed: "bed.double.fill"; case .chair: "chair.fill"; case .table: "table.furniture.fill"
+        case .television: "tv"; case .cabinet: "cabinet.fill"; case .refrigerator: "refrigerator.fill"
+        case .stove: "stove.fill"; case .sink: "sink.fill"; case .toilet: "toilet.fill"; case .bathtub: "bathtub.fill"
+        case .shower: "shower.fill"; case .washer: "washer.fill"; case .radiator: "heater.vertical.fill"
+        case .boiler,.tank: "waterbottle.fill"; case .pump,.manifold,.pipe: "pipe.and.drop"
+        case .roundDuct,.rectangularDuct: "wind"; case .electricalPanel: "bolt.fill"
+        case .box: "cube.fill"; case .cylinder: "cylinder.fill"
+        }
+    }
     var title: String {
         switch self {
         case .television: "TV"; case .electricalPanel: "Electrical panel"
@@ -66,6 +77,14 @@ struct SceneEditObject: Codable,Equatable,Identifiable {
     enum ColorSource: String,Codable { case preset, cameraSample, user }
     var finish = Finish.matte
     enum Finish: String,Codable,CaseIterable { case matte, painted, metal, wood, fabric }
+    mutating func replaceFamily(_ family: SceneFurniture,preserveMeasurements: Bool = false) {
+        if name == self.family.title { name = family.title }
+        if preserveMeasurements { self.family = family; return }
+        let bottom = position.y-planObject.height/2
+        self.family = family; size = family.defaultSize
+        axis = nil; crossAxis = nil
+        position.y = max(0,bottom)+size.y/2
+    }
     var planObject: PlacedObject {
         guard let axis else {
             return .init(id: id,category: family.title,center: .init(x: position.x,y: -position.z),size: .init(width: size.x,depth: size.z),height: size.y,angle: yaw,confidence: .low)

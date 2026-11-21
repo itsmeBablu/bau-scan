@@ -64,7 +64,7 @@ struct StudioLibraryView: View {
             technical = library
             do { try library.reload(); try await loadDesigns() } catch { self.error = error.localizedDescription }
         }
-        .sheet(item: $launch,onDismiss: { Task { try? await loadDesigns() } }) { launch in
+        .studioPresentation(item: $launch,onDismiss: { Task { try? await loadDesigns() } }) { launch in
             NavigationStack { StudioProjectView(seed: launch.document,storageRoot: launch.root ?? store.location.documentsURL) }
         }
         .alert("Studio",isPresented: Binding(get: { error != nil },set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }

@@ -58,7 +58,7 @@ struct RoomDetailView: View {
         .sheet(isPresented: $exporting) {
             if let plan { ExportSheet(record: currentRecord, plan: plan, packageURL: store.packageURL(for: currentRecord)).environment(store) }
         }
-        .sheet(isPresented: $showingStudio) {
+        .studioPresentation(isPresented: $showingStudio) {
             if let plan {
                 let scan = try? RoomPackage.readScan(from: store.packageURL(for: currentRecord))
                 NavigationStack { StudioProjectView(seed: .seed(house: House(room: plan),source: .room,id: currentRecord.id,scans: scan.map { [$0] } ?? []),storageRoot: store.location.documentsURL) }

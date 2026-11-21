@@ -128,3 +128,32 @@ struct TechnicalGoogleAIConnection: View {
         } message: { Text(account.error ?? "") }
     }
 }
+
+/// Status only: scan/review screens never initiate authentication or keychain restoration.
+struct TechnicalGoogleAIStatus: View {
+    @State private var account = TechnicalGoogleAIAccount.shared
+    var body: some View {
+        Label(account.signedIn ? "Google connected" : "Google not connected",systemImage: account.signedIn ? "checkmark.circle" : "person.crop.circle")
+            .font(.caption).foregroundStyle(.secondary)
+        if !account.signedIn { Text("Connect Google in Settings → Google account & AI.").font(.caption).foregroundStyle(.secondary) }
+    }
+}
+
+struct GoogleAccountSettingsView: View {
+    @AppStorage("technical.googleAI.serviceURL") private var endpoint = ""
+    @AppStorage("technical.googleAI.enabled") private var enabled = false
+    var body: some View {
+        Form {
+            Section("Google account") { TechnicalGoogleAIConnection() }
+            Section("AI recognition") {
+                Toggle("Google AI mode",isOn: $enabled)
+                Text("Scanning and offline recognition work without Google. Images stay local until you choose them and confirm sending in MEP review.").font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Connection") {
+                TextField("HTTPS Google AI service URL",text: $endpoint).autocorrectionDisabled()
+                Text("Configure the service URL here. The Gemini API key stays on the backend.").font(.caption).foregroundStyle(.secondary)
+            }
+        }.formStyle(.grouped).navigationTitle("Google account & AI")
+            .onAppear { if endpoint.isEmpty { endpoint = Bundle.main.object(forInfoDictionaryKey: "TechnicalGoogleAIServiceURL") as? String ?? "" } }
+    }
+}

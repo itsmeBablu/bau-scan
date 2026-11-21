@@ -21,7 +21,7 @@ struct TechnicalSurveyPhotoView: View {
                     if photo.googlePhotosURL == nil,persistLink != nil {
                         DisclosureGroup("Google Photos",isExpanded: $showingGooglePhotos) {
                         if showingGooglePhotos {
-                        TechnicalGoogleAIConnection()
+                        TechnicalGoogleAIStatus()
                         Button(remoteURL == nil ? "Copy to Google Photos…" : "Save Google Photos link") {
                             if remoteURL == nil { confirmCopy = true } else { copy() }
                         }.disabled(busy || !TechnicalGoogleAIAccount.shared.signedIn)

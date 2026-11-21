@@ -6,7 +6,7 @@ struct RoomListView: View {
     @Environment(RoomStore.self) private var store
     @State private var scanMode: ScanMode?
     @State private var showSettings = false
-    @State private var showStudio = false
+    @State private var studioDocument: SceneEditDocument?
     @State private var showTechnicalLibrary = false
     @State private var savedTechnicalID: UUID?
     @State private var technicalRooms = TechnicalRoomLibraryStore()
@@ -79,9 +79,6 @@ struct RoomListView: View {
             }
             .toolbar {
                 #if os(iOS)
-                ToolbarItem(placement: .primaryAction) {
-                    Button { showStudio = true } label: { Label("Studio",systemImage: "square.stack.3d.up") }
-                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button { showSettings = true } label: { Label("settings.title", systemImage: "gearshape") }
                 }
@@ -112,7 +109,9 @@ struct RoomListView: View {
             #endif
         }
         .sheet(isPresented: $showSettings) { SettingsView().environment(store) }
-        .sheet(isPresented: $showStudio) { StudioLibraryView().environment(store) }
+        .studioPresentation(item: $studioDocument) { document in
+            NavigationStack { StudioProjectView(seed: document,storageRoot: store.location.documentsURL) }
+        }
         .sheet(isPresented: $showTechnicalLibrary, onDismiss: { savedTechnicalID = nil; reloadTechnicalRooms() }) { TechnicalRoomLibraryView(initialSelection: savedTechnicalID) }
         .confirmationDialog("list.delete.confirm \(pendingDeletion.first?.name ?? "")", isPresented: Binding(get: { !pendingDeletion.isEmpty }, set: { if !$0 { pendingDeletion = [] } }), titleVisibility: .visible) {
             Button("common.delete", role: .destructive) { confirmDeletion() }
@@ -192,8 +191,23 @@ struct RoomListView: View {
     }
 
     @ViewBuilder private func itemMenu(for item: LibraryItem) -> some View {
+        Button { openStudio(item) } label: { Label("Studio",systemImage: "square.stack.3d.up") }
         Button { beginRenaming(item) } label: { Label("Rename", systemImage: "pencil") }
         Button(role: .destructive) { pendingDeletion = [item] } label: { Label("Delete", systemImage: "trash") }
+    }
+    private func openStudio(_ item: LibraryItem) {
+        do {
+            switch item {
+            case .house(let record):
+                let url = store.packageURL(for: record)
+                var document = SceneEditDocument.seed(house: try store.house(for: record),source: .house,id: record.id,scans: try HousePackage.readStructure(from: url)?.rooms ?? [])
+                document.includeRadiators(try HousePackage.readRadiators(from: url)?.radiators ?? [])
+                studioDocument = document
+            case .room(let record):
+                let scan = try RoomPackage.readScan(from: store.packageURL(for: record))
+                studioDocument = .seed(house: House(room: try store.plan(for: record)),source: .room,id: record.id,scans: scan.map { [$0] } ?? [])
+            }
+        } catch { actionError = error.localizedDescription }
     }
 
     @ViewBuilder private func itemActions(for item: LibraryItem) -> some View {

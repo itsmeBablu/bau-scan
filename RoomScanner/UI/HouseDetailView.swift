@@ -68,7 +68,7 @@ struct HouseDetailView: View {
                 HouseRadiatorListView(house: house, packageURL: store.packageURL(for: currentRecord))
             }
         }
-        .sheet(isPresented: $showingStudio) {
+        .studioPresentation(isPresented: $showingStudio) {
             if let house {
                 let seed: SceneEditDocument = {
                     var value = SceneEditDocument.seed(house: house,source: .house,id: currentRecord.id,scans: (try? HousePackage.readStructure(from: store.packageURL(for: currentRecord)))?.rooms ?? [])

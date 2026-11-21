@@ -10,7 +10,6 @@ struct TechnicalRoomScanView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var scanner: TechnicalRoomScanCoordinator
     @AppStorage("technical.googleAI.enabled") private var googleAIEnabled = false
-    @State private var showingGoogleAI = false
     @State private var viewport: ARView?
     @State private var origin: TechnicalPoint3?
     @State private var frameDefined = false
@@ -109,7 +108,7 @@ struct TechnicalRoomScanView: View {
                 if googleAIEnabled {
                     Label(scanner.evidenceMessage, systemImage: "camera.viewfinder").font(.caption)
                     Text("Colour/depth viewpoints stay on this device. After saving, choose images in MEP review and confirm before sending to Google AI.").font(.caption).foregroundStyle(.secondary)
-                    Button("Google account") { showingGoogleAI = true }
+                    TechnicalGoogleAIStatus()
                 }
                 if scanner.evidence.droppedKeyframes > 0 {
                     Text("Image budget reached: \(scanner.evidence.droppedKeyframes) older viewpoints replaced.").font(.caption).foregroundStyle(.secondary)
@@ -228,21 +227,9 @@ struct TechnicalRoomScanView: View {
         } message: { Text("Capture evidence and annotations are only retained after saving a .technicalroom package.") }
         .sheet(isPresented: $showingPipeTool) { pipeTool.presentationDetents([.medium, .large]).presentationBackgroundInteraction(.enabled(upThrough: .medium)) }
         .sheet(isPresented: $showingPipeReview) { pipeReview }
-        .sheet(isPresented: $showingGoogleAI) {
-            NavigationStack {
-                Form {
-                    TechnicalGoogleAIConnection()
-                    Text("AI images are captured locally. Save the scan, then select images in MEP review to request recognition.").font(.caption)
-                }
-                .navigationTitle("Google AI mode")
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingGoogleAI = false } } }
-            }
-            .presentationDetents([.medium,.large])
-        }
         .onAppear { scanner.aiEvidenceEnabled = googleAIEnabled }
         .onChange(of: googleAIEnabled) { _, enabled in
             scanner.aiEvidenceEnabled = enabled
-            if enabled { showingGoogleAI = true }
         }
         .sheet(isPresented: $showingEquipmentTool) { equipmentTool }
         .sheet(isPresented: $showingAnnotations) {
