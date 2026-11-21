@@ -1,6 +1,9 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import ImageIO
+#if os(macOS)
+import AppKit
+#endif
 
 struct TechnicalRoomLibraryView: View {
     @State private var library = TechnicalRoomLibraryStore()
@@ -35,10 +38,13 @@ struct TechnicalRoomLibraryView: View {
             .navigationDestination(for: UUID.self) { id in TechnicalStoredRoomView(id: id, library: library) }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
-                ToolbarItem(placement: .primaryAction) { Button("Import") { importing = true } }
+                ToolbarItem(placement: .primaryAction) { Button("Import") { beginImport() } }
             }
         }
-        .frame(minWidth: 320, minHeight: 450)
+        #if os(macOS)
+        .frame(minWidth: 500, minHeight: 500)
+        #endif
+        .tint(.blue)
         .task {
             do {
                 try library.reload()
@@ -47,7 +53,9 @@ struct TechnicalRoomLibraryView: View {
             }
             catch { self.error = error.localizedDescription }
         }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.technicalRoom]) { result in
+        // Older packages may reach a Mac before Launch Services recognises the custom UTI.
+        // Accept a directory as a fallback; the package reader still validates its full schema.
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.technicalRoom,.folder]) { result in
             Task { @MainActor in
                 do { path = [try await library.importPackage(result.get())] }
                 catch { self.error = error.localizedDescription }
@@ -62,6 +70,26 @@ struct TechnicalRoomLibraryView: View {
         .alert("Technical Rooms", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("OK") { error = nil }
         } message: { Text(error ?? "") }
+    }
+    private func beginImport() {
+        #if os(macOS)
+        // SwiftUI's mixed file/directory importer can leave Open disabled for a legacy package.
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.treatsFilePackagesAsDirectories = false
+        panel.allowedContentTypes = [.technicalRoom,.package,.folder]
+        panel.begin { response in
+            guard response == .OK,let url = panel.url else { return }
+            Task { @MainActor in
+                do { path = [try await library.importPackage(url)] }
+                catch { self.error = error.localizedDescription }
+            }
+        }
+        #else
+        importing = true
+        #endif
     }
 }
 
@@ -96,7 +124,7 @@ private struct TechnicalStoredRoomView: View {
     @State private var note = ""
     @State private var success = ""
     @State private var tab = Tab.scan
-    private enum Tab: Hashable { case scan, details }
+    private enum Tab: Hashable { case scan, details, recognition }
     #if os(iOS)
     @State private var resuming = false
     #endif
@@ -108,10 +136,14 @@ private struct TechnicalStoredRoomView: View {
                     Picker("Saved survey view", selection: $tab) {
                         Text("3D scan").tag(Tab.scan)
                         Text("Survey details").tag(Tab.details)
+                        Text("MEP review").tag(Tab.recognition)
                     }
-                    .pickerStyle(.segmented).padding(.horizontal).padding(.vertical, 8)
-                    if tab == .scan { TechnicalSavedScanView(package: package) }
-                    else { editor }
+                    .pickerStyle(.segmented).labelsHidden().padding(.horizontal).padding(.vertical, 8)
+                    if tab == .scan { TechnicalSavedScanView(package: package,onPhotoLink: savePhotoLink) }
+                    else if tab == .details { editor }
+                    else {
+                        TechnicalMEPReviewView(package: Binding(get: { self.package ?? package },set: { self.package = $0 }),persist: saveRecognition)
+                    }
                 }
             }
             else if let error { ContentUnavailableView(error, systemImage: "exclamationmark.triangle") }
@@ -123,7 +155,7 @@ private struct TechnicalStoredRoomView: View {
         #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                if tab == .details { Button("Save changes") { save() }.disabled(package == nil || busy) }
+                if tab == .details { Button("Save") { save() }.disabled(package == nil || busy) }
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu("Export", systemImage: "square.and.arrow.up") {
@@ -131,8 +163,13 @@ private struct TechnicalStoredRoomView: View {
                     ForEach(TechnicalMeshExporter.Format.allCases, id: \.self) { format in
                         Button(format.rawValue.uppercased()) { exportMesh(format) }
                     }
+                    Menu("Accepted MEP elements") {
+                        ForEach(TechnicalMeshExporter.Format.allCases,id: \.self) { format in
+                            Button(format.rawValue.uppercased()) { exportMesh(format,acceptedMEPOnly: true) }
+                        }
+                    }.disabled(package?.recognition.suggestions.contains(where: { $0.status == .accepted }) != true)
                     Text("DWG requires conversion from DXF in a CAD application.")
-                }.disabled(package == nil || busy)
+                }.labelStyle(.iconOnly).disabled(package == nil || busy)
             }
         }
         .task {
@@ -179,6 +216,8 @@ private struct TechnicalStoredRoomView: View {
                 Section("Capture evidence") {
                     if let png = current.thumbnailPNG { TechnicalStoredPhoto(data: png, name: "Survey thumbnail").id(current.manifest.modifiedAt) }
                     Text("\(current.journal.frames.count) frame records · \(current.journal.depths.count) depth · \(current.journal.meshes.count) mesh snapshots")
+                    Text("\(current.evidence.keyframes.count) calibrated colour/depth images · \(current.recognition.suggestions.filter { $0.status == .accepted }.count) accepted MEP elements")
+                    if current.evidence.droppedKeyframes > 0 { Text("\(current.evidence.droppedKeyframes) earlier viewpoints replaced within the image budget.").font(.caption) }
                     Text("\(current.alignment.checkpoints.count) checkpoint observations")
                     Text(current.worldMapData == nil ? "No saved world map" : "Recovery map retained")
                     if current.journal.retentionLimited { Text("Some older capture records exceeded retention limits.").foregroundStyle(.orange) }
@@ -256,7 +295,7 @@ private struct TechnicalStoredRoomView: View {
         }
     }
 
-    private func exportMesh(_ format: TechnicalMeshExporter.Format) {
+    private func exportMesh(_ format: TechnicalMeshExporter.Format,acceptedMEPOnly: Bool = false) {
         guard let current = package else { return }
         busy = true
         Task { @MainActor in
@@ -267,15 +306,31 @@ private struct TechnicalStoredRoomView: View {
                     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                     defer { try? FileManager.default.removeItem(at: directory) }
                     let url = directory.appendingPathComponent("TechnicalRoom.\(format.rawValue)")
-                    try TechnicalMeshExporter.write(current, format: format, to: url)
+                    try TechnicalMeshExporter.write(current, format: format, to: url,acceptedMEPOnly: acceptedMEPOnly)
                     return try Data(contentsOf: url)
                 }.value
                 meshDocument = TechnicalExportDocument(data: data)
                 meshType = UTType(filenameExtension: format.rawValue) ?? .data
-                meshFilename = current.manifest.name + "." + format.rawValue
+                meshFilename = current.manifest.name + (acceptedMEPOnly ? "-MEP" : "") + "." + format.rawValue
                 meshExporting = true
             } catch { self.error = error.localizedDescription }
         }
+    }
+    private func saveRecognition(_ value: TechnicalRoomPackage) async throws -> TechnicalRoomPackage {
+        guard !busy else { throw TechnicalRoomPackage.PackageError.invalidPackage }
+        busy = true
+        defer { busy = false }
+        var updated = value
+        updated.manifest.modifiedAt = Date()
+        updated.manifest.checkpointAcceptedAtSave = false
+        try await library.save(updated)
+        package = updated
+        return updated
+    }
+    private func savePhotoLink(_ id: UUID,_ url: URL) async throws {
+        guard var value = package else { throw TechnicalRoomPackage.PackageError.invalidPackage }
+        try value.evidence.setGooglePhotosURL(url,for: id)
+        _ = try await saveRecognition(value)
     }
 }
 

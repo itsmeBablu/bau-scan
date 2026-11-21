@@ -29,6 +29,15 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     private(set) var depthSnapshot: TechnicalDepthSnapshot?
     private(set) var residentMemoryBytes: UInt64?
     private(set) var journal = TechnicalCaptureJournal()
+    private(set) var evidence = TechnicalCaptureEvidence()
+    private(set) var evidenceMessage = "Move slowly around equipment to capture different viewpoints."
+    private var evidenceTask: Task<Void, Never>?
+    private(set) var takingPhoto = false
+    private var photoTask: Task<Void,Never>?
+    private var collectingEvidence = true
+    var aiEvidenceEnabled = false
+    private var lastEvidenceTimestamp = -Double.infinity
+    private var lastEvidencePose: [Double]?
     private(set) var healthWarnings: [String] = []
     private(set) var recoveryTrackingReady = false
     private var lastRecordedTimestamp = -Double.infinity
@@ -141,7 +150,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
         }
         do { try package.validate() } catch { restorationFailed = true; errorMessage = error.localizedDescription; throw error }
         captureID = package.document.room.shellID
-        alignment = package.alignment; journal = package.journal
+        alignment = package.alignment; journal = package.journal; evidence = package.evidence
         worldMapData = package.worldMapData; recoveryAvailable = true
         recovering = true; recoveryTrackingReady = false
     }
@@ -184,6 +193,64 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
         depthSnapshot = TechnicalRoomFrameProcessor.depthSnapshot(frame: frame, alignmentVerified: state.canAnnotate)
         if let depthSnapshot { journal.append(depthSnapshot) }
         if depthSnapshot == nil { errorMessage = "Raw scene depth unavailable for this frame." }
+    }
+
+    func finishEvidenceCapture() async {
+        collectingEvidence = false
+        await evidenceTask?.value
+        await photoTask?.value
+    }
+
+    func takeSurveyPhoto() {
+        guard active,!takingPhoto,let frame = session.currentFrame,state.trackingNormal,
+              let depth = TechnicalRoomFrameProcessor.depthSnapshot(frame: frame,alignmentVerified: state.canAnnotate) else {
+            errorMessage = "Wait for camera tracking and LiDAR depth, then take the photo."; return
+        }
+        takingPhoto = true
+        let requestGeneration = generation
+        photoTask = Task { @MainActor [weak self] in
+            let copied = await Task.detached(priority: .userInitiated) { TechnicalRoomKeyframeCollector.capture(frame: frame,depth: depth,maximumDimension: 1600) }.value
+            guard let self else { return }
+            defer { self.takingPhoto = false; self.photoTask = nil }
+            guard self.generation == requestGeneration else { return }
+            do {
+                guard var photo = copied else { throw TechnicalCaptureJournal.JournalError.invalidEvidence }
+                photo.userPhoto = true
+                try self.evidence.append(photo)
+                self.evidenceMessage = "Photo saved locally at this camera position. Save the survey to keep it."
+            } catch { self.errorMessage = "Photo could not be retained. The photo budget may be full; save this survey before continuing." }
+        }
+    }
+
+    private func collectEvidence(_ frame: ARFrame) {
+        guard aiEvidenceEnabled, collectingEvidence, evidenceTask == nil, state.trackingNormal,
+              frame.timestamp-lastEvidenceTimestamp >= 3, (residentMemoryBytes ?? 0) < 800 * 1_048_576 else { return }
+        let matrix = frame.camera.transform
+        let pose = (0..<4).flatMap { c in (0..<4).map { Double(matrix[c][$0]) } }
+        if let previous = lastEvidencePose {
+            let distance = sqrt((12...14).reduce(0.0) { $0 + pow(pose[$1]-previous[$1],2) })
+            let direction = (8...10).reduce(0.0) { $0 + pose[$1]*previous[$1] }
+            guard distance >= 0.2 || direction < cos(Double.pi/9) else { return }
+        }
+        lastEvidenceTimestamp = frame.timestamp
+        guard let depth = TechnicalRoomFrameProcessor.depthSnapshot(frame: frame, alignmentVerified: state.canAnnotate) else {
+            evidenceMessage = "Waiting for LiDAR depth."; return
+        }
+        let requestGeneration = generation
+        evidenceTask = Task { @MainActor [weak self] in
+            let keyframe = await Task.detached(priority: .utility) { TechnicalRoomKeyframeCollector.capture(frame: frame, depth: depth) }.value
+            guard let self else { return }
+            defer { self.evidenceTask = nil }
+            guard self.generation == requestGeneration, let keyframe else { return }
+            guard keyframe.confidentDepthFraction >= 0.2 else {
+                self.evidenceMessage = "Low depth confidence. Try another angle on reflective surfaces."; return
+            }
+            do {
+                try self.evidence.append(keyframe)
+                self.lastEvidencePose = pose
+                self.evidenceMessage = "\(self.evidence.keyframes.count) colour/depth viewpoints retained. Include the sides and backs of visible equipment."
+            } catch { self.evidenceMessage = "A capture image could not be retained. Try another viewpoint." }
+        }
     }
 
     func saveRecoveryMap() {
@@ -267,6 +334,9 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
         configuration.planeDetection = [.horizontal, .vertical]
         configuration.initialWorldMap = recoveryMap
         active = true
+        collectingEvidence = true
+        lastEvidenceTimestamp = -Double.infinity
+        lastEvidencePose = nil
         state.start()
         errorMessage = nil
         previousTimestamp = nil
@@ -374,6 +444,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
                 alignmentVerified: state.canAnnotate)
             frameHistory.append(record)
             journal.append(record)
+            collectEvidence(frame)
             healthWarnings = TechnicalCaptureHealth.warnings(for: .init(trackingNormal: state.trackingNormal, fps: fps,
                 residentMemoryBytes: residentMemoryBytes, ambientIntensity: frame.lightEstimate.map { Double($0.ambientIntensity) },
                 depthCoverage: TechnicalRoomFrameProcessor.depthCoverage(frame: frame), elapsedSeconds: frame.timestamp - (firstTimestamp ?? frame.timestamp)))

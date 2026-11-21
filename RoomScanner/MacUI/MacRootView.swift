@@ -26,6 +26,11 @@ struct MacRootView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: $appState.selected) {
+                Section {
+                    Button { technicalImport = nil; showingTechnicalLibrary = true } label: {
+                        Label("Technical Rooms",systemImage: "cube.transparent")
+                    }.buttonStyle(.plain)
+                }
                 if !filteredHouses.isEmpty {
                     Section("library.houses") {
                         ForEach(filteredHouses) { record in
@@ -45,7 +50,6 @@ struct MacRootView: View {
             .navigationSplitViewColumnWidth(min: 220, ideal: 260)
             .toolbar {
                 ToolbarItem(placement: .automatic) { CloudStatusBadge() }
-                ToolbarItem(placement: .automatic) { Button("Technical Rooms") { technicalImport = nil; showingTechnicalLibrary = true } }
             }
             .overlay { if isEmpty { Text("list.empty.title").foregroundStyle(.secondary).font(.callout) } }
         } detail: {
@@ -78,6 +82,7 @@ struct MacRootView: View {
             perform(action)
         }
         .onOpenURL { url in
+            if TechnicalGoogleAIAccount.handle(url) { return }
             if url.pathExtension == "technicalroom" { technicalImport = url; showingTechnicalLibrary = true; return }
             guard [FileLayout.packageExtension, FileLayout.housePackageExtension].contains(url.pathExtension) else { return }
             do { appState.selected = try store.importAny(from: url) } catch { errorMessage = error.localizedDescription }

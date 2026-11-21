@@ -57,8 +57,21 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(DWALK_GOOGLE_REVERSED_CLIENT_ID)</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>GIDClientID</key>
+	<string>$(DWALK_GOOGLE_CLIENT_ID)</string>
+	<key>GIDServerClientID</key>
+	<string>$(DWALK_GOOGLE_SERVER_CLIENT_ID)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.graphics-design</string>
 	<key>LSMinimumSystemVersion</key>
@@ -89,6 +102,8 @@
 	<string></string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
+	<key>TechnicalGoogleAIServiceURL</key>
+	<string>$(DWALK_GOOGLE_AI_SERVICE_URL)</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

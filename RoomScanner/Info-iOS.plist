@@ -51,12 +51,27 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(DWALK_GOOGLE_REVERSED_CLIENT_ID)</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>GIDClientID</key>
+	<string>$(DWALK_GOOGLE_CLIENT_ID)</string>
+	<key>GIDServerClientID</key>
+	<string>$(DWALK_GOOGLE_SERVER_CLIENT_ID)</string>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>dWalkScan uses the camera and LiDAR to scan rooms.</string>
+	<key>TechnicalGoogleAIServiceURL</key>
+	<string>$(DWALK_GOOGLE_AI_SERVICE_URL)</string>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UILaunchScreen</key>

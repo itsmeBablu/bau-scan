@@ -9,7 +9,7 @@ enum TechnicalMeshExporter {
         var errorDescription: String? { "The mesh could not be exported." }
     }
 
-    static func write(_ package: TechnicalRoomPackage, format: Format, to url: URL) throws {
+    static func write(_ package: TechnicalRoomPackage, format: Format, to url: URL, acceptedMEPOnly: Bool = false) throws {
         if format == .json {
             // Keep the established schema, provenance and MEP sidecar together.
             let encoder = JSONEncoder()
@@ -22,13 +22,18 @@ enum TechnicalMeshExporter {
                 let document: TechnicalAnnotationDocument
                 let meshes: [TechnicalMeshSnapshot]
                 let alignment: TechnicalAlignmentSurvey
+                let recognition: TechnicalMEPReview
             }
             var document = package.document
             document.photoAssets = [] // Photos remain in the full survey package.
-            try encoder.encode(Survey(document: document, meshes: package.journal.meshes, alignment: package.alignment)).write(to: url, options: .atomic)
+            var review = package.recognition
+            if acceptedMEPOnly { review.suggestions.removeAll { $0.status != .accepted } }
+            try encoder.encode(Survey(document: document, meshes: acceptedMEPOnly ? [] : package.journal.meshes,
+                                      alignment: package.alignment,recognition: review)).write(to: url, options: .atomic)
             return
         }
-        guard let snapshot = TechnicalSavedMeshGeometry.latest(in: package.journal.meshes) else {
+        let selectedSnapshot = acceptedMEPOnly ? try TechnicalMEPMeshBuilder.snapshot(package.recognition) : TechnicalSavedMeshGeometry.latest(in: package.journal.meshes)
+        guard let snapshot = selectedSnapshot else {
             throw TechnicalSavedMeshGeometry.MeshError.empty
         }
         let mesh = try TechnicalSavedMeshGeometry(snapshot: snapshot, reference: package.alignment.referenceFrame)

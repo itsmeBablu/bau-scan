@@ -1,0 +1,6 @@
+// Public OAuth client IDs and backend URL only. Never put Gemini keys here.
+DWALK_GOOGLE_CLIENT_ID =
+DWALK_GOOGLE_SERVER_CLIENT_ID =
+DWALK_GOOGLE_REVERSED_CLIENT_ID =
+DWALK_GOOGLE_AI_SERVICE_URL =
+#include? "GoogleAI.local.xcconfig"

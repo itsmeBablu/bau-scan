@@ -10,17 +10,38 @@ import AppKit
 /// Offline viewing does not require a world map, camera permissions or live alignment.
 struct TechnicalSavedScanView: View {
     let package: TechnicalRoomPackage
+    var selectedSuggestion: UUID? = nil
+    var onPhotoLink: ((UUID,URL) async throws -> Void)? = nil
+    @State private var showPhotos = false
+    @State private var selectedPhoto: TechnicalCaptureKeyframe?
+    @State private var appearance = Appearance.both
+    private enum Appearance: Hashable { case scan, mep, both }
     @State private var resetID = UUID()
     @State private var renderError: String?
 
     var body: some View {
         VStack(spacing: 0) {
+            if package.evidence.keyframes.contains(where: { $0.userPhoto == true }) {
+                Toggle(isOn: $showPhotos) { Label("Photos",systemImage: "camera") }.padding(.horizontal).padding(.vertical,6)
+            }
+            if !package.recognition.suggestions.isEmpty {
+                Picker("Display",selection: $appearance) {
+                    Text("Scan").tag(Appearance.scan)
+                    Text("MEP").tag(Appearance.mep)
+                    Text("Both").tag(Appearance.both)
+                }.pickerStyle(.segmented).padding(8)
+            }
             if let snapshot = TechnicalSavedMeshGeometry.latest(in: package.journal.meshes) {
                 RealityView { content in
                     do {
                         let geometry = try TechnicalSavedMeshGeometry(snapshot: snapshot, reference: package.alignment.referenceFrame)
                         let model = try makeModel(geometry)
-                        content.add(model)
+                        if appearance != .mep { content.add(model) }
+                        if appearance != .scan {
+                            for item in package.recognition.suggestions where item.status == .accepted || item.id == selectedSuggestion {
+                                content.add(makeMEPModel(item,center: geometry.center,reference: package.alignment.referenceFrame))
+                            }
+                        }
                         let camera = PerspectiveCamera()
                         let radius = Float(max(geometry.extent.x, geometry.extent.y, geometry.extent.z, 0.5))
                         camera.look(at: .zero, from: SIMD3(radius * 0.9, radius * 0.65, radius * 1.1), relativeTo: nil)
@@ -30,9 +51,35 @@ struct TechnicalSavedScanView: View {
                         light.light.intensity = 2500
                         light.look(at: .zero, from: SIMD3(radius, radius * 2, radius), relativeTo: nil)
                         content.add(light)
+                        if showPhotos {
+                            let markerTexture = try TextureResource.generate(from: photoMarkerImage(),options: .init(semantic: .color))
+                            for photo in package.evidence.keyframes where photo.userPhoto == true {
+                                var markerMaterial = UnlitMaterial()
+                                markerMaterial.color = .init(texture: .init(markerTexture))
+                                let size = max(0.08,min(0.2,radius*0.035))
+                                let marker = ModelEntity(mesh: .generatePlane(width: size,height: size),materials: [markerMaterial])
+                                marker.name = "technicalPhoto:\(photo.id.uuidString)"
+                                    let m = photo.depth.cameraTransform
+                                    let p = TechnicalPoint3(x: m[12],y: m[13],z: m[14])
+                                    let transformed = package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to: p) } ?? p
+                                    marker.position = SIMD3(Float(transformed.x-geometry.center.x),Float(transformed.y-geometry.center.y),Float(transformed.z-geometry.center.z))
+                                    marker.components.set(BillboardComponent())
+                                    marker.components.set(InputTargetComponent())
+                                    marker.generateCollisionShapes(recursive: false)
+                                    content.add(marker)
+                            }
+                        }
                     } catch { renderError = error.localizedDescription }
                 }
                 .realityViewCameraControls(.orbit)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Saved 3D survey")
+                .accessibilityHint("Drag to rotate. Use Reset view or the numbered photo buttons below.")
+                .gesture(TapGesture().targetedToAnyEntity().onEnded { value in
+                    let prefix = "technicalPhoto:"
+                    guard value.entity.name.hasPrefix(prefix),let id = UUID(uuidString: String(value.entity.name.dropFirst(prefix.count))) else { return }
+                    selectedPhoto = package.evidence.keyframes.first { $0.id == id }
+                })
                 .id(resetID)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(white: 0.12))
@@ -54,8 +101,22 @@ struct TechnicalSavedScanView: View {
             } else {
                 ContentUnavailableView("No saved 3D mesh", systemImage: "cube.transparent", description: Text("Open Survey details to inspect the saved evidence and photos. A recovery map is only needed to resume aligned AR capture."))
             }
+            if showPhotos {
+                ScrollView(.horizontal) {
+                    HStack {
+                        ForEach(Array(package.evidence.keyframes.filter { $0.userPhoto == true }.enumerated()),id: \.element.id) { i, photo in
+                            Button { selectedPhoto = photo } label: { Label("Photo \(i+1)",systemImage: "camera") }.buttonStyle(.bordered)
+                        }
+                    }.padding(8)
+                }
+            }
         }
         .accessibilityIdentifier("technical.savedScanViewer")
+        .onChange(of: package.recognition) { _,_ in resetID = UUID() }
+        .onChange(of: selectedSuggestion) { _,_ in resetID = UUID() }
+        .onChange(of: appearance) { _,_ in resetID = UUID() }
+        .onChange(of: showPhotos) { _,_ in resetID = UUID() }
+        .sheet(item: $selectedPhoto) { photo in TechnicalSurveyPhotoView(photo: photo,persistLink: onPhotoLink) }
     }
 
     private func makeModel(_ geometry: TechnicalSavedMeshGeometry) throws -> ModelEntity {
@@ -90,5 +151,43 @@ struct TechnicalSavedScanView: View {
         }
         let mesh = try MeshResource.generate(from: [descriptor])
         return ModelEntity(mesh: mesh, materials: [material])
+    }
+    private func photoMarkerImage() -> CGImage {
+        let context = CGContext(data: nil,width: 64,height: 64,bitsPerComponent: 8,bytesPerRow: 256,
+                                space: CGColorSpace(name: CGColorSpace.sRGB)!,bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        context.setFillColor(CGColor(gray: 0.18,alpha: 1)); context.fill(CGRect(x: 0,y: 0,width: 64,height: 64))
+        context.setStrokeColor(CGColor(gray: 1,alpha: 1)); context.setLineWidth(3)
+        context.stroke(CGRect(x: 12,y: 17,width: 40,height: 29))
+        context.strokeEllipse(in: CGRect(x: 24,y: 23,width: 16,height: 16))
+        context.setFillColor(CGColor(gray: 1,alpha: 1)); context.fill(CGRect(x: 20,y: 46,width: 12,height: 5))
+        return context.makeImage()!
+    }
+
+    private func makeMEPModel(_ item: TechnicalMEPSuggestion,center: TechnicalPoint3,reference: TechnicalTransform?) -> ModelEntity {
+        func position(_ p: TechnicalPoint3) -> SIMD3<Float> {
+            let v = reference.map { TechnicalReferenceFrame.apply($0,to: p) } ?? p
+            return SIMD3(Float(v.x-center.x),Float(v.y-center.y),Float(v.z-center.z))
+        }
+        let start = position(item.start), end = position(item.end)
+        let axis = simd_normalize(end-start)
+        let mesh: MeshResource
+        if item.kind == .rectangularDuct { mesh = .generateBox(width: Float(item.width),height: simd_length(end-start),depth: Float(item.height)) }
+        else { mesh = .generateCylinder(height: simd_length(end-start),radius: Float(item.width/2)) }
+        let color = item.color ?? .init(x: 0.65,y: 0.65,z: 0.65)
+        var material = PhysicallyBasedMaterial()
+        #if os(iOS)
+        material.baseColor = .init(tint: UIColor(red: color.x,green: color.y,blue: color.z,alpha: 1))
+        #else
+        material.baseColor = .init(tint: NSColor(srgbRed: color.x,green: color.y,blue: color.z,alpha: 1))
+        #endif
+        material.metallic = .init(floatLiteral: item.material == .bareMetal ? 1 : 0)
+        let roughness: Float = switch item.material { case .captured, .insulation: 0.8; case .paintedMetal: 0.5; case .bareMetal: 0.35; case .plastic: 0.45 }
+        material.roughness = .init(floatLiteral: roughness)
+        let model = ModelEntity(mesh: mesh,materials: [material])
+        model.position = (start+end)/2
+        let crossPoint = MEPVector.add(item.start,item.crossAxis)
+        let x = simd_normalize(position(crossPoint)-start)
+        model.orientation = simd_quatf(simd_float3x3(columns: (x,axis,simd_normalize(simd_cross(x,axis)))))
+        return model
     }
 }

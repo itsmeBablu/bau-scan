@@ -35,6 +35,8 @@ struct TechnicalRoomPackage {
     var journal: TechnicalCaptureJournal
     var worldMapData: Data?
     var thumbnailPNG: Data?
+    var evidence = TechnicalCaptureEvidence()
+    var recognition = TechnicalMEPReview()
 
     func validate() throws {
         guard manifest.schemaVersion == 1 else { throw PackageError.unsupportedVersion(manifest.schemaVersion) }
@@ -45,6 +47,8 @@ struct TechnicalRoomPackage {
         _ = try TechnicalRoomJSONExporter.data(for: document.room)
         try alignment.validate()
         try journal.validate()
+        try evidence.validate()
+        try recognition.validate()
         let spatialAnnotations = !document.room.pipeRuns.isEmpty || !document.room.equipment.isEmpty || !document.ducts.isEmpty || !document.measurements.isEmpty
         if spatialAnnotations { guard alignment.referenceFrame != nil, alignment.referenceLocked else { throw PackageError.invalidPackage } }
         if let reference = alignment.referenceFrame {
@@ -85,6 +89,15 @@ struct TechnicalRoomPackage {
         try write(TechnicalRoomJSONExporter.data(for: document.room), "technical-room.json", 32 * 1_048_576)
         try write(encoder.encode(alignment), "survey.json", 8 * 1_048_576)
         try write(encoder.encode(journal), "capture.json", 256 * 1_048_576)
+        try write(encoder.encode(evidence.withoutImageBytes()), "evidence.json", 96 * 1_048_576)
+        try write(encoder.encode(recognition), "recognition.json", 1_048_576)
+        if !evidence.keyframes.isEmpty {
+            let images = staging.appendingPathComponent("capture-images", isDirectory: true)
+            try fm.createDirectory(at: images, withIntermediateDirectories: true)
+            for frame in evidence.keyframes {
+                try frame.jpegData.write(to: images.appendingPathComponent("\(frame.id.uuidString).jpg"), options: .atomic)
+            }
+        }
         if let worldMapData { try worldMapData.write(to: staging.appendingPathComponent("world-map.archive"), options: .atomic) }
         if let thumbnailPNG { try thumbnailPNG.write(to: staging.appendingPathComponent("thumbnail.png"), options: .atomic) }
         let photos = staging.appendingPathComponent("photos", isDirectory: true)
@@ -144,10 +157,23 @@ struct TechnicalRoomPackage {
             guard FileManager.default.fileExists(atPath: root.appendingPathComponent(path).path) else { return nil }
             return try load(path, root: root, maximum: maximum)
         }
+        var evidence = try optional("evidence.json", maximum: 96 * 1_048_576).map { try decoder.decode(TechnicalCaptureEvidence.self, from: $0) } ?? .init()
+        guard evidence.keyframes.count <= 32,evidence.bytes <= TechnicalCaptureEvidence.budget,
+              evidence.keyframes.allSatisfy({ $0.jpegData.isEmpty }) else { throw PackageError.invalidPackage }
+        var evidenceBytes = evidence.bytes
+        try evidence.restoreImages {
+            let data = try load("capture-images/\($0.uuidString).jpg", root: root, maximum: 4 * 1_048_576)
+            evidenceBytes += data.count
+            guard evidenceBytes <= TechnicalCaptureEvidence.budget else { throw PackageError.oversizedFile }
+            return data
+        }
+        let recognition = try optional("recognition.json", maximum: 1_048_576).map { try decoder.decode(TechnicalMEPReview.self, from: $0) } ?? .init()
         let package = Self(manifest: manifest, document: annotations, alignment: alignment, journal: journal,
                            worldMapData: try optional("world-map.archive", maximum: 64 * 1_048_576), thumbnailPNG: try optional("thumbnail.png", maximum: 10 * 1_048_576))
-        try package.validate()
-        return package
+        var completed = package
+        completed.evidence = evidence; completed.recognition = recognition
+        try completed.validate()
+        return completed
     }
     private static func load(_ path: String, root: URL, maximum: Int) throws -> Data {
         let base = root.resolvingSymlinksInPath()

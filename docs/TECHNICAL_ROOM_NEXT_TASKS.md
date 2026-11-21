@@ -120,6 +120,19 @@ Remaining physical T3/T4 checks: drag and snap points on real surfaces; verify p
 
 ### 5. Recognition and exports (T7–T8)
 
+2026-11-21 Google AI / evidence increment:
+
+- Implemented the Technical Room **Google AI mode** capture toggle and official Google Sign-In SDK for iPhone/Mac. It is not connected to a Google project yet; configuration fails visibly rather than pretending to sign in. House capture remains separate.
+- AI mode retains calibrated camera JPEGs and corresponding raw depth/confidence while moving between viewpoints. Capture remains local; after saving, users explicitly select up to five images and confirm analysis. No automatic upload or pricing/subscription flow.
+- Added on-device cylinder fitting as an offline option, and a separate Google-authenticated Gemini proxy service. Returned image masks are bound to image hashes and frame IDs, projected into local confident depth, then fitted into pipe/round-duct/rectangular-duct candidates. Recognition is a prototype; it is not broad equipment recognition or a validated MEP classifier.
+- Added review/accept/reject/edit, Scan/MEP/Both viewing, sampled natural colours and user-selected material appearances. Accepted objects export separately as JSON/OBJ/USDZ/DXF; raw mesh and original manual annotations remain separate.
+- Added **Take photo**, pinned local photos with camera-position markers, a Photos display toggle, and optional explicit copying to Google Photos with its own upload-only permission. Local photo bytes remain in the survey; stored Google Photos URLs are private to the owning account.
+- Added a bounded optional evidence sidecar and JPEG assets plus a recognition sidecar; earlier `.technicalroom` packages still open. Explicit photos are not silently evicted. Camera transforms, image geometry, private URL boundaries and package image budgets are checked.
+- Automated checks: full Mac suite 211/211, full iOS simulator suite 206/206, final focused Mac recognition/package checks 23/23, backend HTTP/authentication/limits/mask contract checks 10/10, and signed iPhone build passed. No real Gemini, Google login or Google Photos call was made; these require the user's project/client IDs/key and reachable HTTPS backend. New AR capture and 3D marker interaction still require physical-device acceptance.
+- Setup and hosting guidance: `docs/GOOGLE_AI_SETUP.md`. The backend is deployable but not deployed; no paid resources or billing were enabled. Gemini project quota is shared across signed-in app users. Free usage is not inferred from Google sign-in.
+- Native UI refinement: grouped system forms, compact Save navigation, SF Symbols, blue system controls, disclosed manual/alignment/diagnostic tools, and adaptive sheet sizing. Raw scans/photos can be saved without a reference frame; manual annotations still require verification. Mac library access is a visible sidebar entry and legacy packages use a native directory-capable import panel.
+- Interactive Mac checks: imported the retained copy of the real phone survey, reopened its 3D view and native MEP form, ran offline fitting (one unreviewed cylinder-shaped candidate), and verified the unconfigured Google button presents a setup notice. No candidate was accepted as a confirmed pipe. The 3D surface has a concise accessibility representation plus separate accessible controls/photo buttons.
+
 2026-11-20 saved-scan and export increment:
 
 - The real saved phone survey was copied read-only for diagnosis: 97 frame records, one depth snapshot and one mesh snapshot (~79,970 vertices) decode correctly. It has no recovery map or checkpoint; that prevents aligned AR resumption, not offline viewing.

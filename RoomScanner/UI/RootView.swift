@@ -31,6 +31,7 @@ struct RootView: View {
             .environment(store)
             .task { await store.activateCloudIfAvailable() }
             .onOpenURL { url in
+                if TechnicalGoogleAIAccount.handle(url) { return }
                 if url.pathExtension == "technicalroom" { technicalImport = url; showingTechnicalImport = true; return }
                 guard [FileLayout.packageExtension, FileLayout.housePackageExtension].contains(url.pathExtension) else { return }
                 do { try store.importAny(from: url) } catch { importError = error.localizedDescription }

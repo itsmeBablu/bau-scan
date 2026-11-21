@@ -8,6 +8,8 @@ struct TechnicalRoomScanView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var scanner: TechnicalRoomScanCoordinator
+    @AppStorage("technical.googleAI.enabled") private var googleAIEnabled = false
+    @State private var showingGoogleAI = false
     @State private var viewport: ARView?
     @State private var origin: TechnicalPoint3?
     @State private var frameDefined = false
@@ -15,7 +17,8 @@ struct TechnicalRoomScanView: View {
     @State private var checkpointY = ""
     @State private var checkpointZ = ""
     @State private var threshold = "30"
-    @State private var message = "Aim at the first known floor corner."
+    @State private var message = "Move slowly around the room. Capture pipes and ducts from several angles."
+    @State private var showingAlignment = false
     @State private var pipeHits: [TechnicalSurfaceHit] = []
     @State private var history = TechnicalAnnotationHistory(room: .capturedShell(id: UUID(), notes: ""))
     private var pipes: [TechnicalPipeRun] { history.room.pipeRuns }
@@ -47,6 +50,7 @@ struct TechnicalRoomScanView: View {
     @State private var frozenCheckpointAccepted = false
     let onSaved: (UUID) -> Void
     private let previousManifest: TechnicalRoomManifest?
+    private let previousRecognition: TechnicalMEPReview
 
     init(restoring package: TechnicalRoomPackage? = nil, onSaved: @escaping (UUID) -> Void) {
         let scanner = TechnicalRoomScanCoordinator()
@@ -65,14 +69,15 @@ struct TechnicalRoomScanView: View {
         }
         _scanner = State(initialValue: scanner)
         previousManifest = package?.manifest
+        previousRecognition = package?.recognition ?? .init()
         self.onSaved = onSaved
     }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
+            VStack(spacing: 0) {
                 TechnicalCaptureCamera(scanner: scanner, viewport: $viewport)
-                    .overlay { Image(systemName: "plus").font(.title).foregroundStyle(.yellow).allowsHitTesting(false) }
+                    .overlay { Image(systemName: "plus").font(.title).foregroundStyle(.white).shadow(color: .black,radius: 1).allowsHitTesting(false) }
                     .overlay {
                         if let selectedPoints, let viewport, scanner.state.canAnnotate, let reference = scanner.referenceFrame {
                             TechnicalControlPointOverlay(points: history.document.points(for: selectedPoints), reference: reference, viewport: viewport) { index, location in
@@ -82,18 +87,31 @@ struct TechnicalRoomScanView: View {
                     }
                     .coordinateSpace(name: "technicalCapture")
                     .frame(minHeight: 180, maxHeight: .infinity)
-                ScrollView {
-                VStack(spacing: 12) {
+                Form {
+                Section("Capture") {
                 Text(message).font(.callout)
-                Text("Device validation pending · Unsaved technical survey").font(.caption).foregroundStyle(.secondary)
+                Text("Unsaved scan · dimensions require verification").font(.caption).foregroundStyle(.secondary)
+                Toggle("Google AI mode",isOn: $googleAIEnabled)
+                Button { scanner.takeSurveyPhoto() } label: { Label(scanner.takingPhoto ? "Saving photo…" : "Take photo",systemImage: "camera") }
+                    .disabled(scanner.takingPhoto || !scanner.state.trackingNormal)
+                Text("\(scanner.evidence.keyframes.filter { $0.userPhoto == true }.count) photos pinned to this scan. Photos are kept locally until you choose to copy them to Google Photos.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if googleAIEnabled {
+                    Label(scanner.evidenceMessage, systemImage: "camera.viewfinder").font(.caption)
+                    Text("Colour/depth viewpoints stay on this device. After saving, choose images in MEP review and confirm before sending to Google AI.").font(.caption).foregroundStyle(.secondary)
+                    Button("Google account") { showingGoogleAI = true }
+                }
+                if scanner.evidence.droppedKeyframes > 0 {
+                    Text("Image budget reached: \(scanner.evidence.droppedKeyframes) older viewpoints replaced.").font(.caption).foregroundStyle(.secondary)
+                }
                 ForEach(scanner.healthWarnings, id: \.self) { warning in
                     Label(warning, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
                 }
-                Text("Journal: \(scanner.journal.frames.count) frames · \(scanner.journal.depths.count) depth · \(scanner.journal.meshes.count) mesh snapshots")
-                    .font(.caption)
-                if scanner.journal.retentionLimited {
-                    Text("Retention limit reached: \(scanner.journal.droppedFrames) old frames and \(scanner.journal.droppedSnapshots) snapshots were discarded.")
-                        .font(.caption).foregroundStyle(.orange)
+                }
+                DisclosureGroup("Manual survey tools") {
+                if !scanner.state.canAnnotate {
+                    Text("Set and verify survey alignment before placing manual annotations.").font(.caption).foregroundStyle(.secondary)
+                    Button("Set survey alignment") { showingAlignment = true }
                 }
                 if scanner.alignment.referenceLocked { Label("Reference frame locked", systemImage: "lock.fill").font(.caption) }
                 HStack {
@@ -123,6 +141,13 @@ struct TechnicalRoomScanView: View {
                     Button("Finish point editing") { selectedPoints = nil }
                 }
                 Text("Unsaved equipment: \(equipment.count)").font(.caption)
+                }
+                DisclosureGroup("Capture diagnostics") {
+                Text("Journal: \(scanner.journal.frames.count) frames · \(scanner.journal.depths.count) depth · \(scanner.journal.meshes.count) mesh snapshots").font(.caption)
+                Text("Saved viewpoints are coverage evidence, not a percentage of room completeness.").font(.caption).foregroundStyle(.secondary)
+                if scanner.journal.retentionLimited {
+                    Text("Retention limit reached: \(scanner.journal.droppedFrames) old frames and \(scanner.journal.droppedSnapshots) snapshots were discarded.").font(.caption).foregroundStyle(.orange)
+                }
                 Button("Capture mesh snapshot") { scanner.captureMeshSnapshot() }
                     .disabled(!scanner.state.trackingNormal)
                 Button("Capture depth snapshot") { scanner.captureDepthSnapshot() }
@@ -142,6 +167,8 @@ struct TechnicalRoomScanView: View {
                     Text("Mesh anchors \(scanner.meshAnchorCount)")
                     Text(scanner.state.phase.rawValue)
                 }.font(.caption)
+                }
+                DisclosureGroup("Survey alignment",isExpanded: $showingAlignment) {
                 if !frameDefined {
                     Button(origin == nil ? "Set origin at crosshair" : "Set +X floor corner at crosshair") { setCorner() }
                         .disabled(!scanner.state.trackingNormal)
@@ -162,15 +189,15 @@ struct TechnicalRoomScanView: View {
                     Text(scanner.state.canAnnotate ? "Alignment checkpoint accepted" : "Alignment verification required")
                     Text("\(scanner.alignment.checkpoints.count) checkpoint observations recorded").font(.caption)
                 }
+                }
                 if let error = scanner.errorMessage { Text(error).foregroundStyle(.red) }
                 }
-                .textFieldStyle(.roundedBorder)
-                }
-                .frame(maxHeight: 300)
+                .formStyle(.grouped)
+                .frame(maxHeight: 340)
             }
-            .padding()
             .disabled(saving)
-            .navigationTitle("Technical Room")
+            .navigationTitle("Technik Room")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") {
@@ -178,19 +205,36 @@ struct TechnicalRoomScanView: View {
                     }.disabled(saving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(saving ? "Saving…" : "Save survey") { saveSurvey() }
-                        .disabled(saving || !frameDefined || !pipeHits.isEmpty || (saveThumbnail == nil && !scanner.hasLiveFrames))
+                    Button(saving ? "Saving…" : "Save") { saveSurvey() }
+                        .disabled(saving || !pipeHits.isEmpty || (saveThumbnail == nil && !scanner.hasLiveFrames))
                 }
             }
         }
+        .tint(.blue)
         .onDisappear { scanner.stop() }
         .interactiveDismissDisabled(saving || !scanner.journal.frames.isEmpty)
         .confirmationDialog("Close this unsaved technical survey?", isPresented: $confirmingClose, titleVisibility: .visible) {
-            Button("Save survey") { saveSurvey() }.disabled(!frameDefined)
+            Button("Save survey") { saveSurvey() }.disabled(saveThumbnail == nil && !scanner.hasLiveFrames)
             Button("Discard unsaved capture", role: .destructive) { scanner.stop(); dismiss() }
         } message: { Text("Capture evidence and annotations are only retained after saving a .technicalroom package.") }
         .sheet(isPresented: $showingPipeTool) { pipeTool.presentationDetents([.medium, .large]).presentationBackgroundInteraction(.enabled(upThrough: .medium)) }
         .sheet(isPresented: $showingPipeReview) { pipeReview }
+        .sheet(isPresented: $showingGoogleAI) {
+            NavigationStack {
+                Form {
+                    TechnicalGoogleAIConnection()
+                    Text("AI images are captured locally. Save the scan, then select images in MEP review to request recognition.").font(.caption)
+                }
+                .navigationTitle("Google AI mode")
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingGoogleAI = false } } }
+            }
+            .presentationDetents([.medium,.large])
+        }
+        .onAppear { scanner.aiEvidenceEnabled = googleAIEnabled }
+        .onChange(of: googleAIEnabled) { _, enabled in
+            scanner.aiEvidenceEnabled = enabled
+            if enabled { showingGoogleAI = true }
+        }
         .sheet(isPresented: $showingEquipmentTool) { equipmentTool }
         .sheet(isPresented: $showingAnnotations) {
             TechnicalAnnotationEditor(history: $history, scanner: scanner, hit: crosshairHit) { selectedPoints = $0 }
@@ -387,6 +431,7 @@ struct TechnicalRoomScanView: View {
                 guard awaitingThumbnail, saveRequestID == request else { return }
                 awaitingThumbnail = false
                 guard let png = image?.pngData() else { saving = false; message = "Thumbnail capture failed. Please retry saving."; return }
+                await scanner.finishEvidenceCapture()
                 frozenCheckpointAccepted = scanner.state.canAnnotate
                 saveThumbnail = png
                 scanner.stop() // Freeze journal/evidence before writing, and release the camera promptly.
@@ -402,7 +447,8 @@ struct TechnicalRoomScanView: View {
         var manifest = previousManifest ?? TechnicalRoomManifest(id: history.room.id, name: "Technik Room")
         manifest.modifiedAt = Date(); manifest.checkpointAcceptedAtSave = frozenCheckpointAccepted
         let package = TechnicalRoomPackage(manifest: manifest, document: history.document, alignment: scanner.alignment,
-            journal: scanner.journal, worldMapData: scanner.worldMapData, thumbnailPNG: thumbnail)
+            journal: scanner.journal, worldMapData: scanner.worldMapData, thumbnailPNG: thumbnail, evidence: scanner.evidence,
+            recognition: previousRecognition)
         Task { @MainActor in
             do {
                 try await TechnicalRoomLibraryStore().save(package)
