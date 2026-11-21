@@ -6,9 +6,22 @@ struct TechnicalCaptureState: Equatable {
     private(set) var phase: Phase = .idle
     private(set) var trackingNormal = false
     private(set) var checkpointResidualMm: Double?
+    private(set) var cameraSuspended = false
     var canAnnotate: Bool { phase == .capturing && trackingNormal && checkpointResidualMm != nil }
 
-    mutating func start() { phase = .alignmentRequired; trackingNormal = false; checkpointResidualMm = nil }
+    mutating func start() { phase = .alignmentRequired; trackingNormal = false; checkpointResidualMm = nil; cameraSuspended = false }
+    mutating func suspendCamera() {
+        guard phase != .stopped && phase != .idle else { return }
+        cameraSuspended = true
+        interrupt()
+    }
+    /// Resumes camera processing only. Survey tools still need a new checkpoint.
+    mutating func resumeCamera() -> Bool {
+        guard cameraSuspended,phase != .stopped,phase != .idle else { return false }
+        cameraSuspended = false
+        interrupt()
+        return true
+    }
     mutating func tracking(normal: Bool) {
         guard phase != .stopped && phase != .idle else { return }
         trackingNormal = normal
@@ -25,7 +38,7 @@ struct TechnicalCaptureState: Equatable {
         checkpointResidualMm = residualMm
         phase = residualMm <= thresholdMm ? .capturing : .alignmentRequired
     }
-    mutating func stop() { phase = .stopped; trackingNormal = false; checkpointResidualMm = nil }
+    mutating func stop() { phase = .stopped; trackingNormal = false; checkpointResidualMm = nil; cameraSuspended = false }
 }
 
 enum TechnicalReferenceFrame {

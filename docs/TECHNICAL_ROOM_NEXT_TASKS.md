@@ -120,6 +120,14 @@ Remaining physical T3/T4 checks: drag and snap points on real surfaces; verify p
 
 ### 5. Recognition and exports (T7–T8)
 
+2026-11-21 offline stability review:
+
+- Fixed returning from app interruptions leaving the Technical Room camera paused: resume the same AR session/configuration without resetting tracking/anchors, and keep manual annotations locked until a new checkpoint. Returning from Camera Settings after initially denying access can start capture normally. Camera errors/settings access are visible in the primary capture section.
+- AI-off MEP review no longer constructs Google sign-in/restore controls. Local photos expose Google Photos only after its disclosure is explicitly opened. Offline detection is not cancelled by Google account/mode changes; pending AI confirmation is dismissed when AI mode is disabled.
+- Save now refuses an empty/no-budget mesh instead of silently writing a survey with no viewable geometry. Existing evidence is retained for retry.
+- Kept the native content-first layout and made Take photo a prominent system action. House capture/session code is unchanged by this review.
+- Verification: 213 macOS and 208 iOS simulator tests passed, including new camera resume/stop permission tests. Real iPhone camera interruption, colour coverage and physical measurement acceptance remain required before a production accuracy claim.
+
 2026-11-21 Google AI / evidence increment:
 
 - Implemented the Technical Room **Google AI mode** capture toggle and official Google Sign-In SDK for iPhone/Mac. It is not connected to a Google project yet; configuration fails visibly rather than pretending to sign in. House capture remains separate.

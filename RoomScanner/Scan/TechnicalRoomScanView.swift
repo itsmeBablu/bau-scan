@@ -1,6 +1,7 @@
 #if os(iOS)
 import SwiftUI
 import RealityKit
+import AVFoundation
 
 /// Independent technical capture preview. Device validation pending.
 /// Saving is introduced with the independent technical package milestone.
@@ -90,9 +91,18 @@ struct TechnicalRoomScanView: View {
                 Form {
                 Section("Capture") {
                 Text(message).font(.callout)
+                if let error = scanner.errorMessage {
+                    Label(error,systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.red)
+                    if AVCaptureDevice.authorizationStatus(for: .video) == .denied {
+                        Button("Open camera settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                        }
+                    }
+                }
                 Text("Unsaved scan · dimensions require verification").font(.caption).foregroundStyle(.secondary)
                 Toggle("Google AI mode",isOn: $googleAIEnabled)
                 Button { scanner.takeSurveyPhoto() } label: { Label(scanner.takingPhoto ? "Saving photo…" : "Take photo",systemImage: "camera") }
+                    .buttonStyle(.borderedProminent).controlSize(.large)
                     .disabled(scanner.takingPhoto || !scanner.state.trackingNormal)
                 Text("\(scanner.evidence.keyframes.filter { $0.userPhoto == true }.count) photos pinned to this scan. Photos are kept locally until you choose to copy them to Google Photos.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -190,7 +200,6 @@ struct TechnicalRoomScanView: View {
                     Text("\(scanner.alignment.checkpoints.count) checkpoint observations recorded").font(.caption)
                 }
                 }
-                if let error = scanner.errorMessage { Text(error).foregroundStyle(.red) }
                 }
                 .formStyle(.grouped)
                 .frame(maxHeight: 340)
@@ -245,7 +254,7 @@ struct TechnicalRoomScanView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { scanner.interrupt() }
-            // Resumption is explicit and always invalidates the alignment checkpoint.
+            else if !saving { scanner.resumeCameraAfterInterruption() }
         }
         .onChange(of: scanner.state.canAnnotate) { _, verified in
             if verified, let viewport { scanner.syncAnnotations(history.document, in: viewport) }
@@ -423,9 +432,13 @@ struct TechnicalRoomScanView: View {
         guard saveThumbnail != nil || scanner.hasLiveFrames else { message = "Wait for live camera frames before saving this AR capture."; return }
         if let saveThumbnail { saving = true; persistSurvey(thumbnail: saveThumbnail); return }
         guard let viewport else { return }
+        guard scanner.captureMeshSnapshot() else {
+            message = scanner.errorMessage ?? "Capture some 3D surfaces before saving."
+            return
+        }
         saving = true; awaitingThumbnail = true
         let request = UUID(); saveRequestID = request
-        scanner.captureMeshSnapshot(); scanner.captureDepthSnapshot()
+        scanner.captureDepthSnapshot()
         viewport.snapshot(saveToHDR: false) { image in
             Task { @MainActor in
                 guard awaitingThumbnail, saveRequestID == request else { return }

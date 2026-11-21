@@ -10,6 +10,7 @@ struct TechnicalSurveyPhotoView: View {
     @State private var error: String?
     @State private var remoteURL: URL?
     @State private var confirmCopy = false
+    @State private var showingGooglePhotos = false
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -18,10 +19,14 @@ struct TechnicalSurveyPhotoView: View {
                     Text("Photo taken at this camera position. The position uses the saved scan coordinates; it is not a GPS location.").font(.caption).foregroundStyle(.secondary)
                     if let link = remoteURL ?? photo.googlePhotosURL { Link("Open in Google Photos",destination: link) }
                     if photo.googlePhotosURL == nil,persistLink != nil {
+                        DisclosureGroup("Google Photos",isExpanded: $showingGooglePhotos) {
+                        if showingGooglePhotos {
                         TechnicalGoogleAIConnection()
                         Button(remoteURL == nil ? "Copy to Google Photos…" : "Save Google Photos link") {
                             if remoteURL == nil { confirmCopy = true } else { copy() }
                         }.disabled(busy || !TechnicalGoogleAIAccount.shared.signedIn)
+                        }
+                        }.disabled(busy)
                     }
                     if busy { ProgressView("Saving Google Photos copy…") }
                     if let error { Text(error).font(.caption).foregroundStyle(.red) }

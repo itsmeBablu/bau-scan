@@ -2,6 +2,33 @@ import XCTest
 @testable import RoomScanner
 
 final class TechnicalCaptureStateTests: XCTestCase {
+    func testCameraCanResumeAfterBackgroundWithoutRestoringSurveyPermission() {
+        var state = TechnicalCaptureState()
+        state.start(); state.tracking(normal: true)
+        state.verify(residualMm: 5,thresholdMm: 30)
+        XCTAssertTrue(state.canAnnotate)
+        state.suspendCamera()
+        XCTAssertTrue(state.cameraSuspended)
+        XCTAssertFalse(state.trackingNormal)
+        XCTAssertTrue(state.resumeCamera())
+        XCTAssertFalse(state.cameraSuspended)
+        state.tracking(normal: true)
+        XCTAssertFalse(state.canAnnotate,"Camera recovery must not certify survey alignment.")
+        XCTAssertNil(state.checkpointResidualMm)
+        state.verify(residualMm: 5,thresholdMm: 30)
+        XCTAssertTrue(state.canAnnotate)
+        XCTAssertFalse(state.resumeCamera(),"Do not repeatedly restart an already running camera.")
+    }
+    func testStoppedOrIdleCameraCannotBeResumedByLateForegroundEvents() {
+        var state = TechnicalCaptureState()
+        state.suspendCamera()
+        XCTAssertFalse(state.resumeCamera())
+        XCTAssertEqual(state.phase,.idle)
+        state.start(); state.suspendCamera(); state.stop()
+        XCTAssertFalse(state.cameraSuspended)
+        XCTAssertFalse(state.resumeCamera())
+        XCTAssertEqual(state.phase,.stopped)
+    }
     func testRoomToSessionRoundTrip() throws {
         let frame = try TechnicalReferenceFrame.transform(origin: .init(x: 3, y: 1, z: 4), xCorner: .init(x: 4, y: 1, z: 6))
         let original = TechnicalPoint3(x: -2, y: 2.7, z: 8)

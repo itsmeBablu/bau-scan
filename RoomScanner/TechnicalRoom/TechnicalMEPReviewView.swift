@@ -13,6 +13,7 @@ struct TechnicalMEPReviewView: View {
     @State private var localKind = TechnicalMEPKind.pipe
     @State private var job: Task<Void,Never>?
     @State private var busy = false
+    @State private var jobUsesGoogle = false
     @State private var message = ""
     @State private var error: String?
     @State private var confirmSending = false
@@ -36,6 +37,7 @@ struct TechnicalMEPReviewView: View {
             }
             Section("Google AI mode") {
                 Toggle("Google AI mode",isOn: $aiEnabled)
+                if aiEnabled {
                 TechnicalGoogleAIConnection()
                 Text("Select up to five viewpoints for Gemini recognition. Nothing is sent automatically. If free quota is unavailable, local detection still works.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -62,6 +64,9 @@ struct TechnicalMEPReviewView: View {
                     }
                     Button("Send selected images and analyse…") { confirmSending = true }
                         .disabled(busy || !aiEnabled || !account.signedIn || selection.isEmpty || endpoint.isEmpty)
+                }
+                } else {
+                    Text("Off. Scanning, photos and offline detection work without Google sign-in.").font(.caption).foregroundStyle(.secondary)
                 }
             }
             if !package.recognition.suggestions.isEmpty {
@@ -94,8 +99,10 @@ struct TechnicalMEPReviewView: View {
             if endpoint.isEmpty { endpoint = Bundle.main.object(forInfoDictionaryKey: "TechnicalGoogleAIServiceURL") as? String ?? "" }
         }
         .onDisappear { job?.cancel() }
-        .onChange(of: aiEnabled) { _, enabled in if !enabled { job?.cancel() } }
-        .onChange(of: account.signedIn) { _, signedIn in if !signedIn { job?.cancel() } }
+        .onChange(of: aiEnabled) { _, enabled in
+            if !enabled { confirmSending = false; if jobUsesGoogle { job?.cancel() } }
+        }
+        .onChange(of: account.signedIn) { _, signedIn in if !signedIn && jobUsesGoogle { job?.cancel() } }
         .sheet(item: $editing) { item in
             TechnicalMEPEditor(item: item) { edited in saveEdit(edited) }
         }
@@ -119,9 +126,10 @@ struct TechnicalMEPReviewView: View {
         }
     }
     private func detectAI() {
+        guard aiEnabled,account.signedIn else { error = "Enable Google AI mode and sign in before sending images."; return }
         guard let url = URL(string: endpoint),url.scheme == "https" else { error = TechnicalMEPClient.Failure.configuration.localizedDescription; return }
         let frames = package.evidence.keyframes.filter { selection.contains($0.id) }
-        run(message: "Recognising selected images…") {
+        run(message: "Recognising selected images…",usingGoogle: true) {
             let accessToken = try await account.idToken()
             let worker = Task.detached(priority: .userInitiated) {
                 var results: [TechnicalMEPSuggestion] = []
@@ -134,10 +142,10 @@ struct TechnicalMEPReviewView: View {
             return try await withTaskCancellationHandler(operation: { try await worker.value },onCancel: { worker.cancel() })
         }
     }
-    private func run(message: String,operation: @escaping () async throws -> [TechnicalMEPSuggestion]) {
-        guard !busy else { return }; busy = true; self.message = message
+    private func run(message: String,usingGoogle: Bool = false,operation: @escaping () async throws -> [TechnicalMEPSuggestion]) {
+        guard !busy else { return }; busy = true; jobUsesGoogle = usingGoogle; self.message = message
         job = Task { @MainActor in
-            defer { busy = false; job = nil }
+            defer { busy = false; job = nil; jobUsesGoogle = false }
             do {
                 let results = try await operation()
                 try Task.checkCancellation()

@@ -176,16 +176,44 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     }
 
     func interrupt() {
-        guard active else { return }
+        guard active,!state.cameraSuspended else { return }
+        state.suspendCamera()
         invalidateAlignment()
         record(.interrupted, "Capture interrupted; checkpoint revalidation required")
         session.pause()
     }
 
-    func captureMeshSnapshot() {
-        guard active, let frame = session.currentFrame else { return }
-        meshSnapshot = sceneColors.merge(TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate))
-        if let meshSnapshot { journal.append(meshSnapshot) }
+    func resumeCameraAfterInterruption() {
+        guard state.phase != .stopped else { return }
+        // Also handle returning from Settings after camera access was initially denied.
+        if !active { start(); return }
+        guard active,collectingEvidence,state.cameraSuspended,
+              let configuration = session.configuration?.copy() as? ARWorldTrackingConfiguration,
+              state.resumeCamera() else { return }
+        // Same session/configuration type, no reset flags: preserve the existing world and mesh.
+        // An archived map is used only by explicit recovery, never reapplied on foregrounding.
+        configuration.initialWorldMap = nil
+        previousTimestamp = nil
+        minimumFrameTimestamp = session.currentFrame?.timestamp ?? minimumFrameTimestamp
+        lastRecordedTimestamp = -Double.infinity
+        record(.started,"Camera resumed in existing AR session; alignment verification required")
+        session.run(configuration,options: [])
+    }
+
+    @discardableResult func captureMeshSnapshot() -> Bool {
+        guard active, let frame = session.currentFrame else { return false }
+        let snapshot = sceneColors.merge(TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate))
+        guard TechnicalSavedMeshGeometry.latest(in: [snapshot]) != nil else {
+            errorMessage = "No 3D surfaces captured yet. Move around the room before saving."
+            return false
+        }
+        guard journal.append(snapshot) else {
+            errorMessage = "The mesh exceeds the current capture budget. Keep scanning a smaller area, then retry."
+            return false
+        }
+        meshSnapshot = snapshot
+        errorMessage = nil
+        return true
     }
 
     func captureDepthSnapshot() {
