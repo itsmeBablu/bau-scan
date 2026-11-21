@@ -14,6 +14,7 @@ struct HouseDetailView: View {
     @State private var renaming = false
     @State private var exporting = false
     @State private var showingRadiators = false
+    @State private var showingStudio = false
     @State private var radiators: [HouseRadiator] = []
     @State private var newName = ""
     @State private var viewerState = ViewerState()
@@ -48,6 +49,10 @@ struct HouseDetailView: View {
                 Menu {
                     Button {
                         viewerState.mode = .threeD
+                        showingStudio = true
+                    } label: { Label("3D Edit · House Studio",systemImage: "square.stack.3d.up") }.disabled(house == nil)
+                    Button {
+                        viewerState.mode = .threeD
                         showingRadiators = true
                     } label: { Label("Radiators", systemImage: "radiator") }
                     .disabled(house == nil)
@@ -61,6 +66,15 @@ struct HouseDetailView: View {
         .sheet(isPresented: $showingRadiators,onDismiss: { load() }) {
             if let house {
                 HouseRadiatorListView(house: house, packageURL: store.packageURL(for: currentRecord))
+            }
+        }
+        .sheet(isPresented: $showingStudio) {
+            if let house {
+                let seed: SceneEditDocument = {
+                    var value = SceneEditDocument.seed(house: house,source: .house,id: currentRecord.id,scans: (try? HousePackage.readStructure(from: store.packageURL(for: currentRecord)))?.rooms ?? [])
+                    value.includeRadiators(radiators); return value
+                }()
+                NavigationStack { StudioProjectView(seed: seed,storageRoot: store.location.documentsURL) }
             }
         }
         .alert("detail.rename", isPresented: $renaming) {

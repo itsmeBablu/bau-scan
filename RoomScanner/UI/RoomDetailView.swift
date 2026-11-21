@@ -13,6 +13,7 @@ struct RoomDetailView: View {
     }()
     @State private var renaming = false
     @State private var exporting = false
+    @State private var showingStudio = false
     @State private var newName = ""
     @State private var viewerState: ViewerState = {
         let s = ViewerState()
@@ -48,11 +49,20 @@ struct RoomDetailView: View {
                     #endif
             }
             ToolbarItem(placement: .primaryAction) {
-                Button { newName = currentRecord.name; renaming = true } label: { Label("detail.rename", systemImage: "pencil") }
+                Menu {
+                    Button { viewerState.mode = .threeD; showingStudio = true } label: { Label("3D Edit · House Studio",systemImage: "square.stack.3d.up") }.disabled(plan == nil)
+                    Button { newName = currentRecord.name; renaming = true } label: { Label("detail.rename", systemImage: "pencil") }
+                } label: { Label("Options",systemImage: "ellipsis.circle") }
             }
         }
         .sheet(isPresented: $exporting) {
             if let plan { ExportSheet(record: currentRecord, plan: plan, packageURL: store.packageURL(for: currentRecord)).environment(store) }
+        }
+        .sheet(isPresented: $showingStudio) {
+            if let plan {
+                let scan = try? RoomPackage.readScan(from: store.packageURL(for: currentRecord))
+                NavigationStack { StudioProjectView(seed: .seed(house: House(room: plan),source: .room,id: currentRecord.id,scans: scan.map { [$0] } ?? []),storageRoot: store.location.documentsURL) }
+            }
         }
         .alert("detail.rename", isPresented: $renaming) {
             TextField("detail.rename.placeholder", text: $newName)

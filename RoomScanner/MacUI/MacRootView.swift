@@ -11,6 +11,7 @@ struct MacRootView: View {
     @State private var exportSheet: ExportRequest?
     @State private var errorMessage: String?
     @State private var showingTechnicalLibrary = false
+    @State private var showingStudio = false
     @State private var technicalImport: URL?
 
     struct ExportRequest: Identifiable { let id = UUID(); let subject: ExportSubject; let format: ExportFormat? }
@@ -27,6 +28,7 @@ struct MacRootView: View {
         NavigationSplitView {
             List(selection: $appState.selected) {
                 Section {
+                    Button { showingStudio = true } label: { Label("Design Studio",systemImage: "square.stack.3d.up") }.buttonStyle(.plain)
                     Button { technicalImport = nil; showingTechnicalLibrary = true } label: {
                         Label("Technical Rooms",systemImage: "cube.transparent")
                     }.buttonStyle(.plain)
@@ -91,6 +93,7 @@ struct MacRootView: View {
             ExportSheet(subject: req.subject, initialFormat: req.format).environment(store)
         }
         .sheet(isPresented: $showingTechnicalLibrary) { TechnicalRoomLibraryView(importURL: technicalImport) }
+        .sheet(isPresented: $showingStudio) { StudioLibraryView().environment(store) }
         .alert("mac.actionFailed", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("common.ok") { errorMessage = nil }
         } message: { Text(errorMessage ?? "") }

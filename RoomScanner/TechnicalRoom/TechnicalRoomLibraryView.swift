@@ -124,6 +124,7 @@ private struct TechnicalStoredRoomView: View {
     @State private var note = ""
     @State private var success = ""
     @State private var tab = Tab.scan
+    @State private var studioDocument: SceneEditDocument?
     private enum Tab: Hashable { case scan, details, recognition }
     #if os(iOS)
     @State private var resuming = false
@@ -154,6 +155,17 @@ private struct TechnicalStoredRoomView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
+            ToolbarItem(placement: .secondaryAction) {
+                Button {
+                    guard let package else { return }
+                    busy = true
+                    Task { @MainActor in
+                        defer { busy = false }
+                        do { studioDocument = try await Task.detached { try SceneEditDocument.technical(package) }.value }
+                        catch { self.error = error.localizedDescription }
+                    }
+                } label: { Label("3D Edit · Technik Studio",systemImage: "square.stack.3d.up") }.disabled(package == nil || busy)
+            }
             ToolbarItem(placement: .primaryAction) {
                 if tab == .details { Button("Save") { save() }.disabled(package == nil || busy) }
             }
@@ -174,6 +186,9 @@ private struct TechnicalStoredRoomView: View {
         }
         .task {
             do { package = try await library.read(id) } catch { self.error = error.localizedDescription }
+        }
+        .sheet(item: $studioDocument) { document in
+            NavigationStack { StudioProjectView(seed: document,storageRoot: library.root.deletingLastPathComponent()) }
         }
         .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .technicalRoom,
                       defaultFilename: package?.manifest.name ?? "Technical Room") { result in
