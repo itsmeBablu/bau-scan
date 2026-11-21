@@ -14,6 +14,7 @@ struct HouseDetailView: View {
     @State private var renaming = false
     @State private var exporting = false
     @State private var showingRadiators = false
+    @State private var radiators: [HouseRadiator] = []
     @State private var newName = ""
     @State private var viewerState = ViewerState()
 
@@ -57,7 +58,7 @@ struct HouseDetailView: View {
         .sheet(isPresented: $exporting) {
             if let house { ExportSheet(subject: ExportSubject(record: currentRecord, house: house, packageURL: store.packageURL(for: currentRecord))).environment(store) }
         }
-        .sheet(isPresented: $showingRadiators) {
+        .sheet(isPresented: $showingRadiators,onDismiss: { load() }) {
             if let house {
                 HouseRadiatorListView(house: house, packageURL: store.packageURL(for: currentRecord))
             }
@@ -109,7 +110,7 @@ struct HouseDetailView: View {
                 #endif
             case .viewer:
                 VStack(spacing: 0) {
-                    ViewerView(house: shown(house), state: viewerState)
+                    ViewerView(house: shown(house), state: viewerState, radiators: radiators)
                     ViewerControls(state: viewerState, usdzURL: HousePackage.usdzURL(in: store.packageURL(for: currentRecord)))
                 }
             case .measures: HouseMeasuresView(house: shown(house))
@@ -121,6 +122,7 @@ struct HouseDetailView: View {
         do {
             let h = try store.house(for: currentRecord)
             house = h
+            radiators = (try? HousePackage.readRadiators(from: store.packageURL(for: currentRecord)))?.radiators ?? []
             if let storyIndex, !h.stories.contains(where: { $0.index == storyIndex }) { self.storyIndex = nil }
         } catch { loadError = error.localizedDescription }
     }

@@ -81,6 +81,9 @@ struct HouseRadiator: Codable,Equatable,Identifiable {
     var photoJPEG: Data?
     var createdAt = Date()
     var notes = ""
+    /// Only true when captured using the same uninterrupted House AR session.
+    var capturedInHouseCoordinates: Bool? = nil
+    var houseFloorElevation: Double? = nil
     func validate() throws {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,name.count <= 120,notes.count <= 2000,
               frontCorners.count == 3,frontCorners.allSatisfy(\.valid),wallSample.point.valid,
@@ -88,6 +91,9 @@ struct HouseRadiator: Codable,Equatable,Identifiable {
               samples.count <= 8000,samples.allSatisfy({ $0.point.valid && $0.normal.valid && abs($0.normal.length-1) < 0.01 && $0.viewpoint >= 0 }),
               viewpointCount >= 0,viewpointCount <= 100_000,(photoJPEG?.count ?? 0) <= 2 * 1_048_576,
               createdAt.timeIntervalSince1970.isFinite else { throw HouseRadiatorSurvey.Failure.invalid }
+        if let houseFloorElevation {
+            guard houseFloorElevation.isFinite,abs(houseFloorElevation) < 1000 else { throw HouseRadiatorSurvey.Failure.invalid }
+        }
         try width.validate(); try height.validate(); try wallToFront.validate()
         try depth?.validate(); try wallGap?.validate(allowZero: true)
         if let gap = wallGap,let depth, gap.source == .scanEstimate,depth.source == .scanEstimate {
@@ -101,12 +107,13 @@ struct HouseRadiatorSurvey: Codable,Equatable {
     var houseID: UUID
     var radiators: [HouseRadiator] = []
     enum Failure: LocalizedError {
-        case invalid, incomplete, wrongWall
+        case invalid, incomplete, wrongWall, unassigned
         var errorDescription: String? {
             switch self {
             case .invalid: "The radiator survey contains invalid dimensions or capture evidence."
             case .incomplete: "Mark the lower-left, lower-right and upper-left front corners, then the adjacent finished wall."
             case .wrongWall: "Choose the finished wall beside the radiator, parallel to its front."
+            case .unassigned: "A captured radiator could not be matched to a scanned House wall. The House and radiator observations have not been saved yet."
             }
         }
     }

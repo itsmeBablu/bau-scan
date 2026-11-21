@@ -50,4 +50,34 @@ final class HouseRadiatorTests: XCTestCase {
         var invalid = survey; invalid.houseID = UUID()
         XCTAssertThrowsError(try HousePackage.writeRadiators(invalid,house: package.house,in: root))
     }
+
+    func testHouseRegistrationRejectsIndependentCameraCoordinates() throws {
+        let structure = SyntheticRooms.twoRoomApartment()
+        let house = HouseBuilder().build(from: structure,name: "House")
+        var item = try geometry().result(roomID: UUID(),wallID: nil,samples: samples(),viewpoints: 2,preset: .none,photo: nil)
+        XCTAssertThrowsError(try HouseRadiatorRegistration.associate([item],house: house,structure: structure))
+        item.capturedInHouseCoordinates = true
+        let result = try HouseRadiatorRegistration.associate([item],house: house,structure: structure)
+        let registered = try XCTUnwrap(result.radiators.first)
+        XCTAssertTrue(house.allRooms.contains { $0.id == registered.roomID && $0.walls.contains { $0.id == registered.wallID } })
+        XCTAssertNotNil(registered.houseFloorElevation)
+        XCTAssertEqual(registered.frontCorners,item.frontCorners)
+        XCTAssertEqual(registered.samples,item.samples)
+    }
+
+    @MainActor func testOnlyRegisteredRadiatorsRenderInHouseAndRespectObjectsToggle() throws {
+        let structure = SyntheticRooms.twoRoomApartment()
+        let house = HouseBuilder().build(from: structure,name: "House")
+        var item = try geometry().result(roomID: XCTUnwrap(house.allRooms.first).id,wallID: nil,samples: samples(),viewpoints: 2,preset: .none,photo: nil)
+        var builder = PlanSceneBuilder()
+        builder.radiators = [item]
+        let name = "radiator:"+item.id.uuidString
+        XCTAssertNil(builder.makeScene(for: house).findEntity(named: name))
+        item.capturedInHouseCoordinates = true; item.houseFloorElevation = -1
+        builder.radiators = [item]
+        let entity = try XCTUnwrap(builder.makeScene(for: house).findEntity(named: name))
+        XCTAssertEqual(entity.position.y,1.3,accuracy: 0.001)
+        builder.options.showObjects = false
+        XCTAssertNil(builder.makeScene(for: house).findEntity(named: name))
+    }
 }

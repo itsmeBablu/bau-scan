@@ -6,10 +6,18 @@ import Observation
 import RealityKit
 import UIKit
 
-/// A close-up session opened only after House capture is saved. Never changes RoomPlan's session.
+/// Owns a saved-House close-up session, or passively observes the live House session.
+/// Shared-session mode never changes RoomPlan's delegate, configuration or camera lifecycle.
 @Observable @MainActor
 final class HouseRadiatorScanCoordinator: NSObject,@preconcurrency ARSessionDelegate {
-    let session = ARSession()
+    let session: ARSession
+    private let ownsSession: Bool
+    private(set) var depthAvailable = false
+    init(session: ARSession? = nil) {
+        self.session = session ?? ARSession()
+        ownsSession = session == nil
+        super.init()
+    }
     private(set) var frontCorners: [RadiatorPoint] = []
     private(set) var geometry: RadiatorScanGeometry?
     private(set) var viewpointCount = 0
@@ -32,6 +40,12 @@ final class HouseRadiatorScanCoordinator: NSObject,@preconcurrency ARSessionDele
 
     func start() {
         guard !active,!requestingPermission,!frozen else { return }
+        if !ownsSession {
+            // RoomPlan owns this camera and its delegate/configuration. Observe frames only.
+            active = true; paused = false
+            refreshSharedFrame()
+            return
+        }
         guard Self.isSupported else { error = "Radiator scanning requires a LiDAR-equipped iPhone or iPad."; return }
         requestingPermission = true; generation += 1
         let request = generation
@@ -54,20 +68,25 @@ final class HouseRadiatorScanCoordinator: NSObject,@preconcurrency ARSessionDele
     func pause() {
         if requestingPermission { generation += 1; requestingPermission = false }
         guard active,!paused,!frozen else { return }
-        paused = true; trackingNormal = false; session.pause()
+        paused = true; trackingNormal = false
+        if ownsSession { session.pause() }
     }
     func resume() {
         if !active { start(); return }
         guard paused,!frozen,let config = session.configuration else { return }
         paused = false; lastSampleTime = -Double.infinity
-        session.run(config,options: [])
+        if ownsSession { session.run(config,options: []) }
     }
     func stop() {
         generation += 1; active = false; requestingPermission = false
-        session.pause()
+        if ownsSession { session.pause() }
+    }
+    func refreshSharedFrame() {
+        guard !ownsSession,let frame = session.currentFrame else { return }
+        session(session,didUpdate: frame)
     }
     func markCrosshair() {
-        guard active,!frozen,trackingNormal,let frame = session.currentFrame,let depth = frame.sceneDepth,
+        guard active,!frozen,trackingNormal,let frame = session.currentFrame,let depth = frame.sceneDepth ?? frame.smoothedSceneDepth,
               let sample = Self.sample(frame: frame,depth: depth,x: CVPixelBufferGetWidth(depth.depthMap)/2,y: CVPixelBufferGetHeight(depth.depthMap)/2,viewpoint: viewpointCount) else {
             error = "No confident depth at the crosshair. Move closer or try another angle."; return
         }
@@ -92,7 +111,9 @@ final class HouseRadiatorScanCoordinator: NSObject,@preconcurrency ARSessionDele
         guard let geometry else { throw HouseRadiatorSurvey.Failure.incomplete }
         let samples = points.values.flatMap { $0 }
         guard samples.count >= 30,viewpointCount >= 2 else { throw HouseRadiatorSurvey.Failure.incomplete }
-        frozen = true; session.pause(); trackingNormal = false
+        frozen = true
+        if ownsSession { session.pause() }
+        trackingNormal = false
         if photo == nil,let frame = session.currentFrame {
             photo = await Task.detached(priority: .utility) {
                 HouseRadiatorImageEncoder.jpeg(frame.capturedImage)
@@ -111,7 +132,9 @@ final class HouseRadiatorScanCoordinator: NSObject,@preconcurrency ARSessionDele
         guard active,!paused,!frozen else { return }
         let normal = frame.camera.trackingState == .normal
         if trackingNormal != normal { trackingNormal = normal }
-        guard normal,let geometry,frame.timestamp-lastSampleTime >= 0.7,let depth = frame.sceneDepth else { return }
+        let depth = frame.sceneDepth ?? frame.smoothedSceneDepth
+        if depthAvailable != (depth != nil) { depthAvailable = depth != nil }
+        guard normal,let geometry,frame.timestamp-lastSampleTime >= 0.7,let depth else { return }
         let m = frame.camera.transform
         let camera = RadiatorPoint(x: Double(m[3].x),y: Double(m[3].y),z: Double(m[3].z))
         let direction = RadiatorPoint(x: Double(m[2].x),y: Double(m[2].y),z: Double(m[2].z))

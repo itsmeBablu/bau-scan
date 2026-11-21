@@ -12,6 +12,7 @@ import AVFoundation
 struct ViewerView: View {
     let house: House
     @Bindable var state: ViewerState
+    var radiators: [HouseRadiator] = []
 
     /// Root of the scene, rebuilt when visual options change.
     @State private var sceneRoot = Entity()
@@ -22,7 +23,7 @@ struct ViewerView: View {
     var body: some View {
         #if os(iOS)
         if state.mode == .ar {
-            CameraARView(house: house, state: state)
+            CameraARView(house: house, state: state, radiators: radiators)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             virtualView
@@ -52,6 +53,7 @@ struct ViewerView: View {
         .onChange(of: state.showDimensions) { _, _ in rebuildScene() }
         .onChange(of: state.showObjects) { _, _ in rebuildScene() }
         .onChange(of: house) { _, _ in rebuildScene(); resetView() }
+        .onChange(of: radiators) { _, _ in rebuildScene() }
         .onChange(of: state.resetToken) { _, _ in resetView() }
         .background(AppTheme.darkCharcoal)
     }
@@ -60,6 +62,7 @@ struct ViewerView: View {
 
     private func rebuildScene() {
         var builder = PlanSceneBuilder()
+        builder.radiators = radiators
         builder.options.showDimensions = state.showDimensions
         builder.options.showObjects = state.showObjects
         builder.options.flattenWalls = state.mode == .twoD
@@ -116,6 +119,7 @@ private extension CGFloat { var float: Float { Float(self) } }
 private struct CameraARView: View {
     let house: House
     @Bindable var state: ViewerState
+    let radiators: [HouseRadiator]
     @Environment(\.scenePhase) private var scenePhase
     @State private var authorized = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
     @State private var requested = false
@@ -127,7 +131,7 @@ private struct CameraARView: View {
             if !ARWorldTrackingConfiguration.isSupported {
                 ContentUnavailableView("AR is unavailable", systemImage: "arkit", description: Text("Use a supported iPhone or iPad to view your scan in AR."))
             } else if authorized {
-                NativeARView(house: house, dimensions: state.showDimensions, objects: state.showObjects,
+                NativeARView(house: house, radiators: radiators, dimensions: state.showDimensions, objects: state.showObjects,
                              scale: state.arScale, resetToken: state.resetToken, active: scenePhase == .active,
                              status: $cameraStatus, failed: $cameraFailed)
                     .overlay(alignment: .top) {
@@ -170,6 +174,7 @@ private struct CameraARView: View {
 
 private struct NativeARView: UIViewRepresentable {
     let house: House
+    let radiators: [HouseRadiator]
     let dimensions: Bool
     let objects: Bool
     let scale: ARScale
@@ -201,7 +206,7 @@ private struct NativeARView: UIViewRepresentable {
         coordinator.report = { message, failure in
             status = message; failed = failure
         }
-        coordinator.update(view, house: house, dimensions: dimensions, objects: objects,
+        coordinator.update(view, house: house, radiators: radiators, dimensions: dimensions, objects: objects,
                            scale: scale, resetToken: resetToken, active: active)
     }
 
@@ -215,6 +220,7 @@ private struct NativeARView: UIViewRepresentable {
 
     @MainActor final class Coordinator: NSObject, ARSessionDelegate {
         private var previousHouse: House?
+        private var previousRadiators: [HouseRadiator] = []
         private var dimensions = false
         private var objects = false
         private var scale: ARScale?
@@ -262,13 +268,14 @@ private struct NativeARView: UIViewRepresentable {
             }
         }
 
-        func update(_ view: ARView, house: House, dimensions: Bool, objects: Bool, scale: ARScale, resetToken: Int, active: Bool) {
+        func update(_ view: ARView, house: House, radiators: [HouseRadiator], dimensions: Bool, objects: Bool, scale: ARScale, resetToken: Int, active: Bool) {
             let reset = self.resetToken != resetToken
             self.active = active
             if reset { needsReset = true; failedSession = false }
             updateSession(view)
-            guard previousHouse != house || self.dimensions != dimensions || self.objects != objects || self.scale != scale || reset else { return }
+            guard previousHouse != house || previousRadiators != radiators || self.dimensions != dimensions || self.objects != objects || self.scale != scale || reset else { return }
             var builder = PlanSceneBuilder()
+            builder.radiators = radiators
             builder.options.showDimensions = dimensions
             builder.options.showObjects = objects
             let model = builder.makeScene(for: house)
@@ -284,6 +291,7 @@ private struct NativeARView: UIViewRepresentable {
             view.scene.addAnchor(anchor)
             self.anchor = anchor
             previousHouse = house; self.dimensions = dimensions; self.objects = objects
+            previousRadiators = radiators
             self.scale = scale; self.resetToken = resetToken
         }
 

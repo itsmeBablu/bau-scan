@@ -48,6 +48,7 @@ struct PlanSceneBuilder {
     }
 
     var options = Options()
+    var radiators: [HouseRadiator] = []
 
     // MARK: - Scene
 
@@ -61,6 +62,23 @@ struct PlanSceneBuilder {
             e.position = SIMD3(Float(room.transform.translation.x), 0, Float(-room.transform.translation.y))
             e.orientation = simd_quatf(angle: Float(room.transform.rotation), axis: SIMD3(0, 1, 0))
             root.addChild(e)
+        }
+        if options.showObjects,!options.flattenWalls {
+            for radiator in radiators where radiator.capturedInHouseCoordinates == true && house.allRooms.contains(where: { $0.id == radiator.roomID }) {
+                guard let frame = try? RadiatorScanGeometry(frontCorners: radiator.frontCorners,wall: radiator.wallSample),
+                      let floor = radiator.houseFloorElevation else { continue }
+                let width = Float(radiator.width.metres),height = Float(radiator.height.metres),depth = Float(radiator.depth?.metres ?? 0)
+                var material = PhysicallyBasedMaterial()
+                material.baseColor = .init(tint: platformColor(CGColor(gray: 0.88,alpha: 1)))
+                material.roughness = .init(floatLiteral: 0.65); material.faceCulling = .none
+                let mesh = depth > 0 ? MeshResource.generateBox(width: width,height: height,depth: depth) : MeshResource.generatePlane(width: width,height: height)
+                let model = ModelEntity(mesh: mesh,materials: [material])
+                let center = frame.origin+frame.right*(Double(width)/2)+frame.up*(Double(height)/2)-frame.frontNormal*(Double(depth)/2)
+                model.position = SIMD3(Float(center.x),Float(center.y-floor),Float(center.z))
+                model.orientation = simd_quatf(angle: Float(atan2(-frame.right.z,frame.right.x)),axis: SIMD3(0,1,0))
+                model.name = "radiator:"+radiator.id.uuidString
+                root.addChild(model)
+            }
         }
         return root
     }

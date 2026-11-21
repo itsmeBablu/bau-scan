@@ -1,5 +1,9 @@
 # House radiator close-up survey
 
+During a House walkthrough, choose **Capture radiator**, mark the three front corners and adjacent wall, walk around its visible sides, then choose **Save radiator and continue House**. Finish House only after completing the walkthrough. This is assisted identification, not automatic radiator classification. The observer reads the existing House AR session without replacing its delegate, running a second session, changing its configuration or pausing the House camera. A missing-depth status is shown rather than pretending capture succeeded. Actual availability of RoomPlan camera depth must be verified on device.
+
+Observations from this uninterrupted session retain House coordinates and are associated with the final room/wall. The saved House 3D/AR viewer includes a radiator envelope when Objects is enabled. Unknown thickness is shown as a flat surface rather than an invented depth. Room/wall associations beyond one metre are explicitly marked approximate. Independent saved-House close-up scans retain their separate coordinate frame and are not falsely placed in the House model. These envelopes are app viewer geometry; Apple's original RoomPlan USDZ remains unchanged.
+
 Open a saved House, choose Options → Radiators, select the room and optional wall reference, then Scan radiator on a LiDAR-equipped iPhone/iPad. This is a separate AR session; continuous House capture and Technical Room capture are unchanged.
 
 Mark the radiator body's lower-left, lower-right and upper-left front corners, then a point on the adjacent parallel finished wall. Exclude valves, pipes and brackets. Move slowly around visible front, side and top surfaces. Finish and review before saving.
