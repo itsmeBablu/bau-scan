@@ -13,6 +13,7 @@ struct HouseDetailView: View {
     @State private var storyIndex: Int?
     @State private var renaming = false
     @State private var exporting = false
+    @State private var showingRadiators = false
     @State private var newName = ""
     @State private var viewerState = ViewerState()
 
@@ -43,11 +44,23 @@ struct HouseDetailView: View {
                     #endif
             }
             ToolbarItem(placement: .primaryAction) {
-                Button { newName = currentRecord.name; renaming = true } label: { Label("detail.rename", systemImage: "pencil") }
+                Menu {
+                    Button {
+                        viewerState.mode = .threeD
+                        showingRadiators = true
+                    } label: { Label("Radiators", systemImage: "radiator") }
+                    .disabled(house == nil)
+                    Button { newName = currentRecord.name; renaming = true } label: { Label("detail.rename", systemImage: "pencil") }
+                } label: { Label("Options", systemImage: "ellipsis.circle") }
             }
         }
         .sheet(isPresented: $exporting) {
             if let house { ExportSheet(subject: ExportSubject(record: currentRecord, house: house, packageURL: store.packageURL(for: currentRecord))).environment(store) }
+        }
+        .sheet(isPresented: $showingRadiators) {
+            if let house {
+                HouseRadiatorListView(house: house, packageURL: store.packageURL(for: currentRecord))
+            }
         }
         .alert("detail.rename", isPresented: $renaming) {
             TextField("detail.rename.placeholder", text: $newName)

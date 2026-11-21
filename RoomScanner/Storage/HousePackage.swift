@@ -13,6 +13,8 @@ struct HousePackage {
     var rooms: [RoomPackage]
     var usdzData: Data?
     var thumbnailPNG: Data?
+    /// Optional independent observations; never reconstructed from RoomPlan's furniture categories.
+    var radiators: HouseRadiatorSurvey? = nil
 
     typealias F = FileLayout.HousePackageFile
 
@@ -37,11 +39,17 @@ struct HousePackage {
     }
 
     func write(to packageURL: URL, fileManager fm: FileManager = .default) throws {
+        if let radiators { try radiators.validate(for: house) }
         let staging = fm.temporaryDirectory.appendingPathComponent("housescan-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: staging.appendingPathComponent(F.rooms, isDirectory: true), withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: staging) }
         try RoomPackage.encoder.encode(record).write(to: staging.appendingPathComponent(F.meta))
         try RoomPackage.encoder.encode(house).write(to: staging.appendingPathComponent(F.house))
+        if let radiators {
+            let data = try RoomPackage.encoder.encode(radiators)
+            guard data.count <= 64 * 1_048_576 else { throw HouseRadiatorSurvey.Failure.invalid }
+            try data.write(to: staging.appendingPathComponent("radiators.json"))
+        }
         if let structure { try RoomPackage.encoder.encode(structure).write(to: staging.appendingPathComponent(F.structure)) }
         if let capturedStructureData { try capturedStructureData.write(to: staging.appendingPathComponent(F.capturedStructure)) }
         if let usdzData { try usdzData.write(to: staging.appendingPathComponent(F.usdz)) }
@@ -64,6 +72,33 @@ struct HousePackage {
 
     static func readHouse(from url: URL) throws -> House {
         try RoomPackage.coordinatedRead(at: url) { u in try RoomPackage.decoder.decode(House.self, from: Data(contentsOf: u.appendingPathComponent(F.house))) }
+    }
+    static func readRadiators(from url: URL) throws -> HouseRadiatorSurvey? {
+        try RoomPackage.coordinatedRead(at: url) { root in
+            let file = root.appendingPathComponent("radiators.json")
+            guard FileManager.default.fileExists(atPath: file.path) else { return nil }
+            let base = root.resolvingSymlinksInPath().standardizedFileURL
+            let resolved = file.resolvingSymlinksInPath().standardizedFileURL
+            let attributes = try FileManager.default.attributesOfItem(atPath: resolved.path)
+            guard resolved.path.hasPrefix(base.path+"/"),attributes[.type] as? FileAttributeType == .typeRegular,
+                  let size = attributes[.size] as? NSNumber,size.intValue <= 64 * 1_048_576 else { throw HouseRadiatorSurvey.Failure.invalid }
+            let result = try RoomPackage.decoder.decode(HouseRadiatorSurvey.self,from: Data(contentsOf: resolved))
+            let house = try RoomPackage.decoder.decode(House.self,from: Data(contentsOf: root.appendingPathComponent(F.house)))
+            try result.validate(for: house)
+            return result
+        }
+    }
+    static func writeRadiators(_ survey: HouseRadiatorSurvey,house: House,in url: URL) throws {
+        try survey.validate(for: house)
+        let data = try RoomPackage.encoder.encode(survey)
+        guard data.count <= 64 * 1_048_576 else { throw HouseRadiatorSurvey.Failure.invalid }
+        try RoomPackage.coordinatedWrite(at: url,options: .forMerging) { root in
+            let target = root.appendingPathComponent("radiators.json")
+            if FileManager.default.fileExists(atPath: target.path) {
+                guard try FileManager.default.attributesOfItem(atPath: target.path)[.type] as? FileAttributeType != .typeSymbolicLink else { throw HouseRadiatorSurvey.Failure.invalid }
+            }
+            try data.write(to: target,options: .atomic)
+        }
     }
 
     static func readStructure(from url: URL) throws -> StructureInput? {

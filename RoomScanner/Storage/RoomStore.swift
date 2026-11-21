@@ -161,9 +161,13 @@ final class RoomStore {
             var house = try HousePackage.readHouse(from: url)
             record.id = UUID(); record.name += " " + String(localized: "cloud.importedSuffix"); house.id = record.id; house.name = record.name
             let rooms = try HousePackage.roomPackageURLs(in: url).map { try RoomPackage.read(from: $0) }
-            let package = HousePackage(record: record, house: house, structure: try HousePackage.readStructure(from: url), capturedStructureData: nil,
+            var package = HousePackage(record: record, house: house, structure: try HousePackage.readStructure(from: url), capturedStructureData: nil,
                                        rooms: rooms, usdzData: HousePackage.usdzURL(in: url).flatMap { try? Data(contentsOf: $0) },
                                        thumbnailPNG: HousePackage.thumbnailURL(in: url).flatMap { try? Data(contentsOf: $0) })
+            if var radiators = try HousePackage.readRadiators(from: url) {
+                radiators.houseID = record.id
+                package.radiators = radiators
+            }
             try package.write(to: location.housePackageURL(for: record.id))
         } else {
             try RoomPackage.coordinatedWrite(at: dest, options: .forReplacing) { target in
