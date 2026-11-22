@@ -37,7 +37,7 @@ enum StudioPlacement {
         return true
     }
     static func conflicts(in document: SceneEditDocument,story: Int) -> [String] {
-        let items = document.objects.filter { $0.story == story }
+        let items = document.presentationObjects.filter { $0.story == story }
         var found: [String] = []
         for item in items {
             if let other = items.first(where: { $0.id != item.id && intersects(item,$0) }) {
@@ -50,7 +50,7 @@ enum StudioPlacement {
     static func check(_ item: SceneEditObject,in document: SceneEditDocument) throws {
         try item.validate()
         guard corners(item).allSatisfy({ $0.y >= -0.002 }) else { throw Failure.floor }
-        for other in document.objects where other.id != item.id && other.story == item.story {
+        for other in document.presentationObjects where other.id != item.id && other.story == item.story {
             if intersects(item,other) { throw Failure.overlap(other.name) }
         }
         for wall in walls(document,story: item.story) {
@@ -59,7 +59,7 @@ enum StudioPlacement {
     }
     private static func walls(_ document: SceneEditDocument,story: Int) -> [SceneEditObject] {
         document.shell.stories.filter { $0.index == story }.flatMap(\.rooms).flatMap { room in
-            room.walls.flatMap { wall in WallGeometry().wallBoxes(wall,openings: room.openings.filter { $0.wallID == wall.id }).map { box in
+            room.walls.filter { document.includesElement($0.id) }.flatMap { wall in WallGeometry().wallBoxes(wall,openings: room.openings.filter { $0.wallID == wall.id }).map { box in
                 let center = room.transform.apply(box.segment.midpoint)
                 return SceneEditObject(origin: "Shell",name: "Wall",family: .box,position: .init(x: center.x,y: (box.top+box.bottom)/2,z: -center.y),size: .init(x: box.segment.length,y: box.height,z: box.thickness),yaw: box.segment.angle+room.transform.rotation,story: story)
             } }

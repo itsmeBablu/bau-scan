@@ -56,6 +56,7 @@ struct SceneEditObject: Codable,Equatable,Identifiable {
         var yaw: Double
         var axis: TechnicalPoint3?
         var crossAxis: TechnicalPoint3? = nil
+        var family: SceneFurniture? = nil
     }
     var id = UUID()
     var sourceID: UUID?
@@ -144,6 +145,7 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
             }
         }
     }
+    var engineering: StudioEngineering? = nil
     var schemaVersion = 1
     var source: Source
     var sourceID: UUID
@@ -180,6 +182,7 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
               Set(objects.map(\.id)).count == objects.count,shell.allRooms.count <= 100,
               shell.allRooms.reduce(0,{ $0+$1.walls.count+$1.openings.count+$1.floorPolygon.count }) <= 20_000,
               [wallColor.x,wallColor.y,wallColor.z,floorColor.x,floorColor.y,floorColor.z].allSatisfy({ $0.isFinite && (0...1).contains($0) }) else { throw Failure.invalid }
+        try engineering?.validate(ids: Set(engineeringElements.map(\.id)))
         for object in objects { try object.validate() }
         let stories = Set(shell.stories.map(\.index))
         guard Set(objects.map(\.story)).isSubset(of: stories) else { throw Failure.invalid }
@@ -198,14 +201,19 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     var plan: House {
         var house = shell
         for si in house.stories.indices {
-            for ri in house.stories[si].rooms.indices { house.stories[si].rooms[ri].objects = [] }
+            for ri in house.stories[si].rooms.indices {
+                house.stories[si].rooms[ri].objects = []
+                house.stories[si].rooms[ri].walls.removeAll { !includesElement($0.id) }
+                let wallIDs = Set(house.stories[si].rooms[ri].walls.map(\.id))
+                house.stories[si].rooms[ri].openings.removeAll { $0.wallID.map { !wallIDs.contains($0) } ?? false }
+            }
         }
         // Edited positions are world coordinates. Add an identity overlay per storey.
         if house.stories.isEmpty { house.stories = [.init(index: 0,rooms: [])] }
         for si in house.stories.indices {
             let story = house.stories[si].index
             let overlay = FloorPlan(id: sourceID,name: "Edited objects",label: .unidentified,story: story,transform: .identity,walls: [],openings: [],
-                objects: objects.filter { $0.story == story }.map(\.planObject),floorPolygon: [],ceilingHeight: 0...0)
+                objects: presentationObjects.filter { $0.story == story }.map(\.planObject),floorPolygon: [],ceilingHeight: 0...0)
             house.stories[si].rooms.append(overlay)
         }
         return house
@@ -225,7 +233,7 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
             }
         }
         for si in shell.stories.indices { for ri in shell.stories[si].rooms.indices { shell.stories[si].rooms[ri].objects = [] } }
-        for i in objects.indices { objects[i].scanReference = .init(position: objects[i].position,size: objects[i].size,yaw: objects[i].yaw,axis: objects[i].axis) }
+        for i in objects.indices { objects[i].scanReference = .init(position: objects[i].position,size: objects[i].size,yaw: objects[i].yaw,axis: objects[i].axis,family: objects[i].family) }
         return .init(source: source,sourceID: id,title: house.name+" · Edited",shell: shell,objects: objects)
     }
 }
@@ -240,7 +248,10 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     var dirty: Bool { document != saved }
     init(_ document: SceneEditDocument) { self.document = document; saved = document }
     func change(_ body: (inout SceneEditDocument) -> Void) throws {
-        var next = document; body(&next); try next.validate()
+        var next = document; body(&next)
+        let ids = Set(next.engineeringElements.map(\.id))
+        next.engineering?.records.removeAll { !ids.contains($0.id) }
+        try next.validate()
         guard next != document else { return }
         undoStack.append(document); if undoStack.count > 40 { undoStack.removeFirst() }
         redoStack = []; document = next

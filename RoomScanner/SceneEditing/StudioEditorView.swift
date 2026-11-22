@@ -43,6 +43,7 @@ struct StudioEditorView: View {
     @State private var story: Int
     @State private var showInspector = false
     @State private var showAppearance = false
+    @State private var showEngineering = false
     @State private var showModelLibrary = false
     @State private var landscape = false
     @State private var canvasWidth: CGFloat = 393
@@ -77,6 +78,7 @@ struct StudioEditorView: View {
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showInspector = false } } }
             }
             .sheet(item: $equipmentEditor) { item in equipmentSheet(item) }
+            .sheet(isPresented: $showEngineering) { StudioEngineeringView(session: session) }
             .presentationDetents([.medium,.large])
             .presentationDragIndicator(.visible)
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
@@ -102,6 +104,7 @@ struct StudioEditorView: View {
             }
         }
         .onDisappear { controller.onSelect = nil; controller.onMove = nil }
+        .sheet(isPresented: Binding(get: { showEngineering && !inspectorPresentedModally },set: { showEngineering = $0 })) { StudioEngineeringView(session: session) }
         .onChange(of: story) { _,_ in session.selectedID = nil }
         .onChange(of: session.document.objects.map(\.id)) { _,ids in
             if let selected = session.selectedID,!ids.contains(selected) { session.selectedID = nil }
@@ -227,7 +230,7 @@ struct StudioEditorView: View {
     @ViewBuilder private var viewport: some View {
         if showPlan { Plan2DView(house: House(id: session.document.shell.id,name: session.document.title,stories: session.document.plan.stories.filter { $0.index == story })) }
         else {
-            StudioViewport(controller: controller,document: session.document,story: story,cutaway: cutaway,selected: session.selectedID,moving: moving,reset: reset)
+            StudioViewport(controller: controller,document: session.document,story: story,cutaway: cutaway,selected: session.selectedID,moving: moving && (session.document.engineering?.view == nil || session.document.engineering?.view == .all || session.document.engineering?.view == .proposed),reset: reset)
                 .frame(maxWidth: .infinity,minHeight: 200,maxHeight: .infinity)
         }
     }
@@ -256,6 +259,7 @@ struct StudioEditorView: View {
                     if session.document.shell.stories.count > 1 {
                         Picker("Floor",selection: $story) { ForEach(session.document.shell.stories,id: \.index) { Text(StoryNaming.localizedName(for: $0.index)).tag($0.index) } }
                     }
+                    Button("Engineering · renovation & issues") { showEngineering = true }
                     Button("Appearance") { showAppearance = true }
                     Toggle("Cutaway view · hide front walls",isOn: $cutaway)
                     Toggle("Snap · 5 cm grid and walls",isOn: $snapping)
@@ -266,7 +270,7 @@ struct StudioEditorView: View {
                     Button("Import design project…") { importing = true }
                     Menu("Export edited design") {
                         Button("PNG image · current view") { image() }.disabled(showPlan)
-                        ForEach(StudioExporter.Format.allCases,id: \.self) { format in Button(format == .project ? "Editable project · JSON" : format == .obj ? "OBJ + materials · current floor · ZIP" : format == .usdz ? "USDZ · current floor" : format.rawValue.uppercased()) { export(format) } }
+                        ForEach(StudioExporter.Format.allCases,id: \.self) { format in Button(format == .csv ? "Engineering register · CSV" : format == .project ? "Editable project · JSON" : format == .obj ? "OBJ + materials · current floor · ZIP" : format == .usdz ? "USDZ · current floor" : format.rawValue.uppercased()) { export(format) } }
                     }
     }
     private func dockLabel(_ title: String,icon: String) -> some View {
@@ -301,6 +305,13 @@ struct StudioEditorView: View {
         .frame(minWidth: 500,minHeight: 500)
         #endif
     }
+    private var inspectorPresentedModally: Bool {
+        #if os(iOS)
+        showInspector && !landscape
+        #else
+        false
+        #endif
+    }
     private var inspector: some View {
         Form {
             Section {
@@ -311,6 +322,10 @@ struct StudioEditorView: View {
                 if let item = session.selected {
                     StudioObjectFields(item: item,catalogue: catalogue,replace: { family in replace(item,with: family) }) { updated in perform { try update(updated) } }
                         .id(item.id)
+                    Button("Engineering · phase, verification & issue") { showEngineering = true }
+                    if session.document.engineering?.view == .existing || session.document.engineering?.view == .demolition {
+                        Text("This view uses the saved scan envelope where available. Choose All or Proposed in Engineering to inspect design edits.").font(.caption).foregroundStyle(.secondary)
+                    }
                     if session.document.source != .technical {
                         Button("Use furniture default size") { replace(item,with: item.family) }
                     }
@@ -395,7 +410,11 @@ struct StudioEditorView: View {
         let item = SceneEditObject(origin: "User-added design model; not scan evidence",name: family.title,family: family,position: .init(x: bounds.isEmpty ? 0 : bounds.center.x,y: size.y/2,z: bounds.isEmpty ? 0 : -bounds.center.y),size: size,story: story)
         perform {
             let placed = try StudioPlacement.available(item,in: session.document,allowOverlap: allowOverlap)
-            try session.change { $0.objects.append(placed) }; session.selectedID = placed.id
+            try session.change {
+                $0.objects.append(placed)
+                var data = $0.engineering ?? .init()
+                var record = data.record(placed.id); record.phase = .new; data.set(record); $0.engineering = data
+            }; session.selectedID = placed.id
             showModelLibrary = false
         }
     }
@@ -403,7 +422,11 @@ struct StudioEditorView: View {
         var copy = item; copy.id = UUID(); copy.sourceID = nil; copy.scanReference = nil; copy.origin = "User-created duplicate"; copy.name = String((item.name+" copy").prefix(120)); copy.position.x += 0.25
         perform {
             let placed = try StudioPlacement.available(copy,in: session.document,allowOverlap: allowOverlap)
-            try session.change { $0.objects.append(placed) }; session.selectedID = placed.id
+            try session.change {
+                $0.objects.append(placed)
+                var data = $0.engineering ?? .init()
+                var record = data.record(placed.id); record.phase = .new; data.set(record); $0.engineering = data
+            }; session.selectedID = placed.id
         }
     }
     private func save(close: Bool = false) {

@@ -4,9 +4,10 @@ import SceneKit.ModelIO
 import ModelIO
 
 @MainActor enum StudioExporter {
-    enum Format: String,CaseIterable { case project, usdz, obj, pdf, svg, dxf }
+    enum Format: String,CaseIterable { case project, usdz, obj, pdf, svg, dxf, csv }
     static func data(_ document: SceneEditDocument,format: Format,story: Int? = nil) throws -> Data {
         try document.validate()
+        if format == .csv { return document.engineeringCSV() }
         if format == .project {
             let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted,.sortedKeys]
             return try encoder.encode(document)
@@ -14,7 +15,7 @@ import ModelIO
         if [.pdf,.svg,.dxf].contains(format) {
             var exporter = ExportService(); exporter.unit = .meters
             let type: ExportFormat = format == .pdf ? .pdf : format == .svg ? .svg : .dxf
-            return try exporter.data(for: document.plan,format: type,title: document.title+" · Edited design")
+            return try exporter.data(for: document.plan,format: type,title: document.title+" · "+(document.engineering?.view.rawValue ?? "all")+" · Edited design")
         }
         let folder = try ExportService.scratchDirectory()
         defer { try? FileManager.default.removeItem(at: folder) }

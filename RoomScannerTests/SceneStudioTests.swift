@@ -14,6 +14,80 @@ final class SceneStudioTests: XCTestCase {
         house.stories[0].rooms[0].objects = [object]
         return .seed(house: house,source: .house,id: house.id)
     }
+    func testEngineeringLegacyProjectAndValidation() throws {
+        let document = seed()
+        let legacy = try JSONDecoder().decode(SceneEditDocument.self,from: JSONEncoder().encode(document))
+        XCTAssertNil(legacy.engineering)
+        var edited = document
+        var data = StudioEngineering()
+        data.set(.init(id: UUID()))
+        edited.engineering = data
+        XCTAssertThrowsError(try edited.validate())
+        let id = document.objects[0].id
+        var record = StudioEngineering.Record(id: id)
+        record.verification = .init(dimensions: document.objects[0].size,reference: "",date: Date())
+        data.records = [record]; edited.engineering = data
+        XCTAssertThrowsError(try edited.validate())
+    }
+    @MainActor func testRenovationPhasesFilterSceneAndPlanWithoutChangingEvidence() throws {
+        var document = seed()
+        let original = document.shell
+        let wall = try XCTUnwrap(document.shell.allRooms.first?.walls.first)
+        let object = document.objects[0]
+        var data = StudioEngineering()
+        var wallRecord = StudioEngineering.Record(id: wall.id); wallRecord.phase = .remove
+        var objectRecord = StudioEngineering.Record(id: object.id); objectRecord.phase = .new
+        data.set(wallRecord); data.set(objectRecord); data.view = .proposed; document.engineering = data
+        try document.validate()
+        XCTAssertFalse(document.plan.allRooms.flatMap(\.walls).contains { $0.id == wall.id })
+        XCTAssertEqual(document.presentationObjects.count,1)
+        data.view = .existing; document.engineering = data
+        XCTAssertTrue(document.plan.allRooms.flatMap(\.walls).contains { $0.id == wall.id })
+        XCTAssertTrue(document.presentationObjects.isEmpty)
+        data.view = .demolition; document.engineering = data
+        XCTAssertEqual(document.plan.allRooms.flatMap(\.walls).map(\.id),[wall.id])
+        XCTAssertEqual(document.shell,original)
+        let scene = StudioSceneBuilder.scene(document,story: nil,cutaway: false,decorated: false)
+        XCTAssertFalse(scene.rootNode.childNodes.contains { $0.name == "object:"+object.id.uuidString })
+    }
+    @MainActor func testVerificationBecomesStaleAfterDimensionEditAndUndoRestoresIt() throws {
+        var document = seed()
+        let element = try XCTUnwrap(document.engineeringElements.first { $0.id == document.objects[0].id })
+        var record = StudioEngineering.Record(id: element.id)
+        record.verification = .init(dimensions: element.dimensions,reference: "Laser survey · AB",date: Date())
+        var data = StudioEngineering(); data.set(record); document.engineering = data
+        let session = SceneEditSession(document)
+        XCTAssertEqual(document.measurementStatus(element),"User verified")
+        var object = document.objects[0]; object.size.x += 0.2; try session.update(object)
+        let updated = try XCTUnwrap(session.document.engineeringElements.first { $0.id == object.id })
+        XCTAssertEqual(session.document.measurementStatus(updated),"Changed · recheck required")
+        session.undo()
+        XCTAssertEqual(session.document.measurementStatus(element),"User verified")
+        try session.change { $0.objects.removeAll() }
+        XCTAssertTrue(session.document.engineering?.records.isEmpty == true)
+        session.undo()
+        XCTAssertEqual(session.document.engineering?.records.first?.verification?.reference,"Laser survey · AB")
+    }
+    func testEngineeringCSVQuotesAndNeutralisesSpreadsheetFormulas() throws {
+        var document = seed(); document.objects[0].name = "=SUM(1,2)"
+        var record = StudioEngineering.Record(id: document.objects[0].id)
+        record.issue = "Check \"valve\"\naccess"; record.assignee = "@engineer"
+        var data = StudioEngineering(); data.set(record); document.engineering = data
+        let csv = String(decoding: document.engineeringCSV(),as: UTF8.self)
+        XCTAssertTrue(csv.contains("'@engineer"))
+        XCTAssertTrue(csv.contains("'=SUM(1,2)"))
+        XCTAssertTrue(csv.contains("Check \"\"valve\"\"\naccess"))
+        XCTAssertTrue(csv.contains("Unverified"))
+    }
+    func testExistingViewUsesReferenceEnvelopeAndFamily() {
+        var document = seed(); var data = StudioEngineering(); data.view = .existing
+        document.engineering = data
+        let original = document.objects[0]
+        document.objects[0].replaceFamily(.bed)
+        XCTAssertEqual(document.presentationObjects[0].family,original.family)
+        XCTAssertEqual(document.presentationObjects[0].size,original.size)
+        XCTAssertEqual(document.objects[0].family,.bed)
+    }
     func testSeedUsesScanObjectsButKeepsShellAndIdentifiersSeparate() throws {
         let document = seed(); try document.validate()
         XCTAssertEqual(document.objects.count,1)

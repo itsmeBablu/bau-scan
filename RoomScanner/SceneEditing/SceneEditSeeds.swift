@@ -47,7 +47,7 @@ extension SceneEditDocument {
             }
             result.objects.append(.init(sourceID: equipment.id,origin: "Survey equipment; generic model",name: equipment.name.value,family: family,position: point(equipment.center.value),size: equipment.size.value,yaw: equipment.rotation.value))
         }
-        for i in result.objects.indices { result.objects[i].scanReference = .init(position: result.objects[i].position,size: result.objects[i].size,yaw: result.objects[i].yaw,axis: result.objects[i].axis,crossAxis: result.objects[i].crossAxis) }
+        for i in result.objects.indices { result.objects[i].scanReference = .init(position: result.objects[i].position,size: result.objects[i].size,yaw: result.objects[i].yaw,axis: result.objects[i].axis,crossAxis: result.objects[i].crossAxis,family: result.objects[i].family) }
         try result.validate(); return result
     }
 
@@ -58,7 +58,7 @@ extension SceneEditDocument {
             let center = frame.origin+frame.right*(radiator.width.metres/2)+frame.up*(radiator.height.metres/2)-frame.frontNormal*(depth/2)
             objects.append(.init(sourceID: radiator.id,origin: radiator.depth == nil ? "Radiator scan; 0.02 m display thickness assumed" : "Radiator scan; editable model",name: radiator.name,family: .radiator,position: .init(x: center.x,y: center.y-floor,z: center.z),size: .init(x: radiator.width.metres,y: radiator.height.metres,z: depth),yaw: atan2(-frame.right.z,frame.right.x),story: shell.allRooms.first { $0.id == radiator.roomID }?.story ?? 0))
             let i = objects.count-1
-            objects[i].scanReference = .init(position: objects[i].position,size: objects[i].size,yaw: objects[i].yaw,axis: nil)
+            objects[i].scanReference = .init(position: objects[i].position,size: objects[i].size,yaw: objects[i].yaw,axis: nil,family: objects[i].family)
         }
     }
 }

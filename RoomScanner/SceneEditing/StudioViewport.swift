@@ -57,7 +57,7 @@ enum StudioCameraFraming {
     private func frame(_ document: SceneEditDocument,story: Int) {
         let house = House(name: "",stories: document.shell.stories.filter { $0.index == story })
         var bounds = house.bounds
-        let items = document.objects.filter { $0.story == story }
+        let items = document.presentationObjects.filter { $0.story == story }
         var lowest = 0.0,highest = max(1,house.allRooms.flatMap(\.walls).map(\.height).max() ?? 1)
         for item in items {
             for point in StudioPlacement.corners(item) {

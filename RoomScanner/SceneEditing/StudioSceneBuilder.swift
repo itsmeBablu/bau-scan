@@ -26,7 +26,7 @@ import simd
             var floor = TriangleMesh()
             PlanMeshBuilder.addFloor(room,transform: room.transform,thickness: 0.08,to: &floor)
             if !floor.isEmpty { scene.rootNode.addChildNode(meshNode(floor,material: floorMaterial,name: "shell:floor")) }
-            for wall in room.walls {
+            for wall in room.walls where document.includesElement(wall.id) {
                 let midpoint = room.transform.apply(wall.segment.midpoint)
                 // Presentation cutaway only. Complete walls remain in the saved shell and exports.
                 if cutaway && (midpoint.x-roomCenter.x)-(midpoint.y-roomCenter.y) > 0.15 { continue }
@@ -39,7 +39,7 @@ import simd
             }
             let joins = StudioWallJoins.mesh(room: room,visible: visibleWalls)
             if !joins.isEmpty { scene.rootNode.addChildNode(meshNode(joins,material: wallMaterial,name: "shell:wall-joins")) }
-            for opening in room.openings where opening.kind != .opening {
+            for opening in room.openings where opening.kind != .opening && document.includesElement(opening.wallID) {
                 guard let box = WallGeometry().panelBox(opening,wall: room.wall(withID: opening.wallID)) else { continue }
                 let midpoint = room.transform.apply(box.segment.midpoint)
                 if cutaway && (midpoint.x-roomCenter.x)-(midpoint.y-roomCenter.y) > 0.15 { continue }
@@ -48,7 +48,7 @@ import simd
                 scene.rootNode.addChildNode(meshNode(mesh,material: m,name: "shell:opening"))
             }
         }
-        for item in document.objects where story == nil || item.story == story { scene.rootNode.addChildNode(model(item,technical: document.source == .technical)) }
+        for item in document.presentationObjects where story == nil || item.story == story { scene.rootNode.addChildNode(model(item,technical: document.source == .technical)) }
         if decorated {
             let night = document.source != .technical && document.lighting == .night
             let winter = document.source != .technical && document.season == .winter
