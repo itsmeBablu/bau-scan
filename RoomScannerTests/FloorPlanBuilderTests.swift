@@ -5,6 +5,22 @@ import simd
 final class FloorPlanBuilderTests: XCTestCase {
     let builder = FloorPlanBuilder()
 
+    func testCapturedSmallFloorIsNotReplacedByWallBoundingRectangle() {
+        var scan = SyntheticRooms.rectangularRoom().scan
+        scan.surfaces.append(.init(category: .floor,dimensions: .init(0.4,0,0.4),transform: matrix_identity_float4x4,
+            polygonCorners: [.init(0,0,0),.init(0.4,0,0),.init(0.4,0,0.4),.init(0,0,0.4)]))
+        let plan = builder.build(from: scan,name: "Small")
+        XCTAssertEqual(Polygon2D.area(plan.floorPolygon),0.16,accuracy: 0.0001)
+        XCTAssertEqual(plan.floorOutlineSource,.capturedSurface)
+    }
+    func testInvalidCapturedFloorFallsBackToWallBoundary() {
+        var scan = SyntheticRooms.rectangularRoom().scan
+        scan.surfaces.append(.init(category: .floor,dimensions: .init(2,0,0),transform: matrix_identity_float4x4,
+            polygonCorners: [.zero,.init(1,0,0),.init(2,0,0)]))
+        let plan = builder.build(from: scan,name: "Room")
+        XCTAssertEqual(plan.floorOutlineSource,.wallBoundary)
+        XCTAssertEqual(Polygon2D.area(plan.floorPolygon),12,accuracy: 0.001)
+    }
     func testRectangularRoomWalls() {
         let (scan, _, _) = SyntheticRooms.rectangularRoom()
         let plan = builder.build(from: scan, name: "Salon")

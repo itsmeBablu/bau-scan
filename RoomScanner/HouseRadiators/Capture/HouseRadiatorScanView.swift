@@ -22,26 +22,30 @@ struct HouseRadiatorScanView: View {
                 if let result { HouseRadiatorPreview(radiator: result).frame(minHeight: 180) }
                 else {
                     RadiatorCamera(scanner: scanner)
-                        .overlay { Image(systemName: "plus").foregroundStyle(.white).shadow(color: .black,radius: 1) }
+                        .overlay { RadiatorBodyOverlay(scanner: scanner) }
                         .frame(minHeight: 180,maxHeight: .infinity)
                 }
                 Form {
                     Section("Radiator close-up") {
                         if let result {
-                            Text("Review before saving. Width and height use the marked body corners; scan-derived sizes remain estimates.").font(.caption)
+                            Text("Review before saving. Width and height use the automatically proposed visible body envelope; scan-derived sizes remain estimates.").font(.caption)
                             RadiatorDimensionRows(radiator: result)
                         } else {
                             Text(scanner.message).font(.callout)
-                            Text("Mark the outside corners of the radiator body. Then scan all visible sides and the adjacent finished wall. Do not include valves or pipes in the body bounds.").font(.caption).foregroundStyle(.secondary)
+                            Text("Keep the full radiator and adjacent wall visible. Confirm the detected candidate, then move closer around its sides. Geometry proposals can match other equipment.").font(.caption).foregroundStyle(.secondary)
                             if scanner.geometry == nil {
-                                Button(scanner.frontCorners.count < 3 ? "Mark front corner \(scanner.frontCorners.count+1)" : "Mark adjacent wall") { scanner.markCrosshair() }
-                                    .buttonStyle(.borderedProminent).disabled(!scanner.trackingNormal)
+                                if let candidate = scanner.candidate {
+                                    Text("Candidate: \(candidate.geometry.width, specifier: "%.2f") × \(candidate.geometry.height, specifier: "%.2f") m")
+                                    Button("This is a radiator · measure closer") { scanner.acceptCandidate() }
+                                        .buttonStyle(.borderedProminent).disabled(!scanner.trackingNormal)
+                                    Button("Not a radiator") { scanner.skipCandidate() }
+                                }
                             } else {
                                 Text("\(scanner.viewpointCount) viewpoints · \(scanner.sampleCount) surface samples")
                                 Button("Finish radiator scan") { finish() }
                                     .buttonStyle(.borderedProminent).disabled(busy || scanner.sampleCount < 30 || scanner.viewpointCount < 2)
                             }
-                            Button("Reset marked bounds",role: .destructive) { scanner.resetBounds() }.disabled(scanner.frontCorners.isEmpty)
+                            Button("Find another candidate") { scanner.resetBounds() }.disabled(scanner.geometry == nil && scanner.candidate == nil)
                         }
                         if let failure = error ?? scanner.error {
                             Text(failure).foregroundStyle(.red)

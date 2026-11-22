@@ -39,6 +39,7 @@ struct StudioEditorView: View {
     @State private var allowOverlap = false
     @State private var cutaway = false
     @State private var showPlan = false
+    @State private var showDimensions = false
     @State private var reset = 0
     @State private var story: Int
     @State private var showInspector = false
@@ -134,23 +135,18 @@ struct StudioEditorView: View {
                 phoneHeader.padding(.horizontal,16).padding(.top,8)
                 Spacer(minLength: 12)
                 if !landscape {
-                    VStack(spacing: 10) {
+                    VStack(spacing: 4) {
                         selectionHUD
                         if busy { ProgressView("Working…").padding(10).background(.regularMaterial,in: Capsule()) }
                         else if !status.isEmpty { Text(status).font(.caption).padding(10).background(.regularMaterial,in: Capsule()) }
-                        phoneInteraction
-                        HStack(spacing: 0) { phoneDockActions }.padding(.horizontal,8).padding(.vertical,6).background(.regularMaterial,in: Capsule())
-                    }.padding(.horizontal,16).padding(.bottom,8)
+                        HStack(spacing: 0) { phoneDockActions }.padding(.horizontal,4).padding(.vertical,3).background(.regularMaterial,in: Capsule())
+                    }.padding(.horizontal,10).padding(.bottom,0)
                 }
             }
             if landscape {
                 HStack(alignment: .bottom,spacing: 12) {
-                    VStack(spacing: 0) { phoneDockActions }.padding(6).frame(width: 92).background(.regularMaterial,in: Capsule())
-                    VStack(spacing: 10) {
-                        Spacer()
-                        if busy { ProgressView("Working…").padding(8).background(.regularMaterial,in: Capsule()) }
-                        phoneInteraction
-                    }.frame(maxWidth: .infinity)
+                    HStack(spacing: 0) { phoneDockActions }.padding(3).frame(maxWidth: 520).background(.regularMaterial,in: Capsule())
+                    Spacer(minLength: 0)
                     if showInspector {
                         NavigationStack {
                             inspector.navigationTitle("Object properties")
@@ -158,7 +154,8 @@ struct StudioEditorView: View {
                         }.frame(width: min(310,canvasWidth*0.38)).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 24)).clipShape(RoundedRectangle(cornerRadius: 24))
                             .sheet(item: $equipmentEditor) { item in equipmentSheet(item) }
                     }
-                }.padding(.horizontal,16).padding(.top,76).padding(.bottom,8)
+                }.frame(maxWidth: .infinity,maxHeight: .infinity,alignment: .bottom)
+                    .padding(.horizontal,10).padding(.top,76).padding(.bottom,0)
             }
         }
             .foregroundStyle(.primary)
@@ -210,27 +207,21 @@ struct StudioEditorView: View {
                 }
                 Spacer()
                 Button("Edit") { showInspector = true }.buttonStyle(.bordered)
-            }.padding(14).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 20))
+            }.padding(.horizontal,12).padding(.vertical,6).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 14))
         }
-    }
-    private var phoneInteraction: some View {
-        HStack(spacing: 10) {
-            undoButton.labelStyle(.iconOnly).frame(width: 44,height: 44)
-            Picker("Interaction",selection: $moving) { Text("Orbit").tag(false); Text("Move").tag(true) }
-                .pickerStyle(.segmented).labelsHidden().frame(width: landscape && showInspector ? 120 : 180)
-            Button { reset += 1 } label: { Image(systemName: "scope").frame(width: 44,height: 44) }.accessibilityLabel("Reset camera")
-        }.padding(4).background(.regularMaterial,in: Capsule())
     }
     @ViewBuilder private var phoneDockActions: some View {
         Button { showModelLibrary = true } label: { dockLabel("Models",icon: "sofa.fill") }
+        Button { moving.toggle() } label: { dockLabel(moving ? "Moving" : "Move",icon: "arrow.up.and.down.and.arrow.left.and.right") }.accessibilityValue(moving ? "On" : "Off")
         Button { showInspector.toggle() } label: { dockLabel("Edit",icon: "slider.horizontal.3") }
-        Button { showAppearance = true } label: { dockLabel("Appearance",icon: "paintpalette") }
+        Button { showAppearance = true } label: { dockLabel("Style",icon: "paintpalette") }
+        Button { showDimensions.toggle() } label: { dockLabel("Sizes",icon: "ruler") }.accessibilityLabel("3D dimensions").accessibilityValue(showDimensions ? "On" : "Off")
         Menu { designActions } label: { dockLabel("More",icon: "ellipsis") }
     }
     @ViewBuilder private var viewport: some View {
         if showPlan { Plan2DView(house: House(id: session.document.shell.id,name: session.document.title,stories: session.document.plan.stories.filter { $0.index == story })) }
         else {
-            StudioViewport(controller: controller,document: session.document,story: story,cutaway: cutaway,selected: session.selectedID,moving: moving && (session.document.engineering?.view == nil || session.document.engineering?.view == .all || session.document.engineering?.view == .proposed),reset: reset)
+            StudioViewport(controller: controller,document: session.document,story: story,cutaway: cutaway,selected: session.selectedID,moving: moving && (session.document.engineering?.view == nil || session.document.engineering?.view == .all || session.document.engineering?.view == .proposed),reset: reset,showDimensions: showDimensions)
                 .frame(maxWidth: .infinity,minHeight: 200,maxHeight: .infinity)
         }
     }
@@ -256,6 +247,7 @@ struct StudioEditorView: View {
                     Button("Redo") { session.redo() }.disabled(session.redoStack.isEmpty)
                     Button(showPlan ? "Show 3D" : "Show 2D plan") { showPlan.toggle() }
                     Button("Reset camera") { reset += 1 }
+                    Toggle("3D dimensions",isOn: $showDimensions)
                     if session.document.shell.stories.count > 1 {
                         Picker("Floor",selection: $story) { ForEach(session.document.shell.stories,id: \.index) { Text(StoryNaming.localizedName(for: $0.index)).tag($0.index) } }
                     }
@@ -275,9 +267,9 @@ struct StudioEditorView: View {
     }
     private func dockLabel(_ title: String,icon: String) -> some View {
         VStack(spacing: 5) {
-            Image(systemName: icon).font(.system(size: 21,weight: .medium))
+            Image(systemName: icon).font(.system(size: 18,weight: .medium)).frame(height: 20)
             Text(title).font(.caption2.weight(.medium)).lineLimit(1)
-        }.frame(maxWidth: .infinity,minHeight: 48).contentShape(Rectangle())
+        }.frame(maxWidth: .infinity,minHeight: 44).contentShape(Rectangle())
     }
     private var modelLibrary: some View {
         NavigationStack {
@@ -364,6 +356,15 @@ struct StudioEditorView: View {
                   }
                     ColorPicker("Walls",selection: colorBinding(wall: true),supportsOpacity: false)
                     ColorPicker("Floor",selection: colorBinding(wall: false),supportsOpacity: false)
+                    if session.document.source != .technical {
+                        Picker("Floor finish",selection: Binding(get: { session.document.floorFinish ?? .wood },set: { value in perform { try session.change { $0.floorFinish = value; $0.floorPatternSize = nil } } })) {
+                            ForEach(SceneEditDocument.FloorFinish.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                        }
+                        if session.document.floorFinish != .plain {
+                            Stepper("Pattern repeat: \((session.document.floorPatternSize ?? (session.document.floorFinish == .tile ? 0.3 : 0.72)).formatted()) m",value: Binding(get: { session.document.floorPatternSize ?? (session.document.floorFinish == .tile ? 0.3 : 0.72) },set: { value in perform { try session.change { $0.floorPatternSize = value } } }),in: 0.1...2,step: 0.05)
+                            Text("Presentation pattern only; not a measured tile or board size.").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 if session.document.source != .technical { Section("Lighting and mood") {
                     Picker("Lighting",selection: Binding(get: { session.document.lighting },set: { value in perform { try session.change { $0.lighting = value } } })) {
@@ -409,24 +410,14 @@ struct StudioEditorView: View {
         let bounds = session.document.shell.bounds,size = family.defaultSize
         let item = SceneEditObject(origin: "User-added design model; not scan evidence",name: family.title,family: family,position: .init(x: bounds.isEmpty ? 0 : bounds.center.x,y: size.y/2,z: bounds.isEmpty ? 0 : -bounds.center.y),size: size,story: story)
         perform {
-            let placed = try StudioPlacement.available(item,in: session.document,allowOverlap: allowOverlap)
-            try session.change {
-                $0.objects.append(placed)
-                var data = $0.engineering ?? .init()
-                var record = data.record(placed.id); record.phase = .new; data.set(record); $0.engineering = data
-            }; session.selectedID = placed.id
+            try session.addDesignObject(item,allowOverlap: allowOverlap)
             showModelLibrary = false
         }
     }
     private func duplicate(_ item: SceneEditObject) {
         var copy = item; copy.id = UUID(); copy.sourceID = nil; copy.scanReference = nil; copy.origin = "User-created duplicate"; copy.name = String((item.name+" copy").prefix(120)); copy.position.x += 0.25
         perform {
-            let placed = try StudioPlacement.available(copy,in: session.document,allowOverlap: allowOverlap)
-            try session.change {
-                $0.objects.append(placed)
-                var data = $0.engineering ?? .init()
-                var record = data.record(placed.id); record.phase = .new; data.set(record); $0.engineering = data
-            }; session.selectedID = placed.id
+            try session.addDesignObject(copy,allowOverlap: allowOverlap)
         }
     }
     private func save(close: Bool = false) {

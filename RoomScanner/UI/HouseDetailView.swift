@@ -17,6 +17,9 @@ struct HouseDetailView: View {
     @State private var showingStudio = false
     @State private var radiators: [HouseRadiator] = []
     @State private var newName = ""
+    @State private var roomToRename: FloorPlan?
+    @State private var newRoomName = ""
+    @State private var renameError: String?
     @State private var viewerState = ViewerState()
 
     enum Tab: Hashable { case plan, viewer, measures }
@@ -82,6 +85,12 @@ struct HouseDetailView: View {
             Button("common.ok") { rename() }
             Button("common.cancel", role: .cancel) {}
         }
+        .alert("Rename room",isPresented: Binding(get: { roomToRename != nil },set: { if !$0 { roomToRename = nil } })) {
+            TextField("Room name",text: $newRoomName)
+            Button("Save") { renameRoom() }.disabled(newRoomName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || newRoomName.count > 120)
+            Button("Cancel",role: .cancel) { roomToRename = nil }
+        }
+        .alert("Unable to rename room",isPresented: Binding(get: { renameError != nil },set: { if !$0 { renameError = nil } })) { Button("OK") { renameError = nil } } message: { Text(renameError ?? "") }
         .task(id: record.id) { load() }
     }
 
@@ -127,7 +136,9 @@ struct HouseDetailView: View {
                     ViewerView(house: shown(house), state: viewerState, radiators: radiators)
                     ViewerControls(state: viewerState, usdzURL: HousePackage.usdzURL(in: store.packageURL(for: currentRecord)))
                 }
-            case .measures: HouseMeasuresView(house: shown(house))
+            case .measures: HouseMeasuresView(house: shown(house),onRename: { room in
+                newRoomName = room.name; roomToRename = room
+            })
             }
         }
     }
@@ -141,6 +152,12 @@ struct HouseDetailView: View {
         } catch { loadError = error.localizedDescription }
     }
 
+    private func renameRoom() {
+        guard let room = roomToRename else { return }
+        do { try store.renameRoom(in: currentRecord,roomID: room.id,to: newRoomName); roomToRename = nil; load() }
+        catch { roomToRename = nil; renameError = error.localizedDescription }
+    }
+
     private func rename() {
         do { try store.rename(currentRecord, to: newName); load() } catch { loadError = error.localizedDescription }
     }
@@ -149,6 +166,7 @@ struct HouseDetailView: View {
 /// House measurements: overall totals followed by a section per story and room.
 struct HouseMeasuresView: View {
     let house: House
+    var onRename: ((FloorPlan) -> Void)? = nil
     @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
 
     var body: some View {
@@ -167,7 +185,19 @@ struct HouseMeasuresView: View {
                 Section(StoryNaming.localizedName(for: story.index)) {
                     ForEach(story.rooms) { room in
                         let m = RoomMeasurements(plan: room)
-                        row(Text(room.name), "\(MeasurementFormat.squareMeters(m.floorArea)) · \(MeasurementFormat.length(m.perimeter, unit: unit))")
+                        if let onRename {
+                            Button { onRename(room) } label: {
+                                HStack {
+                                    VStack(alignment: .leading,spacing: 4) {
+                                        Text(room.name).foregroundStyle(.primary)
+                                        Text("\(MeasurementFormat.squareMeters(m.floorArea)) · \(MeasurementFormat.length(m.perimeter, unit: unit))").font(.subheadline).foregroundStyle(.secondary)
+                                    }
+                                    Spacer(); Image(systemName: "pencil").foregroundStyle(.secondary)
+                                }
+                            }.buttonStyle(.plain).accessibilityLabel("Rename room: "+room.name)
+                        } else {
+                            row(Text(room.name), "\(MeasurementFormat.squareMeters(m.floorArea)) · \(MeasurementFormat.length(m.perimeter, unit: unit))")
+                        }
                     }
                 }
             }

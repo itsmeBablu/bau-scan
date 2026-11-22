@@ -14,7 +14,7 @@ Open a House or Technik scan's Studio. In More choose Engineering · renovation 
 - CSV register with UUID, name, type, floor, phase, local dimensions in metres, verification, issue and notes. Text values are quoted and formula prefixes neutralised for spreadsheet safety. Dimensions are model envelopes, not bills of quantities, material volumes, nominal DN, capacities or procurement sizes.
 - Engineering data is saved with the existing editable project JSON. Existing project JSON without the optional engineering field remains readable.
 
-All source evidence stays independent. Scene edits and records require Save, as before. The element picker supports name/type search and caps visible matches at 200; narrow a search to reach additional elements.
+All source evidence stays independent. Scene edits and records require Save, as before. The element picker supports name/type search and caps search matches at 200 while always retaining the selected element; narrow a search to reach additional elements.
 
 ## Remaining stages
 
@@ -32,3 +32,6 @@ No code in this implementation infers equipment capacity, structural suitability
 ## Validation
 
 245 macOS tests and 242 iOS simulator tests passed, including new tests for legacy JSON, record validation, phase filtering, unchanged source geometry, stale verification, undo recovery and CSV escaping. Final macOS and signed generic iPhone builds passed. Physical-device interaction and survey-accuracy validation are still pending.
+
+
+Subsequent refinement: new/duplicate models created in Existing or Demolition switch atomically to Proposed so the new element is visible. Metadata-only notes, issue/verification data and technical attributes no longer regenerate geometry. Indexed record lookup avoids repeated full-array searches; the index is not serialized and is rebuilt on decode and mutation. Referenced wall/slab thickness overrides and floor provenance are described in WALL_FLOOR_GEOMETRY.md.

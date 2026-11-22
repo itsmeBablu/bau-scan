@@ -11,6 +11,7 @@ struct ScanView: View {
     @State private var saveError: AppError?
     @State private var radiatorScanner: HouseRadiatorScanCoordinator?
     @State private var radiators: [HouseRadiator] = []
+    @State private var automaticRadiators = true
     @State private var radiatorBusy = false
     @State private var radiatorError: String?
     @State private var mountingPreset = RadiatorMountingPreset.none
@@ -36,15 +37,12 @@ struct ScanView: View {
                 RoomCaptureViewRepresentable(coordinator: coordinator)
                     .ignoresSafeArea()
                     .overlay {
-                        if radiatorScanner != nil {
-                            Image(systemName: "plus").foregroundStyle(.white).shadow(color: .black,radius: 1)
-                                .allowsHitTesting(false)
-                        }
+                        if let scanner = radiatorScanner { RadiatorBodyOverlay(scanner: scanner) }
                     }
                 overlay
             }
         }
-        .onDisappear { coordinator.stop() }
+        .onDisappear { radiatorScanner?.stop(); coordinator.stop() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { radiatorScanner?.resume() } else { radiatorScanner?.pause() }
         }
@@ -76,7 +74,7 @@ struct ScanView: View {
                 }
                 Button { coordinator.finish() } label: { Text(mode == .house ? "scan.finishHouse" : "scan.finish") }
                     .buttonStyle(.borderedProminent)
-                    .disabled(coordinator.state != .scanning || radiatorScanner != nil)
+                    .disabled(coordinator.state != .scanning || radiatorScanner?.geometry != nil || radiatorBusy)
             }
             .padding()
             Spacer()
@@ -84,18 +82,9 @@ struct ScanView: View {
                 if let scanner = radiatorScanner {
                     radiatorControls(scanner)
                 } else {
-                    VStack(spacing: 6) {
-                        Text("Radiators need a close-up capture; mark the front corners and adjacent wall.")
-                            .font(.caption).padding(8).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 10))
-                        Button {
-                            let scanner = HouseRadiatorScanCoordinator(session: coordinator.arSession)
-                            radiatorScanner = scanner; radiatorError = nil
-                            mountingPreset = .none; scanner.start()
-                        } label: { Label("Capture radiator · \(radiators.count) saved in this scan",systemImage: "heater.vertical") }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(radiators.reduce(0) { $0+$1.samples.count } > 142_000)
-                    }
-                    .padding(.bottom,32)
+                    Button { automaticRadiators = true; startAutomaticRadiators() } label: {
+                        Label("Detect radiators",systemImage: "heater.vertical")
+                    }.buttonStyle(.bordered).disabled(!radiatorBudgetAvailable).padding(.bottom,32)
                 }
             }
         }
@@ -115,17 +104,26 @@ struct ScanView: View {
     private func radiatorControls(_ scanner: HouseRadiatorScanCoordinator) -> some View {
         ScrollView {
           VStack(alignment: .leading,spacing: 8) {
-            Text("Radiator · Heizkörper").font(.headline)
+            Text("Radiator · Heizkörper · \(radiators.count) saved").font(.headline)
             Text(scanner.message).font(.callout)
-            Text("Identify the radiator by marking its front body corners, then the adjacent wall. House capture continues.").font(.caption)
+            Text("Automatic geometry proposals · confirm the equipment type. No corner marking. House capture continues.").font(.caption)
             if !scanner.depthAvailable {
                 Text("Waiting for camera depth. Aim at the radiator from 0.5–2 m away. If depth remains unavailable, continue the House and use its Radiators option afterwards.").font(.caption).foregroundStyle(.orange)
             }
             if let error = radiatorError ?? scanner.error { Text(error).font(.caption).foregroundStyle(.red) }
             if scanner.geometry == nil {
-                Button(scanner.frontCorners.count < 3 ? "Mark front corner \(scanner.frontCorners.count+1)" : "Mark adjacent wall") { scanner.markCrosshair() }
-                    .buttonStyle(.borderedProminent).disabled(!scanner.trackingNormal || !scanner.depthAvailable || radiatorBusy)
+                if let candidate = scanner.candidate {
+                    Text("Visible body: \(candidate.geometry.width, specifier: "%.2f") × \(candidate.geometry.height, specifier: "%.2f") m · scan estimate").font(.caption)
+                    Button("This is a radiator · measure closer") { scanner.acceptCandidate() }
+                        .buttonStyle(.borderedProminent).disabled(!scanner.trackingNormal || radiatorBusy)
+                    Button("Not a radiator") { scanner.skipCandidate() }
+                } else {
+                    Text("Keep the whole radiator and nearby wall in view, then move closer after confirming a candidate.").font(.caption)
+                }
             } else {
+                if let body = scanner.geometry {
+                    Text("Body: \(body.width, specifier: "%.2f") × \(body.height, specifier: "%.2f") m · wall to front: \(body.wallToFront, specifier: "%.2f") m").font(.caption)
+                }
                 Text("\(scanner.viewpointCount) viewpoints · \(scanner.sampleCount) surface samples").font(.caption).monospacedDigit()
                 Picker("Hidden rear gap",selection: $mountingPreset) {
                     ForEach(RadiatorMountingPreset.allCases,id: \.self) { Text($0.title).tag($0) }
@@ -134,9 +132,12 @@ struct ScanView: View {
                     .buttonStyle(.borderedProminent).disabled(radiatorBusy || scanner.sampleCount < 30 || scanner.viewpointCount < 2)
             }
             HStack {
-                Button("Reset corners") { scanner.resetBounds(); radiatorError = nil }.disabled(radiatorBusy)
+                Button("Find another candidate") { scanner.resetBounds(); radiatorError = nil }.disabled(radiatorBusy)
                 Spacer()
-                Button("Discard radiator",role: .destructive) { scanner.stop(); radiatorScanner = nil }.disabled(radiatorBusy)
+                Button(scanner.geometry == nil ? "Pause detection" : "Discard measurement") {
+                    if scanner.geometry != nil { scanner.skipCandidate() }
+                    else { scanner.stop(); radiatorScanner = nil; automaticRadiators = false }
+                }.disabled(radiatorBusy)
             }.font(.callout)
             if radiatorBusy { ProgressView("Processing radiator…") }
           }.padding()
@@ -148,6 +149,9 @@ struct ScanView: View {
 
     private func saveRadiator(_ scanner: HouseRadiatorScanCoordinator) {
         guard !radiatorBusy else { return }
+        guard radiators.count < 100,radiators.reduce(0,{ $0+$1.samples.count })+scanner.sampleCount <= 150_000 else {
+            radiatorError = "Radiator evidence limit reached. Finish the House, then record additional observations separately."; return
+        }
         radiatorBusy = true; radiatorError = nil
         Task { @MainActor in
             defer { radiatorBusy = false }
@@ -155,13 +159,25 @@ struct ScanView: View {
                 var item = try await scanner.finish(roomID: UUID(),wallID: nil,preset: mountingPreset)
                 item.name = "Radiator \(radiators.count+1)"; item.capturedInHouseCoordinates = true
                 if radiators.reduce(0,{ $0+($1.photoJPEG?.count ?? 0) })+(item.photoJPEG?.count ?? 0) > 24*1_048_576 { item.photoJPEG = nil }
-                radiators.append(item); scanner.stop(); radiatorScanner = nil
+                radiators.append(item); scanner.skipCandidate(); mountingPreset = .none
+                if !radiatorBudgetAvailable { scanner.stop(); radiatorScanner = nil }
             } catch { radiatorError = error.localizedDescription }
         }
     }
 
+    private var radiatorBudgetAvailable: Bool {
+        radiators.count < 100 && radiators.reduce(0,{ $0+$1.samples.count }) <= 142_000
+    }
+    private func startAutomaticRadiators() {
+        guard radiatorBudgetAvailable,mode == .house,automaticRadiators,radiatorScanner == nil,coordinator.state == .scanning else { return }
+        let scanner = HouseRadiatorScanCoordinator(session: coordinator.arSession)
+        radiatorScanner = scanner; scanner.start()
+    }
+
     private func handle(_ state: ScanCoordinator.State) {
         switch state {
+        case .scanning:
+            startAutomaticRadiators()
         case .finished(let result):
             do {
                 let name = store.proposedName(for: result.scan.sectionLabels.first ?? .unidentified)

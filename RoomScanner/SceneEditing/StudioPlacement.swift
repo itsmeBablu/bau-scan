@@ -58,7 +58,7 @@ enum StudioPlacement {
         }
     }
     private static func walls(_ document: SceneEditDocument,story: Int) -> [SceneEditObject] {
-        document.shell.stories.filter { $0.index == story }.flatMap(\.rooms).flatMap { room in
+        document.architecturalShell.stories.filter { $0.index == story }.flatMap(\.rooms).flatMap { room in
             room.walls.filter { document.includesElement($0.id) }.flatMap { wall in WallGeometry().wallBoxes(wall,openings: room.openings.filter { $0.wallID == wall.id }).map { box in
                 let center = room.transform.apply(box.segment.midpoint)
                 return SceneEditObject(origin: "Shell",name: "Wall",family: .box,position: .init(x: center.x,y: (box.top+box.bottom)/2,z: -center.y),size: .init(x: box.segment.length,y: box.height,z: box.thickness),yaw: box.segment.angle+room.transform.rotation,story: story)

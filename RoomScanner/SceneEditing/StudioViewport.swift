@@ -17,6 +17,9 @@ enum StudioCameraFraming {
     private var previous: SceneEditDocument?
     private var previousStory: Int?
     private var previousCutaway = false
+    private var previousRendering: SceneEditDocument?
+    private var previousDimensions = false
+    private var previousDimensionSelection: UUID?
     private var resetToken = 0
     private var lastAspect = 0.0
     private var selected: UUID?
@@ -26,15 +29,18 @@ enum StudioCameraFraming {
     var moving = false
     var onSelect: ((UUID?) -> Void)?
     var onMove: ((UUID,TechnicalPoint3) -> Bool)?
-    func configure(_ document: SceneEditDocument,story: Int,cutaway: Bool,selected: UUID?,moving: Bool,reset: Int) {
+    func configure(_ document: SceneEditDocument,story: Int,cutaway: Bool,selected: UUID?,moving: Bool,reset: Int,showDimensions: Bool = false) {
         guard let view else { return }
         self.moving = moving; view.allowsCameraControl = !moving
-        if view.scene == nil || previous != document || previousStory != story || previousCutaway != cutaway {
-            let scene = StudioSceneBuilder.scene(document,story: story,cutaway: cutaway)
+        let rendering = document.renderingSnapshot
+        if view.scene == nil || previousRendering != rendering || previousStory != story || previousCutaway != cutaway || previousDimensions != showDimensions || (showDimensions && previousDimensionSelection != selected) {
+            let scene = StudioSceneBuilder.scene(document,story: story,cutaway: cutaway,showDimensions: showDimensions,dimensionSelection: selected)
             scene.rootNode.addChildNode(camera); view.scene = scene; view.pointOfView = camera
             if previous == nil || previousStory != story { frame(document,story: story) }
-            previous = document; previousStory = story; previousCutaway = cutaway
+            previousRendering = rendering; previousStory = story; previousCutaway = cutaway
+            previousDimensions = showDimensions; previousDimensionSelection = selected
         }
+        previous = document
         if resetToken != reset { resetToken = reset; frame(document,story: story) }
         self.selected = selected; highlight(selected)
         applyCameraAppearance(document)
@@ -156,6 +162,7 @@ struct StudioViewport: UIViewRepresentable {
     let selected: UUID?
     let moving: Bool
     let reset: Int
+    var showDimensions = false
     func makeCoordinator() -> Gestures { .init(controller) }
     func makeUIView(context: Context) -> SCNView {
         let view = StudioIOSSceneView(); view.studio = controller; view.antialiasingMode = .multisampling4X
@@ -170,7 +177,7 @@ struct StudioViewport: UIViewRepresentable {
     }
     func updateUIView(_ view: SCNView,context: Context) {
         context.coordinator.pan?.isEnabled = moving
-        controller.configure(document,story: story,cutaway: cutaway,selected: selected,moving: moving,reset: reset)
+        controller.configure(document,story: story,cutaway: cutaway,selected: selected,moving: moving,reset: reset,showDimensions: showDimensions)
     }
     @MainActor final class Gestures: NSObject {
         let controller: StudioSceneController
@@ -202,13 +209,14 @@ struct StudioViewport: NSViewRepresentable {
     let selected: UUID?
     let moving: Bool
     let reset: Int
+    var showDimensions = false
     func makeNSView(context: Context) -> StudioMacSceneView {
         let view = StudioMacSceneView(); view.studio = controller
         view.antialiasingMode = .multisampling4X; view.preferredFramesPerSecond = 30
         controller.view = view; return view
     }
     func updateNSView(_ view: StudioMacSceneView,context: Context) {
-        controller.configure(document,story: story,cutaway: cutaway,selected: selected,moving: moving,reset: reset)
+        controller.configure(document,story: story,cutaway: cutaway,selected: selected,moving: moving,reset: reset,showDimensions: showDimensions)
     }
 }
 final class StudioMacSceneView: SCNView {

@@ -355,6 +355,20 @@ final class RoomStore {
         if let i = houseRecords.firstIndex(where: { $0.id == record.id }) { houseRecords[i] = updated }
     }
 
+    /// Renames a room inside a House, retaining raw captures and all survey sidecars.
+    func renameRoom(in record: HouseRecord,roomID: UUID,to name: String) throws {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,trimmed.count <= 120 else { throw AppError.storageFailed("Enter a room name of 1–120 characters.") }
+        var house = try house(for: record)
+        guard let si = house.stories.firstIndex(where: { $0.rooms.contains(where: { $0.id == roomID }) }),
+              let ri = house.stories[si].rooms.firstIndex(where: { $0.id == roomID }) else { throw AppError.storageFailed("The selected room is no longer in this House.") }
+        house.stories[si].rooms[ri].name = trimmed
+        let updated = HouseRecord(house: house,createdAt: record.createdAt)
+        try HousePackage.update(record: updated,house: house,in: packageURL(for: record))
+        if let png = PlanRenderer.thumbnailPNG(for: house) { try? HousePackage.writeThumbnail(png,in: packageURL(for: record)) }
+        if let index = houseRecords.firstIndex(where: { $0.id == record.id }) { houseRecords[index] = updated }
+    }
+
     func delete(_ record: HouseRecord) throws {
         try HousePackage.delete(at: packageURL(for: record))
         houseRecords.removeAll { $0.id == record.id }

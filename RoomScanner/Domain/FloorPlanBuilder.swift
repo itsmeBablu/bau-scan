@@ -16,7 +16,8 @@ struct FloorPlanBuilder {
         var walls = scan.walls.map { makeWall($0) }
         var openings = scan.openings.map { makeOpening($0, walls: walls, floorY: floorY) }
         var objects = scan.objects.map { makeObject($0) }
-        var polygon = floorPolygon(walls: walls, scan: scan)
+        let outline = floorOutline(walls: walls,scan: scan)
+        var polygon = outline.polygon
         if alignToLongestWall, let longest = walls.max(by: { $0.length < $1.length }) {
             // Smallest rotation (±90° max) that makes this wall horizontal.
             var theta = longest.segment.angle
@@ -41,7 +42,7 @@ struct FloorPlanBuilder {
             openings: openings,
             objects: objects,
             floorPolygon: polygon,
-            ceilingHeight: ceiling)
+            ceilingHeight: ceiling,floorOutlineSource: outline.source)
     }
 
     // MARK: - Elements
@@ -83,24 +84,28 @@ struct FloorPlanBuilder {
 
     /// Floor contour: RoomPlan floor surface polygon (`polygonCorners`, local
     /// surface coords → world → plan, simplified); fallback to chained walls, then bounds.
-    private func floorPolygon(walls: [Wall], scan: ScanInput) -> [Point2D] {
-        if let floor = scan.floors.first, floor.polygonCorners.count >= 3 {
+    private func floorOutline(walls: [Wall],scan: ScanInput) -> (polygon: [Point2D],source: FloorPlan.FloorOutlineSource) {
+        var captured: [[Point2D]] = []
+        for floor in scan.floors where floor.polygonCorners.count >= 3 {
             let world = floor.polygonCorners.map { c -> Point2D in
-                let p = floor.transform * SIMD4<Float>(c.x, c.y, c.z, 1)
-                return Point2D(projecting: SIMD3(p.x, p.y, p.z))
+                let p = floor.transform * SIMD4<Float>(c.x,c.y,c.z,1)
+                return Point2D(projecting: SIMD3(p.x,p.y,p.z))
             }
-            let poly = Polygon2D.simplified(world, tolerance: 0.01)
-            if poly.count >= 3, Polygon2D.area(poly) > 0.5 {
-                return Polygon2D.signedArea(poly) < 0 ? poly.reversed() : poly
+            guard world.allSatisfy({ $0.x.isFinite && $0.y.isFinite }) else { continue }
+            let poly = Polygon2D.simplified(world,tolerance: 0.01)
+            if poly.count >= 3,Polygon2D.area(poly) > 0.01,Polygon2D.triangulation(poly).1 {
+                captured.append(poly)
             }
         }
-        if let chained = Polygon2D.chain(walls.map(\.segment), tolerance: chainTolerance) {
-            return Polygon2D.signedArea(chained) < 0 ? chained.reversed() : chained
+        if let poly = captured.max(by: { Polygon2D.area($0) < Polygon2D.area($1) }) {
+            return (Polygon2D.signedArea(poly) < 0 ? poly.reversed() : poly,.capturedSurface)
         }
-        let b = Rect2D.bounding(walls.flatMap { [$0.start, $0.end] })
-        guard !b.isEmpty else { return [] }
-        return [Point2D(x: b.minX, y: b.minY), Point2D(x: b.maxX, y: b.minY),
-                Point2D(x: b.maxX, y: b.maxY), Point2D(x: b.minX, y: b.maxY)]
+        if let chained = Polygon2D.chain(walls.map(\.segment),tolerance: chainTolerance),Polygon2D.triangulation(chained).1 {
+            return (Polygon2D.signedArea(chained) < 0 ? chained.reversed() : chained,.wallBoundary)
+        }
+        let b = Rect2D.bounding(walls.flatMap { [$0.start,$0.end] })
+        guard !b.isEmpty else { return ([],.boundsEstimate) }
+        return ([.init(x: b.minX,y: b.minY),.init(x: b.maxX,y: b.minY),.init(x: b.maxX,y: b.maxY),.init(x: b.minX,y: b.maxY)],.boundsEstimate)
     }
 
     /// Floor elevation: `floor` surface if present, otherwise bottom of walls.

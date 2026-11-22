@@ -8,7 +8,7 @@ New snapshots preserve ARKit's per-face classification where available. In the s
 
 House viewer and mesh exports now share Studio's bounded corner mitres, with openings excluded. This fills small coincident endpoint corners only; it is not a complete Revit-style wall union or a repair for large missing scan segments. Export corner geometry belongs to the walls group.
 
-Radiators still use assisted close-up capture within the continuous House session. RoomPlan does not supply a radiator class here. The scanning UI now explicitly states that the user must mark the radiator's front corners and adjacent wall. Automatic radiator recognition, clean parametric walls in Technik, and full wall T-junction unions remain unfinished.
+Radiators now use automatic geometric proposals within the continuous House session, followed by equipment confirmation and a closer pass without corner marking. RoomPlan does not supply a radiator class here; this is not a trained semantic classifier. Clean parametric walls in Technik and full wall T-junction unions remain unfinished. See HOUSE_RADIATOR_SURVEY.md for depth-availability and measurement limits.
 
 House Studio replacements already use the newly selected family's default dimensions. Fit scanned size remains an explicit user action. Technical reclassification retains surveyed dimensions.
 

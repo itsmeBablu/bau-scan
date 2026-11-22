@@ -81,6 +81,9 @@ struct FloorPlan: Codable, Equatable, Identifiable {
     /// from all RoomPlan sections. House saved in v1 is renamed upon reading.
     static let schemaVersion = 2
     static let defaultWallThickness = 0.10
+    /// Presentation slab only; not a measured structural floor thickness.
+    static let defaultFloorSlabThickness = 0.05
+    enum FloorOutlineSource: String,Codable { case capturedSurface, wallBoundary, boundsEstimate }
 
     var id: UUID
     var name: String
@@ -93,6 +96,18 @@ struct FloorPlan: Codable, Equatable, Identifiable {
     /// Floor polygon, counterclockwise order, empty if indeterminable.
     var floorPolygon: [Point2D]
     var ceilingHeight: ClosedRange<Double>
+    var floorOutlineSource: FloorOutlineSource? = nil
+    var floorSlabThickness: Double? = nil
+
+    /// Floor extents must never grow to include loose furniture outside the room.
+    var floorBounds: Rect2D {
+        Rect2D.bounding(floorPolygon.count >= 3 && Polygon2D.area(floorPolygon) > 1e-8 && Polygon2D.triangulation(floorPolygon).1 ? floorPolygon : walls.flatMap { [$0.start,$0.end] })
+    }
+
+    var displayFloorSlabThickness: Double {
+        guard let value = floorSlabThickness,value.isFinite,(0.005...2).contains(value) else { return Self.defaultFloorSlabThickness }
+        return value
+    }
 
     /// Bounding box of all rendered geometry (walls, openings, objects, floor).
     var bounds: Rect2D {

@@ -13,6 +13,7 @@ import AppKit
 final class TechnicalGoogleAIAccount {
     static let shared = TechnicalGoogleAIAccount()
     private(set) var email: String?
+    private(set) var displayName: String?
     private(set) var busy = false
     var error: String?
     var signedIn: Bool { email != nil }
@@ -55,8 +56,9 @@ final class TechnicalGoogleAIAccount {
             if GIDSignIn.sharedInstance.hasPreviousSignIn() {
                 let user = try await GIDSignIn.sharedInstance.restorePreviousSignIn()
                 email = user.profile?.email
+                displayName = user.profile?.name
             }
-        } catch { email = nil }
+        } catch { email = nil; displayName = nil }
     }
     func signIn() async {
         guard !busy else { return }; busy = true
@@ -74,6 +76,7 @@ final class TechnicalGoogleAIAccount {
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: window)
             #endif
             email = result.user.profile?.email
+            displayName = result.user.profile?.name
         } catch { self.error = error.localizedDescription }
     }
     func idToken() async throws -> String {
@@ -83,7 +86,7 @@ final class TechnicalGoogleAIAccount {
         guard let token = refreshed.idToken?.tokenString else { throw AuthError.signInRequired }
         return token
     }
-    func signOut() { GIDSignIn.sharedInstance.signOut(); email = nil }
+    func signOut() { GIDSignIn.sharedInstance.signOut(); email = nil; displayName = nil }
     func photosAccessToken() async throws -> String {
         try configure()
         guard var user = GIDSignIn.sharedInstance.currentUser else { throw AuthError.signInRequired }
@@ -112,6 +115,7 @@ struct TechnicalGoogleAIConnection: View {
     var body: some View {
         VStack(alignment: .leading,spacing: 10) {
             if let email = account.email {
+                if let name = account.displayName { Text(name).font(.headline) }
                 Text("Signed in as \(email)").font(.caption)
                 Button("Sign out of Google") { account.signOut() }
             } else {
@@ -135,7 +139,7 @@ struct TechnicalGoogleAIStatus: View {
     var body: some View {
         Label(account.signedIn ? "Google connected" : "Google not connected",systemImage: account.signedIn ? "checkmark.circle" : "person.crop.circle")
             .font(.caption).foregroundStyle(.secondary)
-        if !account.signedIn { Text("Connect Google in Settings → Google account & AI.").font(.caption).foregroundStyle(.secondary) }
+        if !account.signedIn { Text("Connect Google in Profile → Google account. On Mac, use Settings.").font(.caption).foregroundStyle(.secondary) }
     }
 }
 

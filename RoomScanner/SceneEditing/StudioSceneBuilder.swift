@@ -9,46 +9,53 @@ import simd
         m.roughness.contents = roughness; m.metalness.contents = metal
         return m
     }
-    static func scene(_ document: SceneEditDocument,story: Int?,cutaway: Bool,decorated: Bool = true) -> SCNScene {
+    static func scene(_ document: SceneEditDocument,story: Int?,cutaway: Bool,decorated: Bool = true,showDimensions: Bool = false,dimensionSelection: UUID? = nil) -> SCNScene {
         let scene = SCNScene()
-        let roomIDs = Set(document.shell.stories.filter { story == nil || $0.index == story }.flatMap(\.rooms).map(\.id))
-        let rooms = document.shell.allRooms.filter { roomIDs.contains($0.id) }
+        let roomIDs = Set(document.architecturalShell.stories.filter { story == nil || $0.index == story }.flatMap(\.rooms).map(\.id))
+        let rooms = document.architecturalShell.allRooms.filter { roomIDs.contains($0.id) }
         let floorMaterial = material(document.floorColor,roughness: 0.85)
-        if document.source != .technical {
-            floorMaterial.diffuse.contents = floorTexture(document.floorColor)
+        let finish = document.floorFinish ?? .wood
+        let repeatMetres = document.floorPatternSize ?? (finish == .tile ? 0.3 : 0.72)
+        if document.source != .technical && finish != .plain {
+            floorMaterial.diffuse.contents = floorTexture(document.floorColor,tile: finish == .tile)
             floorMaterial.diffuse.wrapS = .repeat; floorMaterial.diffuse.wrapT = .repeat
             floorMaterial.diffuse.mipFilter = .linear
         }
         let wallMaterial = material(document.wallColor)
+        var surfaces = StudioSurfaceDeduplicator()
+        var floorCoverage = StudioFloorCoverage()
+        var allVisibleWalls = Set<UUID>()
         for room in rooms {
             var visibleWalls = Set<UUID>()
             let roomCenter = room.transform.apply(room.bounds.center)
-            var floor = TriangleMesh()
-            PlanMeshBuilder.addFloor(room,transform: room.transform,thickness: 0.08,to: &floor)
-            if !floor.isEmpty { scene.rootNode.addChildNode(meshNode(floor,material: floorMaterial,name: "shell:floor")) }
+            var floor = floorCoverage.mesh(room)
+            floor = surfaces.clean(floor)
+            if !floor.isEmpty { scene.rootNode.addChildNode(meshNode(floor,material: floorMaterial,name: "shell:floor",textureScale: repeatMetres)) }
             for wall in room.walls where document.includesElement(wall.id) {
                 let midpoint = room.transform.apply(wall.segment.midpoint)
                 // Presentation cutaway only. Complete walls remain in the saved shell and exports.
                 if cutaway && (midpoint.x-roomCenter.x)-(midpoint.y-roomCenter.y) > 0.15 { continue }
                 visibleWalls.insert(wall.id)
-                var mesh = TriangleMesh()
-                for box in WallGeometry().wallBoxes(wall,openings: room.openings.filter { $0.wallID == wall.id }) {
-                    PlanMeshBuilder.addBox(box,transform: room.transform,to: &mesh)
-                }
+            }
+            allVisibleWalls.formUnion(visibleWalls)
+            for wall in room.walls where visibleWalls.contains(wall.id) {
+                let mesh = surfaces.clean(StudioWallProfile.mesh(wall,room: room,visible: visibleWalls))
                 if !mesh.isEmpty { scene.rootNode.addChildNode(meshNode(mesh,material: wallMaterial,name: "shell:wall")) }
             }
-            let joins = StudioWallJoins.mesh(room: room,visible: visibleWalls)
-            if !joins.isEmpty { scene.rootNode.addChildNode(meshNode(joins,material: wallMaterial,name: "shell:wall-joins")) }
             for opening in room.openings where opening.kind != .opening && document.includesElement(opening.wallID) {
                 guard let box = WallGeometry().panelBox(opening,wall: room.wall(withID: opening.wallID)) else { continue }
                 let midpoint = room.transform.apply(box.segment.midpoint)
                 if cutaway && (midpoint.x-roomCenter.x)-(midpoint.y-roomCenter.y) > 0.15 { continue }
+                if opening.kind == .window && document.source != .technical {
+                    scene.rootNode.addChildNode(StudioWindowModel.make(opening,wall: room.wall(withID: opening.wallID),transform: room.transform)); continue
+                }
                 var mesh = TriangleMesh(); PlanMeshBuilder.addBox(box,transform: room.transform,to: &mesh)
                 let m = material(opening.kind == .door ? .init(x: 0.57,y: 0.39,z: 0.24) : .init(x: 0.61,y: 0.77,z: 0.80),roughness: 0.3)
                 scene.rootNode.addChildNode(meshNode(mesh,material: m,name: "shell:opening"))
             }
         }
         for item in document.presentationObjects where story == nil || item.story == story { scene.rootNode.addChildNode(model(item,technical: document.source == .technical)) }
+        if showDimensions { StudioDimensionOverlay.add(to: scene,document: document,rooms: rooms,visibleWalls: allVisibleWalls,selection: dimensionSelection) }
         if decorated {
             let night = document.source != .technical && document.lighting == .night
             let winter = document.source != .technical && document.season == .winter
@@ -68,17 +75,22 @@ import simd
         }
         return scene
     }
-    static func meshNode(_ mesh: TriangleMesh,material: SCNMaterial,name: String) -> SCNNode {
+    static func meshNode(_ mesh: TriangleMesh,material: SCNMaterial,name: String,textureScale: Double = 1.2) -> SCNNode {
         let source = SCNGeometrySource(vertices: mesh.positions.map { SCNVector3($0.x,$0.y,$0.z) })
         let normals = SCNGeometrySource(normals: mesh.normals.map { SCNVector3($0.x,$0.y,$0.z) })
         let indices = mesh.triangles.flatMap { [$0.x,$0.y,$0.z] }
-        let uv = SCNGeometrySource(textureCoordinates: mesh.positions.map { CGPoint(x: Double($0.x)/1.2,y: Double($0.z)/1.2) })
+        let uv = SCNGeometrySource(textureCoordinates: mesh.positions.map { CGPoint(x: Double($0.x)/textureScale,y: Double($0.z)/textureScale) })
         let geometry = SCNGeometry(sources: [source,normals,uv],elements: [SCNGeometryElement(indices: indices,primitiveType: .triangles)])
         geometry.materials = [material]
         let node = SCNNode(geometry: geometry); node.name = name; return node
     }
-    private static func floorTexture(_ base: TechnicalPoint3) -> CGImage? {
+    private static func floorTexture(_ base: TechnicalPoint3,tile: Bool = false) -> CGImage? {
         guard let context = CGContext(data: nil,width: 512,height: 512,bitsPerComponent: 8,bytesPerRow: 2048,space: CGColorSpaceCreateDeviceRGB(),bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        if tile {
+            context.setFillColor(CGColor(red: base.x,green: base.y,blue: base.z,alpha: 1)); context.fill(CGRect(x: 0,y: 0,width: 512,height: 512))
+            context.setStrokeColor(CGColor(gray: 0.35,alpha: 0.3)); context.setLineWidth(5); context.stroke(CGRect(x: 0,y: 0,width: 512,height: 512))
+            return context.makeImage()
+        }
         for row in 0..<4 {
             let variation = Double(row%3-1)*0.025
             context.setFillColor(CGColor(red: min(1,max(0,base.x+variation)),green: min(1,max(0,base.y+variation)),blue: min(1,max(0,base.z+variation)),alpha: 1))

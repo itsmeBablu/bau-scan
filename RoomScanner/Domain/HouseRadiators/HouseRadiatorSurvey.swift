@@ -111,7 +111,7 @@ struct HouseRadiatorSurvey: Codable,Equatable {
         var errorDescription: String? {
             switch self {
             case .invalid: "The radiator survey contains invalid dimensions or capture evidence."
-            case .incomplete: "Mark the lower-left, lower-right and upper-left front corners, then the adjacent finished wall."
+            case .incomplete: "Confirm a detected radiator body and capture its visible surfaces from at least two viewpoints. Keep the full body and adjacent wall visible while detecting."
             case .wrongWall: "Choose the finished wall beside the radiator, parallel to its front."
             case .unassigned: "A captured radiator could not be matched to a scanned House wall. The House and radiator observations have not been saved yet."
             }

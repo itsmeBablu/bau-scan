@@ -34,6 +34,18 @@ final class PlanSceneBuilderTests: XCTestCase {
         XCTAssertTrue(boxes.allSatisfy { abs($0.top - 0.02) < 0.0001 })
     }
 
+    func testDegenerateFloorFallbackStaysAtArchitecturalCenter() throws {
+        var room = plan()
+        for i in room.walls.indices {
+            room.walls[i].segment.start = room.walls[i].start + Point2D(x: 5,y: 8)
+            room.walls[i].segment.end = room.walls[i].end + Point2D(x: 5,y: 8)
+        }
+        room.floorPolygon = [.init(x: 5,y: 8),.init(x: 6,y: 8),.init(x: 7,y: 8)]
+        let scene = PlanSceneBuilder().makeRoom(room)
+        let floor = try XCTUnwrap(scene.children.first { $0.name == "floor" })
+        XCTAssertEqual(floor.position.x,5,accuracy: 0.001)
+        XCTAssertEqual(floor.position.z,-8,accuracy: 0.001)
+    }
     func testSceneHierarchy() {
         let house = House(room: plan())
         let root = PlanSceneBuilder().makeScene(for: house)

@@ -155,6 +155,9 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     var shell: House
     var objects: [SceneEditObject]
     var wallColor = TechnicalPoint3(x: 0.88,y: 0.86,z: 0.80)
+    enum FloorFinish: String,Codable,CaseIterable { case wood, tile, plain }
+    var floorFinish: FloorFinish? = nil
+    var floorPatternSize: Double? = nil
     var floorColor = TechnicalPoint3(x: 0.66,y: 0.49,z: 0.31)
     var interior = Interior.natural
     var lighting = Lighting.day
@@ -182,12 +185,15 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
               Set(objects.map(\.id)).count == objects.count,shell.allRooms.count <= 100,
               shell.allRooms.reduce(0,{ $0+$1.walls.count+$1.openings.count+$1.floorPolygon.count }) <= 20_000,
               [wallColor.x,wallColor.y,wallColor.z,floorColor.x,floorColor.y,floorColor.z].allSatisfy({ $0.isFinite && (0...1).contains($0) }) else { throw Failure.invalid }
-        try engineering?.validate(ids: Set(engineeringElements.map(\.id)))
+        if let size = floorPatternSize { guard size.isFinite,(0.1...2).contains(size) else { throw Failure.invalid } }
+        let elements = engineeringElements
+        try engineering?.validate(ids: Set(elements.map(\.id)),thicknessIDs: Set(elements.filter { $0.kind == "Wall" || $0.kind == "Floor" }.map(\.id)),floorIDs: Set(elements.filter { $0.kind == "Floor" }.map(\.id)))
         for object in objects { try object.validate() }
         let stories = Set(shell.stories.map(\.index))
         guard Set(objects.map(\.story)).isSubset(of: stories) else { throw Failure.invalid }
         // Reject nonfinite shell geometry before passing it to native rendering/export.
         for room in shell.allRooms {
+            if let thickness = room.floorSlabThickness { guard thickness.isFinite,(0.005...2).contains(thickness) else { throw Failure.invalid } }
             guard room.floorPolygon.count <= 512,room.walls.count <= 1000,room.openings.count <= 1000,
                   room.walls.allSatisfy({ $0.height > 0 && $0.thickness > 0 }),
                   room.openings.allSatisfy({ $0.width > 0 && $0.height > 0 }) else { throw Failure.invalid }
@@ -198,8 +204,22 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
             guard values.allSatisfy({ $0.isFinite && abs($0) <= 1000 }) else { throw Failure.invalid }
         }
     }
+    var renderingSnapshot: SceneEditDocument {
+        var copy = self
+        copy.title = ""
+        for i in copy.objects.indices { copy.objects[i].technicalData = nil; copy.objects[i].origin = ""; copy.objects[i].name = "" }
+        if var data = copy.engineering {
+            data.records = data.records.filter { $0.phase != .existing || $0.thicknessOverride != nil }.map { record in
+                var clean = StudioEngineering.Record(id: record.id)
+                clean.phase = record.phase; clean.thicknessOverride = record.thicknessOverride
+                return clean
+            }.sorted { $0.id.uuidString < $1.id.uuidString }
+            copy.engineering = data.view == .all && data.records.isEmpty ? nil : data
+        }
+        return copy
+    }
     var plan: House {
-        var house = shell
+        var house = architecturalShell
         for si in house.stories.indices {
             for ri in house.stories[si].rooms.indices {
                 house.stories[si].rooms[ri].objects = []
@@ -258,6 +278,15 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     }
     func update(_ item: SceneEditObject) throws {
         try change { doc in if let index = doc.objects.firstIndex(where: { $0.id == item.id }) { doc.objects[index] = item } }
+    }
+    func addDesignObject(_ item: SceneEditObject,allowOverlap: Bool) throws {
+        var target = document,data = document.engineering ?? .init()
+        if data.view == .existing || data.view == .demolition { data.view = .proposed }
+        target.engineering = data
+        let placed = try StudioPlacement.available(item,in: target,allowOverlap: allowOverlap)
+        target.objects.append(placed)
+        var record = data.record(placed.id); record.phase = .new; data.set(record); target.engineering = data
+        try change { $0 = target }; selectedID = placed.id
     }
     func undo() { guard let previous = undoStack.popLast() else { return }; redoStack.append(document); document = previous }
     func redo() { guard let next = redoStack.popLast() else { return }; undoStack.append(document); document = next }

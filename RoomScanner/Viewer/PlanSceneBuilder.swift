@@ -154,10 +154,10 @@ struct PlanSceneBuilder {
     // MARK: - Floor, objets, cotes
 
     private func makeFloor(_ room: FloorPlan, tint: CGColor?) -> ModelEntity? {
-        let b = room.bounds
+        let b = room.floorBounds
         guard !b.isEmpty else { return nil }
-        let mesh = (try? Self.floorMesh(polygon: room.floorPolygon, bounds: b))
-            ?? MeshResource.generatePlane(width: Float(b.width), depth: Float(b.height))
+        let polygonMesh = try? Self.floorMesh(polygon: room.floorPolygon,bounds: b)
+        let mesh = polygonMesh ?? MeshResource.generatePlane(width: Float(b.width),depth: Float(b.height))
         let floorColor = tint.map(platformColor) ?? PlatformColor(red: 0.66, green: 0.58, blue: 0.47, alpha: 1)
         var material: RealityKit.Material = SimpleMaterial(color: floorColor, roughness: 0.8, isMetallic: false)
         if options.showFloorTexture {
@@ -172,7 +172,7 @@ struct PlanSceneBuilder {
         let e = ModelEntity(mesh: mesh, materials: [material])
         e.name = Names.floor
         // Polygonal mesh is already in room coordinates; fallback plane is centered.
-        e.position = room.floorPolygon.count >= 3 ? SIMD3(0, 0.001, 0) : SIMD3(Float(b.center.x), 0.001, Float(-b.center.y))
+        e.position = polygonMesh != nil ? SIMD3(0, 0.001, 0) : SIMD3(Float(b.center.x), 0.001, Float(-b.center.y))
         return e
     }
 
@@ -181,8 +181,8 @@ struct PlanSceneBuilder {
     /// (u = x croissant, v = 0 en haut de l'image = y_plan max).
     static func floorMesh(polygon: [Point2D], bounds: Rect2D) throws -> MeshResource {
         guard polygon.count >= 3 else { throw NSError(domain: "PlanSceneBuilder", code: 1) }
-        let tris = Polygon2D.triangulate(polygon)
-        guard !tris.isEmpty else { throw NSError(domain: "PlanSceneBuilder", code: 2) }
+        let (tris,complete) = Polygon2D.triangulation(polygon)
+        guard complete,!tris.isEmpty,bounds.width > 0,bounds.height > 0 else { throw NSError(domain: "PlanSceneBuilder", code: 2) }
         var desc = MeshDescriptor(name: "floor")
         desc.positions = MeshBuffers.Positions(polygon.map { SIMD3(Float($0.x), 0, Float(-$0.y)) })
         desc.normals = MeshBuffers.Normals(polygon.map { _ in SIMD3<Float>(0, 1, 0) })

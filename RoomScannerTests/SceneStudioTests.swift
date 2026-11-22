@@ -1,5 +1,6 @@
 import XCTest
 import SceneKit
+import simd
 import ModelIO
 #if os(iOS)
 import SwiftUI
@@ -13,6 +14,110 @@ final class SceneStudioTests: XCTestCase {
         let object = PlacedObject(id: UUID(),category: "sofa",center: .init(x: 1,y: -1),size: .init(width: 2,depth: 0.9),height: 0.85,angle: 0.3,confidence: .high)
         house.stories[0].rooms[0].objects = [object]
         return .seed(house: house,source: .house,id: house.id)
+    }
+    func testEngineeringLookupTracksDecodeAndInPlaceEdits() throws {
+        let id = UUID()
+        var record = StudioEngineering.Record(id: id); record.note = "Initial"
+        var data = try JSONDecoder().decode(StudioEngineering.self,from: JSONEncoder().encode(StudioEngineering(records: [record])))
+        XCTAssertEqual(data.record(id).note,"Initial")
+        data.records[0].note = "Updated"
+        XCTAssertEqual(data.record(id).note,"Updated")
+        data.records.removeAll()
+        XCTAssertEqual(data.record(id).note,"")
+    }
+    @MainActor func testAddingFromReferenceViewSwitchesToProposedAtomically() throws {
+        var document = seed(),data = StudioEngineering(); data.view = .existing; document.engineering = data
+        let session = SceneEditSession(document)
+        let item = SceneEditObject(origin: "Test design",name: "Chair",family: .chair,position: .init(x: 20,y: 0.425,z: 20),size: SceneFurniture.chair.defaultSize)
+        try session.addDesignObject(item,allowOverlap: true)
+        XCTAssertEqual(session.document.engineering?.view,.proposed)
+        XCTAssertTrue(session.document.presentationObjects.contains { $0.id == item.id })
+        session.undo(); XCTAssertEqual(session.document,document)
+    }
+    func testEngineeringSearchRetainsSelectionOutsideResultLimit() {
+        let document = seed(),selected = document.objects[0].id
+        let results = document.engineeringSearch("",selection: selected,limit: 1)
+        XCTAssertTrue(results.contains { $0.id == selected })
+        XCTAssertLessThanOrEqual(results.count,2)
+    }
+    @MainActor func testEngineeringNotesDoNotRecreateTheStudioScene() {
+        let document = seed(),controller = StudioSceneController(),view = SCNView()
+        controller.view = view
+        controller.configure(document,story: 0,cutaway: false,selected: nil,moving: false,reset: 0)
+        let first = view.scene
+        var edited = document,data = StudioEngineering()
+        var record = StudioEngineering.Record(id: edited.objects[0].id); record.note = "Inspect radiator connection"
+        data.set(record); edited.engineering = data
+        controller.configure(edited,story: 0,cutaway: false,selected: nil,moving: false,reset: 0)
+        XCTAssertTrue(view.scene === first,"Metadata edits must not regenerate geometry or lighting")
+        controller.configure(edited,story: 0,cutaway: false,selected: edited.objects[0].id,moving: false,reset: 0,showDimensions: true)
+        XCTAssertFalse(view.scene === first)
+        XCTAssertNotNil(view.scene?.rootNode.childNode(withName: "dimensions",recursively: false))
+    }
+    func testSmartBauStyleWallProfileKeepsDoorHoleAndSharesCornerMiter() {
+        let a = Wall(id: UUID(),segment: .init(start: .zero,end: .init(x: 3,y: 0)),height: 2.5,thickness: 0.1,confidence: .high)
+        let b = Wall(id: UUID(),segment: .init(start: .zero,end: .init(x: 0,y: 2)),height: 2.5,thickness: 0.1,confidence: .high)
+        var room = seed().shell.allRooms[0]; room.transform = .identity; room.walls = [a,b]
+        room.openings = [.init(id: UUID(),kind: .door,wallID: a.id,center: .init(x: 1.5,y: 0),width: 0.9,height: 2,sillHeight: 0,angle: 0,confidence: .high)]
+        let ma = StudioWallProfile.mesh(a,room: room,visible: [a.id,b.id]),mb = StudioWallProfile.mesh(b,room: room,visible: [a.id,b.id])
+        for mesh in [ma,mb] {
+            XCTAssertTrue(mesh.positions.contains { abs($0.x+0.05) < 1e-5 && abs($0.z-0.05) < 1e-5 })
+        }
+        XCTAssertFalse(ma.triangles.contains { triangle in
+            let p = (ma.positions[Int(triangle.x)]+ma.positions[Int(triangle.y)]+ma.positions[Int(triangle.z)])/3
+            return p.x > 1.051 && p.x < 1.949 && p.y > 0.001 && p.y < 1.999
+        },"Door opening must not acquire solid geometry")
+    }
+    func testFloorCoverageRemovesCoplanarRoomOverlap() {
+        var a = seed().shell.allRooms[0]; a.transform = .identity; a.walls = []; a.openings = []; a.objects = []
+        a.floorPolygon = [.init(x: 0,y: 0),.init(x: 2,y: 0),.init(x: 2,y: 2),.init(x: 0,y: 2)]
+        var b = a; b.id = UUID(); b.floorPolygon = b.floorPolygon.map { $0+Point2D(x: 1,y: 0) }
+        var coverage = StudioFloorCoverage()
+        func topArea(_ mesh: TriangleMesh) -> Float {
+            mesh.triangles.reduce(0) { area,t in
+                let a = mesh.positions[Int(t.x)],b = mesh.positions[Int(t.y)],c = mesh.positions[Int(t.z)]
+                return mesh.normals[Int(t.x)].y > 0.9 ? area+simd_length(simd_cross(b-a,c-a))/2 : area
+            }
+        }
+        XCTAssertEqual(topArea(coverage.mesh(a))+topArea(coverage.mesh(b)),6,accuracy: 0.0001)
+        var dedup = StudioSurfaceDeduplicator(),mesh = TriangleMesh()
+        mesh.addTriangle(.zero,.init(1,0,0),.init(0,0,1))
+        XCTAssertEqual(dedup.clean(mesh).triangles.count,1)
+        XCTAssertTrue(dedup.clean(mesh).isEmpty)
+    }
+    @MainActor func testWindowFramesAndDimensionsUseNativeGeometry() {
+        let document = seed(),opening = Opening(id: UUID(),kind: .window,wallID: nil,center: .zero,width: 1.2,height: 1.4,sillHeight: 0.9,angle: 0,confidence: .high)
+        let window = StudioWindowModel.make(opening,wall: nil,transform: .identity)
+        XCTAssertEqual(window.childNodes.filter { $0.name?.hasPrefix("frame:") == true }.count,4)
+        let glass = window.childNode(withName: "glazing",recursively: true)?.geometry?.firstMaterial
+        XCTAssertEqual(glass?.writesToDepthBuffer,false)
+        let scene = StudioSceneBuilder.scene(document,story: 0,cutaway: false,showDimensions: true,dimensionSelection: document.objects[0].id)
+        let dimensions = scene.rootNode.childNode(withName: "dimensions",recursively: false)
+        var labels = 0; dimensions?.enumerateChildNodes { node,_ in if node.name == "dimension-label" { labels += 1 } }
+        XCTAssertGreaterThanOrEqual(labels,4)
+        XCTAssertNil(document.floorFinish,"Presentation defaults must not modify the source project")
+    }
+    func testReferencedThicknessOverridesPreserveOriginalShellAndPersist() throws {
+        var document = seed()
+        let room = try XCTUnwrap(document.shell.allRooms.first),wall = try XCTUnwrap(room.walls.first)
+        var data = StudioEngineering()
+        var wallRecord = StudioEngineering.Record(id: wall.id)
+        wallRecord.thicknessOverride = 0.24; wallRecord.thicknessReference = "Measured opening reveal"
+        var floorRecord = StudioEngineering.Record(id: room.id)
+        floorRecord.thicknessOverride = 0.22; floorRecord.thicknessReference = "Structural drawing A-01"
+        data.set(wallRecord); data.set(floorRecord); document.engineering = data
+        try document.validate()
+        let decoded = try JSONDecoder().decode(SceneEditDocument.self,from: JSONEncoder().encode(document))
+        XCTAssertEqual(decoded.architecturalShell.allRooms[0].walls[0].thickness,0.24)
+        XCTAssertEqual(decoded.plan.allRooms[0].displayFloorSlabThickness,0.22)
+        XCTAssertEqual(decoded.shell.allRooms[0].walls[0].thickness,wall.thickness)
+        XCTAssertNil(decoded.shell.allRooms[0].floorSlabThickness)
+        XCTAssertTrue(String(decoding: decoded.engineeringCSV(),as: UTF8.self).contains("Measured opening reveal"))
+        wallRecord.thicknessReference = ""; data.set(wallRecord); document.engineering = data
+        XCTAssertThrowsError(try document.validate())
+        wallRecord.thicknessReference = "Survey"; wallRecord.thicknessOverride = -.infinity
+        data.set(wallRecord); document.engineering = data
+        XCTAssertThrowsError(try document.validate())
     }
     func testEngineeringLegacyProjectAndValidation() throws {
         let document = seed()
@@ -339,7 +444,7 @@ final class SceneStudioTests: XCTestCase {
             (controller as? UITabBarController).map { [$0] } ?? controller.children.flatMap(tabControllers)
         }
         let tabs = try XCTUnwrap(tabControllers(hosting).first)
-        XCTAssertEqual(tabs.tabBar.items?.compactMap(\.title),["House","Technik","Capture","Profile","Settings"])
+        XCTAssertEqual(tabs.tabBar.items?.compactMap(\.title),["House","Technik","Capture","Studio","Profile"])
         let image = UIGraphicsImageRenderer(bounds: hosting.view.bounds).image { _ in hosting.view.drawHierarchy(in: hosting.view.bounds,afterScreenUpdates: true) }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("dwalk-five-tabs-"+UUID().uuidString+".png")
         try XCTUnwrap(image.pngData()).write(to: url)

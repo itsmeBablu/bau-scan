@@ -123,6 +123,7 @@ private struct CameraARView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var authorized = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
     @State private var requested = false
+    @State private var visible = false
     @State private var cameraStatus = "Starting AR camera…"
     @State private var cameraFailed = false
 
@@ -132,8 +133,9 @@ private struct CameraARView: View {
                 ContentUnavailableView("AR is unavailable", systemImage: "arkit", description: Text("Use a supported iPhone or iPad to view your scan in AR."))
             } else if authorized {
                 NativeARView(house: house, radiators: radiators, dimensions: state.showDimensions, objects: state.showObjects,
-                             scale: state.arScale, resetToken: state.resetToken, active: scenePhase == .active,
+                             scale: state.arScale, resetToken: state.resetToken, active: scenePhase == .active && visible,
                              status: $cameraStatus, failed: $cameraFailed)
+                    .id(state.resetToken)
                     .overlay(alignment: .top) {
                         VStack(spacing: 8) {
                             Text(cameraStatus).font(.callout)
@@ -160,7 +162,11 @@ private struct CameraARView: View {
                 ProgressView("Opening camera…")
             }
         }
+        .onAppear { visible = true }
+        .onDisappear { visible = false }
+        .onChange(of: state.resetToken) { _,_ in cameraStatus = "Starting AR camera…"; cameraFailed = false }
         .task {
+            authorized = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
             if AVCaptureDevice.authorizationStatus(for: .video) == .notDetermined {
                 authorized = await AVCaptureDevice.requestAccess(for: .video)
             }
@@ -231,6 +237,7 @@ private struct NativeARView: UIViewRepresentable {
         private var hasFrame = false
         private var failedSession = false
         private weak var anchor: AnchorEntity?
+        private weak var cameraView: ARView?
         private var lastStatus = ""
         var report: ((String, Bool) -> Void)?
         var watchdog: Task<Void, Never>?
@@ -243,8 +250,9 @@ private struct NativeARView: UIViewRepresentable {
         }
 
         func updateSession(_ view: ARView) {
+            cameraView = view
             guard !failedSession else { return }
-            guard active, view.window != nil else {
+            guard active, view.window != nil,view.bounds.width > 0,view.bounds.height > 0 else {
                 if running { view.session.pause(); running = false }
                 watchdog?.cancel()
                 return
@@ -319,7 +327,15 @@ private struct NativeARView: UIViewRepresentable {
 
         nonisolated func sessionWasInterrupted(_ session: ARSession) {
             Task { @MainActor [weak self] in
-                self?.report?("AR camera was interrupted. Restart AR to resume.", true)
+                self?.running = false; self?.watchdog?.cancel()
+                self?.report?("AR camera interrupted. Waiting to resume…",false)
+            }
+        }
+        nonisolated func sessionInterruptionEnded(_ session: ARSession) {
+            Task { @MainActor [weak self] in
+                guard let self,let view = self.cameraView else { return }
+                self.failedSession = false; self.needsReset = true; self.running = false
+                self.updateSession(view)
             }
         }
     }
@@ -330,6 +346,10 @@ private final class CameraBackedARView: ARView {
     var onWindowChanged: (() -> Void)?
     override func didMoveToWindow() {
         super.didMoveToWindow()
+        onWindowChanged?()
+    }
+    override func layoutSubviews() {
+        super.layoutSubviews()
         onWindowChanged?()
     }
 }

@@ -49,7 +49,7 @@ struct TriangleMesh: Equatable {
 /// parapets), door and glazing panels, polygonal floor slab, placed
 /// boxes. Deterministic output, identical on iOS / macOS, independent of RoomPlan.
 struct PlanMeshBuilder {
-    var floorThickness: Double = 0.05
+    var floorThickness: Double = FloorPlan.defaultFloorSlabThickness
     var includeObjects = true
     var includePanels = true
 
@@ -81,7 +81,7 @@ struct PlanMeshBuilder {
                     }
                 }
             }
-            mesh.group(prefix + "floor") { m in Self.addFloor(room, transform: t, thickness: floorThickness, to: &m) }
+            mesh.group(prefix + "floor") { m in Self.addFloor(room, transform: t, thickness: room.floorSlabThickness == nil ? floorThickness : room.displayFloorSlabThickness, to: &m) }
             if includeObjects {
                 mesh.group(prefix + "objects") { m in
                     for o in room.objects { Self.addBox(WallGeometry.objectBox(o), transform: t, to: &m) }
@@ -117,7 +117,7 @@ struct PlanMeshBuilder {
 
     /// Floor slab: floor polygon (or bounding box) triangulated top/bottom + edges.
     static func addFloor(_ room: FloorPlan, transform t: Transform2D, thickness: Double, to mesh: inout TriangleMesh) {
-        let b = room.bounds
+        let b = room.floorBounds
         guard !b.isEmpty else { return }
         let rectangle = [Point2D(x: b.minX, y: b.minY), Point2D(x: b.maxX, y: b.minY), Point2D(x: b.maxX, y: b.maxY), Point2D(x: b.minX, y: b.maxY)]
         var poly = room.floorPolygon.count >= 3 ? room.floorPolygon : rectangle

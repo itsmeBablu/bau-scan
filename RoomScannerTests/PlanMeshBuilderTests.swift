@@ -5,6 +5,18 @@ import simd
 final class PlanMeshBuilderTests: XCTestCase {
     private let plan = FloorPlanBuilder().build(from: SyntheticRooms.rectangularRoom().scan, name: "Salon")
 
+    func testFallbackFloorDoesNotExpandToIncludeOutsideFurniture() throws {
+        var room = plan; room.floorPolygon = []
+        room.objects[0].center = .init(x: 100,y: 100)
+        var mesh = TriangleMesh()
+        PlanMeshBuilder.addFloor(room,transform: .identity,thickness: 0.05,to: &mesh)
+        let bounds = try XCTUnwrap(mesh.bounds)
+        XCTAssertEqual(bounds.max.x,2,accuracy: 0.001)
+        XCTAssertEqual(bounds.min.z,-1.5,accuracy: 0.001)
+        room.walls = []; mesh = TriangleMesh()
+        PlanMeshBuilder.addFloor(room,transform: .identity,thickness: 0.05,to: &mesh)
+        XCTAssertTrue(mesh.isEmpty,"Furniture alone must not invent an architectural floor")
+    }
     func testGroupsAndCounts() {
         let mesh = PlanMeshBuilder().build(House(room: plan))
         XCTAssertEqual(mesh.groups.map(\.name), ["walls", "doors", "windows", "floor", "objects"])

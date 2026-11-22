@@ -55,7 +55,7 @@ enum StudioWallJoins {
         }
         return result
     }
-    private static func subtract(_ polygon: [Point2D],_ rectangle: [Point2D]) -> [[Point2D]] {
+    static func subtract(_ polygon: [Point2D],_ rectangle: [Point2D]) -> [[Point2D]] {
         let clip = Polygon2D.signedArea(rectangle) >= 0 ? rectangle : rectangle.reversed().map { $0 }
         var inside = polygon,outside: [[Point2D]] = []
         func halfPlane(_ points: [Point2D],_ a: Point2D,_ b: Point2D,keepInside: Bool) -> [Point2D] {

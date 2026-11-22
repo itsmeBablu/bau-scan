@@ -2,6 +2,43 @@ import XCTest
 @testable import RoomScanner
 
 final class HouseRadiatorTests: XCTestCase {
+    private func automaticGrid(clipped: Bool = false,wall: Bool = true) -> [RadiatorSurfaceSample?] {
+        (0..<(60*48)).map { index in
+            let x = index%60,y = index/60
+            let front = x >= (clipped ? 0 : 12) && x <= 47 && y >= 12 && y <= 31
+            guard front || wall else { return nil }
+            return RadiatorSurfaceSample(point: .init(x: Double(x)*0.025-0.75,y: Double(y)*0.025,z: front ? 0 : -0.15),normal: .init(x: 0,y: 0,z: 1),viewpoint: 0)
+        }
+    }
+    func testAutomaticCandidateDerivesBodyAndWallWithoutMarkedCorners() throws {
+        let candidate = try XCTUnwrap(RadiatorAutomaticDetector.detect(grid: automaticGrid(),width: 60,height: 48,camera: .init(x: 0,y: 0.5,z: 1.2)))
+        XCTAssertEqual(candidate.geometry.width,0.875,accuracy: 0.0001)
+        XCTAssertEqual(candidate.geometry.height,0.475,accuracy: 0.0001)
+        XCTAssertEqual(candidate.geometry.wallToFront,0.15,accuracy: 0.0001)
+        let result = try candidate.geometry.result(roomID: UUID(),wallID: nil,samples: [],viewpoints: 2,preset: .none,photo: nil,automatic: true)
+        XCTAssertEqual(result.width.method,"automaticVisibleFrontEnvelopeWidth")
+        XCTAssertNil(result.depth)
+        XCTAssertNil(result.wallGap,"A detected front and wall cannot establish hidden rear clearance")
+    }
+    func testAutomaticCandidateRejectsClippedFrontAndMissingWallEvidence() {
+        for grid in [automaticGrid(clipped: true),automaticGrid(wall: false)] {
+            XCTAssertNil(RadiatorAutomaticDetector.detect(grid: grid,width: 60,height: 48,camera: .init(x: 0,y: 0.5,z: 1.2)))
+        }
+    }
+    func testAutomaticCandidateRespectsExclusionsAndTrackedTarget() throws {
+        let grid = automaticGrid(),camera = RadiatorPoint(x: 0,y: 0.5,z: 1.2)
+        let candidate = try XCTUnwrap(RadiatorAutomaticDetector.detect(grid: grid,width: 60,height: 48,camera: camera))
+        XCTAssertNil(RadiatorAutomaticDetector.detect(grid: grid,width: 60,height: 48,camera: camera,excluded: [candidate.center]))
+        XCTAssertNil(RadiatorAutomaticDetector.detect(grid: grid,width: 60,height: 48,camera: camera,target: .init(x: 5,y: 1,z: 0)))
+        XCTAssertNotNil(RadiatorAutomaticDetector.detect(grid: grid,width: 60,height: 48,camera: camera,target: candidate.center))
+    }
+    func testAutomaticCandidateRejectsInvalidGridAndHorizontalSurfaces() {
+        XCTAssertNil(RadiatorAutomaticDetector.detect(grid: [],width: 60,height: 48,camera: .zero))
+        let grid = automaticGrid().map { sample -> RadiatorSurfaceSample? in
+            guard var sample else { return nil }; sample.normal = .init(x: 0,y: 1,z: 0); return sample
+        }
+        XCTAssertNil(RadiatorAutomaticDetector.detect(grid: grid,width: 60,height: 48,camera: .init(x: 0,y: 0.5,z: 1.2)))
+    }
     private func geometry() throws -> RadiatorScanGeometry {
         try .init(frontCorners: [.zero,.init(x: 1,y: 0,z: 0),.init(x: 0,y: 0.6,z: 0)],
                   wall: .init(point: .init(x: 0,y: 0,z: -0.15),normal: .init(x: 0,y: 0,z: 1),viewpoint: 0))

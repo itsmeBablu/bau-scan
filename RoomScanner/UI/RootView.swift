@@ -16,7 +16,7 @@ struct RootView: View {
     @State private var pendingItem: LibraryItem?
     @State private var savedTechnicalID: UUID?
     @State private var technicalRefresh = 0
-    private enum AppTab: Hashable { case house, technical, capture, profile, settings }
+    private enum AppTab: Hashable { case house, technical, capture, studio, profile }
     @State private var importError: String?
     @State private var technicalImport: URL?
     @State private var showingTechnicalImport = false
@@ -61,10 +61,10 @@ struct RootView: View {
                 savedTechnicalID = id; technicalRefresh += 1; tab = .technical; showingTechnicalImport = true
             })
                 .tabItem { Label("Capture",systemImage: "viewfinder") }.tag(AppTab.capture)
-            WorkspaceProfileView()
+            StudioLibraryView(embedded: true)
+                .tabItem { Label("Studio",systemImage: "square.stack.3d.up.fill") }.tag(AppTab.studio)
+            SettingsView(embedded: true,includesProfile: true)
                 .tabItem { Label("Profile",systemImage: "person.crop.circle.fill") }.tag(AppTab.profile)
-            SettingsView(embedded: true)
-                .tabItem { Label("Settings",systemImage: "gearshape.fill") }.tag(AppTab.settings)
         }
         .fullScreenCover(isPresented: $scanningTechnical,onDismiss: {
             technicalRefresh += 1
@@ -142,29 +142,4 @@ private struct CaptureHomeView: View {
     }
 }
 
-private struct WorkspaceProfileView: View {
-    @AppStorage("profile.displayName") private var displayName = ""
-    @AppStorage("profile.organisation") private var organisation = ""
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    VStack(spacing: 12) {
-                        Image(systemName: "person.crop.circle.fill").font(.system(size: 72,weight: .light)).foregroundStyle(.secondary)
-                        Text(displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Your workspace" : displayName).font(.title2.bold())
-                        Text(organisation.isEmpty ? "dWalkScan" : organisation).font(.subheadline).foregroundStyle(.secondary)
-                    }.frame(maxWidth: .infinity).padding(.vertical,20)
-                }
-                Section("Details") {
-                    TextField("Name",text: $displayName).textContentType(.name)
-                    TextField("Organisation",text: $organisation).textContentType(.organizationName)
-                }
-                Section {
-                    Label("Profile details are stored on this device.",systemImage: "iphone")
-                    Text("Google account and AI connections are managed in Settings.")
-                }.font(.footnote).foregroundStyle(.secondary)
-            }.navigationTitle("Profile")
-        }
-    }
-}
 #endif

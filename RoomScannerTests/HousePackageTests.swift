@@ -44,6 +44,18 @@ final class HousePackageTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url.appendingPathComponent(FileLayout.HousePackageFile.capturedStructure)), Data("apple".utf8))
     }
 
+    @MainActor func testHouseRoomRenamePersistsThroughRebuildWithoutChangingRawStructure() throws {
+        let location = StorageLocation.temporary(),package = housePackage()
+        let store = RoomStore(location: location,allowsCloud: false)
+        let record = try store.saveHouse(package),url = store.packageURL(for: record)
+        let raw = try HousePackage.readStructure(from: url)
+        let room = try XCTUnwrap(package.house.allRooms.first)
+        try store.renameRoom(in: record,roomID: room.id,to: "  Plant room  ")
+        XCTAssertEqual(try store.house(for: record).allRooms.first { $0.id == room.id }?.name,"Plant room")
+        XCTAssertEqual(try HousePackage.readStructure(from: url),raw)
+        XCTAssertThrowsError(try store.renameRoom(in: record,roomID: room.id,to: "  "))
+        XCTAssertEqual(try store.house(for: record).allRooms.first { $0.id == room.id }?.name,"Plant room")
+    }
     func testRecordSummarisesHouse() {
         let pkg = housePackage()
         XCTAssertEqual(pkg.record.roomCount, pkg.house.allRooms.count)

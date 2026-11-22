@@ -96,7 +96,7 @@ struct RoomDetailView: View {
                     ViewerView(house: House(room: plan), state: viewerState)
                     ViewerControls(state: viewerState, usdzURL: RoomPackage.usdzURL(in: store.packageURL(for: currentRecord)))
                 }
-            case .measures: MeasuresView(plan: plan)
+            case .measures: MeasuresView(plan: plan,onRename: { newName = currentRecord.name; renaming = true })
             }
         }
     }
@@ -118,12 +118,14 @@ struct RoomDetailView: View {
 /// Structured list of measurements (area, perimeter, height, walls, openings, objects).
 struct MeasuresView: View {
     let plan: FloorPlan
+    var onRename: (() -> Void)? = nil
     @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
     private var m: RoomMeasurements { RoomMeasurements(plan: plan) }
 
     var body: some View {
         List {
             Section("measures.summary") {
+                if let onRename { Button(action: onRename) { LabeledContent("Room name",value: plan.name) } }
                 row("measures.area", MeasurementFormat.squareMeters(m.floorArea))
                 row("measures.perimeter", MeasurementFormat.length(m.perimeter, unit: unit))
                 row("measures.ceiling", ceilingText)

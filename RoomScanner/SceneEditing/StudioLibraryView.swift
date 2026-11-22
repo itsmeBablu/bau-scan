@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct StudioLibraryView: View {
+    var embedded = false
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var mode = Mode.house
@@ -52,7 +53,7 @@ struct StudioLibraryView: View {
                 }
             }.disabled(busy)
             .navigationTitle("Design Studio")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() }.disabled(busy) } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { if !embedded { Button("Done") { dismiss() }.disabled(busy) } } }
         }
         #if os(macOS)
         .frame(minWidth: 800,minHeight: 650)

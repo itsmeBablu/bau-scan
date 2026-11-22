@@ -3,6 +3,9 @@ import SwiftUI
 /// Settings: iCloud Drive, 'dWalkScan' folder, measurements (mm / m), updates (Mac), about.
 struct SettingsView: View {
     var embedded = false
+    var includesProfile = false
+    @AppStorage("profile.displayName") private var displayName = ""
+    @AppStorage("profile.organisation") private var organisation = ""
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @AppStorage(CloudAvailability.preferenceKey) private var useICloud = true
@@ -22,7 +25,7 @@ struct SettingsView: View {
         #if os(iOS)
         NavigationStack {
             form
-                .navigationTitle("settings.title")
+                .navigationTitle(includesProfile ? Text("Profile") : Text("settings.title"))
                 .navigationBarTitleDisplayMode(embedded ? .large : .inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { if !embedded { Button("common.close") { dismiss() } } } }
         }
@@ -33,8 +36,24 @@ struct SettingsView: View {
 
     private var form: some View {
         Form {
-            Section("Accounts") {
-                NavigationLink { GoogleAccountSettingsView() } label: { Label("Google account & AI",systemImage: "person.crop.circle") }
+            if includesProfile {
+                Section {
+                    VStack(spacing: 10) {
+                        Image(systemName: "person.crop.circle.fill").font(.system(size: 64,weight: .light)).foregroundStyle(.secondary)
+                        Text(displayName.isEmpty ? "Your workspace" : displayName).font(.title2.bold())
+                        if !organisation.isEmpty { Text(organisation).font(.subheadline).foregroundStyle(.secondary) }
+                    }.frame(maxWidth: .infinity).padding(.vertical,16)
+                    TextField("Name",text: $displayName)
+                    TextField("Organisation",text: $organisation)
+                } footer: { Text("Workspace details are stored on this device. Google account details appear below after sign-in.") }
+                Section("Google account") {
+                    TechnicalGoogleAIConnection()
+                    NavigationLink { GoogleAccountSettingsView() } label: { Label("AI & photo connections",systemImage: "sparkles") }
+                }
+            } else {
+                Section("Accounts") {
+                    NavigationLink { GoogleAccountSettingsView() } label: { Label("Google account & AI",systemImage: "person.crop.circle") }
+                }
             }
             Section {
                 #if !ROOMSCANNER_LOCAL_ONLY
