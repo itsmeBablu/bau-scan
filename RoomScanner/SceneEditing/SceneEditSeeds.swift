@@ -58,6 +58,7 @@ extension SceneEditDocument {
             let center = frame.origin+frame.right*(radiator.width.metres/2)+frame.up*(radiator.height.metres/2)-frame.frontNormal*(depth/2)
             objects.append(.init(sourceID: radiator.id,origin: radiator.depth == nil ? "Radiator scan; 0.02 m display thickness assumed" : "Radiator scan; editable model",name: radiator.name,family: .radiator,position: .init(x: center.x,y: center.y-floor,z: center.z),size: .init(x: radiator.width.metres,y: radiator.height.metres,z: depth),yaw: atan2(-frame.right.z,frame.right.x),story: shell.allRooms.first { $0.id == radiator.roomID }?.story ?? 0))
             let i = objects.count-1
+            if radiator.identification == .automaticCandidate { objects[i].origin = "Automatic geometric candidate; radiator identity unverified; scan-estimated body envelope" }
             objects[i].scanReference = .init(position: objects[i].position,size: objects[i].size,yaw: objects[i].yaw,axis: nil,family: objects[i].family)
         }
     }

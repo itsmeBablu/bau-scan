@@ -2,6 +2,16 @@ import XCTest
 @testable import RoomScanner
 
 final class HouseRadiatorTests: XCTestCase {
+    func testAutomaticIdentificationRemainsExplicitAndLegacyJSONReadable() throws {
+        var radiator = try geometry().result(roomID: UUID(),wallID: nil,samples: samples(),viewpoints: 2,preset: .none,photo: nil)
+        let legacy = try JSONDecoder().decode(HouseRadiator.self,from: JSONEncoder().encode(radiator))
+        XCTAssertNil(legacy.identification)
+        radiator.identification = .automaticCandidate; radiator.name = "Possible radiator"
+        let decoded = try JSONDecoder().decode(HouseRadiator.self,from: JSONEncoder().encode(radiator))
+        XCTAssertEqual(decoded.identification,.automaticCandidate)
+        XCTAssertEqual(decoded.width.source,.scanEstimate)
+        XCTAssertNil(decoded.width.accuracyMm)
+    }
     private func automaticGrid(clipped: Bool = false,wall: Bool = true) -> [RadiatorSurfaceSample?] {
         (0..<(60*48)).map { index in
             let x = index%60,y = index/60

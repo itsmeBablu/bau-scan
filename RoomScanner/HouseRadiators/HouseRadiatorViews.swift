@@ -51,6 +51,10 @@ struct HouseRadiatorListView: View {
                             DisclosureGroup {
                                 HouseRadiatorPreview(radiator: radiator).frame(height: 280)
                                 RadiatorDimensionRows(radiator: radiator)
+                                if radiator.identification == .automaticCandidate {
+                                    Label("Automatically detected · equipment type unverified",systemImage: "questionmark.circle").font(.caption).foregroundStyle(.secondary)
+                                    Button("Confirm this is a radiator") { confirmIdentity(radiator) }
+                                }
                                 Text("\(radiator.viewpointCount) viewpoints · \(radiator.samples.count) retained surface samples").font(.caption).foregroundStyle(.secondary)
                                 if let photo = radiator.photoJPEG { RadiatorPhoto(data: photo).frame(maxHeight: 220) }
                                 if !radiator.notes.isEmpty { Text(radiator.notes).font(.caption) }
@@ -108,6 +112,15 @@ struct HouseRadiatorListView: View {
             if case .failure(let failure) = result { error = failure.localizedDescription }
         }
         .alert("Radiator survey",isPresented: Binding(get: { error != nil },set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
+    }
+    private func confirmIdentity(_ radiator: HouseRadiator) {
+        guard var next = survey,let index = next.radiators.firstIndex(where: { $0.id == radiator.id }) else { return }
+        next.radiators[index].identification = .userConfirmed
+        next.radiators[index].name = radiator.name.replacingOccurrences(of: "Possible radiator",with: "Radiator")
+        next.radiators[index].notes = "Equipment type subsequently confirmed by user. Dimensions remain scan estimates."
+        Task { @MainActor in
+            do { try await persist(next) } catch { self.error = error.localizedDescription }
+        }
     }
     private func persist(_ next: HouseRadiatorSurvey) async throws {
         guard !busy else { throw HouseRadiatorSurvey.Failure.invalid }

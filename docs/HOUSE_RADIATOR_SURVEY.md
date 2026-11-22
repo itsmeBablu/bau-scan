@@ -1,6 +1,8 @@
 # House radiator close-up survey
 
-During a House walkthrough, radiator candidate detection starts automatically. Keep the complete body and adjacent wall visible. A stable candidate is outlined; choose **This is a radiator · measure closer**, walk around its visible sides, then choose **Save radiator and continue House**. No corner or wall marking is required. This is automatic geometry proposal followed by user identification, not a trained semantic radiator classifier. Cabinets and televisions can produce similar candidates. Unconfirmed candidates do not block Finish House; a confirmed measurement must be saved or discarded first. Saved/rejected candidates are spatially excluded from repeated proposals.
+During a House walkthrough, radiator detection runs passively with no radiator picker, confirmation panel, corner marking or per-radiator Save button. Three stable geometric observations select a possible body automatically; a closer pass supplies surface samples. At least 120 samples and three viewpoints are required before collecting it automatically. Qualified pending observations are flushed before Finish House. Moving away from an insufficiently observed target releases it so detection can continue elsewhere; it can be reacquired if the user returns for a closer pass.
+
+Automatically collected entries are named **Possible radiator**, carry `identification: automaticCandidate`, and retain scan-estimate provenance. This is not a trained semantic classifier: cabinets and TVs can also match. Inspect or confirm equipment type later in House Options → Radiators. Type confirmation does not verify the dimensions. Hidden rear clearance stays unknown and no mounting-gap assumption is applied during automatic capture.
 
 The observer reads the existing House AR session without replacing its delegate, running a second session, changing its configuration or pausing the House camera. A missing-depth status is shown rather than pretending capture succeeded. Actual availability of RoomPlan camera depth and radiator recognition rates must be verified on device. If RoomPlan does not expose depth, use a saved-House close-up session instead.
 
@@ -8,7 +10,7 @@ Observations from this uninterrupted session retain House coordinates and are as
 
 Open a saved House, choose Options → Radiators, select the room and optional wall reference, then Scan radiator on a LiDAR-equipped iPhone/iPad. This is a separate AR session; continuous House capture and Technical Room capture are unchanged.
 
-The saved-House close-up flow uses the same corner-free proposal and confirmation. Exclude valves, pipes and brackets from the highlighted body; reject the candidate if the outline is wrong. Move slowly around visible front, side and top surfaces. Finish and review before saving.
+The separate saved-House close-up tool retains an explicit corner-free proposal and confirmation. Exclude valves, pipes and brackets from the highlighted body; reject the candidate if the outline is wrong. Move slowly around visible front, side and top surfaces. Finish and review before saving.
 
 Width/height come from the visible front envelope and can refine after further stable, fully visible observations. Wall-to-front distance comes from a parallel adjacent surface proposal, which must be reviewed as wall evidence. Body depth requires a rear-facing surface supported by at least 20 samples from two viewpoints. Wall Abstand means finished wall to the radiator body's back; it is wall-to-front minus observed body depth. Hidden rear surfaces remain unknown. Reflective surfaces, depth noise, incorrect segmentation or wall identification and occlusion affect these estimates; no millimetre accuracy is certified.
 

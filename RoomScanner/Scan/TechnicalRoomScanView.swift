@@ -11,7 +11,7 @@ struct TechnicalRoomScanView: View {
     @State private var scanner: TechnicalRoomScanCoordinator
     @AppStorage("technical.googleAI.enabled") private var googleAIEnabled = false
     @State private var viewport: ARView?
-    @State private var showMesh = false
+    @State private var showMesh = true
     @State private var showingControls = false
     @State private var origin: TechnicalPoint3?
     @State private var frameDefined = false
@@ -78,7 +78,7 @@ struct TechnicalRoomScanView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                TechnicalCaptureCamera(scanner: scanner, viewport: $viewport)
+                TechnicalCaptureCamera(scanner: scanner, viewport: $viewport,showMesh: showMesh)
                     .overlay { Image(systemName: "plus").font(.title).foregroundStyle(.white).shadow(color: .black,radius: 1).allowsHitTesting(false) }
                     .overlay {
                         if let selectedPoints, let viewport, scanner.state.canAnnotate, let reference = scanner.referenceFrame {
@@ -131,10 +131,6 @@ struct TechnicalRoomScanView: View {
                         .disabled(saving || !pipeHits.isEmpty || (saveThumbnail == nil && !scanner.hasLiveFrames))
                 }
             }
-        }
-        .onChange(of: showMesh) { _, enabled in
-            if enabled { viewport?.debugOptions.insert(.showSceneUnderstanding) }
-            else { viewport?.debugOptions.remove(.showSceneUnderstanding) }
         }
         .tint(.blue)
         .onDisappear { scanner.stop() }
@@ -500,13 +496,19 @@ struct TechnicalRoomScanView: View {
 private struct TechnicalCaptureCamera: UIViewControllerRepresentable {
     let scanner: TechnicalRoomScanCoordinator
     @Binding var viewport: ARView?
+    let showMesh: Bool
 
     func makeUIViewController(context: Context) -> TechnicalCameraHost {
         let host = TechnicalCameraHost(scanner: scanner)
+        updateMesh(host)
         DispatchQueue.main.async { viewport = host.camera }
         return host
     }
-    func updateUIViewController(_ controller: TechnicalCameraHost, context: Context) {}
+    func updateUIViewController(_ controller: TechnicalCameraHost, context: Context) { updateMesh(controller) }
+    private func updateMesh(_ controller: TechnicalCameraHost) {
+        if showMesh { controller.camera.debugOptions.insert(.showSceneUnderstanding) }
+        else { controller.camera.debugOptions.remove(.showSceneUnderstanding) }
+    }
     static func dismantleUIViewController(_ controller: TechnicalCameraHost, coordinator: ()) {
         controller.scanner.stop()
     }
@@ -520,7 +522,7 @@ private final class TechnicalCameraHost: UIViewController {
         super.init(nibName: nil, bundle: nil)
         camera.session = scanner.session
         camera.environment.background = .cameraFeed()
-        // Keep camera colours visible; debug classification overlays obscure evidence photos.
+        // The representable applies the mesh overlay on creation and every toggle update.
     }
     required init?(coder: NSCoder) { nil }
     override func loadView() { view = camera }

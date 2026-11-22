@@ -13,10 +13,12 @@ import SwiftUI
 final class HouseRadiatorScanCoordinator: NSObject,@preconcurrency ARSessionDelegate {
     let session: ARSession
     private let ownsSession: Bool
+    private let automaticCapture: Bool
     private(set) var depthAvailable = false
-    init(session: ARSession? = nil) {
+    init(session: ARSession? = nil,automaticCapture: Bool = false) {
         self.session = session ?? ARSession()
         ownsSession = session == nil
+        self.automaticCapture = automaticCapture
         super.init()
     }
     private(set) var frontCorners: [RadiatorPoint] = []
@@ -149,7 +151,8 @@ final class HouseRadiatorScanCoordinator: NSObject,@preconcurrency ARSessionDele
         }
         do {
             var result = try geometry.result(roomID: roomID,wallID: wallID,samples: samples,viewpoints: viewpointCount,preset: preset,photo: photo,automatic: true)
-            result.notes = "Geometry-proposed radiator candidate confirmed by user; not semantic equipment recognition. Body envelope and wall plane are scan estimates; hidden surfaces are not reconstructed."
+            result.identification = automaticCapture ? .automaticCandidate : .userConfirmed
+            result.notes = automaticCapture ? "Automatically collected geometric candidate; radiator identity is unverified. Body envelope and wall plane are scan estimates; hidden rear clearance remains unknown without observed evidence." : "Geometry-proposed radiator candidate confirmed by user; not semantic equipment recognition. Body envelope and wall plane are scan estimates; hidden surfaces are not reconstructed."
             return result
         } catch {
             frozen = false; paused = true
@@ -164,9 +167,17 @@ final class HouseRadiatorScanCoordinator: NSObject,@preconcurrency ARSessionDele
         if trackingNormal != normal { trackingNormal = normal }
         let depth = frame.sceneDepth ?? frame.smoothedSceneDepth
         if depthAvailable != (depth != nil) { depthAvailable = depth != nil }
-        if (geometry != nil || candidate != nil),frame.timestamp-lastPreviewTime >= 0.15 { lastPreviewTime = frame.timestamp; previewRevision &+= 1 }
+        if !automaticCapture,(geometry != nil || candidate != nil),frame.timestamp-lastPreviewTime >= 0.15 { lastPreviewTime = frame.timestamp; previewRevision &+= 1 }
         if !normal,geometry == nil { candidate = nil; previousCandidate = nil; stableDetections = 0 }
         let lockedCenter = geometry.map { $0.origin+$0.right*($0.width/2)+$0.up*($0.height/2) }
+        if automaticCapture,let center = lockedCenter,(sampleCount < 120 || viewpointCount < 3) {
+            let m = frame.camera.transform
+            let camera = RadiatorPoint(x: Double(m[3].x),y: Double(m[3].y),z: Double(m[3].z))
+            let forward = RadiatorPoint(x: -Double(m[2].x),y: -Double(m[2].y),z: -Double(m[2].z))
+            if (center-camera).length > 3 || forward.dot((center-camera).unit) < 0.6 {
+                resetBounds(); return
+            }
+        }
         if let candidate,geometry == nil {
             let m = frame.camera.transform
             let camera = RadiatorPoint(x: Double(m[3].x),y: Double(m[3].y),z: Double(m[3].z))
@@ -183,7 +194,7 @@ final class HouseRadiatorScanCoordinator: NSObject,@preconcurrency ARSessionDele
                 let found = await Task.detached(priority: .utility) { Self.detectCandidate(frame: frame,depth: detectionDepth,excluded: excluded,target: lockedCenter) }.value
                 guard let self,self.generation == request else { return }
                 self.detectionTask = nil
-                guard self.active,!self.paused,!self.frozen else { return }
+                guard self.active,!self.paused,!self.frozen,self.trackingNormal else { return }
                 guard let found else { self.stableDetections = 0; self.previousCandidate = nil; return }
                 if let old = self.previousCandidate,(old.center-found.center).length < 0.1,
                    abs(old.geometry.width-found.geometry.width) < 0.12,abs(old.geometry.height-found.geometry.height) < 0.12 {
@@ -200,6 +211,7 @@ final class HouseRadiatorScanCoordinator: NSObject,@preconcurrency ARSessionDele
                     } else {
                         self.candidate = found
                         self.message = "Possible radiator found. Confirm the body is fully visible; cabinets and TVs can also match this geometry."
+                        if self.automaticCapture { self.acceptCandidate() }
                     }
                 }
             }

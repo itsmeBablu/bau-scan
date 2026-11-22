@@ -79,6 +79,9 @@ struct HouseRadiator: Codable,Equatable,Identifiable {
     var samples: [RadiatorSurfaceSample]
     var viewpointCount: Int
     var photoJPEG: Data?
+    enum Identification: String,Codable { case automaticCandidate, userConfirmed }
+    /// Nil in legacy surveys; geometry proposals must not imply semantic verification.
+    var identification: Identification? = nil
     var createdAt = Date()
     var notes = ""
     /// Only true when captured using the same uninterrupted House AR session.

@@ -8,7 +8,7 @@ New snapshots preserve ARKit's per-face classification where available. In the s
 
 House viewer and mesh exports now share Studio's bounded corner mitres, with openings excluded. This fills small coincident endpoint corners only; it is not a complete Revit-style wall union or a repair for large missing scan segments. Export corner geometry belongs to the walls group.
 
-Radiators now use automatic geometric proposals within the continuous House session, followed by equipment confirmation and a closer pass without corner marking. RoomPlan does not supply a radiator class here; this is not a trained semantic classifier. Clean parametric walls in Technik and full wall T-junction unions remain unfinished. See HOUSE_RADIATOR_SURVEY.md for depth-availability and measurement limits.
+Radiators now use passive geometric proposals and automatic evidence collection within the continuous House session, without a picking/confirmation panel. Equipment type remains unverified until reviewed after saving. RoomPlan does not supply a radiator class here; this is not a trained semantic classifier. Clean parametric walls in Technik and full wall T-junction unions remain unfinished. See HOUSE_RADIATOR_SURVEY.md for depth-availability and measurement limits.
 
 House Studio replacements already use the newly selected family's default dimensions. Fit scanned size remains an explicit user action. Technical reclassification retains surveyed dimensions.
 
@@ -21,3 +21,6 @@ Technik capture now fills the camera preview. Floating controls open the survey 
 The saved mesh viewer has a full-screen action. Its floating display menu controls architectural surfaces, scan/MEP display and photo markers; Reset and Close remain accessible. This viewer is a virtual orbit view, not automatic placement of the saved model into a new live camera session. Resuming aligned AR still requires the existing recovery-map workflow.
 
 Validation: mesh changes passed 240 macOS tests and 237 iOS simulator tests. A signed iPhone build passed. Final full-screen UI builds are checked separately; physical-device camera, thermal and scanning-quality checks remain required.
+
+
+Live Technik mesh visibility: Show captured mesh is enabled by default and is applied directly when the camera host is created and on each update. The toggle no longer depends on an already-published viewport binding or an initial state-change callback. The mesh remains ARKit's live reconstruction overlay; physical-device validation is required to confirm actual surface rendering.
