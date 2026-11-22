@@ -74,7 +74,7 @@ struct RoomDetailView: View {
 
     @ViewBuilder private func content(_ plan: FloorPlan) -> some View {
         VStack(spacing: 0) {
-            Picker("", selection: $tab) {
+            Picker("Model view", selection: $tab) {
                 Text("detail.tab.plan").tag(Tab.plan)
                 Text("detail.tab.viewer").tag(Tab.viewer)
                 Text("detail.tab.measures").tag(Tab.measures)

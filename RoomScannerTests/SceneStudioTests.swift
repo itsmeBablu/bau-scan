@@ -423,6 +423,24 @@ final class SceneStudioTests: XCTestCase {
         XCTAssertTrue(StudioWallJoins.mesh(room: room,visible: [a.id,b.id]).isEmpty)
     }
     #if os(iOS)
+    @MainActor func testCompactARControlsFitWithAccessibleText() async throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        for size in [DynamicTypeSize.large,.accessibility3] {
+            let state = ViewerState(); state.mode = .ar
+            let controls = ViewerControls(state: state,usdzURL: URL(fileURLWithPath: "/tmp/layout-preview.usdz")).tint(.blue).environment(\.dynamicTypeSize,size).environment(\.locale,Locale(identifier: "en"))
+            let hosting = UIHostingController(rootView: controls)
+            let fitting = hosting.sizeThatFits(in: CGSize(width: 320,height: 1000))
+            XCTAssertLessThanOrEqual(fitting.width,320)
+            XCTAssertLessThan(fitting.height,320,"AR controls must leave room for the camera on a compact phone")
+            let window = UIWindow(windowScene: scene); window.frame = CGRect(x: 0,y: 0,width: 320,height: 600)
+            window.rootViewController = hosting; window.makeKeyAndVisible()
+            try await Task.sleep(for: .milliseconds(200)); hosting.view.layoutIfNeeded()
+            let image = UIGraphicsImageRenderer(bounds: hosting.view.bounds).image { _ in hosting.view.drawHierarchy(in: hosting.view.bounds,afterScreenUpdates: true) }
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("dwalk-ar-controls-\(size)-\(UUID()).png")
+            try XCTUnwrap(image.pngData()).write(to: url); print("AR_CONTROLS_LAYOUT="+url.path)
+            window.isHidden = true; window.rootViewController = nil
+        }
+    }
     @MainActor func testRootProvidesFiveNativeNavigationTabs() async throws {
         let defaults = UserDefaults.standard
         let previous = defaults.object(forKey: "RoomScannerStorageRoot")
@@ -452,11 +470,12 @@ final class SceneStudioTests: XCTestCase {
     }
     @MainActor func testPhoneStudioKeepsCanvasFullHeightWithInspectorClosed() async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        for size in [DynamicTypeSize.large,.accessibility3] {
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0,y: 0,width: 393,height: 852)
         let location = StorageLocation.temporary()
         let hosting = UIHostingController(rootView: NavigationStack {
-            StudioEditorView(document: seed(),storageURL: location.documentsURL.appendingPathComponent("design.json"))
+            StudioEditorView(document: seed(),storageURL: location.documentsURL.appendingPathComponent("design.json")).environment(\.dynamicTypeSize,size)
         })
         window.rootViewController = hosting; window.makeKeyAndVisible()
         defer { window.isHidden = true; window.rootViewController = nil }
@@ -467,8 +486,9 @@ final class SceneStudioTests: XCTestCase {
         XCTAssertGreaterThan(canvas.bounds.height,650,"Floating controls must not shrink the canvas into a short panel")
         let image = UIGraphicsImageRenderer(bounds: hosting.view.bounds).image { _ in hosting.view.drawHierarchy(in: hosting.view.bounds,afterScreenUpdates: true) }
         let png = try XCTUnwrap(image.pngData())
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dwalk-fullscreen-studio-"+UUID().uuidString+".png")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dwalk-fullscreen-studio-\(size)-"+UUID().uuidString+".png")
         try png.write(to: url); print("STUDIO_PHONE_LAYOUT="+url.path)
+        }
     }
     @MainActor func testLandscapeStudioKeepsCanvasBehindFloatingControls() async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)

@@ -4,6 +4,26 @@ import RealityKit
 
 @MainActor
 final class PlanSceneBuilderTests: XCTestCase {
+    func testRepeatedPlanGesturesContinueFromPreviousPosition() {
+        var navigation = ViewerPlanNavigation()
+        navigation.endDrag(.init(width: 100,height: 40))
+        navigation.drag(.init(width: 10,height: -5))
+        XCTAssertEqual(navigation.pan,.init(width: 110,height: 35))
+        navigation.endDrag(.init(width: 20,height: -10))
+        navigation.endMagnify(2)
+        navigation.magnify(1.25)
+        XCTAssertEqual(navigation.zoom,2.5)
+        navigation.endMagnify(1.5)
+        navigation.magnify(1)
+        XCTAssertEqual(navigation.zoom,3)
+        navigation.endMagnify(100)
+        XCTAssertEqual(navigation.zoom,6)
+        navigation.endMagnify(0.001)
+        XCTAssertEqual(navigation.zoom,0.4)
+        navigation = ViewerPlanNavigation()
+        XCTAssertEqual(navigation.pan,.zero)
+        XCTAssertEqual(navigation.zoom,1)
+    }
     private func plan() -> FloorPlan { FloorPlanBuilder().build(from: SyntheticRooms.rectangularRoom().scan, name: "Salon") }
 
     func testWallBoxesCutAroundOpenings() {

@@ -17,8 +17,7 @@ struct ViewerView: View {
     /// Root of the scene, rebuilt when visual options change.
     @State private var sceneRoot = Entity()
     @State private var camera = PerspectiveCamera()
-    @State private var twoDPan: CGSize = .zero
-    @State private var twoDZoom: CGFloat = 1
+    @State private var planNavigation = ViewerPlanNavigation()
 
     var body: some View {
         #if os(iOS)
@@ -82,7 +81,7 @@ struct ViewerView: View {
     }
 
     private func resetView() {
-        twoDPan = .zero; twoDZoom = 1
+        planNavigation = ViewerPlanNavigation()
         frameCamera()
     }
 
@@ -93,8 +92,8 @@ struct ViewerView: View {
         let target = SIMD3<Float>(0, 0.5, 0)
         switch state.mode {
         case .twoD:
-            let height = radius * 1.15 / CGFloat(twoDZoom).float
-            let pan = SIMD3<Float>(Float(-twoDPan.width) * 0.002 * height, 0, Float(-twoDPan.height) * 0.002 * height)
+            let height = radius * 1.15 / planNavigation.zoom.float
+            let pan = SIMD3<Float>(Float(-planNavigation.pan.width) * 0.002 * height, 0, Float(-planNavigation.pan.height) * 0.002 * height)
             camera.look(at: target + pan, from: target + pan + SIMD3(0, height, 0.0001), relativeTo: nil)
         default:
             camera.look(at: target, from: target + SIMD3(radius * 0.9, radius * 0.8, radius * 1.1), relativeTo: nil)
@@ -105,10 +104,11 @@ struct ViewerView: View {
 
     private var twoDGestures: some Gesture {
         DragGesture()
-            .onChanged { v in twoDPan = v.translation; frameCamera() }
-            .onEnded { _ in }
+            .onChanged { v in planNavigation.drag(v.translation); frameCamera() }
+            .onEnded { v in planNavigation.endDrag(v.translation); frameCamera() }
             .simultaneously(with: MagnifyGesture()
-                .onChanged { v in twoDZoom = min(max(v.magnification, 0.4), 6); frameCamera() })
+                .onChanged { v in planNavigation.magnify(v.magnification); frameCamera() }
+                .onEnded { v in planNavigation.endMagnify(v.magnification); frameCamera() })
     }
 }
 

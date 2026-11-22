@@ -61,6 +61,7 @@ struct StudioEditorView: View {
     @State private var equipmentEditor: SceneEditObject?
     @State private var confirmClose = false
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var textSize
     init(document: SceneEditDocument,storageURL: URL) {
         self.storageURL = storageURL
         _session = State(initialValue: SceneEditSession(document))
@@ -139,13 +140,13 @@ struct StudioEditorView: View {
                         selectionHUD
                         if busy { ProgressView("Working…").padding(10).background(.regularMaterial,in: Capsule()) }
                         else if !status.isEmpty { Text(status).font(.caption).padding(10).background(.regularMaterial,in: Capsule()) }
-                        HStack(spacing: 0) { phoneDockActions }.padding(.horizontal,4).padding(.vertical,3).background(.regularMaterial,in: Capsule())
+                        phoneDock
                     }.padding(.horizontal,10).padding(.bottom,0)
                 }
             }
             if landscape {
                 HStack(alignment: .bottom,spacing: 12) {
-                    HStack(spacing: 0) { phoneDockActions }.padding(3).frame(maxWidth: 520).background(.regularMaterial,in: Capsule())
+                    phoneDock.frame(maxWidth: 520)
                     Spacer(minLength: 0)
                     if showInspector {
                         NavigationStack {
@@ -187,15 +188,34 @@ struct StudioEditorView: View {
         #endif
     }
     private var phoneHeader: some View {
-        HStack(spacing: 12) {
-            Button { requestClose() } label: { Image(systemName: "xmark").frame(width: 44,height: 44) }
-                .accessibilityLabel("Close Studio").background(.regularMaterial,in: Circle())
-            VStack(alignment: .leading,spacing: 2) {
-                Text(session.document.source == .technical ? "Technik Studio" : "House Studio").font(.headline)
-                Text(session.dirty || !hasSaved ? "Unsaved design" : "Design saved").font(.caption).foregroundStyle(.secondary)
-            }.padding(.horizontal,14).padding(.vertical,8).background(.regularMaterial,in: Capsule())
-            Spacer(minLength: 0)
-            saveButton.buttonStyle(.borderedProminent).buttonBorderShape(.capsule).foregroundStyle(.white)
+        VStack(alignment: .leading,spacing: 8) {
+            if textSize.isAccessibilitySize {
+                Text(session.document.source == .technical ? "Technik Studio" : "House Studio")
+                    .font(.headline).padding(.horizontal,12).padding(.vertical,8)
+                    .background(.regularMaterial,in: Capsule())
+            }
+            HStack(spacing: 12) {
+                Button { requestClose() } label: { Image(systemName: "xmark").frame(width: 44,height: 44) }
+                    .accessibilityLabel("Close Studio").background(.regularMaterial,in: Circle())
+                if !textSize.isAccessibilitySize {
+                    VStack(alignment: .leading,spacing: 2) {
+                        Text(session.document.source == .technical ? "Technik Studio" : "House Studio").font(.headline)
+                        Text(session.dirty || !hasSaved ? "Unsaved design" : "Design saved").font(.caption).foregroundStyle(.secondary)
+                    }.lineLimit(1).padding(.horizontal,14).padding(.vertical,8).background(.regularMaterial,in: Capsule())
+                }
+                Spacer(minLength: 0)
+                saveButton.buttonStyle(.borderedProminent).buttonBorderShape(.capsule).foregroundStyle(.white)
+            }
+        }
+    }
+    @ViewBuilder private var phoneDock: some View {
+        if textSize.isAccessibilitySize {
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) { phoneDockActions }.frame(minWidth: 660).padding(.horizontal,8).padding(.vertical,6)
+            }.scrollIndicators(.hidden).fixedSize(horizontal: false,vertical: true)
+                .background(.regularMaterial,in: RoundedRectangle(cornerRadius: 22))
+        } else {
+            HStack(spacing: 0) { phoneDockActions }.padding(.horizontal,4).padding(.vertical,3).background(.regularMaterial,in: Capsule())
         }
     }
     @ViewBuilder private var selectionHUD: some View {

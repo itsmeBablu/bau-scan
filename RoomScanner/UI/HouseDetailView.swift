@@ -102,22 +102,26 @@ struct HouseDetailView: View {
 
     @ViewBuilder private func content(_ house: House) -> some View {
         VStack(spacing: 0) {
-            HStack {
-                Picker("", selection: $tab) {
+            VStack(spacing: 8) {
+                Picker("Model view", selection: $tab) {
                     Text("detail.tab.plan").tag(Tab.plan)
                     Text("detail.tab.viewer").tag(Tab.viewer)
                     Text("detail.tab.measures").tag(Tab.measures)
                 }
                 .pickerStyle(.segmented)
                 if house.stories.count > 1 {
-                    Picker("house.story", selection: $storyIndex) {
-                        Text("house.story.all").tag(Int?.none)
-                        ForEach(house.stories, id: \.index) { story in
-                            Text(StoryNaming.localizedName(for: story.index)).tag(Int?.some(story.index))
+                    HStack {
+                        Text("house.story").font(.subheadline).foregroundStyle(.secondary)
+                        Spacer(minLength: 8)
+                        Picker("house.story", selection: $storyIndex) {
+                            Text("house.story.all").tag(Int?.none)
+                            ForEach(house.stories, id: \.index) { story in
+                                Text(StoryNaming.localizedName(for: story.index)).tag(Int?.some(story.index))
+                            }
                         }
+                        .pickerStyle(.menu)
+                        .accessibilityIdentifier("house.storyPicker")
                     }
-                    .fixedSize()
-                    .accessibilityIdentifier("house.storyPicker")
                 }
             }
             .padding(.horizontal)

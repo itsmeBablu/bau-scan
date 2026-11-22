@@ -1,6 +1,20 @@
 import Foundation
 import Observation
 
+/// Gesture values are relative to each gesture's start, not the previous event.
+struct ViewerPlanNavigation {
+    private(set) var pan: CGSize = .zero
+    private(set) var zoom: CGFloat = 1
+    private var committedPan: CGSize = .zero
+    private var committedZoom: CGFloat = 1
+    mutating func drag(_ translation: CGSize) {
+        pan = CGSize(width: committedPan.width+translation.width,height: committedPan.height+translation.height)
+    }
+    mutating func endDrag(_ translation: CGSize) { drag(translation); committedPan = pan }
+    mutating func magnify(_ scale: CGFloat) { zoom = min(max(committedZoom*scale,0.4),6) }
+    mutating func endMagnify(_ scale: CGFloat) { magnify(scale); committedZoom = zoom }
+}
+
 /// Viewer modes: 3D orbit, 2D top-down view, AR (iOS).
 enum ViewerMode: String, CaseIterable, Identifiable {
     case threeD, twoD, ar
