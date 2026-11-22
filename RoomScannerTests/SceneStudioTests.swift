@@ -9,6 +9,180 @@ import UIKit
 @testable import RoomScanner
 
 final class SceneStudioTests: XCTestCase {
+    func testSelectionUsesWholeRectangularEnvelope() throws {
+        let sofa = SceneEditObject(origin: "test",name: "Sofa",family: .sofa,position: .init(x: 0,y: 0.5,z: 0),size: .init(x: 2,y: 1,z: 2))
+        XCTAssertEqual(try XCTUnwrap(StudioPlacement.rayIntersection(sofa,origin: SIMD3(0,0.1,5),direction: SIMD3(0,0,-10))),0.4,accuracy: 0.0001)
+        XCTAssertNil(StudioPlacement.rayIntersection(sofa,origin: SIMD3(3,0.5,5),direction: SIMD3(0,0,-10)))
+        var rotated = sofa; rotated.yaw = .pi/4
+        XCTAssertNotNil(StudioPlacement.rayIntersection(rotated,origin: SIMD3(0,0.5,5),direction: SIMD3(0,0,-10)))
+    }
+    @MainActor func testDetailedOpeningTemplatesFitOpeningTransformAndPersistDesignChoices() throws {
+        let opening = Opening(id: UUID(),kind: .window,wallID: nil,center: .init(x: 2,y: -1),width: 1.2,height: 1.4,sillHeight: 0.9,angle: 0.3,confidence: .high)
+        let transform = Transform2D(translation: .init(x: 1,y: 2),rotation: 0.2),position = transform.apply(opening.center)
+        for template in SceneEditDocument.WindowTemplate.allCases {
+            let root = StudioWindowModel.make(opening,wall: nil,transform: transform,template: template,angle: 35)
+            XCTAssertEqual(Double(root.simdPosition.x),position.x,accuracy: 0.0001)
+            XCTAssertEqual(Double(root.simdPosition.z),-position.y,accuracy: 0.0001)
+            var count = 0,glass = 0
+            root.enumerateChildNodes { node,_ in count += 1; if node.name == "glazing" { glass += 1; XCTAssertEqual(node.geometry?.firstMaterial?.writesToDepthBuffer,false) } }
+            XCTAssertGreaterThan(glass,0); XCTAssertLessThan(count,50)
+        }
+        for template in SceneEditDocument.DoorTemplate.allCases {
+            var door = opening; door.kind = .door; door.sillHeight = 0
+            let root = StudioDoorModel.make(door,wall: nil,transform: transform,template: template,angle: 35)
+            var leaves = 0,handles = 0
+            root.enumerateChildNodes { node,_ in if node.name == "door-leaf" { leaves += 1 }; if node.name == "door-handle" { handles += 1 } }
+            XCTAssertEqual(leaves,template == .double || template == .sliding ? 2 : 1)
+            XCTAssertEqual(handles,leaves*2)
+            XCTAssertEqual(root.childNodes.filter { $0.name == "door-jamb" }.count,2)
+        }
+        var document = seed(); let source = document.shell
+        document.doorTemplate = .glazed; document.windowTemplate = .casement; document.doorOpeningDegrees = 45; document.windowOpeningDegrees = 30
+        try document.validate()
+        let decoded = try JSONDecoder().decode(SceneEditDocument.self,from: JSONEncoder().encode(document))
+        XCTAssertEqual(decoded.doorTemplate,.glazed); XCTAssertEqual(decoded.windowOpeningDegrees,30)
+        XCTAssertEqual(decoded.shell,source)
+        document.doorOpeningDegrees = 121; XCTAssertThrowsError(try document.validate())
+    }
+    @MainActor func testContinuousFloorHasNoInteriorBlockFacesAndOneNode() {
+        var a = seed().shell.allRooms[0]; a.transform = .identity; a.walls = []; a.objects = []; a.openings = []
+        a.floorPolygon = [.init(x: 0,y: 0),.init(x: 2,y: 0),.init(x: 2,y: 2),.init(x: 0,y: 2)]
+        var b = a; b.id = UUID(); b.floorPolygon = a.floorPolygon.map { .init(x: $0.x+2,y: $0.y) }
+        let mesh = StudioFloorSlab.mesh(rooms: [a,b])
+        let sideAtJoin = mesh.triangles.filter { t in
+            let p = [mesh.positions[Int(t.x)],mesh.positions[Int(t.y)],mesh.positions[Int(t.z)]]
+            return p.allSatisfy { abs($0.x-2) < 1e-5 } && p.contains { $0.y < -0.001 }
+        }
+        XCTAssertTrue(sideAtJoin.isEmpty,"Adjacent floor pieces must not have internal vertical block faces")
+        var document = seed(); document.shell.stories = [.init(index: 0,rooms: [a,b])]; document.objects = []
+        let scene = StudioSceneBuilder.scene(document,story: 0,cutaway: false)
+        XCTAssertEqual(scene.rootNode.childNodes.filter { $0.name == "shell:floor" }.count,1)
+        XCTAssertEqual(document.shell.allRooms[0].floorPolygon,a.floorPolygon)
+    }
+    func testContinuousFloorBridgesWallFootprintWithoutChangingRoomArea() {
+        var a = seed().shell.allRooms[0]; a.transform = .identity; a.walls = []; a.objects = []; a.openings = []
+        a.floorPolygon = [.init(x: 0,y: 0),.init(x: 1,y: 0),.init(x: 1,y: 2),.init(x: 0,y: 2)]
+        var b = a; b.id = UUID(); b.floorPolygon = a.floorPolygon.map { .init(x: $0.x+1.2,y: $0.y) }
+        a.walls = [.init(id: UUID(),segment: .init(start: .init(x: 1.1,y: 0),end: .init(x: 1.1,y: 2)),height: 2.5,thickness: 0.2,confidence: .high)]
+        let mesh = StudioFloorSlab.mesh(rooms: [a,b])
+        let topArea = mesh.triangles.reduce(0.0) { sum,t in
+            let p = mesh.positions[Int(t.x)],q = mesh.positions[Int(t.y)],r = mesh.positions[Int(t.z)]
+            guard abs(p.y) < 1e-6,abs(q.y) < 1e-6,abs(r.y) < 1e-6 else { return sum }
+            return sum+Double(simd_length(simd_cross(q-p,r-p)))/2
+        }
+        XCTAssertEqual(topArea,4.44,accuracy: 0.0001)
+        XCTAssertEqual(RoomMeasurements(plan: a).floorArea+RoomMeasurements(plan: b).floorArea,4,accuracy: 0.0001)
+    }
+    @MainActor func testRotationRingCommitsAngleAndRejectRollsBack() throws {
+        let document = seed(),controller = StudioSceneController(),view = SCNView(frame: CGRect(x: 0,y: 0,width: 800,height: 800))
+        controller.view = view; let item = try XCTUnwrap(document.objects.first)
+        controller.configure(document,story: 0,cutaway: false,selected: item.id,moving: false,reset: 0,rotating: true)
+        _ = view.snapshot()
+        let radius = Float(max(item.size.x,item.size.z)/2+0.18),center = SIMD3(Float(item.position.x),Float(item.position.y),Float(item.position.z))
+        func screen(_ p: SIMD3<Float>) -> CGPoint { let value = view.projectPoint(SCNVector3(p.x,p.y,p.z)); return .init(x: CGFloat(value.x),y: CGFloat(value.y)) }
+        var angle: Double?
+        controller.onRotate = { _,delta in angle = delta; return false }
+        controller.beginDrag(screen(center+SIMD3(radius,0,0)))
+        controller.drag(screen(center+SIMD3(radius*cos(.pi/6),0,radius*sin(.pi/6))))
+        controller.endDrag()
+        XCTAssertEqual(try XCTUnwrap(angle),-Double.pi/6,accuracy: 0.01)
+        let node = try XCTUnwrap(view.scene?.rootNode.childNode(withName: "object:"+item.id.uuidString,recursively: false))
+        let direction = node.simdOrientation.act(SIMD3<Float>(1,0,0))
+        XCTAssertEqual(direction.x,Float(cos(item.yaw)),accuracy: 0.0001)
+        XCTAssertEqual(direction.z,Float(-sin(item.yaw)),accuracy: 0.0001)
+    }
+    func testTechnicalTemplatesPreserveSurveyAndRestoreCapturedColours() throws {
+        var document = seed(); document.source = .technical
+        document.objects[0].family = .pipe
+        let cameraColor = TechnicalPoint3(x: 0.2,y: 0.4,z: 0.6)
+        document.objects[0].capturedColor = cameraColor
+        let original = document.objects[0]
+        for template in SceneEditDocument.TechnicalTemplate.allCases {
+            document.applyTechnicalTemplate(template); try document.validate()
+            XCTAssertEqual(document.objects[0].position,original.position)
+            XCTAssertEqual(document.objects[0].size,original.size)
+            XCTAssertEqual(document.objects[0].scanReference,original.scanReference)
+            XCTAssertEqual(document.objects[0].capturedColor,cameraColor)
+            XCTAssertEqual(document.objects[0].technicalData,original.technicalData)
+            let decoded = try JSONDecoder().decode(SceneEditDocument.self,from: JSONEncoder().encode(document))
+            XCTAssertEqual(decoded.technicalTemplate,template)
+        }
+        document.applyTechnicalTemplate(.captured)
+        XCTAssertEqual(document.objects[0].color,cameraColor)
+        XCTAssertEqual(document.objects[0].colorSource,.cameraSample)
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(document)) as? [String:Any])
+        json.removeValue(forKey: "technicalTemplate")
+        XCTAssertNil(try JSONDecoder().decode(SceneEditDocument.self,from: JSONSerialization.data(withJSONObject: json)).technicalTemplate)
+    }
+    @MainActor func testEquipmentTemplatesStayWithinMeasuredEnvelope() {
+        for family in [SceneFurniture.tank,.boiler,.pump,.manifold,.radiator,.electricalPanel,.rectangularDuct,.roundDuct,.pipe] {
+            let item = SceneEditObject(origin: "survey",name: family.title,family: family,position: .init(x: 0,y: 1,z: 0),size: .init(x: 0.8,y: 1.6,z: 0.5))
+            let model = StudioSceneBuilder.model(item,technical: true,refinedTechnical: true)
+            let box = model.boundingBox
+            for (low,high,size) in [(Double(box.min.x),Double(box.max.x),item.size.x),(Double(box.min.y),Double(box.max.y),item.size.y),(Double(box.min.z),Double(box.max.z),item.size.z)] {
+                XCTAssertGreaterThanOrEqual(low,-size/2-0.0001,family.rawValue)
+                XCTAssertLessThanOrEqual(high,size/2+0.0001,family.rawValue)
+            }
+            XCTAssertLessThanOrEqual(model.childNodes.count,25)
+        }
+    }
+    func testGizmoSnappingDoesNotMoveOtherAxes() {
+        let document = seed()
+        let item = SceneEditObject(origin: "test",name: "Box",family: .box,position: .init(x: 1.234,y: 1.123,z: 2.357),size: .init(x: 0.5,y: 0.5,z: 0.5))
+        let x = StudioPlacement.snapped(item,in: document,axis: .x)
+        XCTAssertEqual(x.position.y,item.position.y); XCTAssertEqual(x.position.z,item.position.z)
+        let y = StudioPlacement.snapped(item,in: document,axis: .y)
+        XCTAssertEqual(y.position.x,item.position.x); XCTAssertEqual(y.position.z,item.position.z)
+        XCTAssertEqual(y.position.y,1.1,accuracy: 0.0001)
+        let z = StudioPlacement.snapped(item,in: document,axis: .z)
+        XCTAssertEqual(z.position.x,item.position.x); XCTAssertEqual(z.position.y,item.position.y)
+    }
+    @MainActor func testSelectedObjectHasOutlineAndMoveGizmoOnlyInMoveMode() throws {
+        let document = seed(),controller = StudioSceneController(),view = SCNView(frame: CGRect(x: 0,y: 0,width: 600,height: 600))
+        controller.view = view
+        let id = try XCTUnwrap(document.objects.first?.id)
+        controller.configure(document,story: 0,cutaway: false,selected: id,moving: false,reset: 0)
+        let outline = try XCTUnwrap(view.scene?.rootNode.childNode(withName: "selection-overlay",recursively: false))
+        XCTAssertFalse(outline.childNodes.isEmpty)
+        let envelope = try XCTUnwrap(outline.childNode(withName: "selection-envelope",recursively: false)?.geometry?.elements.first)
+        XCTAssertEqual(envelope.primitiveType,.line)
+        XCTAssertEqual(envelope.primitiveCount,12,"Selection must have twelve box edges, without triangle diagonals")
+        XCTAssertNil(outline.childNode(withName: "gizmo:x",recursively: true))
+        controller.configure(document,story: 0,cutaway: false,selected: id,moving: true,reset: 0)
+        for axis in ["x","y","z"] { XCTAssertNotNil(outline.childNode(withName: "gizmo:"+axis,recursively: true)) }
+        controller.configure(document,story: 0,cutaway: false,selected: nil,moving: true,reset: 0)
+        XCTAssertNil(view.scene?.rootNode.childNode(withName: "selection-overlay",recursively: false))
+    }
+    @MainActor func testGizmoDragCommitsOneAxisAndRejectedMoveRollsBack() throws {
+        let document = seed(),controller = StudioSceneController(),view = SCNView(frame: CGRect(x: 0,y: 0,width: 800,height: 800))
+        controller.view = view
+        let item = try XCTUnwrap(document.objects.first)
+        controller.configure(document,story: 0,cutaway: false,selected: item.id,moving: true,reset: 0)
+        let overlay = try XCTUnwrap(view.scene?.rootNode.childNode(withName: "selection-overlay",recursively: false))
+        let tip = try XCTUnwrap(overlay.childNodes.first { $0.name == "gizmo:x" && $0.geometry is SCNCone })
+        let preview = view.snapshot() // Initialise the offscreen renderer's camera projection before hit-testing.
+        #if os(iOS)
+        let png = preview.pngData()
+        #else
+        let png = preview.tiffRepresentation.flatMap { NSBitmapImageRep(data: $0)?.representation(using: .png,properties: [:]) }
+        #endif
+        let previewURL = FileManager.default.temporaryDirectory.appendingPathComponent("dwalk-gizmo-"+UUID().uuidString+".png")
+        try XCTUnwrap(png).write(to: previewURL); print("GIZMO_PREVIEW="+previewURL.path)
+        let p = view.projectPoint(tip.worldPosition)
+        let start = CGPoint(x: CGFloat(p.x),y: CGFloat(p.y))
+        var proposed: TechnicalPoint3?
+        controller.onMove = { _,position in proposed = position; return false }
+        controller.beginDrag(start)
+        XCTAssertEqual(controller.movementAxis,.x)
+        controller.drag(CGPoint(x: start.x+40,y: start.y))
+        controller.endDrag()
+        let changed = try XCTUnwrap(proposed)
+        XCTAssertNotEqual(changed.x,item.position.x)
+        XCTAssertEqual(changed.y,item.position.y,accuracy: 0.0001)
+        XCTAssertEqual(changed.z,item.position.z,accuracy: 0.0001)
+        let node = try XCTUnwrap(view.scene?.rootNode.childNode(withName: "object:"+item.id.uuidString,recursively: false))
+        XCTAssertEqual(Double(node.simdPosition.x),item.position.x,accuracy: 0.0001)
+    }
     private func seed() -> SceneEditDocument {
         var house = HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(),name: "Studio test")
         let object = PlacedObject(id: UUID(),category: "sofa",center: .init(x: 1,y: -1),size: .init(width: 2,depth: 0.9),height: 0.85,angle: 0.3,confidence: .high)

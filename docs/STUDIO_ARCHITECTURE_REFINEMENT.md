@@ -21,7 +21,7 @@ Native SceneKit code adapts the straight face-profile/opening and through-depth 
 
 Walls now use a continuous front/back cell profile around opening holes, with internal subdivision caps omitted. Mitres join solid near-coincident endpoints (25 mm maximum). Acute/large missing corners and endpoints intersecting openings remain conservative; no hidden wall segments are invented. Captured wall lengths/centrelines are unchanged. This is not a full Revit wall union or multi-way junction solver.
 
-House windows use four nonoverlapping frame rails and inset glazing, fitted to the captured opening. Glass does not write depth, reducing transparent-surface conflicts. A closed generic window is a presentation model; operation, manufacturer, thermal performance and sash type are not inferred.
+House windows use four nonoverlapping frame rails, reveal/casing trim and inset glazing, fitted to the captured opening. Studio Style now offers fixed, casement, sliding and double-hung sash templates. Casement poses use a saved design opening angle. Door templates include single, double, glazed and sliding leaves, with frame casings, 40 mm preset leaves, generic hardware and editable opening poses. Glass does not write depth, reducing transparent-surface conflicts. Opening style, operation, leaf thickness, hinges, trim and hardware are presentation presets; manufacturer, thermal performance, handing and sash type are not inferred. Scanned opening widths/heights remain unchanged. These are native adaptations, not imported binary assets.
 
 ## Surface stability and performance
 
@@ -41,3 +41,5 @@ Profile and Settings are combined. Main tabs are House, Technik, Capture, Studio
 
 
 Validation: 262 macOS and 260 iOS tests passed. The two portrait/landscape Studio layout tests passed again after the final dock positioning adjustment. Native tab/Studio layouts and a SceneKit-rendered architectural fixture were inspected; the final signed iPhone build passed. Regression tests cover floor coverage area, duplicate surfaces, opening holes and corner mitres, window rails, 3D dimension nodes, metadata-only scene reuse, indexed lookup, room-name persistence, thickness provenance and automatic radiator proposals.
+
+Detailed openings were adapted read-only from `apps/web/components/tools/LayoutSceneLayer.ts` (frame/reveal/casing and leaf/hinge/handle construction) and `apps/web/lib/windowGeometry.ts` (sash frames and glazing). SmartBau itself remains unchanged.

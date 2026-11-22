@@ -85,6 +85,15 @@ final class ScanCoordinator {
 
     private func run() {
         guard active else { return }
+        if mode == .house {
+            // Configure the shared session before RoomPlan starts. Never rerun it
+            // from the passive radiator observer while RoomPlan is capturing.
+            let tracking = ARWorldTrackingConfiguration()
+            for semantic: ARConfiguration.FrameSemantics in [.sceneDepth,.smoothedSceneDepth] where ARWorldTrackingConfiguration.supportsFrameSemantics(semantic) {
+                tracking.frameSemantics.insert(semantic)
+            }
+            arSession.run(tracking)
+        }
         var config = RoomCaptureSession.Configuration()
         config.isCoachingEnabled = true
         state = .scanning

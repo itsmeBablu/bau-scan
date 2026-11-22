@@ -4,6 +4,20 @@ import simd
 /// Conservative oriented envelopes: touching is allowed; penetration beyond 2 mm is rejected.
 /// This is a design aid, not an engineering clash report for the raw scan mesh.
 enum StudioPlacement {
+    /// Whole-object oriented box picking, including empty spaces between model parts.
+    static func rayIntersection(_ item: SceneEditObject,origin: SIMD3<Double>,direction: SIMD3<Double>) -> Double? {
+        let inverse = item.orientation.inverse
+        let p = inverse.act(origin-SIMD3(item.position.x,item.position.y,item.position.z)),v = inverse.act(direction)
+        let half = SIMD3(item.size.x,item.size.y,item.size.z)/2
+        var near = 0.0,far = 1.0
+        for axis in 0..<3 {
+            if abs(v[axis]) < 1e-10 { if p[axis] < -half[axis] || p[axis] > half[axis] { return nil }; continue }
+            let a = (-half[axis]-p[axis])/v[axis],b = (half[axis]-p[axis])/v[axis]
+            near = max(near,min(a,b)); far = min(far,max(a,b))
+            if near > far { return nil }
+        }
+        return near
+    }
     enum Failure: LocalizedError {
         case overlap(String), floor
         var errorDescription: String? {
@@ -65,8 +79,9 @@ enum StudioPlacement {
             } }
         }
     }
-    static func snapped(_ item: SceneEditObject,in document: SceneEditDocument) -> SceneEditObject {
+    static func snapped(_ item: SceneEditObject,in document: SceneEditDocument,axis: TechnicalPointEditing.Axis = .free) -> SceneEditObject {
         var result = item
+        if axis == .y { result.position.y = (result.position.y/0.05).rounded()*0.05; return result }
         result.position.x = (result.position.x/0.05).rounded()*0.05
         result.position.z = (result.position.z/0.05).rounded()*0.05
         var closest = 0.12
@@ -84,6 +99,8 @@ enum StudioPlacement {
                 closest = abs(offset)
             }
         }
+        if axis == .x { result.position.y = item.position.y; result.position.z = item.position.z }
+        if axis == .z { result.position.x = item.position.x; result.position.y = item.position.y }
         return result
     }
     static func available(_ item: SceneEditObject,in document: SceneEditDocument,allowOverlap: Bool) throws -> SceneEditObject {

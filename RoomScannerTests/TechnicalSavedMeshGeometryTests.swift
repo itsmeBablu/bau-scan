@@ -2,6 +2,21 @@ import XCTest
 @testable import RoomScanner
 
 final class TechnicalSavedMeshGeometryTests: XCTestCase {
+    func testCeilingTogglePreservesPipesWallsColoursAndOriginalEvidence() {
+        let vertices: [TechnicalPoint3] = [.init(x: 0,y: 0,z: 0),.init(x: 1,y: 0,z: 0),.init(x: 0,y: 1,z: 0)]
+        let colors: [TechnicalPoint3?] = Array(repeating: .init(x: 0.2,y: 0.5,z: 0.7),count: 3)
+        let patch = TechnicalMeshSnapshot.Patch(anchorID: UUID(),vertices: vertices,triangleIndices: [0,1,2,0,2,1,1,0,2],colors: colors,faceClasses: [3,0,1])
+        let source = TechnicalMeshSnapshot(timestamp: 1,patches: [patch],alignmentVerified: false,truncated: false)
+        let filtered = source.hidingCeilings()
+        XCTAssertEqual(filtered.patches[0].triangleIndices,[0,2,1,1,0,2])
+        XCTAssertEqual(filtered.patches[0].faceClasses,[0,1])
+        XCTAssertEqual(filtered.patches[0].colors,colors)
+        XCTAssertEqual(source.capturedFaceCount,3)
+        XCTAssertEqual(filtered.capturedFaceCount,2)
+        XCTAssertEqual(source.patches[0],patch)
+        let legacy = TechnicalMeshSnapshot(timestamp: 1,patches: [triangle()],alignmentVerified: false,truncated: false)
+        XCTAssertEqual(legacy.hidingCeilings(),legacy)
+    }
     private func triangle(_ x: Double = 0) -> TechnicalMeshSnapshot.Patch {
         .init(anchorID: UUID(), vertices: [.init(x: x, y: 0, z: 0), .init(x: x + 1, y: 0, z: 0), .init(x: x, y: 1, z: 0)], triangleIndices: [0, 1, 2])
     }

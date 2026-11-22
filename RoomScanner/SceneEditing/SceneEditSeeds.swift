@@ -48,6 +48,7 @@ extension SceneEditDocument {
             result.objects.append(.init(sourceID: equipment.id,origin: "Survey equipment; generic model",name: equipment.name.value,family: family,position: point(equipment.center.value),size: equipment.size.value,yaw: equipment.rotation.value))
         }
         for i in result.objects.indices { result.objects[i].scanReference = .init(position: result.objects[i].position,size: result.objects[i].size,yaw: result.objects[i].yaw,axis: result.objects[i].axis,crossAxis: result.objects[i].crossAxis,family: result.objects[i].family) }
+        result.applyTechnicalTemplate(.equipment)
         try result.validate(); return result
     }
 

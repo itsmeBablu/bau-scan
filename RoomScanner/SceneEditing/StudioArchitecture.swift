@@ -85,31 +85,105 @@ struct StudioSurfaceDeduplicator {
     }
 }
 
-@MainActor enum StudioWindowModel {
-    /// Closed framing adapted from SmartBau windowGeometry.ts. Operation is not inferred.
-    static func make(_ opening: Opening,wall: Wall?,transform: Transform2D) -> SCNNode {
-        let root = SCNNode(); root.name = "shell:window"
-        let center = transform.apply(opening.center)
-        root.position = SCNVector3(center.x,opening.sillHeight+opening.height/2,-center.y)
-        root.simdOrientation = simd_quatf(angle: Float(opening.angle+transform.rotation),axis: SIMD3(0,1,0))
-        let width = opening.width,height = opening.height,rail = min(0.045,min(width,height)/10)
-        let frame = StudioSceneBuilder.material(.init(x: 0.92,y: 0.93,z: 0.94),roughness: 0.45)
-        let glass = StudioSceneBuilder.material(.init(x: 0.65,y: 0.84,z: 0.91),roughness: 0.08,metal: 0.1)
-        glass.transparency = 0.32; glass.isDoubleSided = true; glass.writesToDepthBuffer = false
-        let depth = min(0.08,max(0.025,(wall?.thickness ?? 0.1)*0.7))
-        func box(_ x: Double,_ y: Double,_ w: Double,_ h: Double,_ d: Double,_ material: SCNMaterial,_ name: String) {
-            guard w > 0,h > 0,d > 0 else { return }
-            let node = SCNNode(geometry: SCNBox(width: w,height: h,length: d,chamferRadius: 0))
-            node.name = name; node.geometry?.materials = [material]; node.position = SCNVector3(x,y,0)
-            if name == "glazing" { node.renderingOrder = 10 }
-            root.addChildNode(node)
+/// Native SmartBau-style opening parts. Operation, hardware and trim are design presets.
+@MainActor enum StudioOpeningParts {
+    static func box(_ parent: SCNNode,_ name: String,_ x: Double,_ y: Double,_ z: Double,_ w: Double,_ h: Double,_ d: Double,_ material: SCNMaterial) {
+        guard w > 0,h > 0,d > 0 else { return }
+        let node = SCNNode(geometry: SCNBox(width: w,height: h,length: d,chamferRadius: 0))
+        node.name = name; node.geometry?.materials = [material]; node.simdPosition = SIMD3(Float(x),Float(y),Float(z)); parent.addChildNode(node)
+        if name == "glazing" { node.renderingOrder = 10 }
+    }
+    static func root(_ opening: Opening,_ transform: Transform2D,_ name: String) -> SCNNode {
+        let node = SCNNode(); node.name = name
+        let p = transform.apply(opening.center)
+        node.simdPosition = SIMD3(Float(p.x),Float(opening.sillHeight+opening.height/2),Float(-p.y))
+        node.simdOrientation = simd_quatf(angle: Float(opening.angle+transform.rotation),axis: SIMD3(0,1,0)); return node
+    }
+    static func glass() -> SCNMaterial {
+        let m = StudioSceneBuilder.material(.init(x: 0.65,y: 0.84,z: 0.91),roughness: 0.08,metal: 0.1)
+        m.transparency = 0.32; m.isDoubleSided = true; m.writesToDepthBuffer = false; return m
+    }
+    static func casing(_ parent: SCNNode,width w: Double,height h: Double,depth d: Double,rail: Double,door: Bool,material: SCNMaterial) {
+        for side in [-1.0,1.0] {
+            let z = side*(d/2+0.02),r = rail+0.04
+            for x in [-1.0,1.0] { box(parent,"trim",x*(w/2+(0.04-rail)/2),0,z,r,h+0.04,0.018,material) }
+            box(parent,"trim",0,(h+0.04-rail)/2,z,w-2*rail,rail+0.04,0.018,material)
+            if !door { box(parent,"trim",0,-(h+0.04-rail)/2,z,w-2*rail,rail+0.04,0.018,material) }
         }
-        // Side jambs span the opening; horizontal rails fit between them without overlap.
-        box(-(width-rail)/2,0,rail,height,depth,frame,"frame:left")
-        box((width-rail)/2,0,rail,height,depth,frame,"frame:right")
-        box(0,-(height-rail)/2,width-2*rail,rail,depth,frame,"frame:sill")
-        box(0,(height-rail)/2,width-2*rail,rail,depth,frame,"frame:head")
-        box(0,0,width-2*rail-0.002,height-2*rail-0.002,0.012,glass,"glazing")
+    }
+}
+
+@MainActor enum StudioWindowModel {
+    static func make(_ opening: Opening,wall: Wall?,transform: Transform2D,template: SceneEditDocument.WindowTemplate = .fixed,angle: Double = 0) -> SCNNode {
+        let root = StudioOpeningParts.root(opening,transform,"shell:window")
+        let w = opening.width,h = opening.height,r = min(0.045,w/10,h/10),d = wall?.thickness ?? 0.1
+        let frame = StudioSceneBuilder.material(.init(x: 0.92,y: 0.93,z: 0.94),roughness: 0.45),glass = StudioOpeningParts.glass()
+        func box(_ parent: SCNNode,_ name: String,_ x: Double,_ y: Double,_ z: Double,_ width: Double,_ height: Double,_ depth: Double,_ m: SCNMaterial) { StudioOpeningParts.box(parent,name,x,y,z,width,height,depth,m) }
+        box(root,"frame:left",-(w-r)/2,0,0,r,h,d+0.024,frame); box(root,"frame:right",(w-r)/2,0,0,r,h,d+0.024,frame)
+        box(root,"frame:sill",0,-(h-r)/2,0,w-2*r,r,d+0.024,frame); box(root,"frame:head",0,(h-r)/2,0,w-2*r,r,d+0.024,frame)
+        StudioOpeningParts.casing(root,width: w,height: h,depth: d,rail: r,door: false,material: frame)
+        let iw = w-2*r,ih = h-2*r,gap = min(0.003,iw/20,ih/20)
+        func sash(_ parent: SCNNode,_ x: Double,_ y: Double,_ z: Double,_ width: Double,_ height: Double) -> SCNNode {
+            let leaf = SCNNode(); leaf.name = "window-sash"; leaf.simdPosition = SIMD3(Float(x),Float(y),Float(z)); parent.addChildNode(leaf)
+            let rail = min(0.03,width/10,height/10)
+            for side in [-1.0,1.0] { box(leaf,"sash-rail",side*(width-rail)/2,0,0,rail,height,0.045,frame); box(leaf,"sash-rail",0,side*(height-rail)/2,0,width-2*rail,rail,0.045,frame) }
+            box(leaf,"glazing",0,0,0,width-2*rail,height-2*rail,0.012,glass)
+            return leaf
+        }
+        switch template {
+        case .fixed: box(root,"glazing",0,0,0,iw-gap,ih-gap,0.012,glass)
+        case .casement:
+            let pivot = SCNNode(); pivot.name = "window-hinge"; pivot.simdPosition.x = Float(-(iw-gap)/2); root.addChildNode(pivot)
+            let leaf = sash(pivot,(iw-gap)/2,0,0,iw-gap,ih-gap)
+            pivot.simdOrientation = simd_quatf(angle: -Float(min(90,max(0,angle)) * .pi/180),axis: SIMD3(0,1,0))
+            let hardware = StudioSceneBuilder.material(.init(x: 0.65,y: 0.67,z: 0.68),roughness: 0.25,metal: 0.8)
+            box(leaf,"window-handle",(iw-gap)/2-r,0,0.04,min(0.018,iw/15),min(0.12,ih/4),0.025,hardware)
+            for y in [-ih*0.3,ih*0.3] { box(pivot,"window-hardware",0,y,0,r,min(0.08,ih/10),0.055,hardware) }
+        case .sliding:
+            _ = sash(root,-iw*0.245,0,-0.028,iw*0.51,ih-gap); _ = sash(root,iw*0.245,0,0.028,iw*0.51,ih-gap)
+        case .doubleHung:
+            _ = sash(root,0,ih*0.25,-0.025,iw-gap,ih/2-gap); _ = sash(root,0,-ih*0.25,0.025,iw-gap,ih/2-gap)
+        }
+        return root
+    }
+}
+
+@MainActor enum StudioDoorModel {
+    static func make(_ opening: Opening,wall: Wall?,transform: Transform2D,template: SceneEditDocument.DoorTemplate = .single,angle: Double = 0) -> SCNNode {
+        let root = StudioOpeningParts.root(opening,transform,"shell:door")
+        let w = opening.width,h = opening.height,r = min(0.05,w/10,h/10),d = wall?.thickness ?? 0.1
+        let frame = StudioSceneBuilder.material(.init(x: 0.65,y: 0.48,z: 0.32)),wood = StudioSceneBuilder.material(.init(x: 0.72,y: 0.55,z: 0.37))
+        let hardware = StudioSceneBuilder.material(.init(x: 0.72,y: 0.74,z: 0.77),roughness: 0.25,metal: 0.8)
+        func box(_ parent: SCNNode,_ name: String,_ x: Double,_ y: Double,_ z: Double,_ width: Double,_ height: Double,_ depth: Double,_ m: SCNMaterial) { StudioOpeningParts.box(parent,name,x,y,z,width,height,depth,m) }
+        for side in [-1.0,1.0] { box(root,"door-jamb",side*(w-r)/2,0,0,r,h,d+0.024,frame) }
+        box(root,"door-head",0,(h-r)/2,0,w-2*r,r,d+0.024,frame)
+        StudioOpeningParts.casing(root,width: w,height: h,depth: d,rail: r,door: true,material: frame)
+        let gap = min(0.008,h/100),iw = w-2*r,lh = h-r-gap,cy = -h/2+gap+lh/2,leafDepth = 0.04
+        let offset = max(0,d/2-leafDepth/2)
+        let sides = template == .double || template == .sliding ? [-1.0,1.0] : [-1.0]
+        for side in sides {
+            let lw = template == .double ? iw/2-min(0.003,iw/100) : template == .sliding ? iw*0.52 : iw-min(0.006,iw/50)
+            let pivot = SCNNode(); pivot.name = "door-leaf-pivot"; root.addChildNode(pivot)
+            let leaf = SCNNode(); leaf.name = "door-leaf"; pivot.addChildNode(leaf)
+            if template == .sliding {
+                leaf.simdPosition = SIMD3(Float(side*(iw/4+min(1,max(0,angle)/90)*lw*0.9)),Float(cy),Float(side*max(0.025,offset)))
+            } else {
+                pivot.simdPosition = SIMD3(Float(side*iw/2),0,Float(offset))
+                leaf.simdPosition = SIMD3(Float(-side*lw/2),Float(cy),0)
+                pivot.simdOrientation = simd_quatf(angle: Float(side*min(120,max(0,angle)) * .pi/180),axis: SIMD3(0,1,0))
+                for y in [-lh*0.3,0,lh*0.3] { box(pivot,"door-hinge",0,y,0,0.016,min(0.08,lh/10),0.02,hardware) }
+            }
+            if template == .glazed {
+                let rail = min(0.07,lw/8,lh/12)
+                for sign in [-1.0,1.0] { box(leaf,"leaf-rail",sign*(lw-rail)/2,0,0,rail,lh,leafDepth,wood); box(leaf,"leaf-rail",0,sign*(lh-rail)/2,0,lw-2*rail,rail,leafDepth,wood) }
+                box(leaf,"glazing",0,0,0,lw-2*rail,lh-2*rail,0.012,StudioOpeningParts.glass())
+            } else { box(leaf,"door-panel",0,0,0,lw,lh,leafDepth,wood) }
+            for face in [-1.0,1.0] {
+                let x = -side*max(0,lw/2-min(0.09,lw/4))
+                box(leaf,"handle-stem",x,0,face*(leafDepth/2+0.0175),0.018,0.018,0.035,hardware)
+                box(leaf,"door-handle",x,0,face*(leafDepth/2+0.035),min(0.12,lw/3),0.018,0.022,hardware)
+            }
+        }
         return root
     }
 }
@@ -187,6 +261,70 @@ struct StudioFloorCoverage {
             additions.append(Cover(story: room.story,triangle: polygon,bounds: box))
         }
         covers += additions
+        return result
+    }
+}
+
+/// One continuous design slab per level. Internal triangulation edges have no
+/// vertical caps; only the outer boundary and actual thickness steps do.
+enum StudioFloorSlab {
+    private struct Line: Hashable { let angle: Int64; let offset: Int64 }
+    private struct Event { let t: Double; let depth: Double; let side: Int; let change: Int }
+    private struct Edge { let direction: Point2D; let normal: Point2D; let offset: Double; var events: [Event] }
+    static func mesh(rooms: [FloorPlan]) -> TriangleMesh {
+        var inputs = rooms
+        // Cover the known wall footprints beneath interior floor contours. This
+        // is a design display extension, not a change to measured room areas.
+        for room in rooms { for wall in room.walls where inputs.count < 2000 {
+            let along = wall.segment.direction*(wall.thickness/2),normal = wall.segment.leftNormal*(wall.thickness/2)
+            var footprint = room
+            footprint.id = wall.id; footprint.transform = .identity
+            footprint.floorPolygon = [wall.start-along+normal,wall.end+along+normal,wall.end+along-normal,wall.start-along-normal].map(room.transform.apply)
+            footprint.walls = []; footprint.openings = []; footprint.objects = []
+            inputs.append(footprint)
+        } }
+        var coverage = StudioFloorCoverage(),result = TriangleMesh(),edges: [Line:Edge] = [:]
+        for room in inputs {
+            let source = coverage.mesh(room),depth = room.displayFloorSlabThickness
+            for triangle in source.triangles {
+                let points = [source.positions[Int(triangle.x)],source.positions[Int(triangle.y)],source.positions[Int(triangle.z)]]
+                // Keep horizontal skins; rebuild sides after cancelling shared edges.
+                guard points.allSatisfy({ abs($0.y) < 1e-6 }) || points.allSatisfy({ abs(Double($0.y)+depth) < 1e-5 }) else { continue }
+                result.addTriangle(points[0],points[1],points[2])
+                guard points.allSatisfy({ abs($0.y) < 1e-6 }) else { continue }
+                let polygon = points.map { Point2D(x: Double($0.x),y: -Double($0.z)) }
+                for i in 0..<3 {
+                    let p = polygon[i],q = polygon[(i+1)%3],delta = q-p
+                    guard delta.length > 1e-6 else { continue }
+                    let unit = delta.normalized
+                    let side = abs(unit.x) < 1e-5 ? (unit.y < 0 ? -1 : 1) : (unit.x < 0 ? -1 : 1)
+                    let direction = delta.normalized*Double(side),normal = Point2D(x: -direction.y,y: direction.x)
+                    let offset = p.x*normal.x+p.y*normal.y
+                    let key = Line(angle: Int64((atan2(direction.y,direction.x)*100_000).rounded()),offset: Int64((offset*10_000).rounded()))
+                    var edge = edges[key] ?? Edge(direction: direction,normal: normal,offset: offset,events: [])
+                    let a = p.x*edge.direction.x+p.y*edge.direction.y,b = q.x*edge.direction.x+q.y*edge.direction.y
+                    edge.events.append(.init(t: min(a,b),depth: depth,side: side,change: 1))
+                    edge.events.append(.init(t: max(a,b),depth: depth,side: side,change: -1)); edges[key] = edge
+                }
+            }
+        }
+        for edge in edges.values {
+            let events = edge.events.sorted { $0.t < $1.t }
+            var positive: [Double:Int] = [:],negative: [Double:Int] = [:],previous: Double?
+            for event in events {
+                if let previous,event.t-previous > 1e-5 {
+                    let left = positive.filter { $0.value > 0 }.keys.max() ?? 0,right = negative.filter { $0.value > 0 }.keys.max() ?? 0
+                    if abs(left-right) > 1e-6 {
+                        let a = edge.direction*previous+edge.normal*edge.offset,b = edge.direction*event.t+edge.normal*edge.offset
+                        let p = left > right ? a : b,q = left > right ? b : a
+                        result.addQuad(PlanMeshBuilder.point(q,y: -max(left,right)),PlanMeshBuilder.point(q,y: -min(left,right)),PlanMeshBuilder.point(p,y: -min(left,right)),PlanMeshBuilder.point(p,y: -max(left,right)))
+                    }
+                }
+                if event.side > 0 { positive[event.depth,default: 0] += event.change }
+                else { negative[event.depth,default: 0] += event.change }
+                previous = event.t
+            }
+        }
         return result
     }
 }

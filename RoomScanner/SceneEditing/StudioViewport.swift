@@ -26,14 +26,29 @@ enum StudioCameraFraming {
     private var dragNode: SCNNode?
     private var dragStart: SIMD3<Float>?
     private var dragOrigin = SIMD3<Float>.zero
+    private var dragAxis: SIMD3<Float>?
+    private var dragOrientation = simd_quatf()
+    private var rotationStart: Float?
+    private var rotationDelta = 0.0
+    private var dragScreenStart = CGPoint.zero
+    private let selectionOverlay = SCNNode()
     var moving = false
+    var rotating = false
+    var manipulating: Bool { moving || rotating }
     var onSelect: ((UUID?) -> Void)?
     var onMove: ((UUID,TechnicalPoint3) -> Bool)?
-    func configure(_ document: SceneEditDocument,story: Int,cutaway: Bool,selected: UUID?,moving: Bool,reset: Int,showDimensions: Bool = false) {
+    var onRotate: ((UUID,Double) -> Bool)?
+    var movementAxis: TechnicalPointEditing.Axis {
+        if dragAxis == SIMD3<Float>(1,0,0) { return .x }
+        if dragAxis == SIMD3<Float>(0,1,0) { return .y }
+        if dragAxis == SIMD3<Float>(0,0,1) { return .z }
+        return .free
+    }
+    func configure(_ document: SceneEditDocument,story: Int,cutaway: Bool,selected: UUID?,moving: Bool,reset: Int,showDimensions: Bool = false,rotating: Bool = false) {
         guard let view else { return }
-        self.moving = moving; view.allowsCameraControl = !moving
+        self.moving = moving; self.rotating = rotating; view.allowsCameraControl = !manipulating
         let rendering = document.renderingSnapshot
-        if view.scene == nil || previousRendering != rendering || previousStory != story || previousCutaway != cutaway || previousDimensions != showDimensions || (showDimensions && previousDimensionSelection != selected) {
+        if dragNode == nil && (view.scene == nil || previousRendering != rendering || previousStory != story || previousCutaway != cutaway || previousDimensions != showDimensions || (showDimensions && previousDimensionSelection != selected)) {
             let scene = StudioSceneBuilder.scene(document,story: story,cutaway: cutaway,showDimensions: showDimensions,dimensionSelection: selected)
             scene.rootNode.addChildNode(camera); view.scene = scene; view.pointOfView = camera
             if previous == nil || previousStory != story { frame(document,story: story) }
@@ -82,35 +97,69 @@ enum StudioCameraFraming {
         view?.defaultCameraController.target = SCNVector3(center.x,center.y,center.z)
     }
     private func objectNode(at point: CGPoint) -> SCNNode? {
-        guard let view else { return nil }
-        for hit in view.hitTest(point,options: [.searchMode: SCNHitTestSearchMode.all.rawValue]) {
-            var node: SCNNode? = hit.node
-            while let current = node {
-                if current.name?.hasPrefix("object:") == true { return current }
-                node = current.parent
-            }
+        guard let view,let previous,let root = view.scene?.rootNode else { return nil }
+        let a = view.unprojectPoint(SCNVector3(Float(point.x),Float(point.y),0)),b = view.unprojectPoint(SCNVector3(Float(point.x),Float(point.y),1))
+        let origin = SIMD3(Double(a.x),Double(a.y),Double(a.z)),direction = SIMD3(Double(b.x-a.x),Double(b.y-a.y),Double(b.z-a.z))
+        var nearest = Double.infinity,result: SCNNode?
+        for item in previous.presentationObjects {
+            guard let node = root.childNode(withName: "object:"+item.id.uuidString,recursively: false),
+                  let distance = StudioPlacement.rayIntersection(item,origin: origin,direction: direction),distance < nearest else { continue }
+            nearest = distance; result = node
         }
-        return nil
+        return result
     }
     func tap(_ point: CGPoint) {
+        if gizmoAxis(at: point) != nil || hitsRotationRing(point) { return }
         let node = objectNode(at: point)
         let id = node?.name.flatMap { UUID(uuidString: String($0.dropFirst(7))) }
         selected = id; highlight(id); onSelect?(id)
     }
     func beginDrag(_ point: CGPoint) {
-        guard moving,let node = objectNode(at: point) else { return }
-        tap(point); dragNode = node; dragOrigin = node.simdPosition
+        guard manipulating else { return }
+        dragAxis = gizmoAxis(at: point)
+        let node: SCNNode?
+        if (dragAxis != nil || hitsRotationRing(point)),let selected { node = view?.scene?.rootNode.childNode(withName: "object:"+selected.uuidString,recursively: false) }
+        else { node = objectNode(at: point) }
+        guard let node else { return }
+        dragNode = node; dragOrigin = node.simdPosition; dragScreenStart = point
+        dragOrientation = node.simdOrientation; rotationDelta = 0
+        if dragAxis == nil && !hitsRotationRing(point) { tap(point) }
         dragStart = plane(point,y: dragOrigin.y)
+        rotationStart = dragStart.map { atan2($0.z-dragOrigin.z,$0.x-dragOrigin.x) }
     }
     func drag(_ point: CGPoint) {
-        guard let node = dragNode,let start = dragStart,let hit = plane(point,y: dragOrigin.y) else { return }
-        let position = dragOrigin+hit-start
-        guard abs(position.x) <= 1000,abs(position.z) <= 1000 else { return }
+        guard let node = dragNode else { return }
+        if rotating {
+            guard let start = rotationStart,let hit = plane(point,y: dragOrigin.y) else { return }
+            let angle = start-atan2(hit.z-dragOrigin.z,hit.x-dragOrigin.x)
+            rotationDelta = Double(atan2(sin(angle),cos(angle)))
+            node.simdOrientation = simd_quatf(angle: Float(rotationDelta),axis: SIMD3(0,1,0))*dragOrientation
+            selectionOverlay.childNode(withName: "selection-envelope",recursively: false)?.simdOrientation = node.simdOrientation
+            return
+        }
+        let position: SIMD3<Float>
+        if let axis = dragAxis,let view {
+            let a = view.projectPoint(SCNVector3(dragOrigin.x,dragOrigin.y,dragOrigin.z))
+            let b = view.projectPoint(SCNVector3(dragOrigin.x+axis.x,dragOrigin.y+axis.y,dragOrigin.z+axis.z))
+            let screen = SIMD2<Double>(Double(b.x-a.x),Double(b.y-a.y))
+            guard simd_length_squared(screen) > 64 else { return }
+            let delta = SIMD2<Double>(point.x-dragScreenStart.x,point.y-dragScreenStart.y)
+            position = dragOrigin+axis*Float(simd_dot(delta,screen)/simd_length_squared(screen))
+        } else {
+            guard let start = dragStart,let hit = plane(point,y: dragOrigin.y) else { return }
+            position = dragOrigin+hit-start
+        }
+        guard [position.x,position.y,position.z].allSatisfy({ $0.isFinite && abs($0) <= 1000 }) else { return }
         node.simdPosition = position
+        selectionOverlay.simdPosition = position
     }
     func endDrag(cancelled: Bool = false) {
-        defer { dragNode = nil; dragStart = nil }
+        defer { dragNode = nil; dragStart = nil; dragAxis = nil; rotationStart = nil; highlight(selected) }
         guard let node = dragNode,let id = node.name.flatMap({ UUID(uuidString: String($0.dropFirst(7))) }) else { return }
+        if rotating {
+            if cancelled || onRotate?(id,rotationDelta) != true { node.simdOrientation = dragOrientation }
+            return
+        }
         if cancelled { node.simdPosition = dragOrigin; return }
         let p = node.simdPosition
         if onMove?(id,.init(x: Double(p.x),y: Double(p.y),z: Double(p.z))) != true { node.simdPosition = dragOrigin }
@@ -127,6 +176,7 @@ enum StudioCameraFraming {
         return near+ray*t
     }
     private func highlight(_ id: UUID?) {
+        selectionOverlay.removeFromParentNode()
         view?.scene?.rootNode.enumerateChildNodes { node,_ in
             guard let geometry = node.geometry else { return }
             var ancestor: SCNNode? = node
@@ -137,6 +187,58 @@ enum StudioCameraFraming {
             }
             for material in geometry.materials { material.emission.contents = active ? platformColor(CGColor(red: 0.12,green: 0.23,blue: 0.30,alpha: 1)) : platformColor(CGColor(gray: 0,alpha: 1)) }
         }
+        selectionOverlay.childNodes.forEach { $0.removeFromParentNode() }
+        guard let id,let item = previous?.presentationObjects.first(where: { $0.id == id }),let root = view?.scene?.rootNode else { return }
+        selectionOverlay.name = "selection-overlay"
+        selectionOverlay.simdPosition = SIMD3(Float(item.position.x),Float(item.position.y),Float(item.position.z))
+        let material = SCNMaterial(); material.lightingModel = .constant
+        material.diffuse.contents = platformColor(CGColor(red: 0.1,green: 0.5,blue: 1,alpha: 1))
+        material.fillMode = .lines; material.readsFromDepthBuffer = false; material.writesToDepthBuffer = false
+        let half = SIMD3<Float>(Float(item.size.x+0.015),Float(item.size.y+0.015),Float(item.size.z+0.015))/2
+        let corners = [SIMD3(-half.x,-half.y,-half.z),SIMD3(half.x,-half.y,-half.z),SIMD3(half.x,half.y,-half.z),SIMD3(-half.x,half.y,-half.z),SIMD3(-half.x,-half.y,half.z),SIMD3(half.x,-half.y,half.z),SIMD3(half.x,half.y,half.z),SIMD3(-half.x,half.y,half.z)]
+        let source = SCNGeometrySource(vertices: corners.map { SCNVector3($0.x,$0.y,$0.z) })
+        let edges: [UInt32] = [0,1,1,2,2,3,3,0,4,5,5,6,6,7,7,4,0,4,1,5,2,6,3,7]
+        let box = SCNGeometry(sources: [source],elements: [SCNGeometryElement(indices: edges,primitiveType: .line)])
+        material.fillMode = .fill; box.materials = [material]
+        let outline = SCNNode(geometry: box); outline.name = "selection-envelope"
+        outline.simdOrientation = simd_quatf(vector: SIMD4<Float>(item.orientation.vector)); outline.renderingOrder = 1000; outline.castsShadow = false
+        selectionOverlay.addChildNode(outline)
+        if moving {
+            let length = Float(min(1.2,max(0.45,max(item.size.x,item.size.y,item.size.z)*0.45)))
+            for (name,axis,color) in [("x",SIMD3<Float>(1,0,0),CGColor(red: 0.95,green: 0.2,blue: 0.2,alpha: 1)),("y",SIMD3<Float>(0,1,0),CGColor(red: 0.2,green: 0.8,blue: 0.3,alpha: 1)),("z",SIMD3<Float>(0,0,1),CGColor(red: 0.1,green: 0.5,blue: 1,alpha: 1))] {
+                let m = SCNMaterial(); m.lightingModel = .constant; m.diffuse.contents = platformColor(color); m.readsFromDepthBuffer = false
+                let shaft = SCNNode(geometry: SCNCylinder(radius: 0.014,height: Double(length)))
+                shaft.simdPosition = axis*length/2; shaft.simdOrientation = simd_quatf(from: SIMD3(0,1,0),to: axis)
+                let tip = SCNNode(geometry: SCNCone(topRadius: 0,bottomRadius: 0.045,height: 0.12))
+                tip.simdPosition = axis*(length+0.06); tip.simdOrientation = shaft.simdOrientation
+                for node in [shaft,tip] { node.name = "gizmo:"+name; node.geometry?.materials = [m]; node.renderingOrder = 1001; node.castsShadow = false; selectionOverlay.addChildNode(node) }
+                let label = SCNText(string: name.uppercased(),extrusionDepth: 0); label.font = .systemFont(ofSize: 12,weight: .bold); label.materials = [m]
+                let text = SCNNode(geometry: label); text.scale = SCNVector3(0.008,0.008,0.008); text.simdPosition = axis*(length+0.16); text.constraints = [SCNBillboardConstraint()]; text.renderingOrder = 1001; text.castsShadow = false
+                selectionOverlay.addChildNode(text)
+            }
+        }
+        if rotating {
+            let ring = SCNNode(geometry: SCNTorus(ringRadius: max(item.size.x,item.size.z)/2+0.18,pipeRadius: 0.018))
+            let m = SCNMaterial(); m.lightingModel = .constant; m.diffuse.contents = platformColor(CGColor(red: 0.95,green: 0.65,blue: 0.1,alpha: 1)); m.readsFromDepthBuffer = false
+            ring.geometry?.materials = [m]; ring.name = "gizmo:rotate"; ring.renderingOrder = 1001; ring.castsShadow = false
+            selectionOverlay.addChildNode(ring)
+        }
+        root.addChildNode(selectionOverlay)
+    }
+    private func hitsRotationRing(_ point: CGPoint) -> Bool {
+        rotating && view?.hitTest(point,options: [.searchMode: SCNHitTestSearchMode.all.rawValue]).contains { $0.node.name == "gizmo:rotate" } == true
+    }
+    private func gizmoAxis(at point: CGPoint) -> SIMD3<Float>? {
+        guard moving,let view else { return nil }
+        for hit in view.hitTest(point,options: [.searchMode: SCNHitTestSearchMode.all.rawValue]) {
+            switch hit.node.name {
+            case "gizmo:x": return SIMD3(1,0,0)
+            case "gizmo:y": return SIMD3(0,1,0)
+            case "gizmo:z": return SIMD3(0,0,1)
+            default: continue
+            }
+        }
+        return nil
     }
     func png() throws -> Data {
         guard let view,let scene = view.scene,let camera = view.pointOfView else { throw SceneEditDocument.Failure.exportFailed }
@@ -163,6 +265,7 @@ struct StudioViewport: UIViewRepresentable {
     let moving: Bool
     let reset: Int
     var showDimensions = false
+    var rotating = false
     func makeCoordinator() -> Gestures { .init(controller) }
     func makeUIView(context: Context) -> SCNView {
         let view = StudioIOSSceneView(); view.studio = controller; view.antialiasingMode = .multisampling4X
@@ -170,14 +273,14 @@ struct StudioViewport: UIViewRepresentable {
         controller.view = view
         let tap = UITapGestureRecognizer(target: context.coordinator,action: #selector(Gestures.tap(_:)))
         let pan = UIPanGestureRecognizer(target: context.coordinator,action: #selector(Gestures.pan(_:)))
-        pan.maximumNumberOfTouches = 1; pan.isEnabled = moving; context.coordinator.pan = pan
+        pan.maximumNumberOfTouches = 1; pan.isEnabled = moving || rotating; context.coordinator.pan = pan
         view.addGestureRecognizer(tap); view.addGestureRecognizer(pan)
         view.accessibilityLabel = "Design Studio 3D scene"
         return view
     }
     func updateUIView(_ view: SCNView,context: Context) {
-        context.coordinator.pan?.isEnabled = moving
-        controller.configure(document,story: story,cutaway: cutaway,selected: selected,moving: moving,reset: reset,showDimensions: showDimensions)
+        context.coordinator.pan?.isEnabled = moving || rotating
+        controller.configure(document,story: story,cutaway: cutaway,selected: selected,moving: moving,reset: reset,showDimensions: showDimensions,rotating: rotating)
     }
     @MainActor final class Gestures: NSObject {
         let controller: StudioSceneController
@@ -210,13 +313,14 @@ struct StudioViewport: NSViewRepresentable {
     let moving: Bool
     let reset: Int
     var showDimensions = false
+    var rotating = false
     func makeNSView(context: Context) -> StudioMacSceneView {
         let view = StudioMacSceneView(); view.studio = controller
         view.antialiasingMode = .multisampling4X; view.preferredFramesPerSecond = 30
         controller.view = view; return view
     }
     func updateNSView(_ view: StudioMacSceneView,context: Context) {
-        controller.configure(document,story: story,cutaway: cutaway,selected: selected,moving: moving,reset: reset,showDimensions: showDimensions)
+        controller.configure(document,story: story,cutaway: cutaway,selected: selected,moving: moving,reset: reset,showDimensions: showDimensions,rotating: rotating)
     }
 }
 final class StudioMacSceneView: SCNView {
@@ -225,14 +329,14 @@ final class StudioMacSceneView: SCNView {
     private var start: CGPoint?
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow,from: nil); start = p
-        if studio?.moving == true { studio?.beginDrag(p) } else { super.mouseDown(with: event) }
+        if studio?.manipulating == true { studio?.beginDrag(p) } else { super.mouseDown(with: event) }
     }
     override func mouseDragged(with event: NSEvent) {
-        if studio?.moving == true { studio?.drag(convert(event.locationInWindow,from: nil)) } else { super.mouseDragged(with: event) }
+        if studio?.manipulating == true { studio?.drag(convert(event.locationInWindow,from: nil)) } else { super.mouseDragged(with: event) }
     }
     override func mouseUp(with event: NSEvent) {
         let p = convert(event.locationInWindow,from: nil)
-        if studio?.moving == true { studio?.endDrag() }
+        if studio?.manipulating == true { studio?.endDrag() }
         else {
             super.mouseUp(with: event)
             if let start,hypot(p.x-start.x,p.y-start.y) < 5 { studio?.tap(p) }

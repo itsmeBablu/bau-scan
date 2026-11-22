@@ -162,6 +162,47 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     var interior = Interior.natural
     var lighting = Lighting.day
     var season = Season.summer
+    enum TechnicalTemplate: String,Codable,CaseIterable {
+        case captured, equipment, categories, monochrome
+        var title: String {
+            switch self {
+            case .captured: "Captured colours · measured shapes"
+            case .equipment: "Equipment shapes"
+            case .categories: "Category colours"
+            case .monochrome: "Monochrome engineering"
+            }
+        }
+    }
+    var technicalTemplate: TechnicalTemplate? = nil
+    enum DoorTemplate: String,Codable,CaseIterable { case single, double, glazed, sliding }
+    enum WindowTemplate: String,Codable,CaseIterable { case fixed, casement, sliding, doubleHung }
+    var doorTemplate: DoorTemplate? = nil
+    var windowTemplate: WindowTemplate? = nil
+    var doorOpeningDegrees: Double? = nil
+    var windowOpeningDegrees: Double? = nil
+    mutating func applyTechnicalTemplate(_ template: TechnicalTemplate) {
+        guard source == .technical else { return }
+        technicalTemplate = template
+        for i in objects.indices {
+            if template == .captured || template == .equipment {
+                objects[i].color = objects[i].capturedColor ?? .init(x: 0.68,y: 0.70,z: 0.72)
+                objects[i].colorSource = objects[i].capturedColor == nil ? .preset : .cameraSample
+            } else {
+                objects[i].colorSource = .preset
+                if template == .monochrome { objects[i].color = .init(x: 0.66,y: 0.68,z: 0.70) }
+                else {
+                    objects[i].color = switch objects[i].family {
+                    case .pipe: .init(x: 0.22,y: 0.48,z: 0.78)
+                    case .roundDuct,.rectangularDuct: .init(x: 0.60,y: 0.68,z: 0.73)
+                    case .boiler,.tank: .init(x: 0.82,y: 0.55,z: 0.28)
+                    case .pump,.manifold: .init(x: 0.32,y: 0.65,z: 0.48)
+                    case .electricalPanel: .init(x: 0.74,y: 0.67,z: 0.32)
+                    default: .init(x: 0.68,y: 0.70,z: 0.72)
+                    }
+                }
+            }
+        }
+    }
     enum Interior: String,Codable,CaseIterable { case natural, scandinavian, modern, industrial, pastel }
     enum Lighting: String,Codable,CaseIterable { case day, night }
     enum Season: String,Codable,CaseIterable { case summer, winter }
@@ -186,6 +227,8 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
               shell.allRooms.reduce(0,{ $0+$1.walls.count+$1.openings.count+$1.floorPolygon.count }) <= 20_000,
               [wallColor.x,wallColor.y,wallColor.z,floorColor.x,floorColor.y,floorColor.z].allSatisfy({ $0.isFinite && (0...1).contains($0) }) else { throw Failure.invalid }
         if let size = floorPatternSize { guard size.isFinite,(0.1...2).contains(size) else { throw Failure.invalid } }
+        if let angle = doorOpeningDegrees { guard angle.isFinite,(0...120).contains(angle) else { throw Failure.invalid } }
+        if let angle = windowOpeningDegrees { guard angle.isFinite,(0...90).contains(angle) else { throw Failure.invalid } }
         let elements = engineeringElements
         try engineering?.validate(ids: Set(elements.map(\.id)),thicknessIDs: Set(elements.filter { $0.kind == "Wall" || $0.kind == "Floor" }.map(\.id)),floorIDs: Set(elements.filter { $0.kind == "Floor" }.map(\.id)))
         for object in objects { try object.validate() }

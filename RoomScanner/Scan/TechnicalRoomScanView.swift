@@ -12,7 +12,9 @@ struct TechnicalRoomScanView: View {
     @AppStorage("technical.googleAI.enabled") private var googleAIEnabled = false
     @State private var viewport: ARView?
     @State private var showMesh = true
+    @AppStorage("technical.showCeiling") private var showCeiling = false
     @State private var showingControls = false
+    @State private var captureHeight: CGFloat = 852
     @State private var origin: TechnicalPoint3?
     @State private var frameDefined = false
     @State private var checkpointX = ""
@@ -78,7 +80,7 @@ struct TechnicalRoomScanView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                TechnicalCaptureCamera(scanner: scanner, viewport: $viewport,showMesh: showMesh)
+                TechnicalCaptureCamera(scanner: scanner, viewport: $viewport,showMesh: showMesh,showCeiling: showCeiling)
                     .overlay { Image(systemName: "plus").font(.title).foregroundStyle(.white).shadow(color: .black,radius: 1).allowsHitTesting(false) }
                     .overlay {
                         if let selectedPoints, let viewport, scanner.state.canAnnotate, let reference = scanner.referenceFrame {
@@ -94,7 +96,20 @@ struct TechnicalRoomScanView: View {
                     if let error = scanner.errorMessage {
                         Text(error).font(.callout).padding(12).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 14))
                     }
-                    if showingControls { surveyControls.frame(maxHeight: 340).clipShape(RoundedRectangle(cornerRadius: 24)) }
+                    if showingControls { surveyControls.frame(maxHeight: max(80,min(340,captureHeight-300))).clipShape(RoundedRectangle(cornerRadius: 24)) }
+                    ScrollView(.horizontal) {
+                        HStack(spacing: 12) {
+                            Label("\(scanner.liveMeshSnapshot?.capturedFaceCount ?? 0) preview faces",systemImage: "cube.transparent")
+                            if scanner.liveMeshSnapshot?.hasCapturedWall == true { Label("Walls",systemImage: "square.split.2x2") }
+                            if scanner.liveMeshSnapshot?.hasCapturedFloor == true { Label("Floor",systemImage: "square") }
+                            Label("\(history.document.effectiveRoom.pipeRuns.count) pipe annotations",systemImage: "pipe.and.drop")
+                            Label("\(history.document.ducts.count) duct annotations",systemImage: "wind")
+                            Label("\(history.document.room.equipment.count) equipment annotations",systemImage: "shippingbox")
+                            if scanner.liveMeshSnapshot?.truncated == true { Text("Partial live preview") }
+                            Toggle("Ceiling",isOn: $showCeiling).toggleStyle(.button)
+                        }.font(.caption.weight(.medium)).padding(10)
+                    }.scrollIndicators(.hidden).fixedSize(horizontal: false,vertical: true)
+                        .background(.regularMaterial,in: Capsule())
                     HStack(spacing: 28) {
                         Button { showingControls.toggle() } label: {
                             Image(systemName: "slider.horizontal.3").frame(width: 52,height: 52)
@@ -133,6 +148,7 @@ struct TechnicalRoomScanView: View {
             }
         }
         .tint(.blue)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { captureHeight = $0 }
         .onDisappear { scanner.stop() }
         .interactiveDismissDisabled(saving || !scanner.journal.frames.isEmpty)
         .confirmationDialog("Close this unsaved technical survey?", isPresented: $confirmingClose, titleVisibility: .visible) {
@@ -238,6 +254,8 @@ struct TechnicalRoomScanView: View {
                     Text("Retention limit reached: \(scanner.journal.droppedFrames) old frames and \(scanner.journal.droppedSnapshots) snapshots were discarded.").font(.caption).foregroundStyle(.orange)
                 }
                 Toggle("Show captured mesh", isOn: $showMesh)
+                Toggle("Show ceiling mesh",isOn: $showCeiling)
+                Text("Ceiling visibility affects the mesh display only. Original scan evidence is retained. Unclassified overhead pipes and ducts remain visible.").font(.caption).foregroundStyle(.secondary)
 
                 Text("Pipes and ducts are captured as observed surfaces. Thin, reflective or hidden parts may need a close-up or manual annotation.").font(.caption).foregroundStyle(.secondary)
                 Button("Capture mesh snapshot") { scanner.captureMeshSnapshot() }
@@ -497,6 +515,7 @@ private struct TechnicalCaptureCamera: UIViewControllerRepresentable {
     let scanner: TechnicalRoomScanCoordinator
     @Binding var viewport: ARView?
     let showMesh: Bool
+    let showCeiling: Bool
 
     func makeUIViewController(context: Context) -> TechnicalCameraHost {
         let host = TechnicalCameraHost(scanner: scanner)
@@ -506,8 +525,7 @@ private struct TechnicalCaptureCamera: UIViewControllerRepresentable {
     }
     func updateUIViewController(_ controller: TechnicalCameraHost, context: Context) { updateMesh(controller) }
     private func updateMesh(_ controller: TechnicalCameraHost) {
-        if showMesh { controller.camera.debugOptions.insert(.showSceneUnderstanding) }
-        else { controller.camera.debugOptions.remove(.showSceneUnderstanding) }
+        controller.displayMesh(scanner.liveMeshSnapshot,visible: showMesh,showCeiling: showCeiling)
     }
     static func dismantleUIViewController(_ controller: TechnicalCameraHost, coordinator: ()) {
         controller.scanner.stop()
@@ -517,12 +535,32 @@ private struct TechnicalCaptureCamera: UIViewControllerRepresentable {
 private final class TechnicalCameraHost: UIViewController {
     let scanner: TechnicalRoomScanCoordinator
     let camera = ARView(frame: .zero, cameraMode: .ar, automaticallyConfigureSession: false)
+    private let meshOverlay = AnchorEntity(world: SIMD3<Float>.zero)
+    private var meshTimestamp: Double?
+    private var meshVisible = false
+    private var ceilingVisible = false
+    func displayMesh(_ snapshot: TechnicalMeshSnapshot?,visible: Bool,showCeiling: Bool) {
+        guard meshTimestamp != snapshot?.timestamp || meshVisible != visible || ceilingVisible != showCeiling else { return }
+        meshTimestamp = snapshot?.timestamp; meshVisible = visible; ceilingVisible = showCeiling
+        meshOverlay.children.removeAll()
+        guard visible,let snapshot,
+              let geometry = try? TechnicalSavedMeshGeometry(snapshot: showCeiling ? snapshot : snapshot.hidingCeilings(),reference: nil) else { return }
+        var descriptor = MeshDescriptor(name: "Live equipment mesh")
+        descriptor.positions = MeshBuffers.Positions(geometry.vertices.map { SIMD3(Float($0.x),Float($0.y),Float($0.z)) })
+        descriptor.primitives = .triangles(geometry.triangleIndices)
+        guard let mesh = try? MeshResource.generate(from: [descriptor]) else { return }
+        var material = UnlitMaterial(color: UIColor.systemCyan)
+        material.triangleFillMode = .lines; material.faceCulling = .none
+        material.blending = .transparent(opacity: .init(floatLiteral: 0.65))
+        material.writesDepth = false
+        meshOverlay.addChild(ModelEntity(mesh: mesh,materials: [material]))
+    }
     init(scanner: TechnicalRoomScanCoordinator) {
         self.scanner = scanner
         super.init(nibName: nil, bundle: nil)
         camera.session = scanner.session
         camera.environment.background = .cameraFeed()
-        // The representable applies the mesh overlay on creation and every toggle update.
+        camera.scene.addAnchor(meshOverlay)
     }
     required init?(coder: NSCoder) { nil }
     override func loadView() { view = camera }

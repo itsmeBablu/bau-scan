@@ -35,6 +35,7 @@ struct StudioEditorView: View {
     @State private var session: SceneEditSession
     @State private var controller = StudioSceneController()
     @State private var moving = false
+    @State private var rotating = false
     @State private var snapping = true
     @State private var allowOverlap = false
     @State private var cutaway = false
@@ -98,14 +99,20 @@ struct StudioEditorView: View {
         .onAppear {
             hasSaved = FileManager.default.fileExists(atPath: storageURL.path)
             controller.onSelect = { session.selectedID = $0 }
+            controller.onRotate = { id,angle in
+                guard var item = session.document.objects.first(where: { $0.id == id }) else { return false }
+                item.yaw += angle
+                if snapping { item.yaw = (item.yaw/(Double.pi/12)).rounded()*(Double.pi/12) }
+                do { try update(item); return true } catch { self.error = error.localizedDescription; return false }
+            }
             controller.onMove = { id,position in
                 guard var item = session.document.objects.first(where: { $0.id == id }) else { return false }
                 item.position = position
-                if snapping { item = StudioPlacement.snapped(item,in: session.document) }
+                if snapping { item = StudioPlacement.snapped(item,in: session.document,axis: controller.movementAxis) }
                 do { try update(item); return true } catch { self.error = error.localizedDescription; return false }
             }
         }
-        .onDisappear { controller.onSelect = nil; controller.onMove = nil }
+        .onDisappear { controller.onSelect = nil; controller.onMove = nil; controller.onRotate = nil }
         .sheet(isPresented: Binding(get: { showEngineering && !inspectorPresentedModally },set: { showEngineering = $0 })) { StudioEngineeringView(session: session) }
         .onChange(of: story) { _,_ in session.selectedID = nil }
         .onChange(of: session.document.objects.map(\.id)) { _,ids in
@@ -163,7 +170,7 @@ struct StudioEditorView: View {
         #else
         VStack(spacing: 0) {
             HStack {
-                Picker("Interaction",selection: $moving) { Text("Orbit").tag(false); Text("Move objects").tag(true) }.pickerStyle(.segmented).labelsHidden().frame(maxWidth: 260)
+                Picker("Interaction",selection: interaction) { Text("Orbit").tag("orbit"); Text("Move").tag("move"); Text("Rotate").tag("rotate") }.pickerStyle(.segmented).labelsHidden().frame(maxWidth: 260)
                 Spacer()
                 Button { showPlan.toggle() } label: { Label(showPlan ? "3D" : "2D",systemImage: showPlan ? "cube" : "square") }
                 Button { reset += 1 } label: { Label("Reset camera",systemImage: "scope") }.labelStyle(.iconOnly)
@@ -179,7 +186,7 @@ struct StudioEditorView: View {
                 inspector.frame(maxHeight: 270)
             }
             HStack {
-                Text(busy ? "Working…" : status.isEmpty ? moving ? "Drag an object to move it. Changes are design edits." : "Tap furniture to select · drag to orbit · pinch to zoom" : status)
+                Text(busy ? "Working…" : status.isEmpty ? rotating ? "Drag the rotation ring. Changes are design edits." : moving ? "Drag an object to move it. Changes are design edits." : "Tap furniture to select · drag to orbit · pinch to zoom" : status)
                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 Spacer()
                 Text(session.dirty || !hasSaved ? "Unsaved design" : "Design saved").font(.caption).foregroundStyle(.secondary)
@@ -223,6 +230,8 @@ struct StudioEditorView: View {
             HStack {
                 VStack(alignment: .leading,spacing: 3) {
                     Text(item.name).font(.subheadline.bold())
+                    if rotating { Text(snapping ? "Drag the ring to rotate · snapping uses 15° steps" : "Drag the ring to rotate").font(.caption).foregroundStyle(.secondary) }
+                    else if moving { Text("Drag X / Y / Z arrows or drag the object across the floor").font(.caption).foregroundStyle(.secondary) }
                     Text("\(item.size.x,specifier: "%.2f") × \(item.size.y,specifier: "%.2f") × \(item.size.z,specifier: "%.2f") m").font(.caption).monospacedDigit()
                 }
                 Spacer()
@@ -231,17 +240,25 @@ struct StudioEditorView: View {
         }
     }
     @ViewBuilder private var phoneDockActions: some View {
-        Button { showModelLibrary = true } label: { dockLabel("Models",icon: "sofa.fill") }
-        Button { moving.toggle() } label: { dockLabel(moving ? "Moving" : "Move",icon: "arrow.up.and.down.and.arrow.left.and.right") }.accessibilityValue(moving ? "On" : "Off")
-        Button { showInspector.toggle() } label: { dockLabel("Edit",icon: "slider.horizontal.3") }
-        Button { showAppearance = true } label: { dockLabel("Style",icon: "paintpalette") }
-        Button { showDimensions.toggle() } label: { dockLabel("Sizes",icon: "ruler") }.accessibilityLabel("3D dimensions").accessibilityValue(showDimensions ? "On" : "Off")
-        Menu { designActions } label: { dockLabel("More",icon: "ellipsis") }
+        Button { showModelLibrary = true } label: { dockLabel("Models",icon: "sofa.fill",active: showModelLibrary) }
+        Menu {
+            Picker("Interaction",selection: interaction) {
+                Text("Orbit").tag("orbit"); Text("Move").tag("move"); Text("Rotate").tag("rotate")
+            }
+        } label: { dockLabel(rotating ? "Rotate" : moving ? "Move" : "Orbit",icon: rotating ? "arrow.triangle.2.circlepath" : moving ? "arrow.up.and.down.and.arrow.left.and.right" : "rotate.3d",active: !showPlan) }
+            .accessibilityLabel("Interaction mode").accessibilityValue(rotating ? "Rotate" : moving ? "Move" : "Orbit").disabled(showPlan)
+        Button { showInspector.toggle() } label: { dockLabel("Edit",icon: "slider.horizontal.3",active: showInspector) }
+        Button { showAppearance = true } label: { dockLabel("Style",icon: "paintpalette",active: showAppearance) }
+        Button { showDimensions.toggle() } label: { dockLabel("Sizes",icon: "ruler",active: showDimensions) }.accessibilityLabel("3D dimensions").accessibilityValue(showDimensions ? "On" : "Off")
+        Menu { designActions } label: { dockLabel("More",icon: "ellipsis",active: showPlan || showEngineering) }
+    }
+    private var interaction: Binding<String> {
+        Binding(get: { rotating ? "rotate" : moving ? "move" : "orbit" },set: { value in moving = value == "move"; rotating = value == "rotate" })
     }
     @ViewBuilder private var viewport: some View {
         if showPlan { Plan2DView(house: House(id: session.document.shell.id,name: session.document.title,stories: session.document.plan.stories.filter { $0.index == story })) }
         else {
-            StudioViewport(controller: controller,document: session.document,story: story,cutaway: cutaway,selected: session.selectedID,moving: moving && (session.document.engineering?.view == nil || session.document.engineering?.view == .all || session.document.engineering?.view == .proposed),reset: reset,showDimensions: showDimensions)
+            StudioViewport(controller: controller,document: session.document,story: story,cutaway: cutaway,selected: session.selectedID,moving: moving && (session.document.engineering?.view == nil || session.document.engineering?.view == .all || session.document.engineering?.view == .proposed),reset: reset,showDimensions: showDimensions,rotating: rotating && (session.document.engineering?.view == nil || session.document.engineering?.view == .all || session.document.engineering?.view == .proposed))
                 .frame(maxWidth: .infinity,minHeight: 200,maxHeight: .infinity)
         }
     }
@@ -285,11 +302,15 @@ struct StudioEditorView: View {
                         ForEach(StudioExporter.Format.allCases,id: \.self) { format in Button(format == .csv ? "Engineering register · CSV" : format == .project ? "Editable project · JSON" : format == .obj ? "OBJ + materials · current floor · ZIP" : format == .usdz ? "USDZ · current floor" : format.rawValue.uppercased()) { export(format) } }
                     }
     }
-    private func dockLabel(_ title: String,icon: String) -> some View {
+    private func dockLabel(_ title: String,icon: String,active: Bool = false) -> some View {
         VStack(spacing: 5) {
             Image(systemName: icon).font(.system(size: 18,weight: .medium)).frame(height: 20)
             Text(title).font(.caption2.weight(.medium)).lineLimit(1)
-        }.frame(maxWidth: .infinity,minHeight: 44).contentShape(Rectangle())
+        }.frame(maxWidth: .infinity,minHeight: 44)
+            .foregroundStyle(active ? Color.accentColor : Color.primary)
+            .background(active ? Color.accentColor.opacity(0.16) : Color.clear,in: RoundedRectangle(cornerRadius: 14))
+            .accessibilityAddTraits(active ? .isSelected : [])
+            .contentShape(Rectangle())
     }
     private var modelLibrary: some View {
         NavigationStack {
@@ -368,6 +389,31 @@ struct StudioEditorView: View {
     private var appearance: some View {
         NavigationStack {
             Form {
+                if session.document.source != .technical {
+                    Section("Doors & windows · SmartBau style") {
+                        Picker("Door template",selection: Binding(get: { session.document.doorTemplate ?? .single },set: { value in perform { try session.change { $0.doorTemplate = value } } })) {
+                            ForEach(SceneEditDocument.DoorTemplate.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                        }
+                        Stepper("Door opening: \(Int(session.document.doorOpeningDegrees ?? 0))°",value: Binding(get: { session.document.doorOpeningDegrees ?? 0 },set: { value in perform { try session.change { $0.doorOpeningDegrees = value } } }),in: 0...120,step: 5)
+                        Picker("Window template",selection: Binding(get: { session.document.windowTemplate ?? .casement },set: { value in perform { try session.change { $0.windowTemplate = value } } })) {
+                            ForEach(SceneEditDocument.WindowTemplate.allCases,id: \.self) { Text($0 == .doubleHung ? "Double hung" : $0.rawValue.capitalized).tag($0) }
+                        }
+                        if session.document.windowTemplate == nil || session.document.windowTemplate == .casement {
+                            Stepper("Window opening: \(Int(session.document.windowOpeningDegrees ?? 0))°",value: Binding(get: { session.document.windowOpeningDegrees ?? 0 },set: { value in perform { try session.change { $0.windowOpeningDegrees = value } } }),in: 0...90,step: 5)
+                        }
+                        Text("Templates fit the scanned opening. Leaf, frame, hardware and operation are design choices, not detected construction details. Opening poses do not verify clearances.").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if session.document.source == .technical {
+                    Section("Technik templates") {
+                        Picker("Template",selection: Binding(get: { session.document.technicalTemplate ?? .captured },set: { value in
+                            perform { try session.change { $0.applyTechnicalTemplate(value) } }
+                        })) {
+                            ForEach(SceneEditDocument.TechnicalTemplate.allCases,id: \.self) { Text($0.title).tag($0) }
+                        }
+                        Text("Generic equipment shapes stay within the measured envelope. Category colours are a display palette, not system identification. Captured colours restores retained camera samples. Templates never alter dimensions, routes or source evidence.").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
                 Section("Interior") {
                   if session.document.source != .technical {
                     Picker("Style",selection: Binding(get: { session.document.interior },set: { value in perform { try session.change { $0.apply(value) } } })) {

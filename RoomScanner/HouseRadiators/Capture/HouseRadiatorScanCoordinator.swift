@@ -112,9 +112,17 @@ final class HouseRadiatorScanCoordinator: NSObject,@preconcurrency ARSessionDele
         frozen = false; resetBounds()
     }
     func bodyRect(in size: CGSize) -> CGRect? {
-        guard let body = geometry ?? candidate?.geometry,let frame = session.currentFrame,size.width > 0,size.height > 0 else { return nil }
+        guard let body = geometry ?? candidate?.geometry else { return nil }
+        return projectedRect([body.origin,body.origin+body.right*body.width,body.origin+body.up*body.height,body.origin+body.right*body.width+body.up*body.height],in: size)
+    }
+    func bodyRect(for radiator: HouseRadiator,in size: CGSize) -> CGRect? {
+        let p = radiator.frontCorners
+        guard p.count == 3 else { return nil }
+        return projectedRect([p[0],p[1],p[2],p[1]+p[2]-p[0]],in: size)
+    }
+    private func projectedRect(_ corners: [RadiatorPoint],in size: CGSize) -> CGRect? {
+        guard let frame = session.currentFrame,size.width > 0,size.height > 0 else { return nil }
         let orientation = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }?.interfaceOrientation ?? .portrait
-        let corners = [body.origin,body.origin+body.right*body.width,body.origin+body.up*body.height,body.origin+body.right*body.width+body.up*body.height]
         let projected = corners.compactMap { p -> CGPoint? in
             let world = SIMD3<Float>(Float(p.x),Float(p.y),Float(p.z))
             let camera = frame.camera.transform.inverse*SIMD4(world.x,world.y,world.z,1)
@@ -167,7 +175,7 @@ final class HouseRadiatorScanCoordinator: NSObject,@preconcurrency ARSessionDele
         if trackingNormal != normal { trackingNormal = normal }
         let depth = frame.sceneDepth ?? frame.smoothedSceneDepth
         if depthAvailable != (depth != nil) { depthAvailable = depth != nil }
-        if !automaticCapture,(geometry != nil || candidate != nil),frame.timestamp-lastPreviewTime >= 0.15 { lastPreviewTime = frame.timestamp; previewRevision &+= 1 }
+        if (automaticCapture || geometry != nil || candidate != nil),frame.timestamp-lastPreviewTime >= 0.2 { lastPreviewTime = frame.timestamp; previewRevision &+= 1 }
         if !normal,geometry == nil { candidate = nil; previousCandidate = nil; stableDetections = 0 }
         let lockedCenter = geometry.map { $0.origin+$0.right*($0.width/2)+$0.up*($0.height/2) }
         if automaticCapture,let center = lockedCenter,(sampleCount < 120 || viewpointCount < 3) {

@@ -53,6 +53,20 @@ struct TechnicalSavedMeshGeometry {
 // Filtering never changes the saved evidence. Unknown surfaces remain visible so
 // unclassified pipes and ducts are not discarded along with architectural surfaces.
 extension TechnicalMeshSnapshot {
+    /// ARKit ceiling class only. Preserve overhead ducts and unknown surfaces.
+    func hidingCeilings() -> TechnicalMeshSnapshot {
+        let filtered = patches.map { patch -> Patch in
+            guard let classes = patch.faceClasses,classes.count == patch.triangleIndices.count/3 else { return patch }
+            let kept = classes.indices.filter { classes[$0] != 3 }
+            return Patch(anchorID: patch.anchorID,vertices: patch.vertices,
+                triangleIndices: kept.flatMap { Array(patch.triangleIndices[($0*3)..<($0*3+3)]) },colors: patch.colors,
+                faceClasses: kept.map { classes[$0] })
+        }
+        return .init(timestamp: timestamp,patches: filtered,alignmentVerified: alignmentVerified,truncated: truncated)
+    }
+    var capturedFaceCount: Int { patches.reduce(0) { $0+$1.triangleIndices.count/3 } }
+    var hasCapturedWall: Bool { patches.contains { $0.faceClasses?.contains(1) == true } }
+    var hasCapturedFloor: Bool { patches.contains { $0.faceClasses?.contains(2) == true } }
     func hidingRoomSurfaces() -> TechnicalMeshSnapshot {
         let filtered = patches.map { patch -> Patch in
             guard let classes = patch.faceClasses, classes.count == patch.triangleIndices.count / 3 else { return patch }

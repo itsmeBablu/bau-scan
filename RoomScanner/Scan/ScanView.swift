@@ -58,6 +58,24 @@ struct ScanView: View {
     }
 
     @ViewBuilder private var overlay: some View {
+        if mode == .house,let scanner = radiatorScanner {
+            GeometryReader { geometry in
+                let _ = scanner.previewRevision
+                ForEach(Array(radiators.suffix(12))) { radiator in
+                    if let rect = scanner.bodyRect(for: radiator,in: geometry.size) {
+                        RoundedRectangle(cornerRadius: 6).stroke(.green,lineWidth: 2)
+                            .frame(width: rect.width,height: rect.height).position(x: rect.midX,y: rect.midY)
+                    }
+                }
+                if let rect = scanner.bodyRect(in: geometry.size) {
+                    ZStack {
+                    RoundedRectangle(cornerRadius: 6).stroke(.cyan,lineWidth: 3)
+                        .frame(width: rect.width,height: rect.height).position(x: rect.midX,y: rect.midY)
+                    Text("Radiator candidate").font(.caption.bold()).padding(6).background(.regularMaterial,in: Capsule()).position(x: rect.midX,y: max(90,rect.minY-18))
+                    }
+                }
+            }.ignoresSafeArea().allowsHitTesting(false)
+        }
         VStack {
             HStack {
                 Button(role: .cancel) { coordinator.cancel(); dismiss() } label: { Text("common.cancel") }
@@ -76,6 +94,13 @@ struct ScanView: View {
             }
             .padding()
             Spacer()
+            if mode == .house,coordinator.state == .scanning {
+                VStack(spacing: 4) {
+                    Label("Radiator candidates · \(radiators.count)",systemImage: "heater.vertical.fill").font(.subheadline.bold())
+                    Text(radiatorScanner?.depthAvailable == false ? "Waiting for LiDAR depth" : radiatorScanner?.geometry != nil ? "Candidate outlined · move around its sides to collect dimensions" : "Looking automatically · include the whole heater and adjacent wall")
+                        .font(.caption).foregroundStyle(.secondary)
+                }.padding(12).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 16)).padding(.horizontal)
+            }
         }
         switch coordinator.state {
         case .processing, .merging:

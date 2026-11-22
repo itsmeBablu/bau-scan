@@ -9,6 +9,7 @@ import AppKit
 
 /// Offline viewing does not require a world map, camera permissions or live alignment.
 struct TechnicalSavedScanView: View {
+    @AppStorage("technical.showCeiling") private var showCeiling = false
     let package: TechnicalRoomPackage
     var immersive = false
     var closeImmersive: (() -> Void)? = nil
@@ -30,6 +31,7 @@ struct TechnicalSavedScanView: View {
             }
             if !immersive, package.journal.meshes.contains(where: { $0.patches.contains(where: { $0.faceClasses != nil }) }) {
                 Toggle("Room surfaces", isOn: $showRoomSurfaces).padding(.horizontal)
+                Toggle("Ceiling",isOn: $showCeiling).padding(.horizontal)
             }
             if !immersive, !package.recognition.suggestions.isEmpty {
                 Picker("Display",selection: $appearance) {
@@ -46,6 +48,7 @@ struct TechnicalSavedScanView: View {
                             HStack {
                                 Menu {
                                     Toggle("Room surfaces", isOn: $showRoomSurfaces)
+                                    Toggle("Ceiling",isOn: $showCeiling)
                                     Toggle("Photos", isOn: $showPhotos)
                                     Picker("Display",selection: $appearance) {
                                         Text("Scan").tag(Appearance.scan)
@@ -97,6 +100,7 @@ struct TechnicalSavedScanView: View {
         .onChange(of: appearance) { _,_ in resetID = UUID() }
         .onChange(of: showPhotos) { _,_ in resetID = UUID() }
         .onChange(of: showRoomSurfaces) { _,_ in renderError = nil; resetID = UUID() }
+        .onChange(of: showCeiling) { _,_ in renderError = nil; resetID = UUID() }
         .studioPresentation(isPresented: $expanded) {
             TechnicalSavedScanView(package: package, immersive: true, closeImmersive: { expanded = false }, selectedSuggestion: selectedSuggestion, onPhotoLink: onPhotoLink)
         }
@@ -106,7 +110,8 @@ struct TechnicalSavedScanView: View {
     private func meshViewport(_ snapshot: TechnicalMeshSnapshot) -> some View {
                 RealityView { content in
                     do {
-                        let geometry = try TechnicalSavedMeshGeometry(snapshot: showRoomSurfaces ? snapshot : snapshot.hidingRoomSurfaces(), reference: package.alignment.referenceFrame)
+                        let displayed = showCeiling ? snapshot : snapshot.hidingCeilings()
+                        let geometry = try TechnicalSavedMeshGeometry(snapshot: showRoomSurfaces ? displayed : displayed.hidingRoomSurfaces(), reference: package.alignment.referenceFrame)
                         let model = try makeModel(geometry)
                         if appearance != .mep { content.add(model) }
                         if appearance != .scan {

@@ -23,14 +23,14 @@ import simd
         }
         let wallMaterial = material(document.wallColor)
         var surfaces = StudioSurfaceDeduplicator()
-        var floorCoverage = StudioFloorCoverage()
+        for level in Set(rooms.map(\.story)).sorted() {
+            let floor = StudioFloorSlab.mesh(rooms: rooms.filter { $0.story == level })
+            if !floor.isEmpty { scene.rootNode.addChildNode(meshNode(floor,material: floorMaterial,name: "shell:floor",textureScale: repeatMetres)) }
+        }
         var allVisibleWalls = Set<UUID>()
         for room in rooms {
             var visibleWalls = Set<UUID>()
             let roomCenter = room.transform.apply(room.bounds.center)
-            var floor = floorCoverage.mesh(room)
-            floor = surfaces.clean(floor)
-            if !floor.isEmpty { scene.rootNode.addChildNode(meshNode(floor,material: floorMaterial,name: "shell:floor",textureScale: repeatMetres)) }
             for wall in room.walls where document.includesElement(wall.id) {
                 let midpoint = room.transform.apply(wall.segment.midpoint)
                 // Presentation cutaway only. Complete walls remain in the saved shell and exports.
@@ -47,14 +47,17 @@ import simd
                 let midpoint = room.transform.apply(box.segment.midpoint)
                 if cutaway && (midpoint.x-roomCenter.x)-(midpoint.y-roomCenter.y) > 0.15 { continue }
                 if opening.kind == .window && document.source != .technical {
-                    scene.rootNode.addChildNode(StudioWindowModel.make(opening,wall: room.wall(withID: opening.wallID),transform: room.transform)); continue
+                    scene.rootNode.addChildNode(StudioWindowModel.make(opening,wall: room.wall(withID: opening.wallID),transform: room.transform,template: document.windowTemplate ?? .casement,angle: document.windowOpeningDegrees ?? 0)); continue
+                }
+                if opening.kind == .door && document.source != .technical {
+                    scene.rootNode.addChildNode(StudioDoorModel.make(opening,wall: room.wall(withID: opening.wallID),transform: room.transform,template: document.doorTemplate ?? .single,angle: document.doorOpeningDegrees ?? 0)); continue
                 }
                 var mesh = TriangleMesh(); PlanMeshBuilder.addBox(box,transform: room.transform,to: &mesh)
                 let m = material(opening.kind == .door ? .init(x: 0.57,y: 0.39,z: 0.24) : .init(x: 0.61,y: 0.77,z: 0.80),roughness: 0.3)
                 scene.rootNode.addChildNode(meshNode(mesh,material: m,name: "shell:opening"))
             }
         }
-        for item in document.presentationObjects where story == nil || item.story == story { scene.rootNode.addChildNode(model(item,technical: document.source == .technical)) }
+        for item in document.presentationObjects where story == nil || item.story == story { scene.rootNode.addChildNode(model(item,technical: document.source == .technical,refinedTechnical: document.technicalTemplate != nil && document.technicalTemplate != .captured)) }
         if showDimensions { StudioDimensionOverlay.add(to: scene,document: document,rooms: rooms,visibleWalls: allVisibleWalls,selection: dimensionSelection) }
         if decorated {
             let night = document.source != .technical && document.lighting == .night
@@ -107,12 +110,16 @@ import simd
         }
         return context.makeImage()
     }
-    static func model(_ item: SceneEditObject,technical: Bool = false) -> SCNNode {
+    static func model(_ item: SceneEditObject,technical: Bool = false,refinedTechnical: Bool = false) -> SCNNode {
         let root = SCNNode(); root.name = "object:"+item.id.uuidString
         root.simdPosition = SIMD3(Float(item.position.x),Float(item.position.y),Float(item.position.z))
         root.simdOrientation = simd_quatf(vector: SIMD4<Float>(item.orientation.vector))
         let w = item.size.x,h = item.size.y,d = item.size.z
         let main = material(item.color,roughness: item.finish == .fabric ? 0.95 : item.finish == .metal ? 0.28 : 0.65,metal: item.finish == .metal ? 0.75 : 0)
+        if technical && refinedTechnical {
+            addTechnicalTemplate(item,to: root,material: main)
+            return root
+        }
         if technical {
             // Exact parametric envelope. No rounded-off corners or invented equipment details.
             let geometry: SCNGeometry
@@ -198,5 +205,45 @@ import simd
         case .rectangularDuct,.box: box(0,0.5,0,1,1,1,nil,item.family != .rectangularDuct)
         }
         return root
+    }
+    /// Generic bounded parts within the measured envelope; no inferred ports or ratings.
+    private static func addTechnicalTemplate(_ item: SceneEditObject,to root: SCNNode,material: SCNMaterial) {
+        let w = item.size.x,h = item.size.y,d = item.size.z
+        func box(_ width: Double,_ height: Double,_ depth: Double,_ y: Double = 0,_ x: Double = 0,_ z: Double = 0) {
+            let node = SCNNode(geometry: SCNBox(width: width,height: height,length: depth,chamferRadius: 0))
+            node.geometry?.materials = [material]; node.position = SCNVector3(x,y,z); root.addChildNode(node)
+        }
+        func cylinder(_ width: Double,_ height: Double,_ depth: Double,_ y: Double = 0,_ x: Double = 0) {
+            let geometry = SCNCylinder(radius: width/2,height: height); geometry.radialSegmentCount = 24
+            let node = SCNNode(geometry: geometry); node.geometry?.materials = [material]
+            node.simdScale.z = Float(depth/width); node.position = SCNVector3(x,y,0); root.addChildNode(node)
+        }
+        switch item.family {
+        case .tank,.pipe,.roundDuct,.cylinder: cylinder(w,h,d)
+        case .boiler:
+            box(w,h*0.94,d,h*0.03); box(w*0.8,h*0.06,d*0.8,-h*0.47)
+        case .pump:
+            cylinder(w,h*0.75,d,h*0.125); box(w,h*0.25,d,-h*0.375)
+        case .manifold:
+            for y in [-h*0.25,h*0.25] {
+                let geometry = SCNCylinder(radius: d/2,height: w); geometry.radialSegmentCount = 20
+                let node = SCNNode(geometry: geometry); node.geometry?.materials = [material]
+                node.simdScale.x = Float(min(h*0.2,d)/d); node.eulerAngles.z = .pi/2; node.simdPosition.y = Float(y)
+                root.addChildNode(node)
+            }
+            for i in 0..<4 { cylinder(min(w*0.1,d*0.3),h,min(d*0.3,w*0.1),0,(-0.36+Double(i)*0.24)*w) }
+        case .radiator:
+            box(w,h,d*0.25,0,0,-d*0.375)
+            let count = max(3,min(24,Int(w/0.06)))
+            for i in 0..<count { box(w/Double(count)*0.75,h,d*0.75,0,(-0.5+(Double(i)+0.5)/Double(count))*w,d*0.125) }
+        case .electricalPanel:
+            box(w,h,d)
+            // An inset generic door outline, not a claim about the real enclosure.
+            let outline = SCNNode(geometry: SCNPlane(width: w*0.88,height: h*0.88))
+            let line = SCNMaterial(); line.lightingModel = .constant; line.fillMode = .lines
+            line.diffuse.contents = platformColor(CGColor(gray: 0.25,alpha: 1)); line.readsFromDepthBuffer = false
+            outline.geometry?.materials = [line]; outline.simdPosition.z = Float(d/2); outline.castsShadow = false; root.addChildNode(outline)
+        default: box(w,h,d)
+        }
     }
 }

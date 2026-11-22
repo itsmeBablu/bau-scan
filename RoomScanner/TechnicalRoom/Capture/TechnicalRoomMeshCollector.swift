@@ -3,13 +3,13 @@ import ARKit
 
 /// Copies one bounded snapshot on request, never retains Metal buffer pointers.
 enum TechnicalRoomMeshCollector {
-    static func snapshot(frame: ARFrame, alignmentVerified: Bool, maximumVertices: Int = 250_000) -> TechnicalMeshSnapshot {
+    static func snapshot(frame: ARFrame, alignmentVerified: Bool, maximumVertices: Int = 250_000,includeColors: Bool = true) -> TechnicalMeshSnapshot {
         let image = frame.capturedImage
-        let depth = (frame.sceneDepth ?? frame.smoothedSceneDepth)?.depthMap
-        CVPixelBufferLockBaseAddress(image, .readOnly)
+        let depth = includeColors ? (frame.sceneDepth ?? frame.smoothedSceneDepth)?.depthMap : nil
+        if includeColors { CVPixelBufferLockBaseAddress(image, .readOnly) }
         if let depth { CVPixelBufferLockBaseAddress(depth, .readOnly) }
         defer {
-            CVPixelBufferUnlockBaseAddress(image, .readOnly)
+            if includeColors { CVPixelBufferUnlockBaseAddress(image, .readOnly) }
             if let depth { CVPixelBufferUnlockBaseAddress(depth, .readOnly) }
         }
         let cameraInverse = frame.camera.transform.inverse
@@ -66,7 +66,7 @@ enum TechnicalRoomMeshCollector {
                 let z = address.advanced(by: 8).load(as: Float.self)
                 let world = anchor.transform * SIMD4<Float>(x, y, z, 1)
                 vertices.append(.init(x: Double(world.x), y: Double(world.y), z: Double(world.z)))
-                colors.append(sample(world))
+                if includeColors { colors.append(sample(world)) }
             }
             let faces = geometry.faces
             guard faces.indexCountPerPrimitive == 3 else { continue }
@@ -87,7 +87,7 @@ enum TechnicalRoomMeshCollector {
                     source.buffer.contents().advanced(by: source.offset + index * source.stride).load(as: UInt8.self)
                 }
             }
-            patches.append(.init(anchorID: anchor.identifier, vertices: vertices, triangleIndices: indices, colors: colors, faceClasses: classes))
+            patches.append(.init(anchorID: anchor.identifier, vertices: vertices, triangleIndices: indices, colors: includeColors ? colors : nil, faceClasses: classes))
             count += vertices.count
         }
         return TechnicalMeshSnapshot(timestamp: frame.timestamp, patches: patches,

@@ -26,6 +26,8 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     private(set) var worldMapData: Data?
     private(set) var frameHistory = TechnicalFrameHistory()
     private(set) var meshSnapshot: TechnicalMeshSnapshot?
+    private(set) var liveMeshSnapshot: TechnicalMeshSnapshot?
+    private var lastLiveMeshTimestamp = -Double.infinity
     private(set) var depthSnapshot: TechnicalDepthSnapshot?
     private(set) var residentMemoryBytes: UInt64?
     private(set) var journal = TechnicalCaptureJournal()
@@ -464,6 +466,10 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
         if frame.timestamp - lastRecordedTimestamp >= 1 {
             lastRecordedTimestamp = frame.timestamp
             residentMemoryBytes = TechnicalRoomFrameProcessor.residentMemoryBytes()
+            if state.trackingNormal,frame.timestamp-lastLiveMeshTimestamp >= 1,(residentMemoryBytes ?? 0) < 800*1_048_576 {
+                lastLiveMeshTimestamp = frame.timestamp
+                liveMeshSnapshot = TechnicalRoomMeshCollector.snapshot(frame: frame,alignmentVerified: false,maximumVertices: 60_000,includeColors: false)
+            }
             let matrix = frame.camera.transform
             let intrinsics = frame.camera.intrinsics
             let record = TechnicalFrameRecord(timestamp: frame.timestamp,
