@@ -318,6 +318,33 @@ final class SceneStudioTests: XCTestCase {
         XCTAssertTrue(StudioWallJoins.mesh(room: room,visible: [a.id,b.id]).isEmpty)
     }
     #if os(iOS)
+    @MainActor func testRootProvidesFiveNativeNavigationTabs() async throws {
+        let defaults = UserDefaults.standard
+        let previous = defaults.object(forKey: "RoomScannerStorageRoot")
+        let location = StorageLocation.temporary()
+        defaults.set(location.documentsURL.path,forKey: "RoomScannerStorageRoot")
+        defer {
+            if let previous { defaults.set(previous,forKey: "RoomScannerStorageRoot") }
+            else { defaults.removeObject(forKey: "RoomScannerStorageRoot") }
+        }
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0,y: 0,width: 393,height: 852)
+        let hosting = UIHostingController(rootView: RootView().environment(\.locale,Locale(identifier: "en")))
+        window.rootViewController = hosting; window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        try await Task.sleep(for: .milliseconds(350))
+        hosting.view.layoutIfNeeded()
+        func tabControllers(_ controller: UIViewController) -> [UITabBarController] {
+            (controller as? UITabBarController).map { [$0] } ?? controller.children.flatMap(tabControllers)
+        }
+        let tabs = try XCTUnwrap(tabControllers(hosting).first)
+        XCTAssertEqual(tabs.tabBar.items?.compactMap(\.title),["House","Technik","Capture","Profile","Settings"])
+        let image = UIGraphicsImageRenderer(bounds: hosting.view.bounds).image { _ in hosting.view.drawHierarchy(in: hosting.view.bounds,afterScreenUpdates: true) }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dwalk-five-tabs-"+UUID().uuidString+".png")
+        try XCTUnwrap(image.pngData()).write(to: url)
+        print("FIVE_TAB_LAYOUT="+url.path)
+    }
     @MainActor func testPhoneStudioKeepsCanvasFullHeightWithInspectorClosed() async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)

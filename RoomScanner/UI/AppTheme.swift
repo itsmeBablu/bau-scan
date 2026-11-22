@@ -65,69 +65,39 @@ public struct LiquidGlassModifier: ViewModifier {
     public var shadowRadius: CGFloat = 10
 
     public func body(content: Content) -> some View {
-        content
-            .background {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .overlay {
-                        if let tint {
-                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                .fill(tint.opacity(0.12))
-                        }
+        content.background {
+            RoundedRectangle(cornerRadius: cornerRadius,style: .continuous)
+                .fill(.regularMaterial)
+                .overlay {
+                    if hasBorder {
+                        RoundedRectangle(cornerRadius: cornerRadius,style: .continuous)
+                            .stroke(.primary.opacity(0.08),lineWidth: 0.5)
                     }
-                    .overlay {
-                        if hasBorder {
-                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(0.50),
-                                            AppTheme.primaryYellow.opacity(0.40),
-                                            AppTheme.deepWarmCharcoal.opacity(0.18)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        }
-                    }
-                    .shadow(color: AppTheme.darkCharcoal.opacity(0.15), radius: shadowRadius, x: 0, y: 4)
-            }
+                }
+                .shadow(color: .black.opacity(0.06),radius: min(shadowRadius,4),x: 0,y: 2)
+        }
     }
+
 }
 
 public struct LiquidGlassCardModifier: ViewModifier {
     public var cornerRadius: CGFloat = 14
 
     public func body(content: Content) -> some View {
-        content
-            .padding()
-            .background {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.thinMaterial)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.6),
-                                        AppTheme.secondaryYellow.opacity(0.3),
-                                        AppTheme.deepWarmCharcoal.opacity(0.1)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    }
-                    .shadow(color: AppTheme.darkCharcoal.opacity(0.08), radius: 8, x: 0, y: 3)
-            }
+        content.padding().background {
+            RoundedRectangle(cornerRadius: cornerRadius,style: .continuous)
+                .fill(.regularMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius,style: .continuous)
+                        .stroke(.primary.opacity(0.08),lineWidth: 0.5)
+                }
+        }
     }
+
 }
 
 public extension View {
-    /// Applies native Liquid Glass effect from device (ultra-thin material, specular reflection, subtle shadow).
+    /// Adaptive system material with a quiet separator and restrained shadow.
     func liquidGlass(cornerRadius: CGFloat = 16, tint: Color? = nil, hasBorder: Bool = true, shadowRadius: CGFloat = 10) -> some View {
         modifier(LiquidGlassModifier(cornerRadius: cornerRadius, tint: tint, hasBorder: hasBorder, shadowRadius: shadowRadius))
     }

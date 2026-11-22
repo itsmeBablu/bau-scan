@@ -194,16 +194,16 @@ struct HouseRow: View {
                     Image(systemName: "house").font(.title2).foregroundStyle(.tint)
                 }
             }
-            .frame(width: 72, height: 48)
-            .background(Color(white: 0.96))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .frame(width: 64, height: 64)
+            .background(.quaternary)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
             .task(id: record.id) { thumbnail = await loadThumbnail() }
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.name).font(.headline)
                 Text("house.row \(record.roomCount) \(record.storyCount) \(MeasurementFormat.squareMeters(record.areaM2))")
                     .font(.subheadline).foregroundStyle(.secondary)
             }
-        }
+        }.padding(.vertical,6)
     }
 
     private func loadThumbnail() async -> CGImage? {

@@ -3,9 +3,15 @@ import ImageIO
 
 /// Library: houses (v2), rooms, scanning (iOS), deletion, settings.
 struct RoomListView: View {
+    @Binding var pendingItem: LibraryItem?
+
+    @State private var search = ""
+    var includeTechnicalRooms = true
+    init(pendingItem: Binding<LibraryItem?> = .constant(nil),includeTechnicalRooms: Bool = true) {
+        _pendingItem = pendingItem; self.includeTechnicalRooms = includeTechnicalRooms
+    }
     @Environment(RoomStore.self) private var store
     @State private var scanMode: ScanMode?
-    @State private var showSettings = false
     @State private var studioDocument: SceneEditDocument?
     @State private var showTechnicalLibrary = false
     @State private var savedTechnicalID: UUID?
@@ -19,16 +25,16 @@ struct RoomListView: View {
     var body: some View {
         NavigationStack(path: $path) {
             Group {
-                if store.records.isEmpty && store.houseRecords.isEmpty && technicalRooms.records.isEmpty {
+                if store.records.isEmpty && store.houseRecords.isEmpty && (!includeTechnicalRooms || technicalRooms.records.isEmpty) {
                     emptyState
                 } else {
                     List {
-                        if !technicalRooms.records.isEmpty {
+                        if includeTechnicalRooms && !technicalRooms.records.isEmpty {
                             Section("Technical Rooms") {
-                                ForEach(technicalRooms.records) { record in
+                                ForEach(technicalRooms.records.filter { matches($0.name) }) { record in
                                     Button { savedTechnicalID = record.id; showTechnicalLibrary = true } label: {
                                         HStack(spacing: 12) {
-                                            Image(systemName: "cube.transparent").font(.title2).frame(width: 42)
+                                            Image(systemName: "cube.transparent").font(.title2).foregroundStyle(.tint).frame(width: 64,height: 64).background(.quaternary,in: RoundedRectangle(cornerRadius: 10))
                                             VStack(alignment: .leading) {
                                                 Text(record.name).font(.headline)
                                                 Text("Open saved 3D scan").font(.caption).foregroundStyle(.secondary)
@@ -43,34 +49,44 @@ struct RoomListView: View {
                         }
                         if !store.houseRecords.isEmpty {
                             Section("library.houses") {
-                                ForEach(store.houseRecords) { record in
+                                ForEach(store.houseRecords.filter { matches($0.name) }) { record in
                                     HStack {
                                         NavigationLink(value: LibraryItem.house(record)) { HouseRow(record: record) }
-                                        Menu { itemMenu(for: .house(record)) } label: { Image(systemName: "ellipsis.circle").padding(8) }
+                                        Menu { itemMenu(for: .house(record)) } label: { Image(systemName: "ellipsis").frame(minWidth: 44,minHeight: 44).foregroundStyle(.secondary) }
                                             .accessibilityLabel("Options for \(record.name)")
                                     }
                                         .contextMenu { itemMenu(for: .house(record)) }
                                         .swipeActions(edge: .trailing, allowsFullSwipe: true) { itemActions(for: .house(record)) }
                                 }
-                                .onDelete { pendingDeletion = $0.map { .house(store.houseRecords[$0]) } }
+                                .onDelete { offsets in let filtered = store.houseRecords.filter { matches($0.name) }; pendingDeletion = offsets.map { .house(filtered[$0]) } }
                             }
                         }
                         Section(store.houseRecords.isEmpty ? "" : "library.rooms") {
-                            ForEach(store.records) { record in
+                            ForEach(store.records.filter { matches($0.name) }) { record in
                                 HStack {
                                     NavigationLink(value: LibraryItem.room(record)) { RoomRow(record: record) }
-                                    Menu { itemMenu(for: .room(record)) } label: { Image(systemName: "ellipsis.circle").padding(8) }
+                                    Menu { itemMenu(for: .room(record)) } label: { Image(systemName: "ellipsis").frame(minWidth: 44,minHeight: 44).foregroundStyle(.secondary) }
                                         .accessibilityLabel("Options for \(record.name)")
                                 }
                                         .contextMenu { itemMenu(for: .room(record)) }
                                         .swipeActions(edge: .trailing, allowsFullSwipe: true) { itemActions(for: .room(record)) }
                             }
-                            .onDelete { pendingDeletion = $0.map { .room(store.records[$0]) } }
+                            .onDelete { offsets in let filtered = store.records.filter { matches($0.name) }; pendingDeletion = offsets.map { .room(filtered[$0]) } }
+                        }
+                    }.listStyle(.plain)
+                    .overlay {
+                        if !search.isEmpty && !store.records.contains(where: { matches($0.name) }) && !store.houseRecords.contains(where: { matches($0.name) }) && (!includeTechnicalRooms || !technicalRooms.records.contains(where: { matches($0.name) })) {
+                            ContentUnavailableView.search(text: search)
                         }
                     }
                 }
             }
+            #if os(iOS)
+            .navigationTitle(includeTechnicalRooms ? "Library" : "House")
+            .searchable(text: $search,prompt: includeTechnicalRooms ? "Houses, rooms and technical surveys" : "Search houses and rooms")
+            #else
             .navigationTitle(Text("app.name"))
+            #endif
             .navigationDestination(for: LibraryItem.self) { item in
                 switch item {
                 case .room(let record): RoomDetailView(record: record)
@@ -79,18 +95,14 @@ struct RoomListView: View {
             }
             .toolbar {
                 #if os(iOS)
-                ToolbarItem(placement: .cancellationAction) {
-                    Button { showSettings = true } label: { Label("settings.title", systemImage: "gearshape") }
-                }
-                ToolbarItem(placement: .secondaryAction) {
-                    Button { savedTechnicalID = nil; showTechnicalLibrary = true } label: { Label("Technical Room library", systemImage: "wrench.and.screwdriver") }
-                }
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button { scanMode = .room } label: { Label("list.scanRoom", systemImage: "square.split.bottomrightquarter") }
                         Button { scanMode = .house } label: { Label("list.scanHouse", systemImage: "house") }
-                        Button { scanMode = .technicalRoom } label: { Label("Scan Technik Room", systemImage: "wrench.and.screwdriver") }
-                    } label: { Label("list.scan", systemImage: "camera.viewfinder") }
+                        if includeTechnicalRooms {
+                            Button { scanMode = .technicalRoom } label: { Label("Scan Technik Room", systemImage: "wrench.and.screwdriver") }
+                        }
+                    } label: { Label("New scan", systemImage: "plus") }
                     .disabled(!scanSupported)
                 }
                 #endif
@@ -108,7 +120,6 @@ struct RoomListView: View {
             }
             #endif
         }
-        .sheet(isPresented: $showSettings) { SettingsView().environment(store) }
         .studioPresentation(item: $studioDocument) { document in
             NavigationStack { StudioProjectView(seed: document,storageRoot: store.location.documentsURL) }
         }
@@ -125,6 +136,9 @@ struct RoomListView: View {
         .alert("Unable to complete action", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
             Button("OK") { actionError = nil }
         } message: { Text(actionError ?? "") }
+        .onChange(of: pendingItem) { _,item in
+            if let item { store.reload(); path = [item]; pendingItem = nil }
+        }
         .onAppear {
             store.reload()
             reloadTechnicalRooms()
@@ -135,6 +149,10 @@ struct RoomListView: View {
         }
     }
 
+    private func matches(_ name: String) -> Bool {
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        return query.isEmpty || name.localizedCaseInsensitiveContains(query)
+    }
     private func reloadTechnicalRooms() {
         do { try technicalRooms.reload() } catch { actionError = error.localizedDescription }
     }
@@ -152,8 +170,7 @@ struct RoomListView: View {
         if scanSupported {
             ContentUnavailableView {
                 VStack(spacing: 16) {
-                    BrandLogoView(size: 72)
-                        .liquidGlass(cornerRadius: 18, tint: AppTheme.primaryYellow, hasBorder: true, shadowRadius: 8)
+                    Image(systemName: "square.stack").font(.system(size: 48,weight: .light)).foregroundStyle(.secondary)
                     Text("list.empty.title").font(.title2.bold())
                 }
             } description: {
@@ -161,12 +178,13 @@ struct RoomListView: View {
             } actions: {
                 Button { scanMode = .room } label: { Label("list.scanRoom", systemImage: "camera.viewfinder") }
                     .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.primaryYellow)
-                    .foregroundStyle(AppTheme.darkCharcoal)
+
                 Button { scanMode = .house } label: { Label("list.scanHouse", systemImage: "house") }
                     .buttonStyle(.bordered)
-                Button { scanMode = .technicalRoom } label: { Label("Scan Technik Room", systemImage: "wrench.and.screwdriver") }
-                    .buttonStyle(.bordered)
+                if includeTechnicalRooms {
+                    Button { scanMode = .technicalRoom } label: { Label("Scan Technik Room", systemImage: "wrench.and.screwdriver") }
+                        .buttonStyle(.bordered)
+                }
             }
         } else {
             UnsupportedDeviceView()
@@ -243,15 +261,15 @@ struct RoomRow: View {
                 if let thumbnail {
                     Image(decorative: thumbnail, scale: 1).resizable().aspectRatio(contentMode: .fill)
                 } else {
-                    Image(systemName: "square.split.bottomrightquarter").font(.title2).foregroundStyle(AppTheme.primaryYellow)
+                    Image(systemName: "square.split.bottomrightquarter").font(.title2).foregroundStyle(.tint)
                 }
             }
-            .frame(width: 72, height: 48)
-            .background(AppTheme.softBackgroundTint)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .frame(width: 64, height: 64)
+            .background(.quaternary)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(AppTheme.primaryYellow.opacity(0.35), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(.primary.opacity(0.08), lineWidth: 0.5)
             }
             .task(id: record.id) { thumbnail = await loadThumbnail() }
             VStack(alignment: .leading, spacing: 2) {
@@ -259,7 +277,7 @@ struct RoomRow: View {
                 Text("\(MeasurementFormat.squareMeters(record.areaM2)) · \(record.createdAt, format: .dateTime.day().month().year())")
                     .font(.subheadline).foregroundStyle(.secondary)
             }
-        }
+        }.padding(.vertical,6)
     }
 
     /// Package thumbnail; if missing, rendered on the fly and persisted.

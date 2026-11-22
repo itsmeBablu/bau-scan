@@ -12,20 +12,43 @@ struct TechnicalRoomLibraryView: View {
     @State private var error: String?
     @State private var deletion: UUID?
     @State private var path: [UUID] = []
+    var embedded = false
+    var onRequestScan: (() -> Void)? = nil
+    var refreshToken = 0
+    @State private var search = ""
     var initialSelection: UUID?
     var importURL: URL?
+
+    private var scanningSupported: Bool {
+        #if os(iOS)
+        ScanCoordinator.isSupported
+        #else
+        false
+        #endif
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                if library.records.isEmpty { Text("No saved technical surveys. Scan one Technik Room to begin.").foregroundStyle(.secondary) }
-                ForEach(library.records) { record in
+                if library.records.isEmpty {
+                    ContentUnavailableView {
+                        Label("No technical surveys",systemImage: "cube.transparent")
+                    } description: {
+                        Text("Capture equipment, pipes and ducts in a Technik Room.")
+                    } actions: {
+                        if let onRequestScan { Button("Scan Technik Room",action: onRequestScan).buttonStyle(.borderedProminent).disabled(!scanningSupported) }
+                    }.listRowBackground(Color.clear)
+                }
+                ForEach(library.records.filter { search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) }) { record in
                     NavigationLink(value: record.id) {
-                        VStack(alignment: .leading) {
-                            Text(record.name).font(.headline)
-                            Text(record.modifiedAt, format: .dateTime).font(.caption).foregroundStyle(.secondary)
-                            Text("Device validation pending").font(.caption).foregroundStyle(.secondary)
-                        }
+                        HStack(spacing: 14) {
+                            Image(systemName: "cube.transparent").font(.title2).foregroundStyle(.tint)
+                                .frame(width: 64,height: 64).background(.quaternary,in: RoundedRectangle(cornerRadius: 10))
+                            VStack(alignment: .leading,spacing: 4) {
+                                Text(record.name).font(.headline)
+                                Text(record.modifiedAt, format: .dateTime.day().month().year()).font(.subheadline).foregroundStyle(.secondary)
+                            }
+                        }.padding(.vertical,6)
                     }
                     .contextMenu { Button("Delete", role: .destructive) { deletion = record.id } }
                     .swipeActions { Button("Delete", role: .destructive) { deletion = record.id } }
@@ -34,18 +57,26 @@ struct TechnicalRoomLibraryView: View {
                     Section("Items requiring attention") { ForEach(library.loadWarnings, id: \.self) { Text($0).font(.caption) } }
                 }
             }
-            .navigationTitle("Technical Rooms")
+            .listStyle(.plain)
+            .searchable(text: $search,prompt: "Search technical surveys")
+            .navigationTitle(embedded ? "Technik" : "Technical Rooms")
             .navigationDestination(for: UUID.self) { id in TechnicalStoredRoomView(id: id, library: library) }
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
-                ToolbarItem(placement: .primaryAction) { Button("Import") { beginImport() } }
+                ToolbarItem(placement: .cancellationAction) { if !embedded { Button("Done") { dismiss() } } }
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        if let onRequestScan { Button { onRequestScan() } label: { Label("Scan Technik Room",systemImage: "camera.viewfinder") }.disabled(!scanningSupported) }
+                        Button { beginImport() } label: { Label("Import survey",systemImage: "square.and.arrow.down") }
+                    } label: { Label("Add survey",systemImage: "plus") }
+                }
             }
         }
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 500)
         #endif
         .tint(.blue)
-        .task {
+        .onAppear { do { try library.reload() } catch { self.error = error.localizedDescription } }
+        .task(id: refreshToken) {
             do {
                 try library.reload()
                 if let importURL { path = [try await library.importPackage(importURL)] }

@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Settings: iCloud Drive, 'dWalkScan' folder, measurements (mm / m), updates (Mac), about.
 struct SettingsView: View {
+    var embedded = false
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @AppStorage(CloudAvailability.preferenceKey) private var useICloud = true
@@ -22,8 +23,8 @@ struct SettingsView: View {
         NavigationStack {
             form
                 .navigationTitle("settings.title")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("common.close") { dismiss() } } }
+                .navigationBarTitleDisplayMode(embedded ? .large : .inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { if !embedded { Button("common.close") { dismiss() } } } }
         }
         #else
         NavigationStack { form }.frame(width: 480).frame(minHeight: 420)
