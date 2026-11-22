@@ -9,6 +9,23 @@ import UIKit
 @testable import RoomScanner
 
 final class SceneStudioTests: XCTestCase {
+    @MainActor func testLegacySingleRoomOffsetDoorsRenderOnlyOneDoorway() throws {
+        var room = seed().shell.allRooms[0]; room.transform = .identity
+        let door = Opening(id: UUID(),kind: .door,wallID: nil,center: .init(x: 1,y: 1),width: 0.9,height: 2,sillHeight: 0,angle: 0,confidence: .high)
+        var duplicate = door; duplicate.id = UUID(); duplicate.center = .init(x: 1.06,y: 1.14); duplicate.width = 0.97; duplicate.angle = .pi+0.03
+        var adjacent = door; adjacent.id = UUID(); adjacent.center.x += 1.0
+        var behind = door; behind.id = UUID(); behind.center.y += 0.5
+        room.openings = [door,duplicate,adjacent,behind]
+        var document = seed(); document.shell.stories = [.init(index: 0,rooms: [room])]; document.objects = []
+        // Round-trip a saved project: reproduces old files rather than only fresh seeds.
+        let stored = try JSONDecoder().decode(SceneEditDocument.self,from: JSONEncoder().encode(document))
+        let scene = StudioSceneBuilder.scene(stored,story: 0,cutaway: false)
+        XCTAssertEqual(scene.rootNode.childNodes.filter { $0.name == "shell:door" }.count,3)
+        XCTAssertEqual(stored.shell.allRooms[0].openings.count,4)
+        var otherFloor = room; otherFloor.id = UUID(); otherFloor.story = 1; otherFloor.openings = [door]
+        document.shell.stories.append(.init(index: 1,rooms: [otherFloor]))
+        XCTAssertEqual(StudioSceneBuilder.scene(document,story: nil,cutaway: false).rootNode.childNodes.filter { $0.name == "shell:door" }.count,4)
+    }
     @MainActor func testSharedDoorIsRenderedOnceButSeparateDoorsRemain() {
         var a = seed().shell.allRooms[0]; a.transform = .identity
         let door = Opening(id: UUID(),kind: .door,wallID: nil,center: .init(x: 1,y: 1),width: 0.9,height: 2,sillHeight: 0,angle: 0,confidence: .high)

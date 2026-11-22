@@ -400,13 +400,18 @@ struct StudioOpeningDeduplicator {
         let item = Entry(id: opening.id,roomID: room.id,story: room.story,kind: opening.kind,center: room.transform.apply(opening.center),direction: .init(x: cos(angle),y: sin(angle)),width: opening.width,height: opening.height,sill: opening.sillHeight,thickness: room.wall(withID: opening.wallID)?.thickness ?? 0.1)
         for old in entries where old.story == item.story && old.kind == item.kind {
             if old.id == item.id { return false }
-            guard abs(old.width-item.width) <= 0.1,abs(old.height-item.height) <= 0.1,abs(old.sill-item.sill) <= 0.08,
-                  abs(old.direction.x*item.direction.x+old.direction.y*item.direction.y) >= cos(.pi/36) else { continue }
+            let alignment = abs(old.direction.x*item.direction.x+old.direction.y*item.direction.y)
+            guard abs(old.width-item.width) <= max(0.1,min(old.width,item.width)*0.15),abs(old.height-item.height) <= 0.15,abs(old.sill-item.sill) <= 0.08,
+                  alignment >= cos(.pi/24) else { continue }
             let delta = item.center-old.center
             let along = abs(delta.x*old.direction.x+delta.y*old.direction.y),normal = abs(-delta.x*old.direction.y+delta.y*old.direction.x)
-            if old.roomID == item.roomID {
-                if delta.length < 0.025 && abs(old.width-item.width) < 0.03 && abs(old.height-item.height) < 0.03 { return false }
-            } else if along <= 0.08 && normal <= min(0.18,max(0.03,max(old.thickness,item.thickness)*1.25)) { return false }
+            // Continuous captures can duplicate a shared doorway inside the same
+            // room record. Compare projected overlap, not room membership.
+            let projectedWidth = item.width*alignment
+            let overlap = max(0,min(old.width/2,along+projectedWidth/2)-max(-old.width/2,along-projectedWidth/2))
+            let overlapRatio = overlap/max(old.width,projectedWidth)
+            let wallDepth = min(0.25,max(0.08,max(old.thickness,item.thickness)+0.08))
+            if overlapRatio >= 0.8 && normal <= wallDepth { return false }
         }
         entries.append(item); return true
     }
