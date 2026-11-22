@@ -23,7 +23,20 @@ struct StudioProjectView: View {
         .task {
             do {
                 let url = SceneEditStore.url(root: storageRoot,source: seed.source,id: seed.sourceID)
-                let document = try await Task.detached { try SceneEditStore.read(url,source: seed.source,id: seed.sourceID) ?? seed }.value
+                let document = try await Task.detached { () throws -> SceneEditDocument in
+                    var value = try SceneEditStore.read(url,source: seed.source,id: seed.sourceID) ?? seed
+                    if value.floorRegions == nil {
+                        let location = StorageLocation(kind: .local,documentsURL: storageRoot)
+                        if value.source == .house {
+                            let package = location.housesURL.appendingPathComponent(value.sourceID.uuidString).appendingPathExtension(FileLayout.housePackageExtension)
+                            value.recoverFloorRegions(scans: (try? HousePackage.readStructure(from: package))?.rooms ?? [])
+                        } else if value.source == .room {
+                            let package = location.roomsURL.appendingPathComponent(value.sourceID.uuidString).appendingPathExtension(FileLayout.packageExtension)
+                            value.recoverFloorRegions(scans: (try? RoomPackage.readScan(from: package)).map { [$0] } ?? [])
+                        }
+                    }
+                    return value
+                }.value
                 try document.validate(); loaded = document
             } catch { self.error = error.localizedDescription }
         }

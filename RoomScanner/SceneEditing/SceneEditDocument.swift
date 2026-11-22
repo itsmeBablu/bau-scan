@@ -133,6 +133,10 @@ struct SceneEditObject: Codable,Equatable,Identifiable {
 }
 
 struct SceneEditDocument: Codable,Equatable,Identifiable {
+    struct FloorRegion: Codable,Equatable {
+        let roomID: UUID
+        let polygon: [Point2D]
+    }
     enum Source: String,Codable { case room, house, technical }
     enum Failure: LocalizedError {
         case invalid, wrongSource, oversized, exportFailed
@@ -154,6 +158,8 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     /// Immutable shell snapshot: furniture edits never write to original scan packages.
     var shell: House
     var objects: [SceneEditObject]
+    /// All captured floor regions, aligned to each saved room's local plan frame.
+    var floorRegions: [FloorRegion]? = nil
     var wallColor = TechnicalPoint3(x: 0.88,y: 0.86,z: 0.80)
     enum FloorFinish: String,Codable,CaseIterable { case wood, tile, plain }
     var floorFinish: FloorFinish? = nil
@@ -229,6 +235,11 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         if let size = floorPatternSize { guard size.isFinite,(0.1...2).contains(size) else { throw Failure.invalid } }
         if let angle = doorOpeningDegrees { guard angle.isFinite,(0...120).contains(angle) else { throw Failure.invalid } }
         if let angle = windowOpeningDegrees { guard angle.isFinite,(0...90).contains(angle) else { throw Failure.invalid } }
+        if let floorRegions {
+            let ids = Set(shell.allRooms.map(\.id))
+            guard floorRegions.count <= 2000,floorRegions.reduce(0,{ $0+$1.polygon.count }) <= 50_000,
+                  floorRegions.allSatisfy({ ids.contains($0.roomID) && (3...512).contains($0.polygon.count) && $0.polygon.allSatisfy { $0.x.isFinite && $0.y.isFinite && abs($0.x) <= 1000 && abs($0.y) <= 1000 } }) else { throw Failure.invalid }
+        }
         let elements = engineeringElements
         try engineering?.validate(ids: Set(elements.map(\.id)),thicknessIDs: Set(elements.filter { $0.kind == "Wall" || $0.kind == "Floor" }.map(\.id)),floorIDs: Set(elements.filter { $0.kind == "Floor" }.map(\.id)))
         for object in objects { try object.validate() }
@@ -297,7 +308,38 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         }
         for si in shell.stories.indices { for ri in shell.stories[si].rooms.indices { shell.stories[si].rooms[ri].objects = [] } }
         for i in objects.indices { objects[i].scanReference = .init(position: objects[i].position,size: objects[i].size,yaw: objects[i].yaw,axis: objects[i].axis,family: objects[i].family) }
-        return .init(source: source,sourceID: id,title: house.name+" · Edited",shell: shell,objects: objects)
+        var result = Self(source: source,sourceID: id,title: house.name+" · Edited",shell: shell,objects: objects)
+        result.recoverFloorRegions(scans: scans)
+        return result
+    }
+    mutating func recoverFloorRegions(scans: [ScanInput]) {
+        guard floorRegions == nil else { return }
+        var regions: [FloorRegion] = []
+        for room in shell.allRooms {
+            guard let scan = scans.first(where: { $0.id == room.id }) else { continue }
+            var placement = Transform2D.identity
+            if let raw = scan.walls.first(where: { raw in room.walls.contains { $0.id == raw.id } }),
+               let wall = room.walls.first(where: { $0.id == raw.id }) {
+                let direction = Point2D(x: Double(raw.transform.xAxis.x),y: -Double(raw.transform.xAxis.z))
+                placement.rotation = wall.segment.angle-atan2(direction.y,direction.x)
+                let rawCenter = Point2D(projecting: raw.transform.translation)
+                placement.translation = wall.segment.midpoint-placement.apply(rawCenter)
+            }
+            if scan.floors.contains(where: { $0.polygonCorners.count < 3 }),room.floorPolygon.count >= 3 {
+                regions.append(.init(roomID: room.id,polygon: room.floorPolygon))
+            }
+            let floorHeight = StoryDetector.floorHeight(of: scan)
+            for floor in scan.floors where abs(Double(floor.transform.translation.y)-floorHeight) < 0.25 {
+                let points = floor.polygonCorners.map { corner -> Point2D in
+                    let p = floor.transform*SIMD4<Float>(corner.x,corner.y,corner.z,1)
+                    return placement.apply(Point2D(projecting: SIMD3(p.x,p.y,p.z)))
+                }
+                let polygon = Polygon2D.simplified(points,tolerance: 0.01)
+                guard polygon.count >= 3,polygon.count <= 512,Polygon2D.area(polygon) > 0.01,Polygon2D.triangulation(polygon).1 else { continue }
+                regions.append(.init(roomID: room.id,polygon: polygon))
+            }
+        }
+        if !regions.isEmpty { floorRegions = regions }
     }
 }
 

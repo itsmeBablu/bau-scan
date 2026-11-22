@@ -1,5 +1,10 @@
 import SceneKit
 import simd
+#if os(iOS)
+import UIKit
+#else
+import AppKit
+#endif
 
 /// Native adaptation of SmartBau's straight-wall face profile and through-depth mitres.
 /// Captured centrelines and dimensions are unchanged; this builds the design display only.
@@ -268,6 +273,60 @@ struct StudioFloorCoverage {
 /// One continuous design slab per level. Internal triangulation edges have no
 /// vertical caps; only the outer boundary and actual thickness steps do.
 enum StudioFloorSlab {
+    /// Normalize all positive-winding contours together: overlapping rooms become
+    /// one outline, while concave boundaries, courtyards and separate islands survive.
+    static func outline(rooms: [FloorPlan],regions: [SceneEditDocument.FloorRegion] = [],minimumDepth: Double = 0) -> CGPath {
+        let path = CGMutablePath()
+        func add(_ points: [Point2D]) {
+            guard points.count >= 3,points.allSatisfy({ $0.x.isFinite && $0.y.isFinite }) else { return }
+            let points = Polygon2D.signedArea(points) < 0 ? points.reversed().map { $0 } : points
+            path.move(to: CGPoint(x: points[0].x,y: points[0].y))
+            for p in points.dropFirst() { path.addLine(to: CGPoint(x: p.x,y: p.y)) }
+            path.closeSubpath()
+        }
+        var walls = 0
+        for room in rooms where room.displayFloorSlabThickness >= minimumDepth-1e-8 {
+            let captured = regions.filter { $0.roomID == room.id }
+            if !captured.isEmpty { for region in captured { add(region.polygon.map(room.transform.apply)) } }
+            else {
+                let b = room.floorBounds
+                if room.floorPolygon.count >= 3 { add(room.floorPolygon.map(room.transform.apply)) }
+                else if !b.isEmpty { add([.init(x: b.minX,y: b.minY),.init(x: b.maxX,y: b.minY),.init(x: b.maxX,y: b.maxY),.init(x: b.minX,y: b.maxY)].map(room.transform.apply)) }
+            }
+            for wall in room.walls where walls < 2000 {
+                let along = wall.segment.direction*(wall.thickness/2),n = wall.segment.leftNormal*(wall.thickness/2)
+                add([wall.start-along+n,wall.end+along+n,wall.end+along-n,wall.start-along-n].map(room.transform.apply)); walls += 1
+            }
+        }
+        return path.normalized(using: .winding)
+    }
+    @MainActor static func node(rooms: [FloorPlan],regions: [SceneEditDocument.FloorRegion],material: SCNMaterial,textureScale: Double) -> SCNNode? {
+        let root = SCNNode(); root.name = "shell:floor"
+        var previousDepth = 0.0
+        for depth in Set(rooms.map(\.displayFloorSlabThickness)).sorted() {
+            let path = outline(rooms: rooms,regions: regions,minimumDepth: depth)
+            guard !path.isEmpty else { continue }
+            #if os(iOS)
+            let bezier = UIBezierPath(cgPath: path); bezier.usesEvenOddFillRule = true
+            #else
+            let bezier = NSBezierPath(cgPath: path); bezier.windingRule = .evenOdd
+            #endif
+            let shape = SCNShape(path: bezier,extrusionDepth: depth-previousDepth); shape.chamferRadius = 0
+            let m = material.copy() as? SCNMaterial ?? material
+            let bounds = path.boundingBoxOfPath
+            #if os(iOS)
+            m.diffuse.contentsTransform = SCNMatrix4MakeScale(Float(Double(bounds.width)/textureScale),Float(Double(bounds.height)/textureScale),1)
+            #else
+            m.diffuse.contentsTransform = SCNMatrix4MakeScale(CGFloat(Double(bounds.width)/textureScale),CGFloat(Double(bounds.height)/textureScale),1)
+            #endif
+            shape.materials = [m]
+            let layer = SCNNode(geometry: shape); layer.eulerAngles.x = -.pi/2; layer.simdPosition.y = -Float(depth)
+            root.addChildNode(layer); previousDepth = depth
+        }
+        guard !root.childNodes.isEmpty else { return nil }
+        // A single native compound floor object, rather than one prism per triangle.
+        let floor = root.flattenedClone(); floor.name = "shell:floor"; return floor
+    }
     private struct Line: Hashable { let angle: Int64; let offset: Int64 }
     private struct Event { let t: Double; let depth: Double; let side: Int; let change: Int }
     private struct Edge { let direction: Point2D; let normal: Point2D; let offset: Double; var events: [Event] }
@@ -326,5 +385,29 @@ enum StudioFloorSlab {
             }
         }
         return result
+    }
+}
+
+/// Display-only duplicate removal; source opening records and wall holes stay intact.
+struct StudioOpeningDeduplicator {
+    private struct Entry {
+        let id: UUID; let roomID: UUID; let story: Int; let kind: Opening.Kind
+        let center: Point2D; let direction: Point2D; let width: Double; let height: Double; let sill: Double; let thickness: Double
+    }
+    private var entries: [Entry] = []
+    mutating func includes(_ opening: Opening,in room: FloorPlan) -> Bool {
+        let angle = opening.angle+room.transform.rotation
+        let item = Entry(id: opening.id,roomID: room.id,story: room.story,kind: opening.kind,center: room.transform.apply(opening.center),direction: .init(x: cos(angle),y: sin(angle)),width: opening.width,height: opening.height,sill: opening.sillHeight,thickness: room.wall(withID: opening.wallID)?.thickness ?? 0.1)
+        for old in entries where old.story == item.story && old.kind == item.kind {
+            if old.id == item.id { return false }
+            guard abs(old.width-item.width) <= 0.1,abs(old.height-item.height) <= 0.1,abs(old.sill-item.sill) <= 0.08,
+                  abs(old.direction.x*item.direction.x+old.direction.y*item.direction.y) >= cos(.pi/36) else { continue }
+            let delta = item.center-old.center
+            let along = abs(delta.x*old.direction.x+delta.y*old.direction.y),normal = abs(-delta.x*old.direction.y+delta.y*old.direction.x)
+            if old.roomID == item.roomID {
+                if delta.length < 0.025 && abs(old.width-item.width) < 0.03 && abs(old.height-item.height) < 0.03 { return false }
+            } else if along <= 0.08 && normal <= min(0.18,max(0.03,max(old.thickness,item.thickness)*1.25)) { return false }
+        }
+        entries.append(item); return true
     }
 }

@@ -9,6 +9,51 @@ import UIKit
 @testable import RoomScanner
 
 final class SceneStudioTests: XCTestCase {
+    @MainActor func testSharedDoorIsRenderedOnceButSeparateDoorsRemain() {
+        var a = seed().shell.allRooms[0]; a.transform = .identity
+        let door = Opening(id: UUID(),kind: .door,wallID: nil,center: .init(x: 1,y: 1),width: 0.9,height: 2,sillHeight: 0,angle: 0,confidence: .high)
+        a.openings = [door]
+        var b = a; b.id = UUID()
+        var duplicate = door; duplicate.id = UUID(); duplicate.center.y += 0.08; duplicate.angle += .pi
+        var separate = door; separate.id = UUID(); separate.center.x += 1.1
+        b.openings = [duplicate,separate]
+        var document = seed(); document.shell.stories = [.init(index: 0,rooms: [a,b])]; document.objects = []
+        let scene = StudioSceneBuilder.scene(document,story: 0,cutaway: false)
+        XCTAssertEqual(scene.rootNode.childNodes.filter { $0.name == "shell:door" }.count,2)
+        XCTAssertEqual(document.shell.allRooms.flatMap(\.openings).count,3,"Source records must remain intact")
+    }
+    func testCompoundFloorKeepsConcaveShapeAndCourtyard() {
+        var room = seed().shell.allRooms[0]; room.transform = .identity; room.walls = []
+        room.floorPolygon = [.init(x: 0,y: 0),.init(x: 3,y: 0),.init(x: 3,y: 1),.init(x: 1,y: 1),.init(x: 1,y: 3),.init(x: 0,y: 3)]
+        let path = StudioFloorSlab.outline(rooms: [room])
+        XCTAssertTrue(path.contains(CGPoint(x: 0.5,y: 2)))
+        XCTAssertFalse(path.contains(CGPoint(x: 2,y: 2)),"Do not fill the concave cutout")
+        let regions = [
+            [Point2D(x: 0,y: 0),.init(x: 4,y: 0),.init(x: 4,y: 1),.init(x: 0,y: 1)],
+            [.init(x: 0,y: 3),.init(x: 4,y: 3),.init(x: 4,y: 4),.init(x: 0,y: 4)],
+            [.init(x: 0,y: 1),.init(x: 1,y: 1),.init(x: 1,y: 3),.init(x: 0,y: 3)],
+            [.init(x: 3,y: 1),.init(x: 4,y: 1),.init(x: 4,y: 3),.init(x: 3,y: 3)]
+        ].map { SceneEditDocument.FloorRegion(roomID: room.id,polygon: $0) }
+        let courtyard = StudioFloorSlab.outline(rooms: [room],regions: regions)
+        XCTAssertFalse(courtyard.contains(CGPoint(x: 2,y: 2)))
+        XCTAssertTrue(courtyard.contains(CGPoint(x: 3.5,y: 2)))
+    }
+    func testStudioRetainsAllRawFloorRegionsAndRoundTrips() throws {
+        let scan = SyntheticRooms.rectangularRoom().scan
+        var extra = try XCTUnwrap(scan.floors.first)
+        extra.id = UUID(); extra.polygonCorners = [SIMD3(0,0,0),SIMD3(1,0,0),SIMD3(1,0,1),SIMD3(0,0,1)]
+        var input = scan; input.surfaces.append(extra)
+        let plan = FloorPlanBuilder().build(from: input,name: "Test")
+        var document = SceneEditDocument.seed(house: House(room: plan),source: .room,id: plan.id,scans: [input])
+        // Synthetic rectangular floors may omit polygon corners; the additional
+        // captured polygon must still survive independently of the plan outline.
+        XCTAssertFalse(document.floorRegions?.isEmpty ?? true)
+        try document.validate()
+        let decoded = try JSONDecoder().decode(SceneEditDocument.self,from: JSONEncoder().encode(document))
+        XCTAssertEqual(decoded.floorRegions,document.floorRegions)
+        document.floorRegions = nil; document.recoverFloorRegions(scans: [input])
+        XCTAssertEqual(document.floorRegions,decoded.floorRegions)
+    }
     func testSelectionUsesWholeRectangularEnvelope() throws {
         let sofa = SceneEditObject(origin: "test",name: "Sofa",family: .sofa,position: .init(x: 0,y: 0.5,z: 0),size: .init(x: 2,y: 1,z: 2))
         XCTAssertEqual(try XCTUnwrap(StudioPlacement.rayIntersection(sofa,origin: SIMD3(0,0.1,5),direction: SIMD3(0,0,-10))),0.4,accuracy: 0.0001)

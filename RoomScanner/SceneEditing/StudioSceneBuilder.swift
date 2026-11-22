@@ -24,10 +24,10 @@ import simd
         let wallMaterial = material(document.wallColor)
         var surfaces = StudioSurfaceDeduplicator()
         for level in Set(rooms.map(\.story)).sorted() {
-            let floor = StudioFloorSlab.mesh(rooms: rooms.filter { $0.story == level })
-            if !floor.isEmpty { scene.rootNode.addChildNode(meshNode(floor,material: floorMaterial,name: "shell:floor",textureScale: repeatMetres)) }
+            if let floor = StudioFloorSlab.node(rooms: rooms.filter { $0.story == level },regions: document.floorRegions ?? [],material: floorMaterial,textureScale: repeatMetres) { scene.rootNode.addChildNode(floor) }
         }
         var allVisibleWalls = Set<UUID>()
+        var openings = StudioOpeningDeduplicator()
         for room in rooms {
             var visibleWalls = Set<UUID>()
             let roomCenter = room.transform.apply(room.bounds.center)
@@ -46,6 +46,7 @@ import simd
                 guard let box = WallGeometry().panelBox(opening,wall: room.wall(withID: opening.wallID)) else { continue }
                 let midpoint = room.transform.apply(box.segment.midpoint)
                 if cutaway && (midpoint.x-roomCenter.x)-(midpoint.y-roomCenter.y) > 0.15 { continue }
+                guard openings.includes(opening,in: room) else { continue }
                 if opening.kind == .window && document.source != .technical {
                     scene.rootNode.addChildNode(StudioWindowModel.make(opening,wall: room.wall(withID: opening.wallID),transform: room.transform,template: document.windowTemplate ?? .casement,angle: document.windowOpeningDegrees ?? 0)); continue
                 }
