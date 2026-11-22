@@ -94,6 +94,21 @@ struct PlanSceneBuilder {
                 walls.addChild(makeBox(box, material: wallMaterial))
             }
         }
+        if !options.flattenWalls {
+            var local = room; local.transform = .identity
+            let joins = StudioWallJoins.mesh(room: local, visible: Set(local.walls.map(\.id)))
+            if !joins.isEmpty {
+                var descriptor = MeshDescriptor(name: "wall-junctions")
+                descriptor.positions = .init(joins.positions)
+                descriptor.normals = .init(joins.normals)
+                descriptor.primitives = .triangles(joins.triangles.flatMap { [$0.x, $0.y, $0.z] })
+                if let mesh = try? MeshResource.generate(from: [descriptor]) {
+                    let junction = ModelEntity(mesh: mesh, materials: [wallMaterial])
+                    junction.name = "wall-junctions"
+                    walls.addChild(junction)
+                }
+            }
+        }
         for o in room.openings { if let panel = panelBox(o, wall: room.wall(withID: o.wallID)) {
             panels.addChild(makeBox(panel, material: o.kind == .window ? glassMaterial : doorMaterial))
         } }

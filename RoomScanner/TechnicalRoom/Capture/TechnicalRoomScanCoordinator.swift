@@ -51,6 +51,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     private var active = false
     private var generation = 0
     private var sceneColors = TechnicalSceneColorCache()
+    private var sceneMesh = TechnicalSceneMeshCache()
     private var lastColorSampleTimestamp = -Double.infinity
     private var pipeAnchors: [UUID: AnchorEntity] = [:]
     private var equipmentAnchors: [UUID: AnchorEntity] = [:]
@@ -202,7 +203,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
 
     @discardableResult func captureMeshSnapshot() -> Bool {
         guard active, let frame = session.currentFrame else { return false }
-        let snapshot = sceneColors.merge(TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate))
+        let snapshot = sceneMesh.merge(sceneColors.merge(TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate)))
         guard TechnicalSavedMeshGeometry.latest(in: [snapshot]) != nil else {
             errorMessage = "No 3D surfaces captured yet. Move around the room before saving."
             return false
@@ -359,7 +360,9 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
         }
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) { configuration.frameSemantics.insert(.sceneDepth) }
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.smoothedSceneDepth) { configuration.frameSemantics.insert(.smoothedSceneDepth) }
-        configuration.planeDetection = [.horizontal, .vertical]
+        // Plane detection flattens reconstructed surfaces around walls and can erase
+        // shallow pipes and equipment. Keep the technical mesh unflattened.
+        configuration.planeDetection = []
         configuration.initialWorldMap = recoveryMap
         active = true
         collectingEvidence = true
@@ -479,7 +482,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
             if state.trackingNormal, frame.timestamp - lastColorSampleTimestamp >= 3,
                (residentMemoryBytes ?? 0) < 800 * 1_048_576 {
                 lastColorSampleTimestamp = frame.timestamp
-                _ = sceneColors.merge(TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate))
+                _ = sceneMesh.merge(sceneColors.merge(TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate)))
             }
         }
     }

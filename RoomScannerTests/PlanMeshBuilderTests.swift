@@ -11,7 +11,9 @@ final class PlanMeshBuilderTests: XCTestCase {
         // Walls: south (2 portions + lintel), east, north (2 portions + sill + lintel), west = 9 boxes x 12 triangles.
         let boxes = plan.walls.reduce(0) { acc, wall in acc + WallGeometry().wallBoxes(wall, openings: plan.openings.filter { $0.wallID == wall.id }).count }
         XCTAssertEqual(boxes, 9)
-        XCTAssertEqual(mesh.groups[0].triangles.count, boxes * 12)
+        let joins = StudioWallJoins.mesh(room: plan, visible: Set(plan.walls.map(\.id)))
+        XCTAssertFalse(joins.isEmpty)
+        XCTAssertEqual(mesh.groups[0].triangles.count, boxes * 12 + joins.triangles.count)
         XCTAssertEqual(mesh.groups[1].triangles.count, 12, "un panneau de porte")
         XCTAssertEqual(mesh.groups[2].triangles.count, 12, "un vitrage")
         XCTAssertEqual(mesh.groups[3].triangles.count, 2 * 2 + 4 * 2, "dalle rectangulaire : dessus, dessous, 4 flancs")

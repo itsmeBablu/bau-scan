@@ -11,6 +11,8 @@ struct TechnicalRoomScanView: View {
     @State private var scanner: TechnicalRoomScanCoordinator
     @AppStorage("technical.googleAI.enabled") private var googleAIEnabled = false
     @State private var viewport: ARView?
+    @State private var showMesh = false
+    @State private var showingControls = false
     @State private var origin: TechnicalPoint3?
     @State private var frameDefined = false
     @State private var checkpointX = ""
@@ -75,7 +77,7 @@ struct TechnicalRoomScanView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            ZStack {
                 TechnicalCaptureCamera(scanner: scanner, viewport: $viewport)
                     .overlay { Image(systemName: "plus").font(.title).foregroundStyle(.white).shadow(color: .black,radius: 1).allowsHitTesting(false) }
                     .overlay {
@@ -86,7 +88,89 @@ struct TechnicalRoomScanView: View {
                         }
                     }
                     .coordinateSpace(name: "technicalCapture")
-                    .frame(minHeight: 180, maxHeight: .infinity)
+                    .ignoresSafeArea()
+                VStack(spacing: 12) {
+                    Spacer()
+                    if let error = scanner.errorMessage {
+                        Text(error).font(.callout).padding(12).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    if showingControls { surveyControls.frame(maxHeight: 340).clipShape(RoundedRectangle(cornerRadius: 24)) }
+                    HStack(spacing: 28) {
+                        Button { showingControls.toggle() } label: {
+                            Image(systemName: "slider.horizontal.3").frame(width: 52,height: 52)
+                        }.buttonStyle(.bordered).background(.regularMaterial,in: Circle())
+                            .accessibilityLabel("Survey tools")
+                        Button { scanner.takeSurveyPhoto() } label: {
+                            ZStack {
+                                Circle().stroke(.white,lineWidth: 4).frame(width: 76,height: 76)
+                                Circle().fill(.white).frame(width: 62,height: 62)
+                                if scanner.takingPhoto { ProgressView().tint(.black) }
+                            }
+                        }.buttonStyle(.plain).accessibilityLabel("Take survey photo")
+                            .disabled(scanner.takingPhoto || !scanner.state.trackingNormal || saving)
+                        Button { showMesh.toggle() } label: {
+                            Image(systemName: showMesh ? "cube.fill" : "cube").frame(width: 52,height: 52)
+                        }.buttonStyle(.bordered).background(.regularMaterial,in: Circle())
+                            .accessibilityLabel(showMesh ? "Hide captured mesh" : "Show captured mesh")
+                    }.padding(.bottom, 12)
+                }.padding(.horizontal)
+
+            }
+            .disabled(saving)
+            .navigationTitle("Technik Room")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden,for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") {
+                        if scanner.journal.frames.isEmpty { scanner.stop(); dismiss() } else { confirmingClose = true }
+                    }.disabled(saving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(saving ? "Saving…" : "Save") { saveSurvey() }
+                        .disabled(saving || !pipeHits.isEmpty || (saveThumbnail == nil && !scanner.hasLiveFrames))
+                }
+            }
+        }
+        .onChange(of: showMesh) { _, enabled in
+            if enabled { viewport?.debugOptions.insert(.showSceneUnderstanding) }
+            else { viewport?.debugOptions.remove(.showSceneUnderstanding) }
+        }
+        .tint(.blue)
+        .onDisappear { scanner.stop() }
+        .interactiveDismissDisabled(saving || !scanner.journal.frames.isEmpty)
+        .confirmationDialog("Close this unsaved technical survey?", isPresented: $confirmingClose, titleVisibility: .visible) {
+            Button("Save survey") { saveSurvey() }.disabled(saveThumbnail == nil && !scanner.hasLiveFrames)
+            Button("Discard unsaved capture", role: .destructive) { scanner.stop(); dismiss() }
+        } message: { Text("Capture evidence and annotations are only retained after saving a .technicalroom package.") }
+        .sheet(isPresented: $showingPipeTool) { pipeTool.presentationDetents([.medium, .large]).presentationBackgroundInteraction(.enabled(upThrough: .medium)) }
+        .sheet(isPresented: $showingPipeReview) { pipeReview }
+        .onAppear { scanner.aiEvidenceEnabled = googleAIEnabled }
+        .onChange(of: googleAIEnabled) { _, enabled in
+            scanner.aiEvidenceEnabled = enabled
+        }
+        .sheet(isPresented: $showingEquipmentTool) { equipmentTool }
+        .sheet(isPresented: $showingAnnotations) {
+            TechnicalAnnotationEditor(history: $history, scanner: scanner, hit: crosshairHit) { selectedPoints = $0 }
+                .presentationDetents([.medium, .large]).presentationBackgroundInteraction(.enabled(upThrough: .medium))
+        }
+        .onChange(of: history.document) { _, document in
+            if let viewport { scanner.syncAnnotations(document, in: viewport) }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { scanner.interrupt() }
+            else if !saving { scanner.resumeCameraAfterInterruption() }
+        }
+        .onChange(of: scanner.state.canAnnotate) { _, verified in
+            if verified, let viewport { scanner.syncAnnotations(history.document, in: viewport) }
+            if !verified, !pipeHits.isEmpty {
+                pipeHits = []
+                message = "Alignment was lost. Uncommitted pipe points were cleared; verify the checkpoint before tracing again."
+            }
+        }
+    }
+
+    private var surveyControls: some View {
                 Form {
                 Section("Capture") {
                 Text(message).font(.callout)
@@ -157,6 +241,9 @@ struct TechnicalRoomScanView: View {
                 if scanner.journal.retentionLimited {
                     Text("Retention limit reached: \(scanner.journal.droppedFrames) old frames and \(scanner.journal.droppedSnapshots) snapshots were discarded.").font(.caption).foregroundStyle(.orange)
                 }
+                Toggle("Show captured mesh", isOn: $showMesh)
+
+                Text("Pipes and ducts are captured as observed surfaces. Thin, reflective or hidden parts may need a close-up or manual annotation.").font(.caption).foregroundStyle(.secondary)
                 Button("Capture mesh snapshot") { scanner.captureMeshSnapshot() }
                     .disabled(!scanner.state.trackingNormal)
                 Button("Capture depth snapshot") { scanner.captureDepthSnapshot() }
@@ -201,55 +288,7 @@ struct TechnicalRoomScanView: View {
                 }
                 }
                 .formStyle(.grouped)
-                .frame(maxHeight: 340)
-            }
-            .disabled(saving)
-            .navigationTitle("Technik Room")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
-                        if scanner.journal.frames.isEmpty { scanner.stop(); dismiss() } else { confirmingClose = true }
-                    }.disabled(saving)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(saving ? "Saving…" : "Save") { saveSurvey() }
-                        .disabled(saving || !pipeHits.isEmpty || (saveThumbnail == nil && !scanner.hasLiveFrames))
-                }
-            }
-        }
-        .tint(.blue)
-        .onDisappear { scanner.stop() }
-        .interactiveDismissDisabled(saving || !scanner.journal.frames.isEmpty)
-        .confirmationDialog("Close this unsaved technical survey?", isPresented: $confirmingClose, titleVisibility: .visible) {
-            Button("Save survey") { saveSurvey() }.disabled(saveThumbnail == nil && !scanner.hasLiveFrames)
-            Button("Discard unsaved capture", role: .destructive) { scanner.stop(); dismiss() }
-        } message: { Text("Capture evidence and annotations are only retained after saving a .technicalroom package.") }
-        .sheet(isPresented: $showingPipeTool) { pipeTool.presentationDetents([.medium, .large]).presentationBackgroundInteraction(.enabled(upThrough: .medium)) }
-        .sheet(isPresented: $showingPipeReview) { pipeReview }
-        .onAppear { scanner.aiEvidenceEnabled = googleAIEnabled }
-        .onChange(of: googleAIEnabled) { _, enabled in
-            scanner.aiEvidenceEnabled = enabled
-        }
-        .sheet(isPresented: $showingEquipmentTool) { equipmentTool }
-        .sheet(isPresented: $showingAnnotations) {
-            TechnicalAnnotationEditor(history: $history, scanner: scanner, hit: crosshairHit) { selectedPoints = $0 }
-                .presentationDetents([.medium, .large]).presentationBackgroundInteraction(.enabled(upThrough: .medium))
-        }
-        .onChange(of: history.document) { _, document in
-            if let viewport { scanner.syncAnnotations(document, in: viewport) }
-        }
-        .onChange(of: scenePhase) { _, phase in
-            if phase != .active { scanner.interrupt() }
-            else if !saving { scanner.resumeCameraAfterInterruption() }
-        }
-        .onChange(of: scanner.state.canAnnotate) { _, verified in
-            if verified, let viewport { scanner.syncAnnotations(history.document, in: viewport) }
-            if !verified, !pipeHits.isEmpty {
-                pipeHits = []
-                message = "Alignment was lost. Uncommitted pipe points were cleared; verify the checkpoint before tracing again."
-            }
-        }
+
     }
 
     private var pipeTool: some View {

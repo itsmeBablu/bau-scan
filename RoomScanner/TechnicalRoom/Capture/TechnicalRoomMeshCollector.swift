@@ -81,7 +81,13 @@ enum TechnicalRoomMeshCollector {
                 indices.append(value)
             }
             guard indices.allSatisfy({ Int($0) < vertices.count }) else { continue }
-            patches.append(.init(anchorID: anchor.identifier, vertices: vertices, triangleIndices: indices, colors: colors))
+            let classes: [UInt8]? = geometry.classification.flatMap { source in
+                guard source.count == faces.count, source.stride > 0 else { return nil }
+                return (0..<source.count).map { index in
+                    source.buffer.contents().advanced(by: source.offset + index * source.stride).load(as: UInt8.self)
+                }
+            }
+            patches.append(.init(anchorID: anchor.identifier, vertices: vertices, triangleIndices: indices, colors: colors, faceClasses: classes))
             count += vertices.count
         }
         return TechnicalMeshSnapshot(timestamp: frame.timestamp, patches: patches,

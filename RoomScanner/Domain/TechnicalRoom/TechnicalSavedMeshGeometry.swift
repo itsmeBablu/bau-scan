@@ -49,3 +49,17 @@ struct TechnicalSavedMeshGeometry {
         snapshots.last { $0.patches.contains { !$0.triangleIndices.isEmpty } }
     }
 }
+
+// Filtering never changes the saved evidence. Unknown surfaces remain visible so
+// unclassified pipes and ducts are not discarded along with architectural surfaces.
+extension TechnicalMeshSnapshot {
+    func hidingRoomSurfaces() -> TechnicalMeshSnapshot {
+        let filtered = patches.map { patch -> Patch in
+            guard let classes = patch.faceClasses, classes.count == patch.triangleIndices.count / 3 else { return patch }
+            let indices = classes.indices.filter { ![UInt8(1), 2, 3, 6, 7].contains(classes[$0]) }
+                .flatMap { Array(patch.triangleIndices[($0 * 3)..<($0 * 3 + 3)]) }
+            return Patch(anchorID: patch.anchorID, vertices: patch.vertices, triangleIndices: indices, colors: patch.colors)
+        }
+        return .init(timestamp: timestamp, patches: filtered, alignmentVerified: alignmentVerified, truncated: truncated)
+    }
+}

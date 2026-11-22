@@ -5,6 +5,28 @@ final class TechnicalSavedMeshGeometryTests: XCTestCase {
     private func triangle(_ x: Double = 0) -> TechnicalMeshSnapshot.Patch {
         .init(anchorID: UUID(), vertices: [.init(x: x, y: 0, z: 0), .init(x: x + 1, y: 0, z: 0), .init(x: x, y: 1, z: 0)], triangleIndices: [0, 1, 2])
     }
+    func testRoomSurfaceFilterKeepsUnclassifiedEquipmentAndLegacyEvidence() {
+        let wall = triangle(), pipe = triangle(2)
+        let classified = TechnicalMeshSnapshot.Patch(anchorID: wall.anchorID, vertices: wall.vertices, triangleIndices: wall.triangleIndices, faceClasses: [1])
+        let snapshot = TechnicalMeshSnapshot(timestamp: 1, patches: [classified, pipe], alignmentVerified: false, truncated: false)
+        let filtered = snapshot.hidingRoomSurfaces()
+        XCTAssertTrue(filtered.patches[0].triangleIndices.isEmpty)
+        XCTAssertEqual(filtered.patches[1], pipe)
+        XCTAssertEqual(snapshot.patches[0].triangleIndices.count, 3)
+    }
+    func testMeshCacheKeepsEarlierSurfacesWhenFinalFrameHasNoAnchors() {
+        var cache = TechnicalSceneMeshCache(maximumVertices: 6)
+        let first = triangle()
+        _ = cache.merge(.init(timestamp: 1, patches: [first], alignmentVerified: false, truncated: false))
+        let final = cache.merge(.init(timestamp: 2, patches: [], alignmentVerified: false, truncated: false))
+        XCTAssertEqual(final.patches, [first])
+        let updated = TechnicalMeshSnapshot.Patch(anchorID: first.anchorID, vertices: triangle(3).vertices, triangleIndices: [0,1,2])
+        let result = cache.merge(.init(timestamp: 3, patches: [updated], alignmentVerified: false, truncated: false))
+        XCTAssertEqual(result.patches, [updated])
+        let bounded = cache.merge(.init(timestamp: 4, patches: [triangle(6), triangle(9)], alignmentVerified: false, truncated: false))
+        XCTAssertTrue(bounded.truncated)
+        XCTAssertEqual(bounded.patches.reduce(0) { $0 + $1.vertices.count }, 6)
+    }
     func testCombinesPatchIndicesAndAppliesSavedReferenceWithoutChangingRawEvidence() throws {
         let snapshot = TechnicalMeshSnapshot(timestamp: 1, patches: [triangle(), triangle(2)], alignmentVerified: false, truncated: false)
         let reference = try TechnicalReferenceFrame.transform(origin: .init(x: 1, y: 0, z: 0), xCorner: .init(x: 2, y: 0, z: 0))

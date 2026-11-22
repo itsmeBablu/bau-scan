@@ -23,6 +23,8 @@ struct TechnicalMeshSnapshot: Codable, Equatable {
         /// Optional sRGB samples from the capture camera; nil entries were not visible.
         /// Older surveys have no colours and remain readable.
         var colors: [TechnicalPoint3?]? = nil
+        /// ARKit semantic class per triangle; absent in legacy surveys.
+        var faceClasses: [UInt8]? = nil
     }
     let timestamp: Double
     let patches: [Patch]

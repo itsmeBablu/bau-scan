@@ -10,9 +10,13 @@ import AppKit
 /// Offline viewing does not require a world map, camera permissions or live alignment.
 struct TechnicalSavedScanView: View {
     let package: TechnicalRoomPackage
+    var immersive = false
+    var closeImmersive: (() -> Void)? = nil
+    @State private var expanded = false
     var selectedSuggestion: UUID? = nil
     var onPhotoLink: ((UUID,URL) async throws -> Void)? = nil
     @State private var showPhotos = false
+    @State private var showRoomSurfaces = true
     @State private var selectedPhoto: TechnicalCaptureKeyframe?
     @State private var appearance = Appearance.both
     private enum Appearance: Hashable { case scan, mep, both }
@@ -21,10 +25,13 @@ struct TechnicalSavedScanView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if package.evidence.keyframes.contains(where: { $0.userPhoto == true }) {
+            if !immersive, package.evidence.keyframes.contains(where: { $0.userPhoto == true }) {
                 Toggle(isOn: $showPhotos) { Label("Photos",systemImage: "camera") }.padding(.horizontal).padding(.vertical,6)
             }
-            if !package.recognition.suggestions.isEmpty {
+            if !immersive, package.journal.meshes.contains(where: { $0.patches.contains(where: { $0.faceClasses != nil }) }) {
+                Toggle("Room surfaces", isOn: $showRoomSurfaces).padding(.horizontal)
+            }
+            if !immersive, !package.recognition.suggestions.isEmpty {
                 Picker("Display",selection: $appearance) {
                     Text("Scan").tag(Appearance.scan)
                     Text("MEP").tag(Appearance.mep)
@@ -32,9 +39,74 @@ struct TechnicalSavedScanView: View {
                 }.pickerStyle(.segmented).padding(8)
             }
             if let snapshot = TechnicalSavedMeshGeometry.latest(in: package.journal.meshes) {
+                meshViewport(snapshot)
+                    .ignoresSafeArea(edges: immersive ? .all : [])
+                    .overlay(alignment: .topTrailing) {
+                        if immersive {
+                            HStack {
+                                Menu {
+                                    Toggle("Room surfaces", isOn: $showRoomSurfaces)
+                                    Toggle("Photos", isOn: $showPhotos)
+                                    Picker("Display",selection: $appearance) {
+                                        Text("Scan").tag(Appearance.scan)
+                                        Text("MEP").tag(Appearance.mep)
+                                        Text("Both").tag(Appearance.both)
+                                    }
+                                } label: { Image(systemName: "slider.horizontal.3") }
+                                    .accessibilityLabel("3D display options")
+                                Button { renderError = nil; resetID = UUID() } label: { Image(systemName: "scope") }
+                                    .accessibilityLabel("Reset view")
+                                Button { closeImmersive?() } label: { Image(systemName: "xmark") }
+                                    .accessibilityLabel("Close full-screen view")
+                            }.buttonStyle(.bordered).padding().background(.regularMaterial,in: Capsule()).padding()
+                        }
+                    }
+                if !immersive {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Saved LiDAR mesh").font(.caption.bold())
+                        Text("Drag to rotate · pinch to zoom").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button { expanded = true } label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }
+                        .accessibilityLabel("Full-screen 3D scan").buttonStyle(.bordered)
+                    Button { renderError = nil; resetID = UUID() } label: { Label("Reset view", systemImage: "scope") }
+                        .labelStyle(.iconOnly).buttonStyle(.bordered)
+                }.padding(12).background(.regularMaterial)
+                Text(snapshot.patches.contains(where: { $0.colors?.contains(where: { $0 != nil }) == true }) ? "Camera-sampled colours; unseen surfaces are grey. Accuracy unverified." : "No camera colours saved; showing grey geometry. Accuracy unverified.")
+                    .font(.caption).foregroundStyle(.secondary).padding(.horizontal).padding(.vertical, 6)
+                if snapshot.truncated { Text("Partial mesh: capture limit reached.").font(.caption).foregroundStyle(.secondary) }
+                }
+            } else {
+                ContentUnavailableView("No saved 3D mesh", systemImage: "cube.transparent", description: Text("Open Survey details to inspect the saved evidence and photos. A recovery map is only needed to resume aligned AR capture."))
+            }
+            if showPhotos {
+                ScrollView(.horizontal) {
+                    HStack {
+                        ForEach(Array(package.evidence.keyframes.filter { $0.userPhoto == true }.enumerated()),id: \.element.id) { i, photo in
+                            Button { selectedPhoto = photo } label: { Label("Photo \(i+1)",systemImage: "camera") }.buttonStyle(.bordered)
+                        }
+                    }.padding(8)
+                }
+            }
+        }
+        .accessibilityIdentifier("technical.savedScanViewer")
+
+        .onChange(of: package.recognition) { _,_ in resetID = UUID() }
+        .onChange(of: selectedSuggestion) { _,_ in resetID = UUID() }
+        .onChange(of: appearance) { _,_ in resetID = UUID() }
+        .onChange(of: showPhotos) { _,_ in resetID = UUID() }
+        .onChange(of: showRoomSurfaces) { _,_ in renderError = nil; resetID = UUID() }
+        .studioPresentation(isPresented: $expanded) {
+            TechnicalSavedScanView(package: package, immersive: true, closeImmersive: { expanded = false }, selectedSuggestion: selectedSuggestion, onPhotoLink: onPhotoLink)
+        }
+        .sheet(item: $selectedPhoto) { photo in TechnicalSurveyPhotoView(photo: photo,persistLink: onPhotoLink) }
+    }
+
+    private func meshViewport(_ snapshot: TechnicalMeshSnapshot) -> some View {
                 RealityView { content in
                     do {
-                        let geometry = try TechnicalSavedMeshGeometry(snapshot: snapshot, reference: package.alignment.referenceFrame)
+                        let geometry = try TechnicalSavedMeshGeometry(snapshot: showRoomSurfaces ? snapshot : snapshot.hidingRoomSurfaces(), reference: package.alignment.referenceFrame)
                         let model = try makeModel(geometry)
                         if appearance != .mep { content.add(model) }
                         if appearance != .scan {
@@ -69,7 +141,7 @@ struct TechnicalSavedScanView: View {
                                     content.add(marker)
                             }
                         }
-                    } catch { renderError = error.localizedDescription }
+                    } catch { renderError = showRoomSurfaces ? error.localizedDescription : "No equipment surfaces remain after hiding room surfaces. Turn Room surfaces on to view the complete scan." }
                 }
                 .realityViewCameraControls(.orbit)
                 .accessibilityElement(children: .ignore)
@@ -86,37 +158,6 @@ struct TechnicalSavedScanView: View {
                 .overlay {
                     if let renderError { ContentUnavailableView(renderError, systemImage: "exclamationmark.triangle") }
                 }
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Saved LiDAR mesh").font(.caption.bold())
-                        Text("Drag to rotate · pinch to zoom").font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button { renderError = nil; resetID = UUID() } label: { Label("Reset view", systemImage: "scope") }
-                        .labelStyle(.iconOnly).buttonStyle(.bordered)
-                }.padding(12).background(.regularMaterial)
-                Text(snapshot.patches.contains(where: { $0.colors?.contains(where: { $0 != nil }) == true }) ? "Camera-sampled colours; unseen surfaces are grey. Accuracy unverified." : "No camera colours saved; showing grey geometry. Accuracy unverified.")
-                    .font(.caption).foregroundStyle(.secondary).padding(.horizontal).padding(.vertical, 6)
-                if snapshot.truncated { Text("Partial mesh: capture limit reached.").font(.caption).foregroundStyle(.secondary) }
-            } else {
-                ContentUnavailableView("No saved 3D mesh", systemImage: "cube.transparent", description: Text("Open Survey details to inspect the saved evidence and photos. A recovery map is only needed to resume aligned AR capture."))
-            }
-            if showPhotos {
-                ScrollView(.horizontal) {
-                    HStack {
-                        ForEach(Array(package.evidence.keyframes.filter { $0.userPhoto == true }.enumerated()),id: \.element.id) { i, photo in
-                            Button { selectedPhoto = photo } label: { Label("Photo \(i+1)",systemImage: "camera") }.buttonStyle(.bordered)
-                        }
-                    }.padding(8)
-                }
-            }
-        }
-        .accessibilityIdentifier("technical.savedScanViewer")
-        .onChange(of: package.recognition) { _,_ in resetID = UUID() }
-        .onChange(of: selectedSuggestion) { _,_ in resetID = UUID() }
-        .onChange(of: appearance) { _,_ in resetID = UUID() }
-        .onChange(of: showPhotos) { _,_ in resetID = UUID() }
-        .sheet(item: $selectedPhoto) { photo in TechnicalSurveyPhotoView(photo: photo,persistLink: onPhotoLink) }
     }
 
     private func makeModel(_ geometry: TechnicalSavedMeshGeometry) throws -> ModelEntity {

@@ -84,13 +84,17 @@ struct ScanView: View {
                 if let scanner = radiatorScanner {
                     radiatorControls(scanner)
                 } else {
-                    Button {
-                        let scanner = HouseRadiatorScanCoordinator(session: coordinator.arSession)
-                        radiatorScanner = scanner; radiatorError = nil
-                        mountingPreset = .none; scanner.start()
-                    } label: { Label("Capture radiator · \(radiators.count) saved in this scan",systemImage: "heater.vertical") }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(radiators.reduce(0) { $0+$1.samples.count } > 142_000)
+                    VStack(spacing: 6) {
+                        Text("Radiators need a close-up capture; mark the front corners and adjacent wall.")
+                            .font(.caption).padding(8).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 10))
+                        Button {
+                            let scanner = HouseRadiatorScanCoordinator(session: coordinator.arSession)
+                            radiatorScanner = scanner; radiatorError = nil
+                            mountingPreset = .none; scanner.start()
+                        } label: { Label("Capture radiator · \(radiators.count) saved in this scan",systemImage: "heater.vertical") }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(radiators.reduce(0) { $0+$1.samples.count } > 142_000)
+                    }
                     .padding(.bottom,32)
                 }
             }

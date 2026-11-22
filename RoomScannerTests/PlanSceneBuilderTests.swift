@@ -42,7 +42,8 @@ final class PlanSceneBuilderTests: XCTestCase {
         let room = root.children[0]
         XCTAssertTrue(room.name.hasPrefix("room:"))
         let walls = room.children.first { $0.name == "walls" }!
-        XCTAssertEqual(walls.children.count, 1 + 1 + 3 + 4, "est + ouest pleins, sud avec porte, nord avec fenêtre")
+        XCTAssertNotNil(walls.children.first { $0.name == "wall-junctions" })
+        XCTAssertEqual(walls.children.filter { $0.name != "wall-junctions" }.count, 1 + 1 + 3 + 4, "est + ouest pleins, sud avec porte, nord avec fenêtre")
         XCTAssertNotNil(room.children.first { $0.name == "floor" })
         XCTAssertEqual(room.children.first { $0.name == "panels" }?.children.count, 2)
         XCTAssertEqual(room.children.first { $0.name == "objects" }?.children.count, 1)

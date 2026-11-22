@@ -58,6 +58,7 @@ struct TechnicalCaptureJournal: Codable, Equatable {
         for mesh in meshes {
             guard mesh.timestamp.isFinite, mesh.patches.reduce(0, { $0 + $1.vertices.count }) <= 250_000,
                   mesh.patches.allSatisfy({ patch in patch.vertices.allSatisfy(TechnicalPointEditing.valid) &&
+                      (patch.faceClasses == nil || patch.faceClasses!.count == patch.triangleIndices.count / 3) &&
                       patch.triangleIndices.count % 3 == 0 && patch.triangleIndices.allSatisfy { Int($0) < patch.vertices.count } &&
                       (patch.colors == nil || (patch.colors!.count == patch.vertices.count && patch.colors!.allSatisfy { color in
                           color == nil || [color!.x, color!.y, color!.z].allSatisfy { $0.isFinite && (0...1).contains($0) }
@@ -104,6 +105,6 @@ struct TechnicalCaptureJournal: Codable, Equatable {
         (depth.cameraTransform.count + depth.intrinsics.count) * MemoryLayout<Double>.stride + 256
     }
     private static func bytes(_ mesh: TechnicalMeshSnapshot) -> Int {
-        mesh.patches.reduce(256) { $0 + $1.vertices.count * MemoryLayout<TechnicalPoint3>.stride + $1.triangleIndices.count * 4 + ($1.colors?.count ?? 0) * MemoryLayout<TechnicalPoint3?>.stride + 128 }
+        mesh.patches.reduce(256) { $0 + $1.vertices.count * MemoryLayout<TechnicalPoint3>.stride + $1.triangleIndices.count * 4 + ($1.colors?.count ?? 0) * MemoryLayout<TechnicalPoint3?>.stride + ($1.faceClasses?.count ?? 0) + 128 }
     }
 }

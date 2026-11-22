@@ -64,6 +64,13 @@ struct PlanMeshBuilder {
                     let ops = room.openings.filter { $0.wallID == wall.id }
                     for box in geometry.wallBoxes(wall, openings: ops) { Self.addBox(box, transform: t, to: &m) }
                 }
+                let joins = StudioWallJoins.mesh(room: room, visible: Set(room.walls.map(\.id)))
+                if !joins.isEmpty {
+                    let offset = UInt32(m.positions.count)
+                    m.positions += joins.positions
+                    m.normals += joins.normals
+                    m.triangles += joins.triangles.map { $0 &+ SIMD3<UInt32>(repeating: offset) }
+                }
             }
             if includePanels {
                 for kind in [Opening.Kind.door, .window] {

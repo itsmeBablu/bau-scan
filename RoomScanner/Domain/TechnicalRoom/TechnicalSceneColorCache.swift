@@ -28,3 +28,31 @@ struct TechnicalSceneColorCache {
         return .init(timestamp: snapshot.timestamp, patches: patches, alignmentVerified: snapshot.alignmentVerified, truncated: snapshot.truncated)
     }
 }
+
+/// Retains the latest copy of each observed anchor when a later frame has fewer anchors.
+/// Updates replace geometry, rather than layering duplicate triangles over old surfaces.
+struct TechnicalSceneMeshCache {
+    private var patches: [UUID: TechnicalMeshSnapshot.Patch] = [:]
+    private var order: [UUID] = []
+    private let maximumVertices: Int
+    init(maximumVertices: Int = 250_000) { self.maximumVertices = maximumVertices }
+    mutating func merge(_ snapshot: TechnicalMeshSnapshot) -> TechnicalMeshSnapshot {
+        for patch in snapshot.patches where !patch.triangleIndices.isEmpty {
+            if patches[patch.anchorID] == nil { order.append(patch.anchorID) }
+            patches[patch.anchorID] = patch
+        }
+        var count = 0
+        var truncated = snapshot.truncated
+        // Prefer recently observed geometry under memory pressure.
+        var retained: [TechnicalMeshSnapshot.Patch] = []
+        for id in order.reversed() {
+            guard let patch = patches[id] else { continue }
+            if count + patch.vertices.count <= maximumVertices {
+                retained.append(patch); count += patch.vertices.count
+            } else { patches.removeValue(forKey: id); truncated = true }
+        }
+        order.removeAll { patches[$0] == nil }
+        return .init(timestamp: snapshot.timestamp, patches: retained.reversed(),
+                     alignmentVerified: snapshot.alignmentVerified, truncated: truncated)
+    }
+}
