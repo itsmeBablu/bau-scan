@@ -10,6 +10,9 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(CloudAvailability.preferenceKey) private var useICloud = true
     @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
+    #if os(iOS) && canImport(RoomPlan)
+    @AppStorage(ScanCoordinator.radiatorPreferenceKey) private var detectRadiators = true
+    #endif
     #if os(macOS)
     @Environment(UpdaterController.self) private var updater
     @State private var autoCheck = true
@@ -70,6 +73,16 @@ struct SettingsView: View {
                 #endif
                 Button { openLibraryFolder() } label: { Label("settings.openFolder", systemImage: "folder") }
             } header: { Text("settings.icloud.header") } footer: { Text("settings.icloud.footer") }
+
+            #if os(iOS) && canImport(RoomPlan)
+            Section {
+                Toggle("Automatically detect radiators (Heizkörper)", isOn: $detectRadiators)
+            } header: {
+                Text("House scanning")
+            } footer: {
+                Text("During your next House scan, include the whole radiator and the wall beside it. Review possible radiators in House Options → Radiators.")
+            }
+            #endif
 
             Section {
                 Picker("settings.measurements.unit", selection: $unit) {

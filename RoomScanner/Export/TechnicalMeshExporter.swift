@@ -58,7 +58,9 @@ enum TechnicalMeshExporter {
             material.isDoubleSided = true
             geometry.materials = [material]
             let scene = SCNScene()
-            scene.rootNode.addChildNode(SCNNode(geometry: geometry))
+            let surveyMesh = SCNNode(geometry: geometry)
+            surveyMesh.name = "Survey_" + package.document.room.id.uuidString.replacingOccurrences(of: "-", with: "_")
+            scene.rootNode.addChildNode(surveyMesh)
             guard scene.write(to: url, options: nil, delegate: nil, progressHandler: nil) else { throw Failure.writeFailed }
         }
     }

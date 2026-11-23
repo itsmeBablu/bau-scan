@@ -114,14 +114,18 @@ struct TechnicalGoogleAIConnection: View {
     @State private var account = TechnicalGoogleAIAccount.shared
     var body: some View {
         VStack(alignment: .leading,spacing: 10) {
-            if let email = account.email {
-                if let name = account.displayName { Text(name).font(.headline) }
-                Text("Signed in as \(email)").font(.caption)
-                Button("Sign out of Google") { account.signOut() }
-            } else {
-                GoogleSignInButton { Task { await account.signIn() } }.frame(maxWidth: 240).disabled(account.busy)
+            Label {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(account.displayName ?? (account.signedIn ? "Google account connected" : "Connect your Google account")).font(.headline)
+                    if let email = account.email { Text(email).font(.subheadline).textSelection(.enabled) }
+                    else { Text("Use selected survey photos for MEP recognition or copy them to Google Photos.").font(.subheadline).foregroundStyle(.secondary) }
+                }
+            } icon: { Image(systemName: account.signedIn ? "person.crop.circle.badge.checkmark" : "person.crop.circle").font(.title2) }
+            if account.busy { ProgressView("Connecting…") }
+            else if account.signedIn { Button("Sign out") { account.signOut() }.buttonStyle(.bordered) }
+            else if TechnicalGoogleAIAccount.configured {
+                GoogleSignInButton { Task { await account.signIn() } }.frame(maxWidth: 240)
             }
-            if account.busy { ProgressView("Signing in…") }
             if !TechnicalGoogleAIAccount.configured {
                 Text("Google project setup is required for this build. Offline scanning remains available.").font(.caption).foregroundStyle(.secondary)
             }
@@ -153,9 +157,11 @@ struct GoogleAccountSettingsView: View {
                 Toggle("Google AI mode",isOn: $enabled)
                 Text("Scanning and offline recognition work without Google. Images stay local until you choose them and confirm sending in MEP review.").font(.caption).foregroundStyle(.secondary)
             }
-            Section("Connection") {
+            Section {
+                DisclosureGroup("Service configuration") {
                 TextField("HTTPS Google AI service URL",text: $endpoint).autocorrectionDisabled()
                 Text("Configure the service URL here. The Gemini API key stays on the backend.").font(.caption).foregroundStyle(.secondary)
+                }
             }
         }.formStyle(.grouped).navigationTitle("Google account & AI")
             .onAppear { if endpoint.isEmpty { endpoint = Bundle.main.object(forInfoDictionaryKey: "TechnicalGoogleAIServiceURL") as? String ?? "" } }

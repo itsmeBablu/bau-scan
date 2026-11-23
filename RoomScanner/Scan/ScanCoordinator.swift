@@ -43,6 +43,8 @@ final class ScanCoordinator {
     /// Prevents late camera-permission and processing callbacks from reviving a dismissed scan.
     private var active = false
     let mode: ScanMode
+    static let radiatorPreferenceKey = "houseScan.detectRadiators"
+    let detectsRadiators: Bool
     /// Rooms captured in house mode (shared world coordinate space).
     private(set) var capturedRooms: [CapturedRoom] = []
     let arSession: ARSession
@@ -54,6 +56,8 @@ final class ScanCoordinator {
 
     init(mode: ScanMode = .room, arSession: ARSession = ARSession()) {
         self.mode = mode
+        detectsRadiators = mode == .house &&
+            (UserDefaults.standard.object(forKey: Self.radiatorPreferenceKey) as? Bool ?? true)
         // Preserve the explicit session ownership used by the stable pre-change capture flow.
         self.arSession = arSession
         self.captureView = RoomCaptureView(frame: .zero, arSession: arSession)
@@ -85,7 +89,7 @@ final class ScanCoordinator {
 
     private func run() {
         guard active else { return }
-        if mode == .house {
+        if detectsRadiators {
             // Configure the shared session before RoomPlan starts. Never rerun it
             // from the passive radiator observer while RoomPlan is capturing.
             let tracking = ARWorldTrackingConfiguration()

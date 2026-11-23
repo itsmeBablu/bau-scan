@@ -3,6 +3,7 @@ import ImageIO
 
 struct TechnicalSurveyPhotoView: View {
     let photo: TechnicalCaptureKeyframe
+    var number: Int? = nil
     var persistLink: ((UUID,URL) async throws -> Void)?
     @Environment(\.dismiss) private var dismiss
     @State private var image: CGImage?
@@ -11,11 +12,23 @@ struct TechnicalSurveyPhotoView: View {
     @State private var remoteURL: URL?
     @State private var confirmCopy = false
     @State private var showingGooglePhotos = false
+    @State private var zoom = 1.0
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    if let image { Image(decorative: image,scale: 1).resizable().scaledToFit() }
+                    if let image {
+                        GeometryReader { geometry in
+                            ScrollView([.horizontal,.vertical]) {
+                                Image(decorative: image,scale: 1).resizable().scaledToFit()
+                                    .frame(width: geometry.size.width * zoom)
+                            }
+                        }.frame(height: 420)
+                        HStack {
+                            Button("Zoom out",systemImage: "minus.magnifyingglass") { zoom = max(1,zoom/1.5) }.disabled(zoom <= 1)
+                            Button("Zoom in",systemImage: "plus.magnifyingglass") { zoom = min(6,zoom*1.5) }.disabled(zoom >= 6)
+                        }.buttonStyle(.bordered)
+                    }
                     Text("Photo taken at this camera position. The position uses the saved scan coordinates; it is not a GPS location.").font(.caption).foregroundStyle(.secondary)
                     if let link = remoteURL ?? photo.googlePhotosURL { Link("Open in Google Photos",destination: link) }
                     if photo.googlePhotosURL == nil,persistLink != nil {
@@ -32,7 +45,7 @@ struct TechnicalSurveyPhotoView: View {
                     if let error { Text(error).font(.caption).foregroundStyle(.red) }
                 }.padding()
             }
-            .navigationTitle("Scan photo")
+            .navigationTitle(number.map { "Photo \($0)" } ?? "Scan photo")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.disabled(busy) } }
         }
         #if os(macOS)
@@ -41,7 +54,7 @@ struct TechnicalSurveyPhotoView: View {
         .interactiveDismissDisabled(busy)
         .task {
             if let source = CGImageSourceCreateWithData(photo.jpegData as CFData,nil) {
-                image = CGImageSourceCreateThumbnailAtIndex(source,0,[kCGImageSourceCreateThumbnailFromImageAlways: true,kCGImageSourceThumbnailMaxPixelSize: 1600] as CFDictionary)
+                image = CGImageSourceCreateThumbnailAtIndex(source,0,[kCGImageSourceCreateThumbnailFromImageAlways: true,kCGImageSourceCreateThumbnailWithTransform: true,kCGImageSourceThumbnailMaxPixelSize: 2048] as CFDictionary)
             }
         }
         .confirmationDialog("Copy this scan photo to Google Photos?",isPresented: $confirmCopy,titleVisibility: .visible) {

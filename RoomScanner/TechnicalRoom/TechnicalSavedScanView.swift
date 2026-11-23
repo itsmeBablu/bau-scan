@@ -1,4 +1,6 @@
 import SwiftUI
+import ImageIO
+import CoreText
 import RealityKit
 import simd
 #if os(iOS)
@@ -7,7 +9,25 @@ import UIKit
 import AppKit
 #endif
 
-/// Offline viewing does not require a world map, camera permissions or live alignment.
+private struct SurveyPhotoThumbnail: View {
+    let photo: TechnicalCaptureKeyframe
+    @State private var image: CGImage?
+    var body: some View {
+        Group {
+            if let image { Image(decorative: image, scale: 1).resizable().scaledToFit() }
+            else { Image(systemName: "photo") }
+        }.frame(maxWidth: 220, maxHeight: 140)
+        .task(id: photo.id) {
+            guard let source = CGImageSourceCreateWithData(photo.jpegData as CFData,nil) else { return }
+            image = CGImageSourceCreateThumbnailAtIndex(source,0,[
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: 480
+            ] as CFDictionary)
+        }
+    }
+}
+
 struct TechnicalSavedScanView: View {
     @AppStorage("technical.showCeiling") private var showCeiling = false
     let package: TechnicalRoomPackage
@@ -16,9 +36,11 @@ struct TechnicalSavedScanView: View {
     @State private var expanded = false
     var selectedSuggestion: UUID? = nil
     var onPhotoLink: ((UUID,URL) async throws -> Void)? = nil
-    @State private var showPhotos = false
+    @State private var showPhotos = true
     @State private var showRoomSurfaces = true
     @State private var selectedPhoto: TechnicalCaptureKeyframe?
+    @State private var fullPhoto: TechnicalCaptureKeyframe?
+    private var surveyPhotos: [TechnicalCaptureKeyframe] { package.evidence.keyframes.filter { $0.userPhoto == true } }
     @State private var appearance = Appearance.both
     private enum Appearance: Hashable { case scan, mep, both }
     @State private var resetID = UUID()
@@ -86,10 +108,20 @@ struct TechnicalSavedScanView: View {
             if showPhotos {
                 ScrollView(.horizontal) {
                     HStack {
-                        ForEach(Array(package.evidence.keyframes.filter { $0.userPhoto == true }.enumerated()),id: \.element.id) { i, photo in
-                            Button { selectedPhoto = photo } label: { Label("Photo \(i+1)",systemImage: "camera") }.buttonStyle(.bordered)
+                        ForEach(Array(surveyPhotos.enumerated()),id: \.element.id) { i, photo in
+                            Button { selectedPhoto = photo } label: { Label("Photo \(i+1)",systemImage: selectedPhoto?.id == photo.id ? "checkmark.circle.fill" : "camera") }.buttonStyle(.bordered)
                         }
                     }.padding(8)
+                }
+                if let photo = selectedPhoto, let index = surveyPhotos.firstIndex(where: { $0.id == photo.id }) {
+                    Button { fullPhoto = photo } label: {
+                        HStack {
+                            SurveyPhotoThumbnail(photo: photo).id(photo.id)
+                            Text("Photo \(index + 1)")
+                            Spacer()
+                            Label("Full screen", systemImage: "arrow.up.left.and.arrow.down.right")
+                        }.padding(.horizontal)
+                    }.buttonStyle(.plain)
                 }
             }
         }
@@ -104,7 +136,9 @@ struct TechnicalSavedScanView: View {
         .studioPresentation(isPresented: $expanded) {
             TechnicalSavedScanView(package: package, immersive: true, closeImmersive: { expanded = false }, selectedSuggestion: selectedSuggestion, onPhotoLink: onPhotoLink)
         }
-        .sheet(item: $selectedPhoto) { photo in TechnicalSurveyPhotoView(photo: photo,persistLink: onPhotoLink) }
+        .studioPresentation(item: $fullPhoto) { photo in
+            TechnicalSurveyPhotoView(photo: photo,number: surveyPhotos.firstIndex(where: { $0.id == photo.id }).map { $0 + 1 },persistLink: onPhotoLink)
+        }
     }
 
     private func meshViewport(_ snapshot: TechnicalMeshSnapshot) -> some View {
@@ -129,14 +163,15 @@ struct TechnicalSavedScanView: View {
                         light.look(at: .zero, from: SIMD3(radius, radius * 2, radius), relativeTo: nil)
                         content.add(light)
                         if showPhotos {
-                            let markerTexture = try TextureResource.generate(from: photoMarkerImage(),options: .init(semantic: .color))
-                            for photo in package.evidence.keyframes where photo.userPhoto == true {
+                            for (index, photo) in surveyPhotos.enumerated() {
+                                let m = photo.depth.cameraTransform
+                                guard m.count == 16, m.allSatisfy({ $0.isFinite }) else { continue }
+                                let markerTexture = try TextureResource.generate(from: photoMarkerImage(number: index + 1),options: .init(semantic: .color))
                                 var markerMaterial = UnlitMaterial()
                                 markerMaterial.color = .init(texture: .init(markerTexture))
                                 let size = max(0.08,min(0.2,radius*0.035))
                                 let marker = ModelEntity(mesh: .generatePlane(width: size,height: size),materials: [markerMaterial])
                                 marker.name = "technicalPhoto:\(photo.id.uuidString)"
-                                    let m = photo.depth.cameraTransform
                                     let p = TechnicalPoint3(x: m[12],y: m[13],z: m[14])
                                     let transformed = package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to: p) } ?? p
                                     marker.position = SIMD3(Float(transformed.x-geometry.center.x),Float(transformed.y-geometry.center.y),Float(transformed.z-geometry.center.z))
@@ -144,6 +179,44 @@ struct TechnicalSavedScanView: View {
                                     marker.components.set(InputTargetComponent())
                                     marker.generateCollisionShapes(recursive: false)
                                     content.add(marker)
+                                    // AR cameras look along local -Z. Transform both ends into the displayed room frame.
+                                    let ahead = TechnicalPoint3(x: p.x - m[8], y: p.y - m[9], z: p.z - m[10])
+                                    let target = package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to: ahead) } ?? ahead
+                                    let direction = SIMD3<Float>(Float(target.x-transformed.x),Float(target.y-transformed.y),Float(target.z-transformed.z))
+                                    if simd_length(direction) > 0.001 {
+                                        let axis = simd_normalize(direction)
+                                        let material = SimpleMaterial(color: .systemYellow,isMetallic: false)
+                                        let ray = ModelEntity(mesh: .generateCylinder(height: size*2,radius: size*0.045),materials: [material])
+                                        ray.position = marker.position + axis*size
+                                        ray.orientation = simd_quatf(from: SIMD3(0,1,0),to: axis)
+                                        content.add(ray)
+                                        let transform = package.alignment.referenceFrame
+                                        func roomPoint(_ p: TechnicalPoint3) -> SIMD3<Float> {
+                                            let v = transform.map { TechnicalReferenceFrame.apply($0,to: p) } ?? p
+                                            return SIMD3(Float(v.x-geometry.center.x),Float(v.y-geometry.center.y),Float(v.z-geometry.center.z))
+                                        }
+                                        let length = Double(size * 2.5)
+                                        let intrinsics = photo.depth.intrinsics
+                                        if intrinsics.count == 9, intrinsics[0] > 0, intrinsics[4] > 0 {
+                                            let halfWidth = length * Double(photo.depth.imageWidth) / (2 * intrinsics[0])
+                                            let halfHeight = length * Double(photo.depth.imageHeight) / (2 * intrinsics[4])
+                                            let corners = [(-1.0,-1.0),(1.0,-1.0),(1.0,1.0),(-1.0,1.0)].map { x,y in
+                                                roomPoint(.init(x: p.x-m[8]*length+m[0]*halfWidth*x+m[4]*halfHeight*y,
+                                                                y: p.y-m[9]*length+m[1]*halfWidth*x+m[5]*halfHeight*y,
+                                                                z: p.z-m[10]*length+m[2]*halfWidth*x+m[6]*halfHeight*y))
+                                            }
+                                            for i in corners.indices {
+                                                for (a,b) in [(marker.position,corners[i]),(corners[i],corners[(i+1)%4])] {
+                                                    let delta = b-a
+                                                    guard simd_length(delta) > 0.001 else { continue }
+                                                    let edge = ModelEntity(mesh: .generateCylinder(height: simd_length(delta),radius: size*0.015),materials: [material])
+                                                    edge.position = (a+b)/2
+                                                    edge.orientation = simd_quatf(from: SIMD3(0,1,0),to: simd_normalize(delta))
+                                                    content.add(edge)
+                                                }
+                                            }
+                                        }
+                                    }
                             }
                         }
                     } catch { renderError = showRoomSurfaces ? error.localizedDescription : "No equipment surfaces remain after hiding room surfaces. Turn Room surfaces on to view the complete scan." }
@@ -198,14 +271,17 @@ struct TechnicalSavedScanView: View {
         let mesh = try MeshResource.generate(from: [descriptor])
         return ModelEntity(mesh: mesh, materials: [material])
     }
-    private func photoMarkerImage() -> CGImage {
+    private func photoMarkerImage(number: Int) -> CGImage {
         let context = CGContext(data: nil,width: 64,height: 64,bitsPerComponent: 8,bytesPerRow: 256,
                                 space: CGColorSpace(name: CGColorSpace.sRGB)!,bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
         context.setFillColor(CGColor(gray: 0.18,alpha: 1)); context.fill(CGRect(x: 0,y: 0,width: 64,height: 64))
-        context.setStrokeColor(CGColor(gray: 1,alpha: 1)); context.setLineWidth(3)
-        context.stroke(CGRect(x: 12,y: 17,width: 40,height: 29))
-        context.strokeEllipse(in: CGRect(x: 24,y: 23,width: 16,height: 16))
-        context.setFillColor(CGColor(gray: 1,alpha: 1)); context.fill(CGRect(x: 20,y: 46,width: 12,height: 5))
+        let label = NSAttributedString(string: String(number), attributes: [
+            NSAttributedString.Key(kCTFontAttributeName as String): CTFontCreateWithName("Helvetica-Bold" as CFString, 29, nil),
+            NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(gray: 1,alpha: 1)
+        ])
+        let line = CTLineCreateWithAttributedString(label)
+        context.textPosition = CGPoint(x: (64 - CGFloat(CTLineGetTypographicBounds(line,nil,nil,nil))) / 2, y: 21)
+        CTLineDraw(line,context)
         return context.makeImage()!
     }
 

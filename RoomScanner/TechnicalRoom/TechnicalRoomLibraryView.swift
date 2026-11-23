@@ -203,6 +203,7 @@ private struct TechnicalStoredRoomView: View {
             ToolbarItem(placement: .primaryAction) {
                 Menu("Export", systemImage: "square.and.arrow.up") {
                     Button("Full survey package") { save(exportAfter: true) }
+                    Button("Editable technical survey JSON") { exportSurveyJSON() }
                     ForEach(TechnicalMeshExporter.Format.allCases, id: \.self) { format in
                         Button(format.rawValue.uppercased()) { exportMesh(format) }
                     }
@@ -341,6 +342,20 @@ private struct TechnicalStoredRoomView: View {
         }
     }
 
+    private func exportSurveyJSON() {
+        guard let current = package, !busy else { return }
+        busy = true
+        Task { @MainActor in
+            defer { busy = false }
+            do {
+                let data = try await Task.detached { try TechnicalRoomJSONExporter.handoff(for: current) }.value
+                meshDocument = TechnicalExportDocument(data: data)
+                meshType = .json
+                meshFilename = current.manifest.name + "-survey.json"
+                meshExporting = true
+            } catch { self.error = error.localizedDescription }
+        }
+    }
     private func exportMesh(_ format: TechnicalMeshExporter.Format,acceptedMEPOnly: Bool = false) {
         guard let current = package else { return }
         busy = true

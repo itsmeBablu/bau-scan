@@ -24,6 +24,21 @@ final class TechnicalRoomPackageTests: XCTestCase {
         return .init(manifest: .init(id: room.id, name: "Boiler room"), document: .init(room: room), alignment: alignment,
                      journal: journal, worldMapData: Data([1, 2, 3]), thumbnailPNG: Data([137, 80, 78, 71]))
     }
+    func testEditableSurveyIncludesCorrectedRoutesAndOriginalObservations() throws {
+        var value = try package()
+        let run = try XCTUnwrap(value.document.room.pipeRuns.first)
+        var position = try XCTUnwrap(run.surfaceHits.first).position
+        position.value.x += 1
+        value.document.pointOverrides.append(.init(objectID: run.id, pointIndex: 0, position: position))
+        let data = try TechnicalRoomJSONExporter.handoff(for: value)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(object["format"] as? String, "dWalkScan.technicalSurvey")
+        let effective = try JSONDecoder().decode(TechnicalRoom.self, from: data)
+        XCTAssertEqual(effective.pipeRuns.first?.surfaceHits.first?.position, position)
+        let original = try XCTUnwrap(object["originalPipeRuns"])
+        let raw = try JSONDecoder().decode([TechnicalPipeRun].self, from: JSONSerialization.data(withJSONObject: original))
+        XCTAssertEqual(raw.first, run)
+    }
     func testPortableMeshExportsIncludeGeometryAndReopenUSDZ() throws {
         var value = try package()
         let color = TechnicalPoint3(x: 1, y: 0.25, z: 0)

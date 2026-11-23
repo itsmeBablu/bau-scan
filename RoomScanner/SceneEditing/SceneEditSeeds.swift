@@ -12,12 +12,12 @@ extension SceneEditDocument {
         let room = FloorPlan(id: package.manifest.id,name: "Technik Room",label: .unidentified,story: 0,transform: .identity,walls: [],openings: [],objects: [],floorPolygon: polygon,ceilingHeight: 0...0)
         var result = Self(source: .technical,sourceID: package.manifest.id,title: package.manifest.name+" · Edited",shell: House(room: room),objects: [])
         result.floorColor = .init(x: 0.61,y: 0.63,z: 0.64)
-        func point(_ p: TechnicalPoint3) -> TechnicalPoint3 {
-            var value = reference.map { TechnicalReferenceFrame.apply($0,to: p) } ?? p
+        func point(_ p: TechnicalPoint3, sessionCoordinates: Bool = false) -> TechnicalPoint3 {
+            var value = sessionCoordinates ? (reference.map { TechnicalReferenceFrame.apply($0,to: p) } ?? p) : p
             value.y -= floor; return value
         }
-        func segment(id: UUID,start: TechnicalPoint3,end: TechnicalPoint3,width: Double,depth: Double,family: SceneFurniture,origin: String,color: TechnicalPoint3? = nil,crossAxis: TechnicalPoint3? = nil) {
-            let a = point(start),b = point(end),direction = MEPVector.sub(b,a),length = sqrt(MEPVector.dot(direction,direction))
+        func segment(id: UUID,start: TechnicalPoint3,end: TechnicalPoint3,width: Double,depth: Double,family: SceneFurniture,origin: String,color: TechnicalPoint3? = nil,crossAxis: TechnicalPoint3? = nil,sessionCoordinates: Bool = false) {
+            let a = point(start,sessionCoordinates: sessionCoordinates),b = point(end,sessionCoordinates: sessionCoordinates),direction = MEPVector.sub(b,a),length = sqrt(MEPVector.dot(direction,direction))
             guard length >= 0.005,width >= 0.005,depth >= 0.005 else { return }
             let cross: TechnicalPoint3? = crossAxis.map { value in
                 let origin = TechnicalPoint3(x: 0,y: 0,z: 0)
@@ -27,7 +27,7 @@ extension SceneEditDocument {
             result.objects.append(.init(sourceID: id,origin: origin,name: family.title,family: family,position: MEPVector.mul(MEPVector.add(a,b),0.5),size: .init(x: width,y: length,z: depth),axis: MEPVector.unit(direction),crossAxis: cross,color: color ?? .init(x: 0.68,y: 0.70,z: 0.72),capturedColor: color,colorSource: color == nil ? .preset : .cameraSample,finish: .matte))
         }
         for suggestion in package.recognition.suggestions where suggestion.status == .accepted {
-            segment(id: suggestion.id,start: suggestion.start,end: suggestion.end,width: suggestion.width,depth: suggestion.height,family: suggestion.kind == .rectangularDuct ? .rectangularDuct : suggestion.kind == .roundDuct ? .roundDuct : .pipe,origin: "Accepted MEP suggestion; editable reconstruction",color: suggestion.color,crossAxis: suggestion.crossAxis)
+            segment(id: suggestion.id,start: suggestion.start,end: suggestion.end,width: suggestion.width,depth: suggestion.height,family: suggestion.kind == .rectangularDuct ? .rectangularDuct : suggestion.kind == .roundDuct ? .roundDuct : .pipe,origin: "Accepted MEP suggestion; editable reconstruction",color: suggestion.color,crossAxis: suggestion.crossAxis,sessionCoordinates: true)
         }
         for pipe in package.document.effectiveRoom.pipeRuns {
             let points = pipe.centerline.value

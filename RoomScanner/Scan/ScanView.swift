@@ -94,7 +94,7 @@ struct ScanView: View {
             }
             .padding()
             Spacer()
-            if mode == .house,coordinator.state == .scanning {
+            if coordinator.detectsRadiators, radiatorScanner != nil, coordinator.state == .scanning {
                 VStack(spacing: 4) {
                     Label("Radiator candidates · \(radiators.count)",systemImage: "heater.vertical.fill").font(.subheadline.bold())
                     Text(radiatorScanner?.depthAvailable == false ? "Waiting for LiDAR depth" : radiatorScanner?.geometry != nil ? "Candidate outlined · move around its sides to collect dimensions" : "Looking automatically · include the whole heater and adjacent wall")
@@ -146,7 +146,7 @@ struct ScanView: View {
         radiators.count < 100 && radiators.reduce(0,{ $0+$1.samples.count }) <= 142_000
     }
     private func startAutomaticRadiators() {
-        guard radiatorBudgetAvailable,mode == .house,radiatorScanner == nil,coordinator.state == .scanning else { return }
+        guard coordinator.detectsRadiators,radiatorBudgetAvailable,radiatorScanner == nil,coordinator.state == .scanning else { return }
         let scanner = HouseRadiatorScanCoordinator(session: coordinator.arSession,automaticCapture: true)
         radiatorScanner = scanner; scanner.start()
     }

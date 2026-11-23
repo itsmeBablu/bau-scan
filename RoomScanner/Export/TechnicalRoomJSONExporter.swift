@@ -3,6 +3,33 @@ import Foundation
 enum TechnicalRoomJSONExporter {
     enum ExportError: Error { case invalidGeometry, duplicateID, missingReference }
 
+    /// Standalone engineering handoff. Package readers continue to use the original v1 document.
+    static func handoff(for package: TechnicalRoomPackage) throws -> Data {
+        let document = package.document
+        var object = try JSONSerialization.jsonObject(with: data(for: document.effectiveRoom)) as? [String: Any] ?? [:]
+        let encoder = JSONEncoder()
+        func json<T: Encodable>(_ value: T) throws -> Any {
+            try JSONSerialization.jsonObject(with: encoder.encode(value))
+        }
+        let ducts = document.ducts.map { original in
+            var duct = original
+            for edit in document.pointOverrides where edit.objectID == duct.id && duct.points.indices.contains(edit.pointIndex) {
+                duct.points[edit.pointIndex] = edit.position
+            }
+            return duct
+        }
+        object["format"] = "dWalkScan.technicalSurvey"
+        object["name"] = package.manifest.name
+        object["ducts"] = try json(ducts)
+        object["connections"] = try json(document.connections)
+        object["measurements"] = try json(document.measurements)
+        if let calibration = document.calibration { object["calibration"] = try json(calibration) }
+        object["acceptedDetectionsInSessionCoordinates"] = try json(package.recognition.suggestions.filter { $0.status == .accepted })
+        if let frame = package.alignment.referenceFrame { object["sessionToRoom"] = try json(frame) }
+        object["originalPipeRuns"] = try json(document.room.pipeRuns)
+        return try JSONSerialization.data(withJSONObject: object,options: [.sortedKeys,.prettyPrinted])
+    }
+
     static func data(for room: TechnicalRoom) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
