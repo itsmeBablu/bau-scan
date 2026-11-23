@@ -98,7 +98,7 @@ struct TechnicalSavedScanView: View {
                     Button { renderError = nil; resetID = UUID() } label: { Label("Reset view", systemImage: "scope") }
                         .labelStyle(.iconOnly).buttonStyle(.bordered)
                 }.padding(12).background(.regularMaterial)
-                Text(snapshot.patches.contains(where: { $0.colors?.contains(where: { $0 != nil }) == true }) ? "Camera-sampled colours; unseen surfaces are grey. Accuracy unverified." : "No camera colours saved; showing grey geometry. Accuracy unverified.")
+                Text(snapshot.patches.contains(where: { $0.colors?.contains(where: { $0 != nil }) == true }) ? "Camera-sampled colours; unseen surfaces are grey. Device validation pending." : "No camera colours saved; showing grey geometry. Device validation pending.")
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal).padding(.vertical, 6)
                 if snapshot.truncated { Text("Partial mesh: capture limit reached.").font(.caption).foregroundStyle(.secondary) }
                 }

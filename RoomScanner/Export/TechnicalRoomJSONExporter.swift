@@ -19,6 +19,8 @@ enum TechnicalRoomJSONExporter {
             return duct
         }
         object["format"] = "dWalkScan.technicalSurvey"
+        object["handoffSchemaVersion"] = 1
+        object["captureValidationStatus"] = "device validation pending"
         object["name"] = package.manifest.name
         object["ducts"] = try json(ducts)
         object["connections"] = try json(document.connections)
@@ -27,7 +29,9 @@ enum TechnicalRoomJSONExporter {
         object["acceptedDetectionsInSessionCoordinates"] = try json(package.recognition.suggestions.filter { $0.status == .accepted })
         if let frame = package.alignment.referenceFrame { object["sessionToRoom"] = try json(frame) }
         object["originalPipeRuns"] = try json(document.room.pipeRuns)
-        return try JSONSerialization.data(withJSONObject: object,options: [.sortedKeys,.prettyPrinted])
+        let output = try JSONSerialization.data(withJSONObject: object,options: [.sortedKeys,.prettyPrinted])
+        try TechnicalJSONSchema.validateHandoff(output)
+        return output
     }
 
     static func data(for room: TechnicalRoom) throws -> Data {

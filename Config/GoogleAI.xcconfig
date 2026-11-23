@@ -1,6 +1,8 @@
 // Public OAuth client IDs and backend URL only. Never put Gemini keys here.
 DWALK_GOOGLE_CLIENT_ID =
-DWALK_GOOGLE_SERVER_CLIENT_ID =
+DWALK_GOOGLE_CLIENT_ID[sdk=iphone*] = 568066067025-sgfu3cpic07epot1h1p5j97dsjv2qc2n.apps.googleusercontent.com
+DWALK_GOOGLE_SERVER_CLIENT_ID = 568066067025-m8d0nb3u36g5aqpcu4kj9os3t3689cuh.apps.googleusercontent.com
 DWALK_GOOGLE_REVERSED_CLIENT_ID =
+DWALK_GOOGLE_REVERSED_CLIENT_ID[sdk=iphone*] = com.googleusercontent.apps.568066067025-sgfu3cpic07epot1h1p5j97dsjv2qc2n
 DWALK_GOOGLE_AI_SERVICE_URL =
 #include? "GoogleAI.local.xcconfig"

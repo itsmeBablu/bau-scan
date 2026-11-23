@@ -522,6 +522,22 @@ final class SceneStudioTests: XCTestCase {
         XCTAssertEqual(document.objects[0].sourceID,suggestion.id)
         XCTAssertEqual(package.recognition.suggestions[0].start,suggestion.start)
     }
+    func testTechnicalStudioGeneratesModularLayoutAndWallsWhenEmpty() throws {
+        let room = TechnicalRoom.capturedShell(id: UUID(),notes: "")
+        let package = TechnicalRoomPackage(manifest: .init(id: room.id,name: "Technik"),document: .init(room: room),alignment: .init(),journal: .init(),worldMapData: nil,thumbnailPNG: nil)
+        let document = try SceneEditDocument.technical(package)
+        XCTAssertFalse(document.objects.isEmpty, "Fresh survey should auto-generate modular equipment layout")
+        XCTAssertEqual(document.shell.allRooms.first?.walls.count, 4, "Studio technical room should have 4 enclosing boundary walls")
+        XCTAssertGreaterThan(document.shell.allRooms.first?.ceilingHeight.upperBound ?? 0, 0, "Ceiling height must be positive")
+        let families = Set(document.objects.map(\.family))
+        XCTAssertTrue(families.contains(.boiler))
+        XCTAssertTrue(families.contains(.tank))
+        XCTAssertTrue(families.contains(.pump))
+        XCTAssertTrue(families.contains(.manifold))
+        XCTAssertTrue(families.contains(.electricalPanel))
+        XCTAssertTrue(families.contains(.pipe))
+        try document.validate()
+    }
     @MainActor func testSmartFurnitureAdaptsAndRetainsScanReference() throws {
         let document = seed()
         let original = try XCTUnwrap(document.objects.first)

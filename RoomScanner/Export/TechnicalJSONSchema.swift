@@ -7,9 +7,9 @@ enum TechnicalJSONSchema {
     struct ValidationError: Error { let path: String; let reason: String }
     private final class ResourceToken: NSObject {}
 
-    static func schemaData() throws -> Data {
+    static func schemaData(resourceName: String = "technical-room-v1.schema") throws -> Data {
         let bundles = [Bundle.main, Bundle(for: ResourceToken.self)]
-        guard let url = bundles.compactMap({ $0.url(forResource: "technical-room-v1.schema", withExtension: "json") }).first else {
+        guard let url = bundles.compactMap({ $0.url(forResource: resourceName, withExtension: "json") }).first else {
             throw ValidationError(path: "$", reason: "Missing bundled schema")
         }
         return try Data(contentsOf: url)
@@ -18,6 +18,33 @@ enum TechnicalJSONSchema {
     static func validate(_ data: Data) throws {
         let schema = try JSONSerialization.jsonObject(with: schemaData()) as! [String: Any]
         try validateNode(JSONSerialization.jsonObject(with: data), schema: schema, root: schema, path: "$")
+    }
+
+    /// The handoff has its own version. Validate its extensions and its unchanged v1 core.
+    static func validateHandoff(_ data: Data) throws {
+        let schema = try JSONSerialization.jsonObject(with: schemaData(resourceName: "technical-survey-handoff-v1.schema")) as! [String: Any]
+        let value = try JSONSerialization.jsonObject(with: data)
+        try validateNode(value, schema: schema, root: schema, path: "$")
+        guard let object = value as? [String: Any] else {
+            throw ValidationError(path: "$", reason: "Expected survey object")
+        }
+        let coreSchema = try JSONSerialization.jsonObject(with: schemaData()) as! [String: Any]
+        let keys = Set((coreSchema["properties"] as? [String: Any] ?? [:]).keys)
+        let core = object.filter { keys.contains($0.key) }
+        try validate(JSONSerialization.data(withJSONObject: core))
+        // Decoding checks the Codable structure of route edits, measurements and connections.
+        let decoder = JSONDecoder()
+        func decode<T: Decodable>(_ type: T.Type, key: String) throws {
+            guard let item = object[key] else { return }
+            _ = try decoder.decode(type, from: JSONSerialization.data(withJSONObject: item))
+        }
+        try decode([TechnicalDuctRun].self, key: "ducts")
+        try decode([TechnicalPipeConnection].self, key: "connections")
+        try decode([TechnicalPointMeasurement].self, key: "measurements")
+        try decode(TechnicalScaleCalibration.self, key: "calibration")
+        try decode(TechnicalTransform.self, key: "sessionToRoom")
+        try decode([TechnicalPipeRun].self, key: "originalPipeRuns")
+        try decode([TechnicalMEPSuggestion].self, key: "acceptedDetectionsInSessionCoordinates")
     }
 
     private static func validateNode(_ value: Any, schema: [String: Any], root: [String: Any], path: String) throws {

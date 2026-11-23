@@ -97,6 +97,22 @@ struct TechnicalPipeRun: Codable, Equatable {
 enum TechnicalEquipmentType: String, Codable, CaseIterable {
     case boiler, heatPump, bufferTank, dhwTank, manifold, pump, expansionVessel
     case meter, valveGroup, electricalPanel, other
+
+    var defaultSize: TechnicalPoint3 {
+        switch self {
+        case .boiler: .init(x: 0.70, y: 1.60, z: 0.70)
+        case .heatPump: .init(x: 1.10, y: 1.40, z: 0.80)
+        case .bufferTank: .init(x: 0.80, y: 1.80, z: 0.80)
+        case .dhwTank: .init(x: 0.65, y: 1.50, z: 0.65)
+        case .expansionVessel: .init(x: 0.50, y: 0.85, z: 0.50)
+        case .manifold: .init(x: 0.90, y: 0.50, z: 0.22)
+        case .pump: .init(x: 0.25, y: 0.35, z: 0.25)
+        case .electricalPanel: .init(x: 0.60, y: 0.90, z: 0.25)
+        case .meter: .init(x: 0.30, y: 0.40, z: 0.20)
+        case .valveGroup: .init(x: 0.40, y: 0.50, z: 0.25)
+        case .other: .init(x: 0.50, y: 0.50, z: 0.50)
+        }
+    }
 }
 
 struct TechnicalPort: Codable, Equatable {

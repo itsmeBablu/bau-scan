@@ -9,8 +9,13 @@ extension SceneEditDocument {
         let floor = center.y-extent.y/2
         let halfX = max(1,extent.x/2),halfZ = max(1,extent.z/2)
         let polygon = [Point2D(x: center.x-halfX,y: -center.z-halfZ),.init(x: center.x+halfX,y: -center.z-halfZ),.init(x: center.x+halfX,y: -center.z+halfZ),.init(x: center.x-halfX,y: -center.z+halfZ)]
-        let room = FloorPlan(id: package.manifest.id,name: "Technik Room",label: .unidentified,story: 0,transform: .identity,walls: [],openings: [],objects: [],floorPolygon: polygon,ceilingHeight: 0...0)
-        var result = Self(source: .technical,sourceID: package.manifest.id,title: package.manifest.name+" · Edited",shell: House(room: room),objects: [])
+        let wallHeight = max(2.4, extent.y)
+        let walls: [Wall] = (0..<polygon.count).map { i in
+            Wall(id: UUID(), segment: Segment2D(start: polygon[i], end: polygon[(i + 1) % polygon.count]), height: wallHeight, thickness: FloorPlan.defaultWallThickness, confidence: .high)
+        }
+        let titleName = package.manifest.name.isEmpty ? "Technik Room" : package.manifest.name
+        let room = FloorPlan(id: package.manifest.id,name: titleName,label: .unidentified,story: 0,transform: .identity,walls: walls,openings: [],objects: [],floorPolygon: polygon,ceilingHeight: 0...wallHeight)
+        var result = Self(source: .technical,sourceID: package.manifest.id,title: titleName+" · Edited",shell: House(room: room),objects: [])
         result.floorColor = .init(x: 0.61,y: 0.63,z: 0.64)
         func point(_ p: TechnicalPoint3, sessionCoordinates: Bool = false) -> TechnicalPoint3 {
             var value = sessionCoordinates ? (reference.map { TechnicalReferenceFrame.apply($0,to: p) } ?? p) : p
@@ -48,7 +53,11 @@ extension SceneEditDocument {
             result.objects.append(.init(sourceID: equipment.id,origin: "Survey equipment; generic model",name: equipment.name.value,family: family,position: point(equipment.center.value),size: equipment.size.value,yaw: equipment.rotation.value))
         }
         for i in result.objects.indices { result.objects[i].scanReference = .init(position: result.objects[i].position,size: result.objects[i].size,yaw: result.objects[i].yaw,axis: result.objects[i].axis,crossAxis: result.objects[i].crossAxis,family: result.objects[i].family) }
-        result.applyTechnicalTemplate(.equipment)
+        if result.objects.isEmpty && package.recognition.suggestions.isEmpty {
+            result.generateModularTechnikLayout()
+        } else {
+            result.applyTechnicalTemplate(.equipment)
+        }
         try result.validate(); return result
     }
 

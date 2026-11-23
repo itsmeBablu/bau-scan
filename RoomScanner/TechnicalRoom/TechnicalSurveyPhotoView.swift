@@ -30,6 +30,7 @@ struct TechnicalSurveyPhotoView: View {
                         }.buttonStyle(.bordered)
                     }
                     Text("Photo taken at this camera position. The position uses the saved scan coordinates; it is not a GPS location.").font(.caption).foregroundStyle(.secondary)
+                    Text("Device validation pending").font(.caption).foregroundStyle(.secondary)
                     if let link = remoteURL ?? photo.googlePhotosURL { Link("Open in Google Photos",destination: link) }
                     if photo.googlePhotosURL == nil,persistLink != nil {
                         DisclosureGroup("Google Photos",isExpanded: $showingGooglePhotos) {

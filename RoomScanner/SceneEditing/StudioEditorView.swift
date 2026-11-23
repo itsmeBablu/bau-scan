@@ -152,6 +152,9 @@ struct StudioEditorView: View {
         #if os(iOS)
         ZStack {
             viewport.ignoresSafeArea()
+            if session.document.source == .technical && session.document.objects.isEmpty {
+                technikEmptyState
+            }
             VStack(spacing: 0) {
                 phoneHeader.padding(.horizontal,16).padding(.top,8)
                 Spacer(minLength: 12)
@@ -194,7 +197,12 @@ struct StudioEditorView: View {
                     ForEach(session.document.shell.stories,id: \.index) { Text(StoryNaming.localizedName(for: $0.index)).tag($0.index) }
                 }.padding(.horizontal)
             }
-            viewport
+            ZStack {
+                viewport
+                if session.document.source == .technical && session.document.objects.isEmpty {
+                    technikEmptyState
+                }
+            }
             if showInspector {
                 inspector.frame(maxHeight: 270)
             }
@@ -206,6 +214,42 @@ struct StudioEditorView: View {
             }.padding(10)
         }
         #endif
+    }
+    private var technikEmptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "wrench.and.screwdriver.fill")
+                .font(.system(size: 38))
+                .foregroundStyle(Color.accentColor)
+            Text("Technik Studio · No Equipment Placed")
+                .font(.headline)
+            Text("Generate a complete standard technical room layout with boiler, buffer tank, pump, manifold, expansion vessel, electrical panel, and pipes.")
+                .font(.caption)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: 300)
+            HStack(spacing: 12) {
+                Button {
+                    perform { try session.change { $0.generateModularTechnikLayout() } }
+                } label: {
+                    Label("Generate equipment", systemImage: "sparkles")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                Button {
+                    showModelLibrary = true
+                } label: {
+                    Label("Browse MEP", systemImage: "plus")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+            }
+        }
+        .padding(20)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+        .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
+        .padding(.horizontal, 24)
     }
     private var phoneHeader: some View {
         VStack(alignment: .leading,spacing: 8) {
@@ -253,7 +297,7 @@ struct StudioEditorView: View {
         }
     }
     @ViewBuilder private var phoneDockActions: some View {
-        Button { showModelLibrary = true } label: { dockLabel("Models",icon: "sofa.fill",active: showModelLibrary) }
+        Button { showModelLibrary = true } label: { dockLabel(session.document.source == .technical ? "Equipment" : "Models",icon: session.document.source == .technical ? "pipe.and.drop" : "sofa.fill",active: showModelLibrary) }
         Menu {
             Picker("Interaction",selection: interaction) {
                 Text("Orbit").tag("orbit"); Text("Move").tag("move"); Text("Rotate").tag("rotate")
@@ -307,8 +351,14 @@ struct StudioEditorView: View {
                     Toggle("Snap · 5 cm grid and walls",isOn: $snapping)
                     Toggle("Allow overlaps · intentional connections",isOn: $allowOverlap)
                     Button("Check current floor overlaps") { checkOverlaps() }
+                    if session.document.source == .technical {
+                        Divider()
+                        Button("Generate Technik equipment layout") {
+                            perform { try session.change { $0.generateModularTechnikLayout() } }
+                        }
+                    }
                     Divider()
-                    Menu("Add model") { modelMenu }
+                    Menu(session.document.source == .technical ? "Add equipment" : "Add model") { modelMenu }
                     Button("Import design project…") { importing = true }
                     Menu("Export edited design") {
                         Button("PNG image · current view") { image() }.disabled(showPlan)
@@ -328,6 +378,36 @@ struct StudioEditorView: View {
     private var modelLibrary: some View {
         NavigationStack {
             ScrollView {
+                if session.document.source == .technical {
+                    Button {
+                        perform {
+                            try session.change { $0.generateModularTechnikLayout() }
+                            showModelLibrary = false
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "sparkles")
+                                .font(.title3)
+                                .foregroundStyle(Color.accentColor)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Generate standard equipment layout")
+                                    .font(.subheadline.bold())
+                                Text("Populate boiler, buffer tank, pump, manifold, panel, and pipes")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(12)
+                        .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 130),spacing: 12)],spacing: 12) {
                     ForEach(catalogue.filter { modelSearch.isEmpty || $0.title.localizedCaseInsensitiveContains(modelSearch) }) { family in
                         Button { add(family) } label: {

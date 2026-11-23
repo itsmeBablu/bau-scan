@@ -209,6 +209,151 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
             }
         }
     }
+    mutating func generateModularTechnikLayout() {
+        guard source == .technical else { return }
+        let roomBounds = shell.bounds
+        let cx = roomBounds.isEmpty ? 0.0 : roomBounds.center.x
+        let cz = roomBounds.isEmpty ? 0.0 : -roomBounds.center.y
+        let halfX = roomBounds.isEmpty ? 1.8 : max(1.2, roomBounds.width / 2)
+        let halfZ = roomBounds.isEmpty ? 1.8 : max(1.2, roomBounds.height / 2)
+        let wallHeight = shell.allRooms.first?.ceilingHeight.upperBound ?? 2.50
+
+        var newObjects: [SceneEditObject] = []
+
+        // 1. Heat Generator / Boiler (Wärmeerzeuger)
+        let boilerSize = TechnicalPoint3(x: 0.75, y: 1.65, z: 0.70)
+        let boilerPos = TechnicalPoint3(x: cx - halfX * 0.45, y: boilerSize.y / 2, z: cz - halfZ * 0.65)
+        newObjects.append(SceneEditObject(
+            origin: "Modular Technik template; editable model",
+            name: "Wärmeerzeuger · Boiler",
+            family: .boiler,
+            position: boilerPos,
+            size: boilerSize
+        ))
+
+        // 2. Buffer Tank (Pufferspeicher)
+        let tankSize = TechnicalPoint3(x: 0.75, y: 1.85, z: 0.75)
+        let tankPos = TechnicalPoint3(x: cx + halfX * 0.20, y: tankSize.y / 2, z: cz - halfZ * 0.65)
+        newObjects.append(SceneEditObject(
+            origin: "Modular Technik template; editable model",
+            name: "Pufferspeicher · Buffer Tank",
+            family: .tank,
+            position: tankPos,
+            size: tankSize
+        ))
+
+        // 3. Expansion Vessel (Membran-Ausdehnungsgefäß / MAG)
+        let magSize = TechnicalPoint3(x: 0.48, y: 0.85, z: 0.48)
+        let magPos = TechnicalPoint3(x: cx + halfX * 0.65, y: magSize.y / 2, z: cz - halfZ * 0.65)
+        newObjects.append(SceneEditObject(
+            origin: "Modular Technik template; editable model",
+            name: "Ausdehnungsgefäß · Expansion Vessel",
+            family: .tank,
+            position: magPos,
+            size: magSize
+        ))
+
+        // 4. Circulation Pump (Heizkreispumpe)
+        let pumpSize = TechnicalPoint3(x: 0.22, y: 0.32, z: 0.22)
+        let pumpPos = TechnicalPoint3(x: cx - halfX * 0.05, y: 1.05, z: cz - halfZ * 0.65)
+        newObjects.append(SceneEditObject(
+            origin: "Modular Technik template; editable model",
+            name: "Heizkreispumpe · Pump",
+            family: .pump,
+            position: pumpPos,
+            size: pumpSize
+        ))
+
+        // 5. Heating Manifold (Heizkreisverteiler)
+        let manifoldSize = TechnicalPoint3(x: 0.90, y: 0.48, z: 0.20)
+        let manifoldPos = TechnicalPoint3(x: cx - halfX * 0.05, y: 0.65, z: cz - halfZ * 0.82)
+        newObjects.append(SceneEditObject(
+            origin: "Modular Technik template; editable model",
+            name: "Heizkreisverteiler · Manifold",
+            family: .manifold,
+            position: manifoldPos,
+            size: manifoldSize
+        ))
+
+        // 6. Main Electrical / Control Panel (Schaltschrank)
+        let panelSize = TechnicalPoint3(x: 0.60, y: 0.90, z: 0.22)
+        let panelPos = TechnicalPoint3(x: cx - halfX * 0.85, y: 1.25, z: cz)
+        newObjects.append(SceneEditObject(
+            origin: "Modular Technik template; editable model",
+            name: "Schaltschrank · Electrical Panel",
+            family: .electricalPanel,
+            position: panelPos,
+            size: panelSize,
+            yaw: .pi / 2
+        ))
+
+        // 7. Heating Supply Pipe (Vorlauf)
+        let supplyStart = TechnicalPoint3(x: cx - halfX * 0.45, y: 1.35, z: cz - halfZ * 0.65)
+        let supplyEnd = TechnicalPoint3(x: cx - halfX * 0.05, y: 1.35, z: cz - halfZ * 0.65)
+        let supplyDir = MEPVector.sub(supplyEnd, supplyStart)
+        let supplyLen = sqrt(MEPVector.dot(supplyDir, supplyDir))
+        if supplyLen >= 0.01 {
+            newObjects.append(SceneEditObject(
+                origin: "Modular Technik template; editable model",
+                name: "Vorlauf · Supply Pipe",
+                family: .pipe,
+                position: MEPVector.mul(MEPVector.add(supplyStart, supplyEnd), 0.5),
+                size: .init(x: 0.042, y: supplyLen, z: 0.042),
+                axis: MEPVector.unit(supplyDir),
+                color: .init(x: 0.85, y: 0.25, z: 0.20)
+            ))
+        }
+
+        // 8. Heating Return Pipe (Rücklauf)
+        let returnStart = TechnicalPoint3(x: cx - halfX * 0.05, y: 0.40, z: cz - halfZ * 0.65)
+        let returnEnd = TechnicalPoint3(x: cx + halfX * 0.20, y: 0.40, z: cz - halfZ * 0.65)
+        let returnDir = MEPVector.sub(returnEnd, returnStart)
+        let returnLen = sqrt(MEPVector.dot(returnDir, returnDir))
+        if returnLen >= 0.01 {
+            newObjects.append(SceneEditObject(
+                origin: "Modular Technik template; editable model",
+                name: "Rücklauf · Return Pipe",
+                family: .pipe,
+                position: MEPVector.mul(MEPVector.add(returnStart, returnEnd), 0.5),
+                size: .init(x: 0.042, y: returnLen, z: 0.042),
+                axis: MEPVector.unit(returnDir),
+                color: .init(x: 0.22, y: 0.48, z: 0.78)
+            ))
+        }
+
+        // 9. Ventilation / Exhaust Duct (Lüftungsrohr)
+        let ductY = min(wallHeight - 0.25, 2.30)
+        let ductStart = TechnicalPoint3(x: cx - halfX * 0.45, y: ductY, z: cz - halfZ * 0.65)
+        let ductEnd = TechnicalPoint3(x: cx - halfX * 0.45, y: ductY, z: cz + halfZ * 0.65)
+        let ductDir = MEPVector.sub(ductEnd, ductStart)
+        let ductLen = sqrt(MEPVector.dot(ductDir, ductDir))
+        if ductLen >= 0.01 {
+            newObjects.append(SceneEditObject(
+                origin: "Modular Technik template; editable model",
+                name: "Lüftung · Duct",
+                family: .roundDuct,
+                position: MEPVector.mul(MEPVector.add(ductStart, ductEnd), 0.5),
+                size: .init(x: 0.16, y: ductLen, z: 0.16),
+                axis: MEPVector.unit(ductDir),
+                color: .init(x: 0.65, y: 0.72, z: 0.76)
+            ))
+        }
+
+        for i in newObjects.indices {
+            newObjects[i].scanReference = .init(
+                position: newObjects[i].position,
+                size: newObjects[i].size,
+                yaw: newObjects[i].yaw,
+                axis: newObjects[i].axis,
+                crossAxis: newObjects[i].crossAxis,
+                family: newObjects[i].family
+            )
+        }
+
+        objects.append(contentsOf: newObjects)
+        applyTechnicalTemplate(technicalTemplate ?? .equipment)
+    }
+
     enum Interior: String,Codable,CaseIterable { case natural, scandinavian, modern, industrial, pastel }
     enum Lighting: String,Codable,CaseIterable { case day, night }
     enum Season: String,Codable,CaseIterable { case summer, winter }

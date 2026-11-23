@@ -40,10 +40,10 @@ struct TechnicalRoomScanView: View {
     @State private var material = ""
     @State private var showingEquipmentTool = false
     @State private var equipmentType = TechnicalEquipmentType.boiler
-    @State private var equipmentName = ""
-    @State private var equipmentWidth = ""
-    @State private var equipmentDepth = ""
-    @State private var equipmentHeight = ""
+    @State private var equipmentName = "Boiler"
+    @State private var equipmentWidth = "0.70"
+    @State private var equipmentDepth = "0.70"
+    @State private var equipmentHeight = "1.60"
     @State private var equipmentYaw = "0"
     @State private var equipmentError: String?
     @State private var saving = false
@@ -379,17 +379,34 @@ struct TechnicalRoomScanView: View {
     private var equipmentTool: some View {
         NavigationStack {
             Form {
-                Text("The crosshair hit sets the equipment base centre. Enter verified dimensions in metres.")
-                Picker("Type", selection: $equipmentType) {
-                    ForEach(TechnicalEquipmentType.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                Section("Quick presets") {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach([TechnicalEquipmentType.boiler, .bufferTank, .expansionVessel, .pump, .manifold, .electricalPanel, .heatPump], id: \.self) { type in
+                                Button(type.rawValue.capitalized) {
+                                    applyPreset(type)
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                    }
                 }
-                TextField("Name", text: $equipmentName)
-                TextField("Width (m)", text: $equipmentWidth)
-                TextField("Depth (m)", text: $equipmentDepth)
-                TextField("Height (m)", text: $equipmentHeight)
-                TextField("Rotation around +Y (degrees)", text: $equipmentYaw)
-                Button("Place at crosshair") { placeEquipment() }.disabled(!scanner.state.canAnnotate)
-                if let equipmentError { Text(equipmentError).foregroundStyle(.red) }
+                Section("Properties") {
+                    Text("The crosshair hit sets the equipment base centre. Enter verified dimensions in metres.")
+                    Picker("Type", selection: $equipmentType) {
+                        ForEach(TechnicalEquipmentType.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    .onChange(of: equipmentType) { _, newType in
+                        applyPreset(newType)
+                    }
+                    TextField("Name", text: $equipmentName)
+                    TextField("Width (m)", text: $equipmentWidth)
+                    TextField("Depth (m)", text: $equipmentDepth)
+                    TextField("Height (m)", text: $equipmentHeight)
+                    TextField("Rotation around +Y (degrees)", text: $equipmentYaw)
+                    Button("Place at crosshair") { placeEquipment() }.disabled(!scanner.state.canAnnotate)
+                    if let equipmentError { Text(equipmentError).foregroundStyle(.red) }
+                }
                 Section("Unsaved equipment") {
                     ForEach(equipment, id: \.id) { item in Text(item.name.value) }
                         .onDelete { offsets in
@@ -400,7 +417,21 @@ struct TechnicalRoomScanView: View {
             }
             .navigationTitle("Manual equipment")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Back to camera") { showingEquipmentTool = false } } }
+            .onAppear {
+                if equipmentWidth.isEmpty || equipmentHeight.isEmpty || equipmentDepth.isEmpty {
+                    applyPreset(equipmentType)
+                }
+            }
         }
+    }
+
+    private func applyPreset(_ type: TechnicalEquipmentType) {
+        equipmentType = type
+        let s = type.defaultSize
+        equipmentWidth = String(format: "%.2f", s.x)
+        equipmentHeight = String(format: "%.2f", s.y)
+        equipmentDepth = String(format: "%.2f", s.z)
+        equipmentName = type.rawValue.capitalized
     }
 
     private func placeEquipment() {
