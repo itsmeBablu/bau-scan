@@ -79,6 +79,7 @@ struct StudioEditorView: View {
     @State private var landscape = false
     @State private var canvasWidth: CGFloat = 393
     @State private var modelSearch = ""
+    @State private var modelCategory = "All"
     @State private var error: String?
     @State private var status = ""
     @State private var busy = false
@@ -395,7 +396,24 @@ struct StudioEditorView: View {
     private var undoButton: some View { Button { session.undo() } label: { Label("Undo",systemImage: "arrow.uturn.backward") }.disabled(session.undoStack.isEmpty || busy) }
     private var catalogue: [SceneFurniture] {
         if session.document.source == .technical { return [.pipe,.roundDuct,.rectangularDuct,.boiler,.tank,.radiator,.pump,.manifold,.electricalPanel,.box,.cylinder] }
-        return [.sofa,.bed,.chair,.table,.television,.cabinet,.refrigerator,.stove,.sink,.toilet,.bathtub,.shower,.washer,.radiator,.box,.cylinder]
+        return [.sofa,.bed,.chair,.table,.television,.cabinet,.refrigerator,.stove,.sink,.toilet,.bathtub,.shower,.washer,.desk,.officeChair,.conferenceTable,.computer,.monitor,.bookshelf,.whiteboard,.radiator,.box,.cylinder]
+    }
+    private var filteredCatalogue: [SceneFurniture] {
+        catalogue.filter { family in
+            let matchesSearch = modelSearch.isEmpty || family.title.localizedCaseInsensitiveContains(modelSearch)
+            guard matchesSearch else { return false }
+            if session.document.source == .technical || modelCategory == "All" { return true }
+            switch modelCategory {
+            case "Office":
+                return [.desk, .officeChair, .conferenceTable, .computer, .monitor, .bookshelf, .whiteboard].contains(family)
+            case "Living":
+                return [.sofa, .bed, .chair, .table, .television, .cabinet, .bookshelf, .box, .cylinder].contains(family)
+            case "Kitchen & Bath":
+                return [.refrigerator, .stove, .sink, .toilet, .bathtub, .shower, .washer].contains(family)
+            default:
+                return true
+            }
+        }
     }
     private var modelMenu: some View { ForEach(catalogue) { family in Button(family.title) { add(family) } }.disabled(session.document.objects.count >= 500) }
     private var designOptions: some View {
@@ -482,8 +500,29 @@ struct StudioEditorView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
                 }
+                if session.document.source != .technical {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(["All", "Office", "Living", "Kitchen & Bath"], id: \.self) { category in
+                                Button {
+                                    modelCategory = category
+                                } label: {
+                                    Text(category)
+                                        .font(.caption.weight(.medium))
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(modelCategory == category ? Color.accentColor : Color.secondary.opacity(0.15), in: Capsule())
+                                        .foregroundStyle(modelCategory == category ? .black : .primary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 4)
+                    }
+                }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 130),spacing: 12)],spacing: 12) {
-                    ForEach(catalogue.filter { modelSearch.isEmpty || $0.title.localizedCaseInsensitiveContains(modelSearch) }) { family in
+                    ForEach(filteredCatalogue) { family in
                         Button { add(family) } label: {
                             VStack(spacing: 10) {
                                 Image(systemName: family.symbol).font(.title2)

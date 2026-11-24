@@ -695,6 +695,26 @@ final class SceneStudioTests: XCTestCase {
         room.openings = [.init(id: UUID(),kind: .door,wallID: b.id,center: .init(x: 0,y: 0.25),width: 0.5,height: 2,sillHeight: 0,angle: .pi/2,confidence: .high)]
         XCTAssertTrue(StudioWallJoins.mesh(room: room,visible: [a.id,b.id]).isEmpty)
     }
+    @MainActor func testOfficeFurnitureCollectionBuildsAndValidates() throws {
+        let officeFamilies: [SceneFurniture] = [.desk, .officeChair, .conferenceTable, .computer, .monitor, .bookshelf, .whiteboard]
+        for family in officeFamilies {
+            XCTAssertFalse(family.title.isEmpty)
+            XCTAssertFalse(family.symbol.isEmpty)
+            let item = SceneEditObject(origin: "office",name: family.title,family: family,position: .init(x: 0,y: family.defaultSize.y/2,z: 0),size: family.defaultSize)
+            try item.validate()
+            let node = StudioSceneBuilder.model(item)
+            XCTAssertFalse(node.childNodes.isEmpty, "Node for \(family.rawValue) must have child nodes")
+            XCTAssertLessThanOrEqual(node.childNodes.count, 20)
+            XCTAssertTrue(node.childNodes.allSatisfy { $0.geometry?.firstMaterial?.lightingModel == .physicallyBased })
+        }
+        XCTAssertEqual(SceneFurniture.detected("office desk"), .desk)
+        XCTAssertEqual(SceneFurniture.detected("ergonomic office chair"), .officeChair)
+        XCTAssertEqual(SceneFurniture.detected("conference meeting table"), .conferenceTable)
+        XCTAssertEqual(SceneFurniture.detected("desktop computer workstation"), .computer)
+        XCTAssertEqual(SceneFurniture.detected("curved monitor display"), .monitor)
+        XCTAssertEqual(SceneFurniture.detected("bookshelf bookcase"), .bookshelf)
+        XCTAssertEqual(SceneFurniture.detected("dry erase whiteboard"), .whiteboard)
+    }
     #if os(iOS)
     @MainActor func testCompactARControlsFitWithAccessibleText() async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)

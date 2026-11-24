@@ -4,11 +4,14 @@ import simd
 
 enum SceneFurniture: String,Codable,CaseIterable,Identifiable {
     case sofa, bed, chair, table, television, cabinet, refrigerator, stove, sink, toilet, bathtub, shower, washer
+    case desk, officeChair, conferenceTable, computer, monitor, bookshelf, whiteboard
     case radiator, boiler, tank, pump, manifold, electricalPanel, pipe, roundDuct, rectangularDuct, box, cylinder
     var id: String { rawValue }
     var symbol: String {
         switch self {
         case .sofa: "sofa.fill"; case .bed: "bed.double.fill"; case .chair: "chair.fill"; case .table: "table.furniture.fill"
+        case .desk: "table.furniture.fill"; case .officeChair: "chair.lounge.fill"; case .conferenceTable: "person.3.sequence.fill"
+        case .computer: "desktopcomputer"; case .monitor: "display"; case .bookshelf: "books.vertical.fill"; case .whiteboard: "character.textbox"
         case .television: "tv"; case .cabinet: "cabinet.fill"; case .refrigerator: "refrigerator.fill"
         case .stove: "stove.fill"; case .sink: "sink.fill"; case .toilet: "toilet.fill"; case .bathtub: "bathtub.fill"
         case .shower: "shower.fill"; case .washer: "washer.fill"; case .radiator: "heater.vertical.fill"
@@ -21,13 +24,21 @@ enum SceneFurniture: String,Codable,CaseIterable,Identifiable {
         switch self {
         case .television: "TV"; case .electricalPanel: "Electrical panel"
         case .roundDuct: "Round duct"; case .rectangularDuct: "Rectangular duct"
+        case .officeChair: "Office chair"; case .conferenceTable: "Conference table"
         default: rawValue.prefix(1).uppercased()+rawValue.dropFirst()
         }
     }
     static func detected(_ category: String) -> Self {
         let c = category.lowercased()
+        if c.contains("desk") { return .desk }
+        if c.contains("office chair") || c.contains("swivel") { return .officeChair }
+        if c.contains("conference") || c.contains("meeting") { return .conferenceTable }
+        if c.contains("computer") || c.contains("desktop") || c.contains("pc") { return .computer }
+        if c.contains("monitor") { return .monitor }
+        if c.contains("bookshelf") || c.contains("bookcase") { return .bookshelf }
+        if c.contains("whiteboard") { return .whiteboard }
         if c.contains("sofa") { return .sofa }; if c.contains("bed") { return .bed }
-        if c.contains("chair") { return .chair }; if c.contains("table") || c.contains("desk") { return .table }
+        if c.contains("chair") { return .chair }; if c.contains("table") { return .table }
         if c.contains("television") || c == "tv" { return .television }
         if c.contains("refrigerator") { return .refrigerator }; if c.contains("stove") || c.contains("oven") { return .stove }
         if c.contains("sink") { return .sink }; if c.contains("toilet") { return .toilet }
@@ -40,6 +51,10 @@ enum SceneFurniture: String,Codable,CaseIterable,Identifiable {
         switch self {
         case .sofa: .init(x: 2,y: 0.85,z: 0.9); case .bed: .init(x: 1.6,y: 0.9,z: 2)
         case .chair: .init(x: 0.5,y: 0.85,z: 0.55); case .table: .init(x: 1.4,y: 0.75,z: 0.85)
+        case .desk: .init(x: 1.6,y: 0.75,z: 0.80); case .officeChair: .init(x: 0.65,y: 0.95,z: 0.65)
+        case .conferenceTable: .init(x: 2.4,y: 0.75,z: 1.10); case .computer: .init(x: 0.22,y: 0.45,z: 0.45)
+        case .monitor: .init(x: 0.65,y: 0.45,z: 0.18); case .bookshelf: .init(x: 1.0,y: 1.8,z: 0.35)
+        case .whiteboard: .init(x: 1.5,y: 1.8,z: 0.45)
         case .television: .init(x: 1.2,y: 0.7,z: 0.12); case .radiator: .init(x: 1,y: 0.6,z: 0.12)
         case .pipe,.roundDuct: .init(x: 0.1,y: 1,z: 0.1)
         case .rectangularDuct: .init(x: 0.4,y: 1,z: 0.25)
