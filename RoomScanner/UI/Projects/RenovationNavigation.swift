@@ -139,8 +139,8 @@ struct RenovationNavigation: View {
         NavigationStack {
             VStack(spacing:24) {
                 Image(systemName:["folder","viewfinder","ruler"][guidePage]).font(.system(size:64)).accessibilityHidden(true)
-                Text(["Create a project","Scan your space","Review and verify"][guidePage]).font(.title).multilineTextAlignment(.center)
-                Text(["Group a building's scans, designs, photos and notes in one place.","Choose Whole home, Room or Utility room. Your original scan stays separate from design edits.","Check important dimensions before sharing a report. Capture-derived data is device validation pending."][guidePage]).multilineTextAlignment(.center)
+                Text(LocalizedStringKey(["Create a project","Scan your space","Review and verify"][guidePage])).font(.title).multilineTextAlignment(.center)
+                Text(LocalizedStringKey(["Group a building's scans, designs, photos and notes in one place.","Choose Whole home, Room or Utility room. Your original scan stays separate from design edits.","Check important dimensions before sharing a report. Capture-derived data is device validation pending."][guidePage])).multilineTextAlignment(.center)
                 Button(guidePage == 2 ? "Get started" : "Next") { if guidePage < 2 { guidePage += 1 } else { onboarded = true; guide = false } }.buttonStyle(.borderedProminent)
             }.padding(28).navigationTitle("Welcome")
                 .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Skip") { onboarded = true; guide = false } } }

@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     var embedded = false
     var includesProfile = false
+    @AppStorage(AppLanguage.preferenceKey) private var language = AppLanguage.system.rawValue
     @AppStorage("profile.displayName") private var displayName = ""
     @AppStorage("profile.organisation") private var organisation = ""
     @Environment(RoomStore.self) private var store
@@ -41,6 +42,13 @@ struct SettingsView: View {
 
     private var form: some View {
         Form {
+            Section("Language") {
+                Picker("Language",selection:$language) {
+                    Text("System").tag(AppLanguage.system.rawValue)
+                    Text("English").tag(AppLanguage.english.rawValue)
+                    Text("Deutsch").tag(AppLanguage.german.rawValue)
+                }
+            }
             Section("Capture") {
                 Toggle("Camera photos during scanning",isOn:$cameraPhotos)
                 Picker("Scan performance",selection:$scanPerformance) {

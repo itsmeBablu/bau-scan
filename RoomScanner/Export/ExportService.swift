@@ -6,7 +6,7 @@ import Foundation
 /// 2D and JSON are generated; USDZ copied from package; OBJ/STL/PLY built from
 /// the plan (`PlanMeshBuilder`) or converted from scan mesh (`ModelIOConverter`).
 struct ExportService {
-    var locale: Locale = .current
+    var locale: Locale = AppLanguage.locale
     var unit: MeasurementUnit = MeasurementUnit(rawValue: UserDefaults.standard.string(forKey: "measurementUnit") ?? "") ?? .both
     var pageSize = CGSize(width: 842, height: 595)  // A4 paysage, points
     var pngPixelScale: CGFloat = 3

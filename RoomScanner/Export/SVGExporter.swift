@@ -4,7 +4,7 @@ import Foundation
 /// SVG coordinate system Y down: y_svg = (maxY - y_plan). Readable in Illustrator,
 /// Figma, Inkscape, and web browsers.
 struct SVGExporter {
-    var locale: Locale = .current
+    var locale: Locale = AppLanguage.locale
     var margin = 0.6  // margin around plan in meters (for dimension lines)
     var unit: MeasurementUnit = .both
 

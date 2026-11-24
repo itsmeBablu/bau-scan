@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Root screen: library with `RoomStore` injected into the environment.
 struct RootView: View {
+    @AppStorage(AppLanguage.preferenceKey) private var language = AppLanguage.system.rawValue
     @State private var store = RoomStore(location: RootView.initialLocation(), allowsCloud: RootView.allowsCloud)
 
     private static var allowsCloud: Bool {
@@ -34,6 +35,7 @@ struct RootView: View {
 
     var body: some View {
         applicationContent
+            .environment(\.locale,(AppLanguage(rawValue:language) ?? .system).locale)
             .environment(store)
             .tint(.blue)
             .task { await store.activateCloudIfAvailable() }
