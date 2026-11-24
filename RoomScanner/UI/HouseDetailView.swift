@@ -22,7 +22,7 @@ struct HouseDetailView: View {
     @State private var renameError: String?
     @State private var viewerState = ViewerState()
 
-    enum Tab: Hashable { case plan, viewer, measures }
+    enum Tab: Hashable { case plan, viewer, measures, photos }
 
     private var currentRecord: HouseRecord { store.houseRecords.first { $0.id == record.id } ?? record }
 
@@ -107,6 +107,7 @@ struct HouseDetailView: View {
                     Text("detail.tab.plan").tag(Tab.plan)
                     Text("detail.tab.viewer").tag(Tab.viewer)
                     Text("detail.tab.measures").tag(Tab.measures)
+                    Text("detail.tab.photos").tag(Tab.photos)
                 }
                 .pickerStyle(.segmented)
                 if house.stories.count > 1 {
@@ -143,6 +144,42 @@ struct HouseDetailView: View {
             case .measures: HouseMeasuresView(house: shown(house),onRename: { room in
                 newRoomName = room.name; roomToRename = room
             })
+            case .photos:
+                HousePhotosTabView(house: shown(house), packageURL: store.packageURL(for: currentRecord))
+            }
+        }
+        #if os(macOS)
+        .background {
+            Group {
+                Button("") { tab = .plan }.keyboardShortcut("1", modifiers: .command)
+                Button("") { tab = .viewer }.keyboardShortcut("2", modifiers: .command)
+                Button("") { tab = .measures }.keyboardShortcut("3", modifiers: .command)
+                Button("") { tab = .photos }.keyboardShortcut("4", modifiers: .command)
+                Button("") { stepStory(-1) }.keyboardShortcut("[", modifiers: [])
+                Button("") { stepStory(1) }.keyboardShortcut("]", modifiers: [])
+                Button("") { viewerState.resetToken += 1 }.keyboardShortcut("0", modifiers: .command)
+            }
+            .opacity(0)
+            .allowsHitTesting(false)
+        }
+        #endif
+    }
+
+    private func stepStory(_ delta: Int) {
+        guard let house, house.stories.count > 1 else { return }
+        let sorted = house.stories.sorted { $0.index < $1.index }
+        if let current = storyIndex, let idx = sorted.firstIndex(where: { $0.index == current }) {
+            let nextIdx = idx + delta
+            if nextIdx < 0 {
+                storyIndex = nil
+            } else if nextIdx < sorted.count {
+                storyIndex = sorted[nextIdx].index
+            }
+        } else {
+            if delta > 0 {
+                storyIndex = sorted.first?.index
+            } else {
+                storyIndex = sorted.last?.index
             }
         }
     }

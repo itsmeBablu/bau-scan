@@ -22,7 +22,7 @@ struct RoomDetailView: View {
         return s
     }()
 
-    enum Tab: Hashable { case plan, viewer, measures }
+    enum Tab: Hashable { case plan, viewer, measures, photos }
 
     private var currentRecord: RoomRecord { store.records.first { $0.id == record.id } ?? record }
 
@@ -78,6 +78,7 @@ struct RoomDetailView: View {
                 Text("detail.tab.plan").tag(Tab.plan)
                 Text("detail.tab.viewer").tag(Tab.viewer)
                 Text("detail.tab.measures").tag(Tab.measures)
+                Text("detail.tab.photos").tag(Tab.photos)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
@@ -97,8 +98,23 @@ struct RoomDetailView: View {
                     ViewerControls(state: viewerState, usdzURL: RoomPackage.usdzURL(in: store.packageURL(for: currentRecord)))
                 }
             case .measures: MeasuresView(plan: plan,onRename: { newName = currentRecord.name; renaming = true })
+            case .photos:
+                HousePhotosTabView(house: House(room: plan), packageURL: store.packageURL(for: currentRecord))
             }
         }
+        #if os(macOS)
+        .background {
+            Group {
+                Button("") { tab = .plan }.keyboardShortcut("1", modifiers: .command)
+                Button("") { tab = .viewer }.keyboardShortcut("2", modifiers: .command)
+                Button("") { tab = .measures }.keyboardShortcut("3", modifiers: .command)
+                Button("") { tab = .photos }.keyboardShortcut("4", modifiers: .command)
+                Button("") { viewerState.resetToken += 1 }.keyboardShortcut("0", modifiers: .command)
+            }
+            .opacity(0)
+            .allowsHitTesting(false)
+        }
+        #endif
     }
 
     private func load() {
