@@ -169,7 +169,7 @@ struct TechnicalStoredRoomView: View {
                     Picker("Saved survey view", selection: $tab) {
                         Text("3D scan").tag(Tab.scan)
                         Text("Survey details").tag(Tab.details)
-                        Text("MEP review").tag(Tab.recognition)
+                        Text(proDetails ? "MEP review" : "Find objects").tag(Tab.recognition)
                     }
                     .pickerStyle(.segmented).labelsHidden().padding(.horizontal).padding(.vertical, 8)
                     if tab == .scan { TechnicalSavedScanView(package: package,onPhotoLink: savePhotoLink) }
@@ -261,6 +261,7 @@ struct TechnicalStoredRoomView: View {
                 #endif
             }
             if let current = package {
+                if proDetails {
                 Section("Capture evidence") {
                     if let png = current.thumbnailPNG { TechnicalStoredPhoto(data: png, name: "Survey thumbnail").id(current.manifest.modifiedAt) }
                     Text("\(current.journal.frames.count) frame records · \(current.journal.depths.count) depth · \(current.journal.meshes.count) mesh snapshots")
@@ -269,6 +270,7 @@ struct TechnicalStoredRoomView: View {
                     Text("\(current.alignment.checkpoints.count) checkpoint observations")
                     Text(current.worldMapData == nil ? "No saved world map" : "Recovery map retained")
                     if current.journal.retentionLimited { Text("Some older capture records exceeded retention limits.").foregroundStyle(.orange) }
+                }
                 }
                 Section("Pipes — manual dimensions") {
                     ForEach(Array(current.document.room.pipeRuns.enumerated()), id: \.element.id) { index, pipe in

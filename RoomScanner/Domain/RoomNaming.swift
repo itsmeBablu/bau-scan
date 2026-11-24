@@ -29,7 +29,7 @@ struct RoomNaming {
     }
 
     static func defaultBaseName(_ label: RoomLabel) -> String {
-        String(localized: String.LocalizationValue(label.localizationKey), bundle: .main)
+        String(localized: String.LocalizationValue(label.localizationKey), bundle: .main, locale: AppLanguage.locale)
     }
 }
 
@@ -51,7 +51,7 @@ extension RoomLabel {
 enum ObjectNaming {
     static func localizedName(_ category: String) -> String {
         let key = "object.\(category)"
-        let s = String(localized: String.LocalizationValue(key), bundle: .main)
+        let s = String(localized: String.LocalizationValue(key), bundle: .main, locale: AppLanguage.locale)
         return s == key ? category.capitalized : s
     }
 }

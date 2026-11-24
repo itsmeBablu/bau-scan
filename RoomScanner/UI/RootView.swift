@@ -12,12 +12,8 @@ struct RootView: View {
         !hasForcedRoot
         #endif
     }
-    @State private var tab = AppTab.house
-    @State private var scanningTechnical = false
-    @State private var pendingItem: LibraryItem?
     @State private var savedTechnicalID: UUID?
     @State private var technicalRefresh = 0
-    private enum AppTab: Hashable { case house, technical, capture, studio, profile }
     @State private var importError: String?
     @State private var technicalImport: URL?
     @State private var showingTechnicalImport = false
@@ -52,7 +48,7 @@ struct RootView: View {
     }
     @ViewBuilder private var applicationContent: some View {
         #if os(iOS)
-        RenovationNavigation()
+        RenovationNavigation(refreshToken:technicalRefresh)
 
         #else
         RoomListView()

@@ -25,4 +25,25 @@ enum ProjectIndexStore {
             try data.write(to: target, options: .atomic)
         }
     }
+    /// Read/modify/write under one coordinated lock, so independent windows do not
+    /// overwrite newer notes or resurrect a project deleted from Settings.
+    static func update(root: URL, _ edit: (inout ProjectIndex) throws -> Void) throws -> ProjectIndex {
+        let file = url(root:root)
+        try FileManager.default.createDirectory(at:file.deletingLastPathComponent(),withIntermediateDirectories:true)
+        var result = ProjectIndex()
+        try RoomPackage.coordinatedWrite(at:file,options:.forMerging) { target in
+            var next = ProjectIndex()
+            if FileManager.default.fileExists(atPath:target.path) {
+                let info = try target.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey])
+                guard info.isRegularFile == true,info.isSymbolicLink != true,(info.fileSize ?? Int.max) < 16_777_216 else { throw CocoaError(.fileReadCorruptFile) }
+                next = try JSONDecoder().decode(ProjectIndex.self,from:Data(contentsOf:target)); try next.validate()
+            }
+            try edit(&next); try next.validate()
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted,.sortedKeys]
+            let data = try encoder.encode(next)
+            guard data.count < 16_777_216 else { throw CocoaError(.fileWriteOutOfSpace) }
+            try data.write(to:target,options:.atomic); result = next
+        }
+        return result
+    }
 }

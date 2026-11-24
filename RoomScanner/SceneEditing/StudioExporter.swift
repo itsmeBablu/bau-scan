@@ -15,7 +15,9 @@ import ModelIO
         if [.pdf,.svg,.dxf].contains(format) {
             var exporter = ExportService(); exporter.unit = .meters
             let type: ExportFormat = format == .pdf ? .pdf : format == .svg ? .svg : .dxf
-            return try exporter.data(for: document.plan,format: type,title: document.title+" · "+(document.engineering?.view.rawValue ?? "all")+" · Edited design")
+            let plan = document.plan
+            let shown = type == .pdf ? plan : House(id:plan.id,name:plan.name,stories:plan.stories.filter { $0.index == (story ?? plan.stories.first?.index) })
+            return try exporter.data(for: shown,format: type,title: document.title+" · "+AppLanguage.text(document.engineering?.view.rawValue ?? "all")+" · "+AppLanguage.text("Edited design"))
         }
         let folder = try ExportService.scratchDirectory()
         defer { try? FileManager.default.removeItem(at: folder) }

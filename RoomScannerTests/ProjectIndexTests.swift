@@ -31,4 +31,12 @@ final class ProjectIndexTests: XCTestCase {
         XCTAssertEqual(try ProjectIndexStore.read(root: root), index)
         XCTAssertEqual(try Data(contentsOf: legacy), bytes)
     }
+    func testCoordinatedUpdatesReadLatestIndexInsteadOfOverwritingNewerProjects() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let first = RenovationProject(name:"First"), second = RenovationProject(name:"Second")
+        _ = try ProjectIndexStore.update(root:root) { $0.projects.append(first) }
+        _ = try ProjectIndexStore.update(root:root) { $0.projects.append(second) }
+        XCTAssertEqual(try ProjectIndexStore.read(root:root).projects.map(\.id),[first.id,second.id])
+    }
 }

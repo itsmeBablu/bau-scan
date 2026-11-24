@@ -44,7 +44,7 @@ enum SurveyPhotoStore {
         let data = try readCoordinated(from:root)
         return (data.photos ?? []).compactMap { photo in
             guard let bytes = data.assets[photo.id] else { return nil }
-            return .init(photo:photo,jpegData:bytes,roomName:house.allRooms.first { $0.id == photo.roomID }?.name ?? "Unassigned room")
+            return .init(photo:photo,jpegData:bytes,roomName:house.allRooms.first { $0.id == photo.roomID }?.name ?? AppLanguage.text("Unassigned room"))
         }
     }
     static func images(technical package: TechnicalRoomPackage,studio: Bool = false) -> [SurveyPhotoImage] {

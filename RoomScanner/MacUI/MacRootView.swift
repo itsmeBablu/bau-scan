@@ -174,7 +174,7 @@ struct MacRootView: View {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.roomScan, .houseScan]
         panel.allowsMultipleSelection = true
-        panel.message = String(localized: "mac.import.message")
+        panel.message = AppLanguage.text("mac.import.message")
         guard panel.runModal() == .OK else { return }
         for url in panel.urls {
             do { appState.selected = try store.importAny(from: url) } catch { errorMessage = error.localizedDescription }

@@ -47,7 +47,7 @@ final class ArchiveExporterTests: XCTestCase {
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/unzip"); p.arguments = ["-Z1", url.path]
         let pipe = Pipe(); p.standardOutput = pipe; try p.run(); p.waitUntilExit()
         let names = Set(String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).split(separator: "\n").map(String.init))
-        for f in ["Salon/Salon.pdf", "Salon/Salon.png", "Salon/Salon.svg", "Salon/Salon.dxf", "Salon/Salon.obj", "Salon/Salon.stl", "Salon/Salon.ply", "Salon/Salon.json", "Salon/README.txt"] {
+        for f in ["Salon/Plans/Salon.pdf", "Salon/Plans/Salon.png", "Salon/Plans/Salon.svg", "Salon/Plans/Salon.dxf", "Salon/Models/Salon.obj", "Salon/Models/Salon.stl", "Salon/Models/Salon.ply", "Salon/Data/Salon.json", "Salon/README.txt"] {
             XCTAssertTrue(names.contains(f), "\(f) absent de \(names)")
         }
         XCTAssertFalse(names.contains { $0.hasSuffix(".zip") })

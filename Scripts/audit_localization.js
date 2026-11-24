@@ -7,7 +7,7 @@ const missing = Object.entries(catalog.strings).filter(([,value]) => !value.loca
 const gaps = new Map();
 for (const file of fs.readdirSync(path.join(root,'RoomScanner'),{recursive:true}).filter(x=>x.endsWith('.swift'))) {
     const text = fs.readFileSync(path.join(root,'RoomScanner',file),'utf8');
-    for (const match of text.matchAll(/\b(?:Text|Button|Label|Toggle|Section|Picker|TextField|navigationTitle|accessibilityLabel)\(\s*"([^"\n]*(?:\\.[^"\n]*)*)"/g)) {
+    for (const match of text.matchAll(/\b(?:Text|Button|Label|Toggle|Section|Picker|TextField|NavigationLink|Menu|LabeledContent|DisclosureGroup|ProgressView|ContentUnavailableView|confirmationDialog|alert|navigationTitle|accessibilityLabel|accessibilityHint|AppLanguage\.(?:text|format))\(\s*"([^"\n]*(?:\\.[^"\n]*)*)"/g)) {
         const key = match[1];
         if (!key || key.includes('\\(')) continue;
         if (!catalog.strings[key]?.localizations?.de?.stringUnit?.value) {

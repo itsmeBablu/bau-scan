@@ -56,6 +56,7 @@ struct RenovationQuantities: Equatable {
         }
         return area
     }
-    func flooring(wastePercent: Double) -> Double { floorArea*(1+min(100,max(0,wastePercent))/100) }
-    func paintArea(wastePercent: Double) -> Double { wallAreaNet*(1+min(100,max(0,wastePercent))/100) }
+    private func wasteFactor(_ percent: Double) -> Double { 1+(percent.isFinite ? min(100,max(0,percent)) : 0)/100 }
+    func flooring(wastePercent: Double) -> Double { floorArea*wasteFactor(wastePercent) }
+    func paintArea(wastePercent: Double) -> Double { wallAreaNet*wasteFactor(wastePercent) }
 }

@@ -16,8 +16,8 @@ struct ExportService {
         case missingSource(String)
         var errorDescription: String? {
             switch self {
-            case .notAvailable(let f): String(localized: "export.error.notAvailable \(String(localized: String.LocalizationValue(f.titleKey)))")
-            case .missingSource(let n): String(localized: "export.error.missingSource \(n)")
+            case .notAvailable(let f): String(localized:"export.error.notAvailable \(String(localized: String.LocalizationValue(f.titleKey)))",locale:AppLanguage.locale)
+            case .missingSource(let n): String(localized:"export.error.missingSource \(n)",locale:AppLanguage.locale)
             }
         }
     }
@@ -77,7 +77,7 @@ struct ExportService {
         let forbidden = CharacterSet(charactersIn: "/\\:*?\"<>|\n\r\t")
         base = String(base.unicodeScalars.map { forbidden.contains($0) ? "-" : Character($0) })
         if base.isEmpty || base.allSatisfy({ $0 == "." }) { return fallback }
-        return base
+        return ArchivePath.component(base,fallback:fallback)
     }
 
     static let scratchRoot = FileManager.default.temporaryDirectory.appendingPathComponent("RoomScannerExports", isDirectory: true)
@@ -129,8 +129,15 @@ struct ExportService {
         defer { try? FileManager.default.removeItem(at: staging) }
         var files: [(name: String, format: ExportFormat)] = []
         for format in Self.availableFormats(for: subject) where format != .zip {
-            let url = try export(subject, format: format, to: folder)
-            files.append((url.lastPathComponent, format))
+            let category = format.group == .twoD ? "Plans" : format.group == .threeD ? "Models" : "Data"
+            let url = try export(subject, format: format, to: folder.appendingPathComponent(category,isDirectory:true))
+            files.append((category+"/"+url.lastPathComponent, format))
+        }
+        if let package = subject.sourcePackageURL {
+            var used = Set<String>()
+            let photos = try SurveyPhotoArchiveWriter.write(SurveyPhotoStore.images(from:package,house:subject.house),to:folder,used:&used,sourceID:subject.id.uuidString)
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted,.sortedKeys]
+            try encoder.encode(photos).write(to:folder.appendingPathComponent("photo-index.json"))
         }
         try ArchiveExporter.readme(subject: subject, files: files, locale: locale).write(to: folder.appendingPathComponent("README.txt"), atomically: true, encoding: .utf8)
         try ArchiveExporter.zip(directory: folder, to: dest)

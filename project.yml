@@ -5,7 +5,7 @@ configs:
   Release-Local: release
 options:
   developmentLanguage: en
-  knownRegions: [en, de]
+  useBaseInternationalization: false
   bundleIdPrefix: io.github.itsmebablu
   deploymentTarget:
     iOS: "18.0"

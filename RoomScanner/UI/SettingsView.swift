@@ -62,7 +62,7 @@ struct SettingsView: View {
             Section("Capture") {
                 Toggle("Camera photos during scanning",isOn:$cameraPhotos)
                 Picker("Scan performance",selection:$scanPerformance) {
-                    ForEach(ScanPerformance.allCases,id:\.rawValue) { Text($0.rawValue.capitalized).tag($0.rawValue) }
+                    ForEach(ScanPerformance.allCases,id:\.rawValue) { Text(AppLanguage.text($0.rawValue)).tag($0.rawValue) }
                 }
                 Text("Performance changes the live preview. Saved scan evidence keeps the same capture settings.").font(.caption).foregroundStyle(.secondary)
             }
@@ -129,7 +129,7 @@ struct SettingsView: View {
                     .disabled(!updater.isConfigured)
                     .onChange(of: autoCheck) { _, on in if updater.isConfigured { updater.automaticallyChecksForUpdates = on } }
                 LabeledContent("settings.updates.last") {
-                    Text(updater.lastUpdateCheckDate.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? String(localized: "settings.updates.never")).foregroundStyle(.secondary)
+                    Text(updater.lastUpdateCheckDate.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? AppLanguage.text("settings.updates.never")).foregroundStyle(.secondary)
                 }
                 Button("mac.menu.checkForUpdates") { updater.checkForUpdates() }.disabled(!updater.canCheckForUpdates)
                 if !updater.isConfigured { Text("settings.updates.devBuild").font(.footnote).foregroundStyle(.secondary) }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StudioLibraryView: View {
     var embedded = false
+    var onSettings: (() -> Void)? = nil
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var mode = Mode.house
@@ -17,7 +18,7 @@ struct StudioLibraryView: View {
         NavigationStack {
             List {
                 Section {
-                    Picker("Design type",selection: $mode) { ForEach(Mode.allCases,id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented)
+                    Picker("Design type",selection: $mode) { ForEach(Mode.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) } }.pickerStyle(.segmented)
                     Text("Create a separate design from a saved scan. Original scans, measurements and survey evidence remain unchanged.").font(.callout).foregroundStyle(.secondary)
                 }
                 if !filteredDesigns.isEmpty {
@@ -53,6 +54,7 @@ struct StudioLibraryView: View {
                 }
             }.disabled(busy)
             .navigationTitle("Design")
+            .toolbar { ToolbarItem(placement:.primaryAction) { if let onSettings { Button("Settings",systemImage:"person.crop.circle",action:onSettings).labelStyle(.iconOnly) } } }
             .toolbar { ToolbarItem(placement: .cancellationAction) { if !embedded { Button("Done") { dismiss() }.disabled(busy) } } }
         }
         #if os(macOS)

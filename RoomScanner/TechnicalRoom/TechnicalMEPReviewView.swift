@@ -52,7 +52,7 @@ struct TechnicalMEPReviewView: View {
                             })) {
                                 HStack {
                                     TechnicalEvidenceThumbnail(frame: frame).frame(width: 85,height: 64).clipped()
-                                    Text("Depth confidence coverage \(Int(frame.confidentDepthFraction*100))%")
+                                    Text(AppLanguage.text("Depth confidence coverage")+": "+String(Int(frame.confidentDepthFraction*100))+"%")
                                         .font(.caption)
                                 }
                             }.disabled(!selection.contains(frame.id) && selection.count >= 5)
@@ -78,7 +78,7 @@ struct TechnicalMEPReviewView: View {
                                 .font(.caption)
                             Text("\(item.supportCount) supporting points · original fit residual \(item.residualMetres*1000,specifier: "%.1f") mm. Accuracy unverified.")
                                 .font(.caption2).foregroundStyle(.secondary)
-                            if let score = item.modelScore { Text("Model score \(score,specifier: "%.2f") — not measurement accuracy").font(.caption2) }
+                            if let score = item.modelScore { Text(AppLanguage.text("Model score — not measurement accuracy")+": "+String(format:"%.2f",locale:AppLanguage.locale,score)).font(.caption2) }
                             HStack {
                                 Button("Edit") { editing = item }
                                 Button("Accept") { update(item.id,status: .accepted) }.disabled(item.status == .accepted)
@@ -102,9 +102,9 @@ struct TechnicalMEPReviewView: View {
         .sheet(item: $editing) { item in
             TechnicalMEPEditor(item: item) { edited in saveEdit(edited) }
         }
-        .confirmationDialog("Send \(selection.count) camera images?",isPresented: $confirmSending,titleVisibility: .visible) {
+        .confirmationDialog(AppLanguage.format("Send %@ camera images?",[String(selection.count)]),isPresented: $confirmSending,titleVisibility: .visible) {
             Button("Send and analyse") { detectAI() }
-        } message: { Text("Images will be sent to \(endpoint). Its configured AI provider may also process them. Depth stays on this device; returned image regions are fitted to local depth. API quota may be consumed.") }
+        } message: { Text(AppLanguage.format("Images will be sent to %@. Its configured AI provider may also process them. Depth stays on this device; returned image regions are fitted to local depth. API quota may be consumed.",[endpoint])) }
         .alert("MEP recognition",isPresented: Binding(get: { error != nil },set: { if !$0 { error = nil } })) {
             Button("OK") { error = nil }
         } message: { Text(error ?? "") }
@@ -200,7 +200,7 @@ private struct TechnicalMEPEditor: View {
                 Picker("Type",selection: $item.kind) { ForEach(TechnicalMEPKind.allCases,id: \.self) { Text($0.title).tag($0) } }
                 TextField("Width / outer diameter (m)",value: $item.width,format: .number)
                 if item.kind == .rectangularDuct { TextField("Section height (m)",value: $item.height,format: .number) }
-                Picker("Material appearance",selection: $item.material) { ForEach(TechnicalMEPMaterial.allCases,id: \.self) { Text($0.rawValue).tag($0) } }
+                Picker("Material appearance",selection: $item.material) { ForEach(TechnicalMEPMaterial.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) } }
                 DisclosureGroup("Edit endpoints (original scan coordinates, m)") {
                     TextField("Start X",value: $item.start.x,format: .number)
                     TextField("Start Y",value: $item.start.y,format: .number)

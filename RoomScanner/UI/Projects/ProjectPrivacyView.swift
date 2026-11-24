@@ -12,7 +12,7 @@ struct ProjectPrivacyView: View {
             Section("Project data") {
                 Text("Deletion permanently removes indexed scans, their photos, designs and generated project exports in connected libraries. Files you shared elsewhere, legacy export folders, backups and provider-held data are not removed.")
                 ForEach(workspace.index.projects) { project in
-                    Button(role:.destructive) { selected = project.id; confirming = true } label: { Label(project.isUnsorted ? String(localized:"Unsorted") : project.name,systemImage:"trash") }
+                    Button(role:.destructive) { selected = project.id; confirming = true } label: { Label(project.isUnsorted ? AppLanguage.text("Unsorted") : project.name,systemImage:"trash") }
                 }
                 Button("Delete all project data",role:.destructive) { selected = nil; confirming = true }.disabled(workspace.index.projects.isEmpty)
             }.disabled(busy || workspace.loading)

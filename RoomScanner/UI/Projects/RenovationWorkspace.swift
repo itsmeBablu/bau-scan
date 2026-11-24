@@ -9,6 +9,7 @@ import Observation
     private(set) var loading = false
     private var catalogueRoot = StorageLocation.local().documentsURL
     private var ready = false
+    private var pendingReload: StorageLocation?
     var currentProject: RenovationProject? { index.projects.first { $0.id == currentProjectID } }
     func title(_ entry: ProjectLibraryEntry) -> String { index.displayNames?[entry.id] ?? entry.title }
     func rename(_ entry: ProjectLibraryEntry, to name: String) {
@@ -46,6 +47,9 @@ import Observation
     }
     func project(_ id: UUID) -> RenovationProject? { index.projects.first { $0.id == id } }
     func entry(_ reference: ProjectReference) -> ProjectLibraryEntry? {
+        entries.first { $0.reference == reference }
+    }
+    func destination(_ reference: ProjectReference) -> ProjectLibraryEntry? {
         if let saved = entries.first(where:{ $0.reference == reference }) { return saved }
         let sourceKind: ProjectReference.Kind
         switch reference.kind { case .designHouse: sourceKind = .house; case .designRoom: sourceKind = .room; case .designTechnical: sourceKind = .technicalRoom; default: return nil }
@@ -54,8 +58,11 @@ import Observation
     }
 
     func reload(location: StorageLocation) async {
-        guard !loading else { return }; loading = true
-        defer { loading = false }
+        guard !loading else { pendingReload = location; return }; loading = true
+        defer {
+            loading = false
+            if let next = pendingReload { pendingReload = nil; Task { await reload(location:next) } }
+        }
         let local = RootView.hasForcedRoot ? location.documentsURL : StorageLocation.local().documentsURL
         catalogueRoot = local
         let roots: [(String, URL)] = location.kind == .iCloud ? [("icloud",location.documentsURL),("local",local)] : [("local",local)]
@@ -71,12 +78,14 @@ import Observation
                     for url in try files("Rooms", "roomscan") {
                         do {
                             let r = try RoomPackage.readRecord(from: url)
+                            guard url.deletingPathExtension().lastPathComponent.caseInsensitiveCompare(r.id.uuidString) == .orderedSame else { throw CocoaError(.fileReadCorruptFile) }
                             found.append(.init(reference:.init(kind:.room,itemID:r.id,library:library),title:r.name,date:r.createdAt,area:r.areaM2,roomCount:1,root:root,url:url))
                         } catch { warnings.append(url.lastPathComponent) }
                     }
                     for url in try files("Houses", "housescan") {
                         do {
                             let r = try HousePackage.readRecord(from: url)
+                            guard url.deletingPathExtension().lastPathComponent.caseInsensitiveCompare(r.id.uuidString) == .orderedSame else { throw CocoaError(.fileReadCorruptFile) }
                             found.append(.init(reference:.init(kind:.house,itemID:r.id,library:library),title:r.name,date:r.createdAt,area:r.areaM2,roomCount:r.roomCount,root:root,url:url))
                         } catch { warnings.append(url.lastPathComponent) }
                     }
@@ -100,23 +109,24 @@ import Observation
                 }
                 return (try ProjectIndexStore.read(root:local),found.sorted { $0.date > $1.date },warnings)
             }.value
-            var updated = result.0
-            updated.reconcile(result.1.map(\.reference))
+            let updated = try ProjectIndexStore.update(root:local) { updated in
+            let discovered = result.1.filter { FileManager.default.fileExists(atPath:$0.url.path) }.map(\.reference)
+            updated.reconcile(discovered)
             // Attach discovered designs to the same project as their source scan.
-            for design in result.1 where design.isDesign {
+            for design in result.1 where design.isDesign && FileManager.default.fileExists(atPath:design.url.path) {
                 let scanKind: ProjectReference.Kind = design.reference.kind == .designHouse ? .house : design.reference.kind == .designRoom ? .room : .technicalRoom
                 let scan = ProjectReference(kind:scanKind,itemID:design.reference.itemID,library:design.reference.library)
                 if let owner = updated.projects.first(where:{ !$0.isUnsorted && $0.references.contains(scan) }) { try updated.assign(design.reference,to:owner.id) }
             }
-            try ProjectIndexStore.write(updated,root:local)
-            index = updated; entries = result.1; ready = true
-            if currentProjectID == nil { currentProjectID = index.projects.first(where:{ !$0.isUnsorted })?.id ?? index.projects.first?.id }
-            error = result.2.isEmpty ? nil : "Some library items could not be read: " + result.2.joined(separator:", ")
+            }
+            index = updated; entries = result.1.filter { FileManager.default.fileExists(atPath:$0.url.path) }; ready = true
+            if currentProjectID == nil || !index.projects.contains(where:{ $0.id == currentProjectID }) { currentProjectID = index.projects.first(where:{ !$0.isUnsorted })?.id ?? index.projects.first?.id }
+            error = result.2.isEmpty ? nil : AppLanguage.text("Some library items could not be read")+": " + result.2.joined(separator:", ")
         } catch { self.error = error.localizedDescription }
     }
     func change(_ edit: (inout ProjectIndex) throws -> Void) {
-        guard ready else { error = "Wait for the project catalogue to finish loading."; return }
-        do { var next = index; try edit(&next); try ProjectIndexStore.write(next,root:catalogueRoot); index = next }
+        guard ready else { error = AppLanguage.text("Wait for the project catalogue to finish loading."); return }
+        do { index = try ProjectIndexStore.update(root:catalogueRoot,edit) }
         catch { self.error = error.localizedDescription }
     }
     func create(_ name: String) {

@@ -132,7 +132,7 @@ struct MeasuresView: View {
             }
             Section("measures.walls") {
                 ForEach(Array(m.walls.enumerated()), id: \.element.id) { i, w in
-                    row(String(localized: "measures.wall \(i + 1)"),
+                    row(String(localized:"measures.wall \(i + 1)",locale:AppLanguage.locale),
                         "\(MeasurementFormat.length(w.length, unit: unit)) × \(MeasurementFormat.length(w.height, unit: unit))", w.confidence)
                 }
             }
@@ -161,15 +161,15 @@ struct MeasuresView: View {
 
     private func openingName(_ kind: Opening.Kind) -> String {
         switch kind {
-        case .door: String(localized: "opening.door")
-        case .window: String(localized: "opening.window")
-        case .opening: String(localized: "opening.opening")
+        case .door: AppLanguage.text("opening.door")
+        case .window: AppLanguage.text("opening.window")
+        case .opening: AppLanguage.text("opening.opening")
         }
     }
 
     private func openingText(_ o: RoomMeasurements.OpeningMeasure) -> String {
         var t = "\(MeasurementFormat.length(o.width, unit: unit)) × \(MeasurementFormat.length(o.height, unit: unit))"
-        if o.kind == .window { t += " · " + String(localized: "measures.sill \(MeasurementFormat.length(o.sillHeight, unit: unit))") }
+        if o.kind == .window { t += " · " + String(localized:"measures.sill \(MeasurementFormat.length(o.sillHeight, unit: unit))",locale:AppLanguage.locale) }
         return t
     }
 

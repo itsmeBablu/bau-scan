@@ -5,7 +5,7 @@ import CoreGraphics
 /// via dedicated `NSView` and passed to `NSPrintOperation`.
 @MainActor
 enum PrintController {
-    static func printPlan(_ house: House, title: String, locale: Locale = .current, window: NSWindow?) {
+    static func printPlan(_ house: House, title: String, locale: Locale = AppLanguage.locale, window: NSWindow?) {
         var renderer = PlanRenderer(); renderer.options.locale = locale
         renderer.options.unit = ExportService().unit
         let pageSize = CGSize(width: 842, height: 595)

@@ -9,4 +9,7 @@ enum AppLanguage: String, CaseIterable {
     static func text(_ key: String, locale: Locale = AppLanguage.locale) -> String {
         String(localized:String.LocalizationValue(key),locale:locale)
     }
+    static func format(_ key: String, _ values: [String], locale: Locale = AppLanguage.locale) -> String {
+        String(format:text(key,locale:locale),locale:locale,arguments:values.map { $0 as CVarArg })
+    }
 }

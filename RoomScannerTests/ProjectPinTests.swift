@@ -9,6 +9,9 @@ final class ProjectPinTests: XCTestCase {
         var index = ProjectIndex(projects:[project]); index.pins = [pin]
         try index.validate()
         XCTAssertEqual(try JSONDecoder().decode(ProjectIndex.self,from:JSONEncoder().encode(index)).pins,[pin])
+        let next = RenovationProject(name:"Next"); index.projects.append(next)
+        try index.assign(reference,to:next.id); try index.validate()
+        XCTAssertEqual(index.pins?.first?.projectID,next.id)
         index.projects = []
         XCTAssertThrowsError(try index.validate())
     }

@@ -85,7 +85,7 @@ struct SurveyPhotoImage: Equatable, Identifiable {
     let jpegData: Data
     var roomName = ""
     var id: UUID { photo.id }
-    var title: String { roomName.isEmpty ? "Photo \(photo.number)" : "\(roomName) · Photo \(photo.number)" }
+    var title: String { (roomName.isEmpty ? "" : roomName+" · ")+AppLanguage.text("Photo")+" \(photo.number)" }
 }
 
 enum ScanPerformance: String, CaseIterable {

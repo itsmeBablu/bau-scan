@@ -18,4 +18,5 @@ struct ProjectReport {
     var scans: [Scan]
     var photos: [Photo]
     var unresolved: [String]
+    var wastePercent = 0.0
 }

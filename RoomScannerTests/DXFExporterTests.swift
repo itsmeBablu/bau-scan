@@ -17,7 +17,7 @@ final class DXFExporterTests: XCTestCase {
     }
 
     func testStructureR12() throws {
-        let dxf = DXFExporter().dxf(for: house)
+        let dxf = DXFExporter(locale:Locale(identifier:"en_US")).dxf(for: house)
         let p = try pairs(dxf)
         XCTAssertEqual(p.last?.1, "EOF")
         let sections = zip(p, p.dropFirst()).filter { $0.0 == (0, "SECTION") }.map { $0.1.1 }
@@ -29,7 +29,7 @@ final class DXFExporterTests: XCTestCase {
     }
 
     func testEntityLayersAreDeclared() throws {
-        let p = try pairs(DXFExporter().dxf(for: house))
+        let p = try pairs(DXFExporter(locale:Locale(identifier:"en_US")).dxf(for: house))
         let declared = Set(zip(p, p.dropFirst()).filter { $0.0 == (0, "LAYER") }.map { $0.1.1 })
         XCTAssertEqual(declared, Set(DXFExporter.Layer.allCases.map(\.rawValue)))
         let used = Set(p.filter { $0.0 == 8 }.map(\.1))
@@ -62,7 +62,7 @@ final class DXFExporterTests: XCTestCase {
     }
 
     func testPolylineHasR12DummyPoint() throws {
-        let p = try pairs(DXFExporter().dxf(for: house))
+        let p = try pairs(DXFExporter(locale:Locale(identifier:"en_US")).dxf(for: house))
         let starts = p.indices.filter { p[$0] == (0, "POLYLINE") }
         XCTAssertFalse(starts.isEmpty)
         for i in starts {

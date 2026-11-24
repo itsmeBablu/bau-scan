@@ -143,7 +143,7 @@ struct TechnicalGoogleAIStatus: View {
     var body: some View {
         Label(account.signedIn ? "Google connected" : "Google not connected",systemImage: account.signedIn ? "checkmark.circle" : "person.crop.circle")
             .font(.caption).foregroundStyle(.secondary)
-        if !account.signedIn { Text("Connect Google in Profile → Google account. On Mac, use Settings.").font(.caption).foregroundStyle(.secondary) }
+        if !account.signedIn { Text("Connect Google in Settings → Google account.").font(.caption).foregroundStyle(.secondary) }
     }
 }
 
@@ -171,14 +171,16 @@ struct GoogleAccountSettingsView: View {
 /// Consent is explicit; enabling AI alone never sends a photo. Review confirms each upload.
 struct GoogleAIConsentToggle: View {
     @AppStorage("technical.googleAI.enabled") private var enabled = false
+    @AppStorage("renovation.aiConsentVersion") private var consentVersion = 0
     @State private var consent = false
     var body: some View {
         Toggle("Google AI mode",isOn:Binding(get:{ enabled },set:{ value in if value { consent = true } else { enabled = false } }))
             .confirmationDialog("Enable optional Google AI?",isPresented:$consent,titleVisibility:.visible) {
-                Button("Enable Google AI") { enabled = true }
+                Button("Enable Google AI") { consentVersion = 1; enabled = true }
                 Button("Cancel",role:.cancel) {}
             } message: {
                 Text("Only images you select and confirm in review are sent to your configured service and its AI provider. They may show private rooms, people or labels. Google sign-in identifies your account. Depth stays local. Provider retention depends on your service configuration. You can switch AI off at any time; scans still work offline.")
             }
+            .onAppear { if enabled && consentVersion < 1 { enabled = false } }
     }
 }

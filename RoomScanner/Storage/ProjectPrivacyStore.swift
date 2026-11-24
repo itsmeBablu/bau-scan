@@ -38,6 +38,8 @@ enum ProjectPrivacyStore {
         return targets.sorted { $0.path < $1.path }
     }
     static func delete(index: ProjectIndex, roots: [String:URL], catalogueRoot: URL, projectID: UUID? = nil) throws -> ProjectIndex {
+        return try ProjectIndexStore.update(root:catalogueRoot) { current in
+        guard current == index else { throw CocoaError(.fileWriteUnknown) }
         let targets = try deletionTargets(index:index,roots:roots,catalogueRoot:catalogueRoot,projectID:projectID)
         for target in targets where FileManager.default.fileExists(atPath:target.path) {
             try RoomPackage.coordinatedWrite(at:target,options:.forDeleting) { try FileManager.default.removeItem(at:$0) }
@@ -48,7 +50,7 @@ enum ProjectPrivacyStore {
         updated.projects.removeAll { ids.contains($0.id) }
         updated.pins?.removeAll { ids.contains($0.projectID) }; updated.distanceChecks?.removeAll { ids.contains($0.projectID) }
         updated.displayNames = updated.displayNames?.filter { key,_ in !refs.contains(where:{ $0.id == key }) }
-        try ProjectIndexStore.write(updated,root:catalogueRoot)
-        return updated
+        current = updated
+        }
     }
 }

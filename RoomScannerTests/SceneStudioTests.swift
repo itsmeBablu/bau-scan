@@ -439,7 +439,7 @@ final class SceneStudioTests: XCTestCase {
         XCTAssertTrue(csv.contains("'@engineer"))
         XCTAssertTrue(csv.contains("'=SUM(1,2)"))
         XCTAssertTrue(csv.contains("Check \"\"valve\"\"\naccess"))
-        XCTAssertTrue(csv.contains("Unverified"))
+        XCTAssertTrue(csv.contains(AppLanguage.text("Unverified")))
     }
     func testExistingViewUsesReferenceEnvelopeAndFamily() {
         var document = seed(); var data = StudioEngineering(); data.view = .existing

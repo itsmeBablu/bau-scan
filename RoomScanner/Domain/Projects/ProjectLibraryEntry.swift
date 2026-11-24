@@ -11,4 +11,3 @@ struct ProjectLibraryEntry: Identifiable {
     var id: String { reference.id }
     var isDesign: Bool { reference.kind.rawValue.hasPrefix("design") }
 }
-

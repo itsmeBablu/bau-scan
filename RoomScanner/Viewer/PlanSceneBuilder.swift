@@ -34,7 +34,7 @@ struct PlanSceneBuilder {
         var flattenWalls = false
         var flattenedHeight: Float = 0.02
         var floorTexturePixelsPerMeter = 120.0
-        var locale: Locale = .current
+        var locale: Locale = AppLanguage.locale
     }
 
     enum Names {

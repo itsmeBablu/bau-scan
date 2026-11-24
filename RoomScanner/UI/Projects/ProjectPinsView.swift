@@ -22,8 +22,8 @@ struct ProjectPinsView: View {
             if let shown {
                 GeometryReader { geometry in
                     let bounds = shown.bounds
-                    let scale = min(max(1,geometry.size.width-32)/max(0.1,bounds.width),max(1,geometry.size.height-32)/max(0.1,bounds.height))
-                    let ox = (geometry.size.width-bounds.width*scale)/2, oy = (geometry.size.height-bounds.height*scale)/2
+                    let scale = min(Double(max(1,geometry.size.width-32))/max(0.1,bounds.width),Double(max(1,geometry.size.height-32))/max(0.1,bounds.height))
+                    let ox = (Double(geometry.size.width)-bounds.width*scale)/2, oy = (Double(geometry.size.height)-bounds.height*scale)/2
                     ZStack(alignment:.topLeading) {
                         Canvas { context,_ in
                             for room in shown.allRooms {
@@ -36,19 +36,19 @@ struct ProjectPinsView: View {
                             }
                         }.contentShape(Rectangle()).onTapGesture { location in
                             guard let selected else { return }
-                            let p = Point2D(x:bounds.minX+(location.x-ox)/scale,y:bounds.maxY-(location.y-oy)/scale)
+                            let p = Point2D(x:bounds.minX+(Double(location.x)-ox)/scale,y:bounds.maxY-(Double(location.y)-oy)/scale)
                             draft = .init(projectID:projectID,reference:selected,story:story,position:p)
                         }.accessibilityLabel("Floor plan. Tap to add a task pin.")
                         ForEach(pins) { pin in
                             Button { draft = pin } label: { Image(systemName:pin.status == .resolved ? "checkmark.circle.fill" : "mappin.circle.fill").font(.title2) }
                                 .position(x:ox+(pin.position.x-bounds.minX)*scale,y:oy+(bounds.maxY-pin.position.y)*scale)
-                                .accessibilityLabel(pin.text.isEmpty ? String(localized:"Task pin") : pin.text)
+                                .accessibilityLabel(pin.text.isEmpty ? AppLanguage.text("Task pin") : pin.text)
                         }
                     }
                 }.frame(minHeight:220)
                 List {
                     Text("Tap the plan to add a note. Positions are annotations, not verified measurements.").font(.caption)
-                    ForEach(pins) { pin in Button(pin.text.isEmpty ? String(localized:"Task pin") : pin.text) { draft = pin } }
+                    ForEach(pins) { pin in Button(pin.text.isEmpty ? AppLanguage.text("Task pin") : pin.text) { draft = pin } }
                     Button("Add task pin",systemImage:"mappin") {
                         if let selected { draft = .init(projectID:projectID,reference:selected,story:story,position:shown.bounds.center) }
                     }

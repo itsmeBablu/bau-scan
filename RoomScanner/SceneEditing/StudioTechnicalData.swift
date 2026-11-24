@@ -30,7 +30,7 @@ struct StudioTechnicalDataView: View {
                 Section("Equipment data · not inferred from LiDAR") {
                     TextField("Manufacturer",text: $data.manufacturer)
                     TextField("Model / type",text: $data.model)
-                    Picker("Data source",selection: $data.source) { ForEach(StudioEquipmentData.Source.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
+                    Picker("Data source",selection: $data.source) { ForEach(StudioEquipmentData.Source.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) } }
                     TextField("Nameplate / datasheet / calculation reference",text: $data.reference,axis: .vertical)
                     TextField("Heating / cooling output (kW)",value: $data.outputKW,format: .number)
                     TextField("Tank capacity (litres)",value: $data.volumeLitres,format: .number)
@@ -57,7 +57,9 @@ struct StudioTechnicalDataView: View {
 }
 
 struct StudioGermanReferences: View {
+    @AppStorage("renovation.proDetails") private var proDetails = false
     var body: some View {
+        if proDetails {
         Section("German planning references") {
             Text("Use the applicable edition and scope for the project. These links identify planning references; the app does not reproduce the standards or certify compliance. Manufacturer instructions, local utility requirements and the relevant Landesbauordnung/Feuerungsverordnung also need project-specific review.").font(.caption).foregroundStyle(.secondary)
             reference("DIN EN 12828 · water-based heating design","https://www.dinmedia.de/de/norm/din-en-12828/203258170")
@@ -67,6 +69,7 @@ struct StudioGermanReferences: View {
             reference("VDI 6022 · ventilation hygiene","https://www.vdi.de/mitgliedschaft/vdi-richtlinien/unsere-richtlinien-highlights/vdi-6022")
             reference("DVGW · drinking-water installation / W 551 series","https://www.dvgw.de/themen/wasser/trinkwasser-installation")
             Text("DIN 18012 concerns building service connection facilities; it is not a universal equipment-room sizing rule. Check the current edition, utility requirements and whether the facility is within its scope.").font(.caption)
+        }
         }
     }
     private func reference(_ title: String,_ url: String) -> some View { Link(title,destination: URL(string: url)!) }

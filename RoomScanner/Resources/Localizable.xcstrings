@@ -478,7 +478,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Measurements"
+            "value": "Measure"
           }
         },
         "de": {
@@ -495,7 +495,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "2D plan"
+            "value": "Floor plan"
           }
         },
         "de": {
@@ -1134,7 +1134,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "USDZ"
+            "value": "RoomPlan scan (not cleaned)"
           }
         },
         "de": {
@@ -1483,7 +1483,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "House"
+            "value": "Whole home"
           }
         },
         "de": {
@@ -1595,7 +1595,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Houses"
+            "value": "Whole homes"
           }
         },
         "de": {
@@ -1729,7 +1729,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan a house"
+            "value": "Scan whole home"
           }
         },
         "de": {
@@ -4435,6 +4435,7508 @@
           "stringUnit": {
             "state": "translated",
             "value": "Prüfe wichtige Maße, bevor du einen Bericht teilst. Die Gerätevalidierung der Aufnahmedaten steht aus."
+          }
+        }
+      }
+    },
+    "House radiator surveys": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörper-Aufmaß"
+          }
+        }
+      }
+    },
+    "Scan each radiator body and the adjacent finished wall. Scan results are estimates; use confirmed instrument or manufacturer values where installation requires precise sizes.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erfasse jeden Heizkörper und die angrenzende fertige Wand. Die Aufnahmemaße sind Schätzwerte. Nutze geprüfte Mess- oder Herstellerwerte, wenn genaue Einbaumaße erforderlich sind."
+          }
+        }
+      }
+    },
+    "Wall reference": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wandbezug"
+          }
+        }
+      }
+    },
+    "Not assigned": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht zugewiesen"
+          }
+        }
+      }
+    },
+    "Scan radiator": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörper erfassen"
+          }
+        }
+      }
+    },
+    "Use a LiDAR-equipped iPhone or iPad for radiator close-up capture.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwende für die Heizkörperaufnahme ein iPhone oder iPad mit LiDAR."
+          }
+        }
+      }
+    },
+    "Automatically detected · equipment type unverified": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch erkannt · Gerätetyp ungeprüft"
+          }
+        }
+      }
+    },
+    "Confirm this is a radiator": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Als Heizkörper bestätigen"
+          }
+        }
+      }
+    },
+    "Edit and confirm measurements": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maße bearbeiten und bestätigen"
+          }
+        }
+      }
+    },
+    "No radiator surveys yet.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Heizkörper erfasst."
+          }
+        }
+      }
+    },
+    "Radiators · Heizkörper": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörper"
+          }
+        }
+      }
+    },
+    "Export radiator measurements": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörper-Aufmaß exportieren"
+          }
+        }
+      }
+    },
+    "Rear surface not sufficiently observed. Unknown values are not replaced with a generic German standard.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Rückseite wurde nicht ausreichend erfasst. Unbekannte Werte werden nicht durch vermeintliche Standardmaße ersetzt."
+          }
+        }
+      }
+    },
+    "Unknown": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unbekannt"
+          }
+        }
+      }
+    },
+    "Radiator survey preview": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorschau des Heizkörper-Aufmaßes"
+          }
+        }
+      }
+    },
+    "Observed surfaces": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erfasste Oberflächen"
+          }
+        }
+      }
+    },
+    "Reset view": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansicht zurücksetzen"
+          }
+        }
+      }
+    },
+    "Survey envelope, not an engineering CAD model. Unknown depth is displayed flat.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmehülle, kein technisches CAD-Modell. Bei unbekannter Tiefe ist die Darstellung flach."
+          }
+        }
+      }
+    },
+    "Radiator": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörper"
+          }
+        }
+      }
+    },
+    "Notes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notizen"
+          }
+        }
+      }
+    },
+    "Confirm dimensions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maße bestätigen"
+          }
+        }
+      }
+    },
+    "Source for changed values": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quelle der geänderten Werte"
+          }
+        }
+      }
+    },
+    "Tape measurement": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maßband"
+          }
+        }
+      }
+    },
+    "Laser measurement": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lasermessung"
+          }
+        }
+      }
+    },
+    "Manufacturer data": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Herstellerangaben"
+          }
+        }
+      }
+    },
+    "Manufacturer/model/document reference": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hersteller, Modell oder Dokumentenbezug"
+          }
+        }
+      }
+    },
+    "Body width (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörperbreite (m)"
+          }
+        }
+      }
+    },
+    "Body height (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörperhöhe (m)"
+          }
+        }
+      }
+    },
+    "Depth (m), blank if unknown": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiefe (m), leer lassen falls unbekannt"
+          }
+        }
+      }
+    },
+    "Wall → back gap (m), blank if unknown": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abstand Wand–Rückseite (m), leer falls unbekannt"
+          }
+        }
+      }
+    },
+    "Unchanged values retain their original source. Changing a value records your selected source and preserves the raw scan. No millimetre accuracy is certified.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unveränderte Werte behalten ihre Quelle. Änderungen erhalten die gewählte Quellenangabe. Die Rohaufnahme bleibt erhalten. Es wird keine Millimetergenauigkeit zugesichert."
+          }
+        }
+      }
+    },
+    "Radiator measurements": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörper-Aufmaß"
+          }
+        }
+      }
+    },
+    "Design Studio": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurf"
+          }
+        }
+      }
+    },
+    "Technical Rooms": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technikräume"
+          }
+        }
+      }
+    },
+    "Radiator candidate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Möglicher Heizkörper"
+          }
+        }
+      }
+    },
+    "Open Settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen öffnen"
+          }
+        }
+      }
+    },
+    "Walls": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wände"
+          }
+        }
+      }
+    },
+    "Floor": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boden"
+          }
+        }
+      }
+    },
+    "Partial live preview": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Begrenzte Live-Vorschau"
+          }
+        }
+      }
+    },
+    "Ceiling": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decke"
+          }
+        }
+      }
+    },
+    "Survey tools": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaßwerkzeuge"
+          }
+        }
+      }
+    },
+    "Technik Room": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technikraum"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schließen"
+          }
+        }
+      }
+    },
+    "Save survey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaß sichern"
+          }
+        }
+      }
+    },
+    "Discard unsaved capture": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungesicherte Aufnahme verwerfen"
+          }
+        }
+      }
+    },
+    "Capture evidence and annotations are only retained after saving a .technicalroom package.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmedaten und Anmerkungen bleiben erst nach dem Sichern als .technicalroom erhalten."
+          }
+        }
+      }
+    },
+    "Capture": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erfassen"
+          }
+        }
+      }
+    },
+    "Open camera settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kameraeinstellungen öffnen"
+          }
+        }
+      }
+    },
+    "Unsaved scan · dimensions require verification": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungesicherte Aufnahme · Maße müssen geprüft werden"
+          }
+        }
+      }
+    },
+    "Google AI mode": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google-KI"
+          }
+        }
+      }
+    },
+    "Colour/depth viewpoints stay on this device. After saving, choose images in MEP review and confirm before sending to Google AI.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Farb- und Tiefenaufnahmen bleiben auf diesem Gerät. Wähle nach dem Sichern Bilder in der Anlagenprüfung und bestätige die Übermittlung an Google-KI."
+          }
+        }
+      }
+    },
+    "Set and verify survey alignment before placing manual annotations.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lege die Ausrichtung fest und prüfe sie, bevor du Anmerkungen platzierst."
+          }
+        }
+      }
+    },
+    "Set survey alignment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaß ausrichten"
+          }
+        }
+      }
+    },
+    "Reference frame locked": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bezugssystem gesperrt"
+          }
+        }
+      }
+    },
+    "Save recovery map": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiederherstellungskarte sichern"
+          }
+        }
+      }
+    },
+    "Resume from map": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Karte fortsetzen"
+          }
+        }
+      }
+    },
+    "Pipe annotation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohrroute eintragen"
+          }
+        }
+      }
+    },
+    "Review pipe runs": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohrverläufe prüfen"
+          }
+        }
+      }
+    },
+    "Place equipment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerät platzieren"
+          }
+        }
+      }
+    },
+    "Annotation tools": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmerkungswerkzeuge"
+          }
+        }
+      }
+    },
+    "Undo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widerrufen"
+          }
+        }
+      }
+    },
+    "Redo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiederholen"
+          }
+        }
+      }
+    },
+    "Drag numbered surface control points in the camera view.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verschiebe die nummerierten Oberflächenpunkte in der Kameraansicht."
+          }
+        }
+      }
+    },
+    "Axis lock": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Achsensperre"
+          }
+        }
+      }
+    },
+    "Snap grid (m; 0 disables)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fangraster (m; 0 schaltet aus)"
+          }
+        }
+      }
+    },
+    "Finish point editing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Punktbearbeitung beenden"
+          }
+        }
+      }
+    },
+    "Saved viewpoints are coverage evidence, not a percentage of room completeness.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gespeicherte Blickpunkte dokumentieren die Aufnahmeabdeckung, keinen Vollständigkeitsgrad."
+          }
+        }
+      }
+    },
+    "Show captured mesh": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmenetz anzeigen"
+          }
+        }
+      }
+    },
+    "Show ceiling mesh": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deckennetz anzeigen"
+          }
+        }
+      }
+    },
+    "Ceiling visibility affects the mesh display only. Original scan evidence is retained. Unclassified overhead pipes and ducts remain visible.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Deckensichtbarkeit ändert nur die Darstellung. Rohdaten bleiben erhalten. Nicht klassifizierte Leitungen und Kanäle oberhalb bleiben sichtbar."
+          }
+        }
+      }
+    },
+    "Pipes and ducts are captured as observed surfaces. Thin, reflective or hidden parts may need a close-up or manual annotation.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohre und Kanäle werden als sichtbare Oberflächen erfasst. Dünne, spiegelnde oder verdeckte Teile benötigen gegebenenfalls Nahaufnahmen oder manuelle Angaben."
+          }
+        }
+      }
+    },
+    "Capture mesh snapshot": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Netzaufnahme sichern"
+          }
+        }
+      }
+    },
+    "Capture depth snapshot": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiefenaufnahme sichern"
+          }
+        }
+      }
+    },
+    "Third checkpoint: use independently measured coordinates away from the origin–X baseline.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dritter Kontrollpunkt: Nutze unabhängig gemessene Koordinaten abseits der Ursprung–X-Basislinie."
+          }
+        }
+      }
+    },
+    "Checkpoint X (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kontrollpunkt X (m)"
+          }
+        }
+      }
+    },
+    "Y (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Y (m)"
+          }
+        }
+      }
+    },
+    "Z (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Z (m)"
+          }
+        }
+      }
+    },
+    "Tolerance (mm)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfschwelle (mm)"
+          }
+        }
+      }
+    },
+    "Check point at crosshair": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Punkt am Fadenkreuz prüfen"
+          }
+        }
+      }
+    },
+    "Aim the camera crosshair at the visible pipe surface. Close this sheet to adjust the camera view between points.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Richte das Fadenkreuz auf die sichtbare Rohroberfläche. Schließe dieses Fenster, um die Kamera zwischen Punkten neu auszurichten."
+          }
+        }
+      }
+    },
+    "Add crosshair point": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fadenkreuzpunkt hinzufügen"
+          }
+        }
+      }
+    },
+    "Undo point": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letzten Punkt entfernen"
+          }
+        }
+      }
+    },
+    "Medium": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Medium"
+          }
+        }
+      }
+    },
+    "Measured outside diameter (mm)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemessener Außendurchmesser (mm)"
+          }
+        }
+      }
+    },
+    "DN designation (optional)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DN-Bezeichnung (optional)"
+          }
+        }
+      }
+    },
+    "Material": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Werkstoff"
+          }
+        }
+      }
+    },
+    "Insulation thickness (mm)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dämmstärke (mm)"
+          }
+        }
+      }
+    },
+    "Keep pipe run in preview": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohrverlauf in Vorschau übernehmen"
+          }
+        }
+      }
+    },
+    "Accuracy unknown. This does not save a survey package.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genauigkeit unbekannt. Das Aufmaßpaket wird dadurch nicht gesichert."
+          }
+        }
+      }
+    },
+    "Pipe route": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohrverlauf"
+          }
+        }
+      }
+    },
+    "Back to camera": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurück zur Kamera"
+          }
+        }
+      }
+    },
+    "Unsaved annotations · accuracy unknown": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungesicherte Anmerkungen · Genauigkeit unbekannt"
+          }
+        }
+      }
+    },
+    "Pipe review": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohrprüfung"
+          }
+        }
+      }
+    },
+    "Quick presets": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorlagen"
+          }
+        }
+      }
+    },
+    "Properties": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigenschaften"
+          }
+        }
+      }
+    },
+    "The crosshair hit sets the equipment base centre. Enter verified dimensions in metres.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Fadenkreuz legt die Mitte der Gerätebasis fest. Trage geprüfte Maße in Metern ein."
+          }
+        }
+      }
+    },
+    "Type": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Typ"
+          }
+        }
+      }
+    },
+    "Width (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Breite (m)"
+          }
+        }
+      }
+    },
+    "Depth (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiefe (m)"
+          }
+        }
+      }
+    },
+    "Height (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Höhe (m)"
+          }
+        }
+      }
+    },
+    "Rotation around +Y (degrees)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drehung um +Y (Grad)"
+          }
+        }
+      }
+    },
+    "Place at crosshair": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Am Fadenkreuz platzieren"
+          }
+        }
+      }
+    },
+    "Unsaved equipment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungesicherte Geräte"
+          }
+        }
+      }
+    },
+    "Manual equipment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manuell erfasstes Gerät"
+          }
+        }
+      }
+    },
+    "Object properties": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Objekteigenschaften"
+          }
+        }
+      }
+    },
+    "Select multiple": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mehrfachauswahl"
+          }
+        }
+      }
+    },
+    "Select all objects on this floor": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Objekte dieses Geschosses auswählen"
+          }
+        }
+      }
+    },
+    "Delete selected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auswahl löschen"
+          }
+        }
+      }
+    },
+    "Clear selection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auswahl aufheben"
+          }
+        }
+      }
+    },
+    "Photos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos"
+          }
+        }
+      }
+    },
+    "Save and close": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichern und schließen"
+          }
+        }
+      }
+    },
+    "Discard unsaved edits": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungesicherte Änderungen verwerfen"
+          }
+        }
+      }
+    },
+    "Interaction": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bedienung"
+          }
+        }
+      }
+    },
+    "Orbit": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umkreisen"
+          }
+        }
+      }
+    },
+    "Move": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verschieben"
+          }
+        }
+      }
+    },
+    "Rotate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drehen"
+          }
+        }
+      }
+    },
+    "Level": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geschoss"
+          }
+        }
+      }
+    },
+    "Objects": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Objekte"
+          }
+        }
+      }
+    },
+    "Reset camera": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kamera zurücksetzen"
+          }
+        }
+      }
+    },
+    "Technik Studio · No Equipment Placed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technikraum · Noch keine Geräte platziert"
+          }
+        }
+      }
+    },
+    "Generate a complete standard technical room layout with boiler, buffer tank, pump, manifold, expansion vessel, electrical panel, and pipes.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erstelle einen beispielhaften Technikraum-Entwurf mit Kessel, Pufferspeicher, Pumpe, Verteiler, Ausdehnungsgefäß, Schaltschrank und Rohren."
+          }
+        }
+      }
+    },
+    "Generate equipment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geräteentwurf erstellen"
+          }
+        }
+      }
+    },
+    "Browse MEP": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anlagenmodelle durchsuchen"
+          }
+        }
+      }
+    },
+    "Close Studio": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurf schließen"
+          }
+        }
+      }
+    },
+    "Clear": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leeren"
+          }
+        }
+      }
+    },
+    "Drag X / Y / Z arrows or drag the object across the floor": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ziehe die X-/Y-/Z-Pfeile oder verschiebe das Objekt auf dem Boden."
+          }
+        }
+      }
+    },
+    "Edit": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bearbeiten"
+          }
+        }
+      }
+    },
+    "Interaction mode": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bedienmodus"
+          }
+        }
+      }
+    },
+    "3D dimensions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D-Maße"
+          }
+        }
+      }
+    },
+    "Design options": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurfsoptionen"
+          }
+        }
+      }
+    },
+    "Multiple selection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mehrfachauswahl"
+          }
+        }
+      }
+    },
+    "Select all on this floor": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle dieses Geschosses auswählen"
+          }
+        }
+      }
+    },
+    "Engineering · renovation & issues": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sanierung und Aufgaben"
+          }
+        }
+      }
+    },
+    "Appearance": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Darstellung"
+          }
+        }
+      }
+    },
+    "Cutaway view · hide front walls": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schnittansicht · vordere Wände ausblenden"
+          }
+        }
+      }
+    },
+    "Snap · 5 cm grid and walls": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einrasten · 5-cm-Raster und Wände"
+          }
+        }
+      }
+    },
+    "Allow overlaps · intentional connections": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Überlappungen zulassen · beabsichtigte Verbindungen"
+          }
+        }
+      }
+    },
+    "Check current floor overlaps": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Überlappungen im Geschoss prüfen"
+          }
+        }
+      }
+    },
+    "Generate Technik equipment layout": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technikraum-Entwurf erstellen"
+          }
+        }
+      }
+    },
+    "Import design project…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurf importieren …"
+          }
+        }
+      }
+    },
+    "PNG image · current view": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PNG-Bild · aktuelle Ansicht"
+          }
+        }
+      }
+    },
+    "Generate standard equipment layout": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beispielhafte Geräteanordnung erstellen"
+          }
+        }
+      }
+    },
+    "Populate boiler, buffer tank, pump, manifold, panel, and pipes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kessel, Pufferspeicher, Pumpe, Verteiler, Schaltschrank und Rohre einfügen"
+          }
+        }
+      }
+    },
+    "Selected object": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgewähltes Objekt"
+          }
+        }
+      }
+    },
+    "Choose an object": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Objekt auswählen"
+          }
+        }
+      }
+    },
+    "Engineering · phase, verification & issue": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sanierungsphase, Prüfung und Aufgabe"
+          }
+        }
+      }
+    },
+    "This view uses the saved scan envelope where available. Choose All or Proposed in Engineering to inspect design edits.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Ansicht nutzt die gespeicherte Aufnahmehülle, soweit vorhanden. Wähle Alle oder Planung in der Sanierungsansicht, um Entwurfsänderungen zu prüfen."
+          }
+        }
+      }
+    },
+    "Use furniture default size": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modell-Standardgröße verwenden"
+          }
+        }
+      }
+    },
+    "Equipment data · German references": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerätedaten · deutsche Planungsgrundlagen"
+          }
+        }
+      }
+    },
+    "Fit scanned size": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An Aufnahmemaße anpassen"
+          }
+        }
+      }
+    },
+    "Restore scan position": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmeposition wiederherstellen"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen"
+          }
+        }
+      }
+    },
+    "The original scan is preserved. Add models from Design options, or select a recognised object. Unknown elements are not automatically invented.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die ursprüngliche Aufnahme bleibt erhalten. Füge Modelle über Entwurfsoptionen hinzu oder wähle ein erkanntes Objekt. Unbekannte Elemente werden nicht automatisch erfunden."
+          }
+        }
+      }
+    },
+    "Doors & windows · SmartBau style": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Türen und Fenster · SmartBau-Darstellung"
+          }
+        }
+      }
+    },
+    "Door template": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Türvorlage"
+          }
+        }
+      }
+    },
+    "Window template": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fenstervorlage"
+          }
+        }
+      }
+    },
+    "Templates fit the scanned opening. Leaf, frame, hardware and operation are design choices, not detected construction details. Opening poses do not verify clearances.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorlagen passen zur erfassten Öffnung. Flügel, Rahmen, Beschläge und Bedienung sind Entwurfsentscheidungen, keine erkannten Konstruktionsdetails. Öffnungsstellungen bestätigen keine Freiräume."
+          }
+        }
+      }
+    },
+    "Technik templates": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technikraum-Vorlagen"
+          }
+        }
+      }
+    },
+    "Template": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorlage"
+          }
+        }
+      }
+    },
+    "Generic equipment shapes stay within the measured envelope. Category colours are a display palette, not system identification. Captured colours restores retained camera samples. Templates never alter dimensions, routes or source evidence.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vereinfachte Geräteformen bleiben in der erfassten Hülle. Farben kennzeichnen Darstellungskategorien, keine Anlagenzugehörigkeit. Aufnahmefarben zeigen gespeicherte Kamerafarben. Vorlagen ändern keine Maße, Verläufe oder Quelldaten."
+          }
+        }
+      }
+    },
+    "Interior": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Innenraum"
+          }
+        }
+      }
+    },
+    "Style": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stil"
+          }
+        }
+      }
+    },
+    "Floor finish": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bodenbelag"
+          }
+        }
+      }
+    },
+    "Presentation pattern only; not a measured tile or board size.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reines Darstellungsmuster, kein gemessenes Fliesen- oder Dielenmaß."
+          }
+        }
+      }
+    },
+    "Lighting and mood": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Licht und Stimmung"
+          }
+        }
+      }
+    },
+    "Lighting": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beleuchtung"
+          }
+        }
+      }
+    },
+    "Season": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jahreszeit"
+          }
+        }
+      }
+    },
+    "Season changes the lighting mood. Styles recolour design furniture; scan evidence and measured geometry stay intact. Exports preserve model materials; PNG captures this lighting and camera view.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Jahreszeit ändert die Lichtstimmung. Stile färben Entwurfsmöbel um; Aufnahmedaten und Geometrie bleiben erhalten. Exporte behalten Modellmaterialien, PNG zeigt die aktuelle Beleuchtung und Kameraansicht."
+          }
+        }
+      }
+    },
+    "Model": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modell"
+          }
+        }
+      }
+    },
+    "Rotation (degrees)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drehung (Grad)"
+          }
+        }
+      }
+    },
+    "Restore captured colour": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmefarbe wiederherstellen"
+          }
+        }
+      }
+    },
+    "Renovation view": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sanierungsansicht"
+          }
+        }
+      }
+    },
+    "Show": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anzeigen"
+          }
+        }
+      }
+    },
+    "Existing includes elements to be removed. Proposed excludes removed elements. Replace keeps the design element in the proposed view; its original scan remains preserved.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bestand enthält auch zu entfernende Elemente. Planung blendet entfernte Elemente aus. Ersetzen behält das Entwurfselement in der Planung. Die Originalaufnahme bleibt erhalten."
+          }
+        }
+      }
+    },
+    "Element register": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elementverzeichnis"
+          }
+        }
+      }
+    },
+    "Find a wall or equipment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wand oder Gerät suchen"
+          }
+        }
+      }
+    },
+    "Element": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Element"
+          }
+        }
+      }
+    },
+    "Choose an element": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Element auswählen"
+          }
+        }
+      }
+    },
+    "Issues": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgaben"
+          }
+        }
+      }
+    },
+    "No issues recorded. Select an element to add one.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Aufgaben. Wähle ein Element, um eine Aufgabe hinzuzufügen."
+          }
+        }
+      }
+    },
+    "Engineering": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technische Details"
+          }
+        }
+      }
+    },
+    "Work": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arbeiten"
+          }
+        }
+      }
+    },
+    "Objects use local X/Y/Z; walls use length/height/thickness; floors use bounding width/slab thickness/bounding depth. Base wall and slab thickness are display assumptions. Verify all three dimensions independently before confirming.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Objekte nutzen lokale X-/Y-/Z-Maße, Wände Länge/Höhe/Dicke und Böden Umrissbreite/Plattendicke/Umrisstiefe. Ausgangsdicken sind Darstellungsannahmen. Prüfe alle drei Maße unabhängig, bevor du sie bestätigst."
+          }
+        }
+      }
+    },
+    "Measurement reference / instrument / surveyor": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Messbezug, Messgerät oder aufnehmende Person"
+          }
+        }
+      }
+    },
+    "Confirm current dimensions verified": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktuelle Maße als geprüft bestätigen"
+          }
+        }
+      }
+    },
+    "Clear verification": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfbestätigung entfernen"
+          }
+        }
+      }
+    },
+    "Survey notes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaßnotizen"
+          }
+        }
+      }
+    },
+    "Issue / required action": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgabe oder erforderliche Maßnahme"
+          }
+        }
+      }
+    },
+    "Issue status": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgabenstatus"
+          }
+        }
+      }
+    },
+    "Assignee": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zuständige Person"
+          }
+        }
+      }
+    },
+    "Thickness (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dicke (m)"
+          }
+        }
+      }
+    },
+    "Measurement or construction-document reference": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mess- oder Planunterlagenbezug"
+          }
+        }
+      }
+    },
+    "Apply entered thickness": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eingegebene Dicke übernehmen"
+          }
+        }
+      }
+    },
+    "Restore base display thickness": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgangsdicke wiederherstellen"
+          }
+        }
+      }
+    },
+    "Hidden construction cannot be determined from one scanned surface. Use a visible reveal, independent measurement or a referenced drawing.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verdeckte Konstruktionen lassen sich nicht aus einer einzelnen Oberfläche bestimmen. Nutze eine sichtbare Laibung, eine unabhängige Messung oder einen referenzierten Plan."
+          }
+        }
+      }
+    },
+    "Design type": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurfsart"
+          }
+        }
+      }
+    },
+    "Create a separate design from a saved scan. Original scans, measurements and survey evidence remain unchanged.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erstelle einen separaten Entwurf aus einer Aufnahme. Originalaufnahme, Maße und Aufmaßnachweise bleiben unverändert."
+          }
+        }
+      }
+    },
+    "Saved designs": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesicherte Entwürfe"
+          }
+        }
+      }
+    },
+    "Start from a House scan": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus einer Wohnungsaufnahme beginnen"
+          }
+        }
+      }
+    },
+    "Saved House scans will appear here.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesicherte Wohnungsaufnahmen erscheinen hier."
+          }
+        }
+      }
+    },
+    "Start from a room scan": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus einer Raumaufnahme beginnen"
+          }
+        }
+      }
+    },
+    "Start from a Technik Room survey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus einem Technikraum-Aufmaß beginnen"
+          }
+        }
+      }
+    },
+    "Save a Technik Room survey first. Accepted MEP suggestions and survey annotations can become editable models.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichere zunächst ein Technikraum-Aufmaß. Bestätigte Anlagenvorschläge und Anmerkungen können zu bearbeitbaren Modellen werden."
+          }
+        }
+      }
+    },
+    "Open design: ": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurf öffnen: "
+          }
+        }
+      }
+    },
+    "Equipment data · not inferred from LiDAR": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerätedaten · nicht aus LiDAR abgeleitet"
+          }
+        }
+      }
+    },
+    "Manufacturer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hersteller"
+          }
+        }
+      }
+    },
+    "Model / type": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modell / Typ"
+          }
+        }
+      }
+    },
+    "Data source": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datenquelle"
+          }
+        }
+      }
+    },
+    "Nameplate / datasheet / calculation reference": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Typenschild, Datenblatt oder Berechnungsbezug"
+          }
+        }
+      }
+    },
+    "Heating / cooling output (kW)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heiz- / Kühlleistung (kW)"
+          }
+        }
+      }
+    },
+    "Tank capacity (litres)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speichervolumen (Liter)"
+          }
+        }
+      }
+    },
+    "Design flow (m³/h)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auslegungsvolumenstrom (m³/h)"
+          }
+        }
+      }
+    },
+    "Rated pressure (bar)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenndruck (bar)"
+          }
+        }
+      }
+    },
+    "Required front service clearance (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erforderlicher Wartungsfreiraum vorn (m)"
+          }
+        }
+      }
+    },
+    "Capacity, DN, wall thickness and service requirements cannot be established from an external scan. Record the actual operating conditions and manufacturer instructions. Object-envelope collision checks do not verify service clearances or installation compliance.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leistung, DN, Wanddicke und Wartungsanforderungen lassen sich nicht durch eine äußere Aufnahme bestimmen. Dokumentiere Betriebsbedingungen und Herstellerangaben. Kollisionsprüfungen der Hüllen bestätigen weder Wartungsfreiräume noch Installationskonformität."
+          }
+        }
+      }
+    },
+    "Technical equipment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technische Geräte"
+          }
+        }
+      }
+    },
+    "German planning references": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deutsche Planungsgrundlagen"
+          }
+        }
+      }
+    },
+    "Use the applicable edition and scope for the project. These links identify planning references; the app does not reproduce the standards or certify compliance. Manufacturer instructions, local utility requirements and the relevant Landesbauordnung/Feuerungsverordnung also need project-specific review.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfe die für dein Projekt geltende Ausgabe und den Anwendungsbereich. Diese Links sind Planungshinweise. Die App gibt keine Normen wieder und bestätigt keine Konformität. Herstellerangaben, Versorgervorgaben und geltende Bau- und Feuerungsverordnungen müssen projektspezifisch geprüft werden."
+          }
+        }
+      }
+    },
+    "DIN 18012 concerns building service connection facilities; it is not a universal equipment-room sizing rule. Check the current edition, utility requirements and whether the facility is within its scope.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DIN 18012 behandelt Haus-Anschlusseinrichtungen und ist keine allgemeine Bemessungsregel für Technikräume. Prüfe die geltende Ausgabe, Versorgervorgaben und den Anwendungsbereich."
+          }
+        }
+      }
+    },
+    "Manual survey annotations · accuracy unknown · not yet saved": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manuelle Aufmaßanmerkungen · Genauigkeit unbekannt · noch nicht gesichert"
+          }
+        }
+      }
+    },
+    "Alignment verification required before editing.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vor der Bearbeitung muss die Ausrichtung geprüft werden."
+          }
+        }
+      }
+    },
+    "Connection review": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindungen prüfen"
+          }
+        }
+      }
+    },
+    "Disconnect": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindung trennen"
+          }
+        }
+      }
+    },
+    "Annotations": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmerkungen"
+          }
+        }
+      }
+    },
+    "Pipes and fittings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohre und Formstücke"
+          }
+        }
+      }
+    },
+    "Pipe": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohr"
+          }
+        }
+      }
+    },
+    "Choose pipe": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohr auswählen"
+          }
+        }
+      }
+    },
+    "Outside diameter (mm)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Außendurchmesser (mm)"
+          }
+        }
+      }
+    },
+    "Insulation (mm)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dämmung (mm)"
+          }
+        }
+      }
+    },
+    "DN (optional)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DN (optional)"
+          }
+        }
+      }
+    },
+    "Update dimensions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maße aktualisieren"
+          }
+        }
+      }
+    },
+    "Edit pipe points in camera": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohrpunkte in Kamera bearbeiten"
+          }
+        }
+      }
+    },
+    "Delete pipe": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohr löschen"
+          }
+        }
+      }
+    },
+    "Fitting": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Formstück"
+          }
+        }
+      }
+    },
+    "Add fitting at crosshair": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Formstück am Fadenkreuz hinzufügen"
+          }
+        }
+      }
+    },
+    "Move to crosshair": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Fadenkreuz verschieben"
+          }
+        }
+      }
+    },
+    "Equipment ports": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geräteanschlüsse"
+          }
+        }
+      }
+    },
+    "Equipment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geräte"
+          }
+        }
+      }
+    },
+    "Choose equipment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerät auswählen"
+          }
+        }
+      }
+    },
+    "Yaw (degrees)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drehwinkel (Grad)"
+          }
+        }
+      }
+    },
+    "Update equipment dimensions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerätemaße aktualisieren"
+          }
+        }
+      }
+    },
+    "Move equipment base to crosshair": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerätebasis zum Fadenkreuz verschieben"
+          }
+        }
+      }
+    },
+    "Delete equipment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerät löschen"
+          }
+        }
+      }
+    },
+    "Port direction X": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anschlussrichtung X"
+          }
+        }
+      }
+    },
+    "Port direction Y": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anschlussrichtung Y"
+          }
+        }
+      }
+    },
+    "Port direction Z": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anschlussrichtung Z"
+          }
+        }
+      }
+    },
+    "Port medium": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anschlussmedium"
+          }
+        }
+      }
+    },
+    "Port DN (optional)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anschluss-DN (optional)"
+          }
+        }
+      }
+    },
+    "Add port at crosshair": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anschluss am Fadenkreuz hinzufügen"
+          }
+        }
+      }
+    },
+    "Port": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anschluss"
+          }
+        }
+      }
+    },
+    "Choose port": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anschluss auswählen"
+          }
+        }
+      }
+    },
+    "Pipe end": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohrende"
+          }
+        }
+      }
+    },
+    "Connect selected pipe and port": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gewähltes Rohr mit Anschluss verbinden"
+          }
+        }
+      }
+    },
+    "Delete selected port": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gewählten Anschluss löschen"
+          }
+        }
+      }
+    },
+    "Update selected port properties": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anschlusseigenschaften aktualisieren"
+          }
+        }
+      }
+    },
+    "Rectangular duct routes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechteckige Kanalverläufe"
+          }
+        }
+      }
+    },
+    "Place the intended duct centreline manually; surface hits are not automatically converted into a duct centre.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lege die Kanalachse manuell fest. Oberflächenpunkte werden nicht automatisch in Kanalmitten umgerechnet."
+          }
+        }
+      }
+    },
+    "Existing duct": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorhandener Kanal"
+          }
+        }
+      }
+    },
+    "Choose duct": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanal auswählen"
+          }
+        }
+      }
+    },
+    "Update duct dimensions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanalmaße aktualisieren"
+          }
+        }
+      }
+    },
+    "Undo draft point": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letzten Entwurfspunkt entfernen"
+          }
+        }
+      }
+    },
+    "Keep duct": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanal übernehmen"
+          }
+        }
+      }
+    },
+    "Points": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Punkte"
+          }
+        }
+      }
+    },
+    "Point measurements and length calibration": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Punktmessungen und Längenkorrektur"
+          }
+        }
+      }
+    },
+    "Clear measurement draft": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Messentwurf leeren"
+          }
+        }
+      }
+    },
+    "Calibration baseline": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Korrektur-Basisstrecke"
+          }
+        }
+      }
+    },
+    "Choose measurement": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Messung auswählen"
+          }
+        }
+      }
+    },
+    "Independently measured reference (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unabhängig gemessene Referenz (m)"
+          }
+        }
+      }
+    },
+    "Apply length correction": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Längenkorrektur anwenden"
+          }
+        }
+      }
+    },
+    "Remove length correction": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Längenkorrektur entfernen"
+          }
+        }
+      }
+    },
+    "Length correction is derived from the entered reference. Raw observations and AR geometry stay unchanged; accuracy remains unknown.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Längenkorrektur wird aus der eingegebenen Referenz abgeleitet. Rohbeobachtungen und AR-Geometrie bleiben unverändert. Die Genauigkeit bleibt unbekannt."
+          }
+        }
+      }
+    },
+    "Photos and notes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos und Notizen"
+          }
+        }
+      }
+    },
+    "Survey note": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaßnotiz"
+          }
+        }
+      }
+    },
+    "Add note": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notiz hinzufügen"
+          }
+        }
+      }
+    },
+    "Link to equipment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Gerät verknüpfen"
+          }
+        }
+      }
+    },
+    "Use selected survey photos for MEP recognition or copy them to Google Photos.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutze ausgewählte Aufmaßfotos zur Anlagenerkennung oder kopiere sie in Google Fotos."
+          }
+        }
+      }
+    },
+    "Sign out": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abmelden"
+          }
+        }
+      }
+    },
+    "Google project setup is required for this build. Offline scanning remains available.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für diese Version muss das Google-Projekt eingerichtet werden. Offline-Aufnahmen bleiben möglich."
+          }
+        }
+      }
+    },
+    "Connect Google in Profile → Google account. On Mac, use Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbinde Google unter Einstellungen → Google-Konto."
+          }
+        }
+      }
+    },
+    "Google account": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google-Konto"
+          }
+        }
+      }
+    },
+    "AI recognition": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KI-Erkennung"
+          }
+        }
+      }
+    },
+    "Scanning and offline recognition work without Google. Images stay local until you choose them and confirm sending in MEP review.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme und Offline-Erkennung funktionieren ohne Google. Bilder bleiben lokal, bis du sie auswählst und die Übermittlung in der Anlagenprüfung bestätigst."
+          }
+        }
+      }
+    },
+    "HTTPS Google AI service URL": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTPS-Adresse des Google-KI-Dienstes"
+          }
+        }
+      }
+    },
+    "Configure the service URL here. The Gemini API key stays on the backend.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trage hier die Dienstadresse ein. Der Gemini-API-Schlüssel bleibt auf dem Server."
+          }
+        }
+      }
+    },
+    "Google account & AI": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google-Konto und KI"
+          }
+        }
+      }
+    },
+    "Enable Google AI": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google-KI aktivieren"
+          }
+        }
+      }
+    },
+    "Only images you select and confirm in review are sent to your configured service and its AI provider. They may show private rooms, people or labels. Google sign-in identifies your account. Depth stays local. Provider retention depends on your service configuration. You can switch AI off at any time; scans still work offline.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur ausgewählte und in der Prüfung bestätigte Bilder werden an den eingerichteten Dienst und dessen KI-Anbieter gesendet. Sie können private Räume, Personen oder Beschriftungen zeigen. Die Google-Anmeldung identifiziert dein Konto. Tiefendaten bleiben lokal. Die Speicherdauer hängt von der Dienstkonfiguration ab. Du kannst KI jederzeit ausschalten. Offline-Aufnahmen bleiben möglich."
+          }
+        }
+      }
+    },
+    "Detect visible geometry, review each result, then keep the objects you need. Sizes are estimates; DN, contents and hidden connections remain unknown.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erkenne sichtbare Geometrie, prüfe jeden Vorschlag und übernimm benötigte Objekte. Maße sind Schätzwerte. DN, Inhalte und verdeckte Verbindungen bleiben unbekannt."
+          }
+        }
+      }
+    },
+    "Offline detection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offline-Erkennung"
+          }
+        }
+      }
+    },
+    "Look for": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suchen nach"
+          }
+        }
+      }
+    },
+    "Pipes / cylinders": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohren / Zylindern"
+          }
+        }
+      }
+    },
+    "Round ducts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runden Lüftungskanälen"
+          }
+        }
+      }
+    },
+    "Works offline. Finds cylinder-shaped candidates; it cannot determine their function.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funktioniert offline und findet zylinderförmige Kandidaten. Ihre Funktion wird nicht bestimmt."
+          }
+        }
+      }
+    },
+    "Find candidates in saved mesh": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kandidaten im Aufnahmenetz suchen"
+          }
+        }
+      }
+    },
+    "Select up to five viewpoints for Gemini recognition. Nothing is sent automatically. If free quota is unavailable, local detection still works.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle bis zu fünf Blickpunkte für die Gemini-Erkennung. Nichts wird automatisch gesendet. Ist kein kostenloses Kontingent verfügbar, bleibt die lokale Erkennung nutzbar."
+          }
+        }
+      }
+    },
+    "This survey has no calibrated camera images. Make a new scan for AI image recognition; local mesh detection can still be used.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Aufmaß hat keine kalibrierten Kamerabilder. Erstelle für KI-Bilderkennung eine neue Aufnahme. Die lokale Netzerkennung bleibt möglich."
+          }
+        }
+      }
+    },
+    "Send selected images and analyse…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgewählte Bilder senden und auswerten …"
+          }
+        }
+      }
+    },
+    "Off. Scanning, photos and offline detection work without Google sign-in.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgeschaltet. Aufnahme, Fotos und Offline-Erkennung funktionieren ohne Google-Anmeldung."
+          }
+        }
+      }
+    },
+    "Review candidates": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorschläge prüfen"
+          }
+        }
+      }
+    },
+    "Accept": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Übernehmen"
+          }
+        }
+      }
+    },
+    "Reject": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwerfen"
+          }
+        }
+      }
+    },
+    "Send and analyse": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Senden und auswerten"
+          }
+        }
+      }
+    },
+    "Visible outer dimensions only. Insulation may hide the actual pipe. Material settings change rendering, not the measured evidence.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur sichtbare Außenmaße. Dämmung kann das eigentliche Rohr verdecken. Werkstoffeinstellungen ändern die Darstellung, nicht die Aufnahmedaten."
+          }
+        }
+      }
+    },
+    "Width / outer diameter (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Breite / Außendurchmesser (m)"
+          }
+        }
+      }
+    },
+    "Section height (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Querschnittshöhe (m)"
+          }
+        }
+      }
+    },
+    "Material appearance": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Werkstoffdarstellung"
+          }
+        }
+      }
+    },
+    "Start X": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start X"
+          }
+        }
+      }
+    },
+    "Start Y": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Y"
+          }
+        }
+      }
+    },
+    "Start Z": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Z"
+          }
+        }
+      }
+    },
+    "End X": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ende X"
+          }
+        }
+      }
+    },
+    "End Y": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ende Y"
+          }
+        }
+      }
+    },
+    "End Z": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ende Z"
+          }
+        }
+      }
+    },
+    "Review MEP element": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anlagenelement prüfen"
+          }
+        }
+      }
+    },
+    "No technical surveys": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Technikraum-Aufmaße"
+          }
+        }
+      }
+    },
+    "Capture equipment, pipes and ducts in a Technik Room.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erfasse Geräte, Rohre und Lüftungskanäle in einem Technikraum."
+          }
+        }
+      }
+    },
+    "Scan Technik Room": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technikraum erfassen"
+          }
+        }
+      }
+    },
+    "Items requiring attention": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einträge mit Prüfbedarf"
+          }
+        }
+      }
+    },
+    "Import survey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaß importieren"
+          }
+        }
+      }
+    },
+    "Add survey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaß hinzufügen"
+          }
+        }
+      }
+    },
+    "Move to library trash": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Bibliothekspapierkorb verschieben"
+          }
+        }
+      }
+    },
+    "The survey is moved to the library’s hidden .Trash folder and can be recovered manually.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Aufmaß wird in den verborgenen Ordner .Trash der Bibliothek verschoben und kann manuell wiederhergestellt werden."
+          }
+        }
+      }
+    },
+    "Saved survey view": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesichertes Aufmaß"
+          }
+        }
+      }
+    },
+    "3D scan": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D-Aufnahme"
+          }
+        }
+      }
+    },
+    "Survey details": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaßdetails"
+          }
+        }
+      }
+    },
+    "MEP review": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anlagenprüfung"
+          }
+        }
+      }
+    },
+    "Full survey package": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vollständiges Aufmaßpaket"
+          }
+        }
+      }
+    },
+    "Editable technical survey JSON": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bearbeitbares Technikraum-JSON"
+          }
+        }
+      }
+    },
+    "DWG requires conversion from DXF in a CAD application.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für DWG muss die DXF-Datei in einer CAD-Anwendung umgewandelt werden."
+          }
+        }
+      }
+    },
+    "Survey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaß"
+          }
+        }
+      }
+    },
+    "Stored survey — live alignment is not verified. Manual edits do not establish engineering accuracy.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesichertes Aufmaß. Die aktuelle Ausrichtung ist nicht geprüft. Manuelle Änderungen begründen keine technische Genauigkeit."
+          }
+        }
+      }
+    },
+    "Resume AR survey from saved map": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AR-Aufmaß mit gesicherter Karte fortsetzen"
+          }
+        }
+      }
+    },
+    "No recovery map was saved, so aligned AR capture cannot resume. You can still open the saved geometry in the 3D scan tab.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es wurde keine Wiederherstellungskarte gesichert. Die ausgerichtete AR-Aufnahme kann nicht fortgesetzt werden. Die gesicherte Geometrie bleibt in der 3D-Ansicht verfügbar."
+          }
+        }
+      }
+    },
+    "Capture evidence": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmenachweise"
+          }
+        }
+      }
+    },
+    "Some older capture records exceeded retention limits.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einige ältere Aufnahmedaten überschritten die Aufbewahrungsgrenzen."
+          }
+        }
+      }
+    },
+    "Pipes — manual dimensions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohre · manuelle Maße"
+          }
+        }
+      }
+    },
+    "Notes and photos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notizen und Fotos"
+          }
+        }
+      }
+    },
+    "Add survey note": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaßnotiz hinzufügen"
+          }
+        }
+      }
+    },
+    "Room surfaces": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raumflächen"
+          }
+        }
+      }
+    },
+    "Display": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Darstellung"
+          }
+        }
+      }
+    },
+    "MEP": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anlagen"
+          }
+        }
+      }
+    },
+    "Both": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beides"
+          }
+        }
+      }
+    },
+    "3D display options": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D-Darstellungsoptionen"
+          }
+        }
+      }
+    },
+    "Close full-screen view": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vollbild schließen"
+          }
+        }
+      }
+    },
+    "Saved LiDAR mesh": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesichertes LiDAR-Netz"
+          }
+        }
+      }
+    },
+    "Drag to rotate · pinch to zoom": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ziehen zum Drehen · mit zwei Fingern zoomen"
+          }
+        }
+      }
+    },
+    "Full-screen 3D scan": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D-Aufnahme im Vollbild"
+          }
+        }
+      }
+    },
+    "Partial mesh: capture limit reached.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teilnetz: Aufnahmegrenze erreicht."
+          }
+        }
+      }
+    },
+    "Open Survey details to inspect the saved evidence and photos. A recovery map is only needed to resume aligned AR capture.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne Aufmaßdetails für gesicherte Nachweise und Fotos. Eine Wiederherstellungskarte ist nur zum Fortsetzen ausgerichteter AR-Aufnahmen nötig."
+          }
+        }
+      }
+    },
+    "Full screen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vollbild"
+          }
+        }
+      }
+    },
+    "Saved 3D survey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesichertes 3D-Aufmaß"
+          }
+        }
+      }
+    },
+    "Zoom out": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verkleinern"
+          }
+        }
+      }
+    },
+    "Zoom in": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vergrößern"
+          }
+        }
+      }
+    },
+    "Photo taken at this camera position. The position uses the saved scan coordinates; it is not a GPS location.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto von dieser Kameraposition. Die Position nutzt gesicherte Aufnahmekoordinaten und ist kein GPS-Standort."
+          }
+        }
+      }
+    },
+    "Device validation pending": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerätevalidierung ausstehend"
+          }
+        }
+      }
+    },
+    "Copy photo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto kopieren"
+          }
+        }
+      }
+    },
+    "Google will receive this photo. Separate Google Photos upload permission is required. A local copy remains in your scan; the Google Photos link is private to its owning account.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google erhält dieses Foto. Dafür ist eine separate Google-Fotos-Berechtigung erforderlich. Eine lokale Kopie bleibt in der Aufnahme. Der Google-Fotos-Link ist nur für das zugehörige Konto zugänglich."
+          }
+        }
+      }
+    },
+    "IFC (Revit)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IFC (Revit)"
+          }
+        }
+      }
+    },
+    "Multiple levels: one file per level in a ZIP archive.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mehrere Geschosse: eine Datei je Geschoss in einem ZIP-Archiv."
+          }
+        }
+      }
+    },
+    "Architecture": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Architektur"
+          }
+        }
+      }
+    },
+    "IFC2x3 compatibility": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IFC2x3-Kompatibilität"
+          }
+        }
+      }
+    },
+    "Technical rooms": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technikräume"
+          }
+        }
+      }
+    },
+    "Select technical-room packages": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technikraum-Pakete auswählen"
+          }
+        }
+      }
+    },
+    "Generate IFC": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IFC erstellen"
+          }
+        }
+      }
+    },
+    "Capture-derived data: device validation pending. Storey elevations use retained floor evidence when available; otherwise they are labelled estimates.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmebasierte Daten: Gerätevalidierung ausstehend. Geschosshöhen verwenden vorhandene Bodennachweise und werden andernfalls als Schätzwerte gekennzeichnet."
+          }
+        }
+      }
+    },
+    "Radiators": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörper"
+          }
+        }
+      }
+    },
+    "Options": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optionen"
+          }
+        }
+      }
+    },
+    "Room name": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raumname"
+          }
+        }
+      }
+    },
+    "Model view": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modellansicht"
+          }
+        }
+      }
+    },
+    "Rename room: ": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raum umbenennen: "
+          }
+        }
+      }
+    },
+    "Smaller text": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kleinere Schrift"
+          }
+        }
+      }
+    },
+    "Larger text": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Größere Schrift"
+          }
+        }
+      }
+    },
+    "Plan options": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grundrissoptionen"
+          }
+        }
+      }
+    },
+    "Visibility": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichtbarkeit"
+          }
+        }
+      }
+    },
+    "Dimensions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maße"
+          }
+        }
+      }
+    },
+    "Room labels": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raumbeschriftungen"
+          }
+        }
+      }
+    },
+    "Furniture and objects": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Möbel und Objekte"
+          }
+        }
+      }
+    },
+    "Drafting grid": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeichenraster"
+          }
+        }
+      }
+    },
+    "Restore defaults": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standardwerte wiederherstellen"
+          }
+        }
+      }
+    },
+    "Open saved 3D scan": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesicherte 3D-Aufnahme öffnen"
+          }
+        }
+      }
+    },
+    "Studio": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurf"
+          }
+        }
+      }
+    },
+    "Start with your space": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beginne mit deinen Räumen"
+          }
+        }
+      }
+    },
+    "Capture the existing building, then explore changes in Studio.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erfasse das Bestandsgebäude und prüfe anschließend Änderungen im Entwurf."
+          }
+        }
+      }
+    },
+    "Your original scan stays separate from Studio edits.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Originalaufnahme bleibt von Entwurfsänderungen getrennt."
+          }
+        }
+      }
+    },
+    "Scanning requires a compatible LiDAR device.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für Aufnahmen ist ein kompatibles LiDAR-Gerät erforderlich."
+          }
+        }
+      }
+    },
+    "Take survey photo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaßfoto aufnehmen"
+          }
+        }
+      }
+    },
+    "Profile": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profil"
+          }
+        }
+      }
+    },
+    "Privacy": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datenschutz"
+          }
+        }
+      }
+    },
+    "Scans stay on this device unless you enable iCloud, share a file or explicitly send selected images for AI processing.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmen bleiben auf diesem Gerät, sofern du nicht iCloud aktivierst, Dateien teilst oder ausgewählte Bilder ausdrücklich zur KI-Verarbeitung sendest."
+          }
+        }
+      }
+    },
+    "Pro details": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profi-Details"
+          }
+        }
+      }
+    },
+    "Show pipe designations, systems, provenance and structured schema exports. Existing data is always retained.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohrbezeichnungen, Systeme, Quellenangaben und strukturierte Datenexporte anzeigen. Vorhandene Daten bleiben immer erhalten."
+          }
+        }
+      }
+    },
+    "Camera photos during scanning": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kamerafotos während der Aufnahme"
+          }
+        }
+      }
+    },
+    "Scan performance": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmeleistung"
+          }
+        }
+      }
+    },
+    "Performance changes the live preview. Saved scan evidence keeps the same capture settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Leistungseinstellung ändert die Live-Vorschau. Für gesicherte Aufnahmedaten gelten dieselben Aufnahmeeinstellungen."
+          }
+        }
+      }
+    },
+    "Organisation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Organisation"
+          }
+        }
+      }
+    },
+    "Workspace details are stored on this device. Google account details appear below after sign-in.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arbeitsbereichsdaten werden auf diesem Gerät gespeichert. Google-Kontodaten erscheinen nach der Anmeldung unten."
+          }
+        }
+      }
+    },
+    "AI & photo connections": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KI- und Fotoverbindungen"
+          }
+        }
+      }
+    },
+    "Accounts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konten"
+          }
+        }
+      }
+    },
+    "Automatically detect radiators (Heizkörper)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörper automatisch erkennen"
+          }
+        }
+      }
+    },
+    "House scanning": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wohnungsaufnahme"
+          }
+        }
+      }
+    },
+    "During your next House scan, include the whole radiator and the wall beside it. Review possible radiators in House Options → Radiators.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erfasse bei der nächsten Wohnungsaufnahme den ganzen Heizkörper und die Wand daneben. Prüfe Vorschläge unter Optionen → Heizkörper."
+          }
+        }
+      }
+    },
+    "Taken at this camera position (scan coordinates, not GPS). Device validation pending.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von dieser Kameraposition aufgenommen (Aufnahmekoordinaten, kein GPS). Gerätevalidierung ausstehend."
+          }
+        }
+      }
+    },
+    "Go to camera": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zur Kameraposition"
+          }
+        }
+      }
+    },
+    "AR model scale": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AR-Modellmaßstab"
+          }
+        }
+      }
+    },
+    "Restart AR camera": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AR-Kamera neu starten"
+          }
+        }
+      }
+    },
+    "Camera access needed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kamerazugriff erforderlich"
+          }
+        }
+      }
+    },
+    "Radiator close-up": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörper-Nahaufnahme"
+          }
+        }
+      }
+    },
+    "Review before saving. Width and height use the automatically proposed visible body envelope; scan-derived sizes remain estimates.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vor dem Sichern prüfen. Breite und Höhe beruhen auf der vorgeschlagenen sichtbaren Hülle. Aufnahmebasierte Maße bleiben Schätzwerte."
+          }
+        }
+      }
+    },
+    "Keep the full radiator and adjacent wall visible. Confirm the detected candidate, then move closer around its sides. Geometry proposals can match other equipment.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Halte den ganzen Heizkörper und die angrenzende Wand sichtbar. Bestätige den Vorschlag und erfasse die Seiten aus der Nähe. Geometrievorschläge können auch andere Geräte treffen."
+          }
+        }
+      }
+    },
+    "This is a radiator · measure closer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das ist ein Heizkörper · genauer erfassen"
+          }
+        }
+      }
+    },
+    "Not a radiator": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Heizkörper"
+          }
+        }
+      }
+    },
+    "Finish radiator scan": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörperaufnahme abschließen"
+          }
+        }
+      }
+    },
+    "Find another candidate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anderen Vorschlag suchen"
+          }
+        }
+      }
+    },
+    "Camera settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kameraeinstellungen"
+          }
+        }
+      }
+    },
+    "When the rear face is hidden": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei verdeckter Rückseite"
+          }
+        }
+      }
+    },
+    "Mounting gap fallback": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ersatzannahme zum Wandabstand"
+          }
+        }
+      }
+    },
+    "No assumption is applied by default. KERMI examples apply only to the selected long wall console; they are not a universal German/DIN mounting rule. A scan-supported rear face takes priority.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standardmäßig wird keine Annahme angewendet. KERMI-Beispiele gelten nur für die ausgewählte lange Wandkonsole und sind keine allgemeine deutsche oder DIN-Montageregel. Eine erfasste Rückseite hat Vorrang."
+          }
+        }
+      }
+    },
+    "Discard": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwerfen"
+          }
+        }
+      }
+    },
+    "Create a report": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bericht erstellen"
+          }
+        }
+      }
+    },
+    "Project report · PDF": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projektbericht · PDF"
+          }
+        }
+      }
+    },
+    "Quantities · CSV": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mengen · CSV"
+          }
+        }
+      }
+    },
+    "Reports include available source scans. Missing items are listed, never silently omitted.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Berichte enthalten verfügbare Aufnahmen. Fehlende Einträge werden ausdrücklich aufgeführt."
+          }
+        }
+      }
+    },
+    "Exports": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporte"
+          }
+        }
+      }
+    },
+    "No exports yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Exporte"
+          }
+        }
+      }
+    },
+    "Floor plan. Tap to add a task pin.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grundriss. Tippe, um eine Aufgabenmarkierung hinzuzufügen."
+          }
+        }
+      }
+    },
+    "Tap the plan to add a note. Positions are annotations, not verified measurements.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe für eine Notiz auf den Grundriss. Positionen sind Anmerkungen, keine geprüften Messungen."
+          }
+        }
+      }
+    },
+    "Add task pin": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgabenmarkierung hinzufügen"
+          }
+        }
+      }
+    },
+    "Add a room or whole-home scan to place renovation pins.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Füge eine Raum- oder Wohnungsaufnahme hinzu, um Sanierungsmarkierungen zu platzieren."
+          }
+        }
+      }
+    },
+    "Notes & task pins": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notizen und Aufgabenmarkierungen"
+          }
+        }
+      }
+    },
+    "Task or note": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgabe oder Notiz"
+          }
+        }
+      }
+    },
+    "Status": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
+          }
+        }
+      }
+    },
+    "Photo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto"
+          }
+        }
+      }
+    },
+    "None": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine"
+          }
+        }
+      }
+    },
+    "Renovation tag": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sanierungskennzeichnung"
+          }
+        }
+      }
+    },
+    "Keep existing tag": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorhandene Kennzeichnung behalten"
+          }
+        }
+      }
+    },
+    "The tag is stored in the existing Design phase data. The original capture is unchanged.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Kennzeichnung wird in den vorhandenen Entwurfsphasendaten gespeichert. Die Originalaufnahme bleibt unverändert."
+          }
+        }
+      }
+    },
+    "Delete pin": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markierung löschen"
+          }
+        }
+      }
+    },
+    "Task pin": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgabenmarkierung"
+          }
+        }
+      }
+    },
+    "Project data": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projektdaten"
+          }
+        }
+      }
+    },
+    "Deletion permanently removes indexed scans, their photos, designs and generated project exports in connected libraries. Files you shared elsewhere, legacy export folders, backups and provider-held data are not removed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Löschen entfernt verzeichnete Aufnahmen mit Fotos, Entwürfen und erzeugten Projektexporten in verbundenen Bibliotheken dauerhaft. Externe Kopien, ältere Exportordner, Sicherungen und Daten bei Dienstanbietern bleiben unberührt."
+          }
+        }
+      }
+    },
+    "Delete all project data": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Projektdaten löschen"
+          }
+        }
+      }
+    },
+    "Project privacy": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projektdatenschutz"
+          }
+        }
+      }
+    },
+    "Delete permanently": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dauerhaft löschen"
+          }
+        }
+      }
+    },
+    "This cannot be undone. Referenced data needed by another project is retained. Offline libraries must be connected first.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dies kann nicht widerrufen werden. Daten, die ein anderes Projekt benötigt, bleiben erhalten. Offline-Bibliotheken müssen zuerst verbunden werden."
+          }
+        }
+      }
+    },
+    "Assumptions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annahmen"
+          }
+        }
+      }
+    },
+    "Independent surveys may overlap. Ceiling area is projected; volume is a height-based range. Device validation pending.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unabhängige Aufmaße können sich überlappen. Deckenflächen sind projiziert, Volumen ist ein höhenbasierter Bereich. Gerätevalidierung ausstehend."
+          }
+        }
+      }
+    },
+    "Sum of listed survey quantities": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summe der aufgeführten Aufmaßmengen"
+          }
+        }
+      }
+    },
+    "This sum is not a deduplicated building total.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Summe ist keine bereinigte Gebäudegesamtmenge."
+          }
+        }
+      }
+    },
+    "Quantities": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mengen"
+          }
+        }
+      }
+    },
+    "View": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansicht"
+          }
+        }
+      }
+    },
+    "A dimensioned room-shell floor plan is not stored in this utility-room capture. Use its 3D survey.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Technikraumaufnahme enthält keinen bemaßten Grundriss der Raumhülle. Nutze die 3D-Aufnahme."
+          }
+        }
+      }
+    },
+    "No photos in this scan": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Fotos in dieser Aufnahme"
+          }
+        }
+      }
+    },
+    "No project photos yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Projektfotos"
+          }
+        }
+      }
+    },
+    "Verify with a known distance": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit bekannter Strecke prüfen"
+          }
+        }
+      }
+    },
+    "Scan dimension": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmemaß"
+          }
+        }
+      }
+    },
+    "Reference length (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Referenzlänge (m)"
+          }
+        }
+      }
+    },
+    "Method and measurement reference": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Methode und Messbezug"
+          }
+        }
+      }
+    },
+    "Save distance check": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streckenprüfung sichern"
+          }
+        }
+      }
+    },
+    "This check applies only to the selected dimension. It does not calibrate the scan or establish a general accuracy rating. Device validation pending.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Prüfung gilt nur für das ausgewählte Maß. Sie kalibriert die Aufnahme nicht und begründet keine allgemeine Genauigkeitsangabe. Gerätevalidierung ausstehend."
+          }
+        }
+      }
+    },
+    "Saved checks": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesicherte Prüfungen"
+          }
+        }
+      }
+    },
+    "Distance check": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streckenprüfung"
+          }
+        }
+      }
+    },
+    "Preview": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorschau"
+          }
+        }
+      }
+    },
+    "Measurements": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaß"
+          }
+        }
+      }
+    },
+    "Radiator survey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkörper-Aufmaß"
+          }
+        }
+      }
+    },
+    "Saving…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird gesichert …"
+          }
+        }
+      }
+    },
+    "Survey photo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaßfoto"
+          }
+        }
+      }
+    },
+    "Close this unsaved technical survey?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungesichertes Technikraum-Aufmaß schließen?"
+          }
+        }
+      }
+    },
+    "Manual survey tools": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manuelle Aufmaßwerkzeuge"
+          }
+        }
+      }
+    },
+    "Capture diagnostics": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmediagnose"
+          }
+        }
+      }
+    },
+    "Survey alignment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaßausrichtung"
+          }
+        }
+      }
+    },
+    "Could not open design": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurf konnte nicht geöffnet werden"
+          }
+        }
+      }
+    },
+    "Opening Studio…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurf wird geöffnet …"
+          }
+        }
+      }
+    },
+    "Design actions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurfsaktionen"
+          }
+        }
+      }
+    },
+    "Selection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auswahl"
+          }
+        }
+      }
+    },
+    "Save this design before closing?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurf vor dem Schließen sichern?"
+          }
+        }
+      }
+    },
+    "Working…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird bearbeitet …"
+          }
+        }
+      }
+    },
+    "Export edited design": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bearbeiteten Entwurf exportieren"
+          }
+        }
+      }
+    },
+    "Preparing design…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurf wird vorbereitet …"
+          }
+        }
+      }
+    },
+    "Connecting…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindung wird hergestellt …"
+          }
+        }
+      }
+    },
+    "Google sign-in": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google-Anmeldung"
+          }
+        }
+      }
+    },
+    "Service configuration": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dienstkonfiguration"
+          }
+        }
+      }
+    },
+    "Enable optional Google AI?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optionale Google-KI aktivieren?"
+          }
+        }
+      }
+    },
+    "MEP recognition": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anlagenerkennung"
+          }
+        }
+      }
+    },
+    "Edit endpoints (original scan coordinates, m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Endpunkte bearbeiten (Original-Aufnahmekoordinaten, m)"
+          }
+        }
+      }
+    },
+    "Delete this technical survey?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Technikraum-Aufmaß löschen?"
+          }
+        }
+      }
+    },
+    "Opening saved survey…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesichertes Aufmaß wird geöffnet …"
+          }
+        }
+      }
+    },
+    "Export": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportieren"
+          }
+        }
+      }
+    },
+    "Technical survey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technikraum-Aufmaß"
+          }
+        }
+      }
+    },
+    "View survey photos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufmaßfotos ansehen"
+          }
+        }
+      }
+    },
+    "No saved 3D mesh": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein gesichertes 3D-Netz"
+          }
+        }
+      }
+    },
+    "Drag to rotate. Use Reset view or the numbered photo buttons below.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ziehen zum Drehen. Nutze Ansicht zurücksetzen oder die nummerierten Fototasten unten."
+          }
+        }
+      }
+    },
+    "Google Photos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google Fotos"
+          }
+        }
+      }
+    },
+    "Saving Google Photos copy…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopie in Google Fotos wird gesichert …"
+          }
+        }
+      }
+    },
+    "Copy this scan photo to Google Photos?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Aufmaßfoto in Google Fotos kopieren?"
+          }
+        }
+      }
+    },
+    "Rename room": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raum umbenennen"
+          }
+        }
+      }
+    },
+    "Unable to rename room": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raum konnte nicht umbenannt werden"
+          }
+        }
+      }
+    },
+    "Size": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Größe"
+          }
+        }
+      }
+    },
+    "Unable to complete action": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktion konnte nicht abgeschlossen werden"
+          }
+        }
+      }
+    },
+    "Project data and deletion": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projektdaten und Löschen"
+          }
+        }
+      }
+    },
+    "Loading photo…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto wird geladen …"
+          }
+        }
+      }
+    },
+    "AR is unavailable": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AR ist nicht verfügbar"
+          }
+        }
+      }
+    },
+    "Opening camera…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kamera wird geöffnet …"
+          }
+        }
+      }
+    },
+    "Discard this unsaved radiator scan?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungesicherte Heizkörperaufnahme verwerfen?"
+          }
+        }
+      }
+    },
+    "Generating report…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bericht wird erstellt …"
+          }
+        }
+      }
+    },
+    "Report": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bericht"
+          }
+        }
+      }
+    },
+    "No floor plan available": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Grundriss verfügbar"
+          }
+        }
+      }
+    },
+    "Deleting project data…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projektdaten werden gelöscht …"
+          }
+        }
+      }
+    },
+    "Permanently delete project data?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projektdaten dauerhaft löschen?"
+          }
+        }
+      }
+    },
+    "Floor area": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grundfläche"
+          }
+        }
+      }
+    },
+    "Net wall area": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Netto-Wandfläche"
+          }
+        }
+      }
+    },
+    "Flooring incl. waste": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bodenbelag einschließlich Verschnitt"
+          }
+        }
+      }
+    },
+    "Paint area incl. waste": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anstrichfläche einschließlich Zuschlag"
+          }
+        }
+      }
+    },
+    "Scan length": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmelänge"
+          }
+        }
+      }
+    },
+    "Absolute difference": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Absoluter Unterschied"
+          }
+        }
+      }
+    },
+    "Signed deviation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abweichung mit Vorzeichen"
+          }
+        }
+      }
+    },
+    "Project report and exports": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projektbericht und Exporte"
+          }
+        }
+      }
+    },
+    "Measured with iPhone LiDAR; device validation pending. Verify critical dimensions independently.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit iPhone-LiDAR erfasst; Gerätevalidierung ausstehend. Prüfe wichtige Maße unabhängig."
+          }
+        }
+      }
+    },
+    "Renovation survey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sanierungsaufmaß"
+          }
+        }
+      }
+    },
+    "Each scan is an independent survey. Repeated or overlapping scans must not be added as building totals.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jede Aufnahme ist ein unabhängiges Aufmaß. Wiederholte oder überlappende Aufnahmen dürfen nicht zu Gebäudegesamtmengen addiert werden."
+          }
+        }
+      }
+    },
+    "Rooms": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Räume"
+          }
+        }
+      }
+    },
+    "Photo unavailable": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto nicht verfügbar"
+          }
+        }
+      }
+    },
+    "Unresolved items": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offene Punkte"
+          }
+        }
+      }
+    },
+    "Pipes & ducts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohre und Lüftungskanäle"
+          }
+        }
+      }
+    },
+    "Task pins": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgabenmarkierungen"
+          }
+        }
+      }
+    },
+    "Floor area (m²)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grundfläche (m²)"
+          }
+        }
+      }
+    },
+    "Net wall area (m²)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Netto-Wandfläche (m²)"
+          }
+        }
+      }
+    },
+    "Projected ceiling area (m²)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projizierte Deckenfläche (m²)"
+          }
+        }
+      }
+    },
+    "Perimeter (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umfang (m)"
+          }
+        }
+      }
+    },
+    "Volume min (m³)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volumen min. (m³)"
+          }
+        }
+      }
+    },
+    "Volume max (m³)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volumen max. (m³)"
+          }
+        }
+      }
+    },
+    "Volume min–max (m³)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volumen min.–max. (m³)"
+          }
+        }
+      }
+    },
+    "Doors": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Türen"
+          }
+        }
+      }
+    },
+    "Windows": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fenster"
+          }
+        }
+      }
+    },
+    "Other openings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weitere Öffnungen"
+          }
+        }
+      }
+    },
+    "Flooring incl. waste (m²)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bodenbelag inkl. Verschnitt (m²)"
+          }
+        }
+      }
+    },
+    "Paint area incl. waste (m²)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anstrichfläche inkl. Zuschlag (m²)"
+          }
+        }
+      }
+    },
+    "Doors / windows / other openings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Türen / Fenster / weitere Öffnungen"
+          }
+        }
+      }
+    },
+    "Unhosted openings (not subtracted)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnungen ohne Wandzuordnung (nicht abgezogen)"
+          }
+        }
+      }
+    },
+    "One file per level. Geometry is in metres; SVG uses millimetres. Device validation pending.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Datei je Geschoss. Geometrie in Metern, SVG in Millimetern. Gerätevalidierung ausstehend."
+          }
+        }
+      }
+    },
+    "Scan floor datum": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bodenbezug der Aufnahme"
+          }
+        }
+      }
+    },
+    "Elevation unavailable. This file uses its own local floor datum, not a verified building elevation.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Höhenlage nicht verfügbar. Diese Datei nutzt einen eigenen lokalen Bodenbezug, keine geprüfte Gebäudehöhe."
+          }
+        }
+      }
+    },
+    "Photo display budget reached. Open individual scans to see remaining photos.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotogrenze der Übersicht erreicht. Öffne einzelne Aufnahmen für weitere Fotos."
+          }
+        }
+      }
+    },
+    "Indexed project data deleted. Shared copies and provider-held data are unaffected.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verzeichnete Projektdaten gelöscht. Geteilte Kopien und Daten bei Dienstanbietern bleiben unberührt."
+          }
+        }
+      }
+    },
+    "Some files may already have been deleted. Refresh and review unavailable items before retrying.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einige Dateien könnten bereits gelöscht sein. Aktualisiere die Übersicht und prüfe nicht verfügbare Einträge vor einem erneuten Versuch."
+          }
+        }
+      }
+    },
+    "open": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open"
+          }
+        }
+      }
+    },
+    "inProgress": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Bearbeitung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Progress"
+          }
+        }
+      }
+    },
+    "resolved": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erledigt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolved"
+          }
+        }
+      }
+    },
+    "existing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bestand"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Existing"
+          }
+        }
+      }
+    },
+    "remove": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
+          }
+        }
+      }
+    },
+    "replace": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ersetzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace"
+          }
+        }
+      }
+    },
+    "new": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neu"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New"
+          }
+        }
+      }
+    },
+    "all": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        }
+      }
+    },
+    "demolition": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rückbau"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demolition"
+          }
+        }
+      }
+    },
+    "proposed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Planung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proposed"
+          }
+        }
+      }
+    },
+    "quality": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualität"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quality"
+          }
+        }
+      }
+    },
+    "balanced": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgewogen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Balanced"
+          }
+        }
+      }
+    },
+    "performance": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leistung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Performance"
+          }
+        }
+      }
+    },
+    "heatingSupply": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizungsvorlauf"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heating Supply"
+          }
+        }
+      }
+    },
+    "heatingReturn": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizungsrücklauf"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heating Return"
+          }
+        }
+      }
+    },
+    "coldWater": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaltwasser"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cold Water"
+          }
+        }
+      }
+    },
+    "hotWater": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warmwasser"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hot Water"
+          }
+        }
+      }
+    },
+    "circulation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zirkulation"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Circulation"
+          }
+        }
+      }
+    },
+    "waste": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abwasser"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waste"
+          }
+        }
+      }
+    },
+    "gas": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gas"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gas"
+          }
+        }
+      }
+    },
+    "condensate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kondensat"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Condensate"
+          }
+        }
+      }
+    },
+    "refrigerant": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kältemittel"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refrigerant"
+          }
+        }
+      }
+    },
+    "ventilation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lüftung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ventilation"
+          }
+        }
+      }
+    },
+    "other": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonstige"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other"
+          }
+        }
+      }
+    },
+    "boiler": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkessel"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boiler"
+          }
+        }
+      }
+    },
+    "heatPump": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wärmepumpe"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heat Pump"
+          }
+        }
+      }
+    },
+    "bufferTank": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pufferspeicher"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buffer Tank"
+          }
+        }
+      }
+    },
+    "dhwTank": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trinkwarmwasserspeicher"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DHW tank"
+          }
+        }
+      }
+    },
+    "manifold": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verteiler"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manifold"
+          }
+        }
+      }
+    },
+    "pump": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pumpe"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pump"
+          }
+        }
+      }
+    },
+    "expansionVessel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausdehnungsgefäß"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expansion Vessel"
+          }
+        }
+      }
+    },
+    "meter": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zähler"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meter"
+          }
+        }
+      }
+    },
+    "valveGroup": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Armaturengruppe"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valve Group"
+          }
+        }
+      }
+    },
+    "electricalPanel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schaltschrank"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Electrical Panel"
+          }
+        }
+      }
+    },
+    "valve": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ventil"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valve"
+          }
+        }
+      }
+    },
+    "elbow": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bogen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elbow"
+          }
+        }
+      }
+    },
+    "tee": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "T-Stück"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tee"
+          }
+        }
+      }
+    },
+    "reducer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reduzierung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reducer"
+          }
+        }
+      }
+    },
+    "flange": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flansch"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flange"
+          }
+        }
+      }
+    },
+    "cross": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kreuzstück"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cross"
+          }
+        }
+      }
+    },
+    "cap": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kappe"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cap"
+          }
+        }
+      }
+    },
+    "measured": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemessen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Measured"
+          }
+        }
+      }
+    },
+    "entered": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eingegeben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entered"
+          }
+        }
+      }
+    },
+    "estimated": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geschätzt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated"
+          }
+        }
+      }
+    },
+    "manufacturer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hersteller"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manufacturer"
+          }
+        }
+      }
+    },
+    "start": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anfang"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        }
+      }
+    },
+    "end": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ende"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End"
+          }
+        }
+      }
+    },
+    "Wall": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wand"
+          }
+        }
+      }
+    },
+    "TV": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernseher"
+          }
+        }
+      }
+    },
+    "Electrical panel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schaltschrank"
+          }
+        }
+      }
+    },
+    "Round duct": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runder Lüftungskanal"
+          }
+        }
+      }
+    },
+    "Rectangular duct": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechteckiger Lüftungskanal"
+          }
+        }
+      }
+    },
+    "Office chair": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bürostuhl"
+          }
+        }
+      }
+    },
+    "Conference table": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Besprechungstisch"
+          }
+        }
+      }
+    },
+    "Captured colours · measured shapes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmefarben · erfasste Formen"
+          }
+        }
+      }
+    },
+    "Equipment shapes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geräteformen"
+          }
+        }
+      }
+    },
+    "Category colours": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kategoriefarben"
+          }
+        }
+      }
+    },
+    "Monochrome engineering": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einfarbige technische Darstellung"
+          }
+        }
+      }
+    },
+    "PDF photo budget reached. The complete ZIP photo folders retain all available photos.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotogrenze des PDF-Berichts erreicht. Die vollständigen ZIP-Fotoordner enthalten alle verfügbaren Fotos."
+          }
+        }
+      }
+    },
+    "Duct": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lüftungskanal"
+          }
+        }
+      }
+    },
+    "Unassigned room": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht zugeordneter Raum"
+          }
+        }
+      }
+    },
+    "Connect Google in Settings → Google account.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbinde Google unter Einstellungen → Google-Konto."
+          }
+        }
+      }
+    },
+    "Photos · ZIP": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos · ZIP"
+          }
+        }
+      }
+    },
+    "Pipe / cylindrical element": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohr / zylindrisches Element"
+          }
+        }
+      }
+    },
+    "Project bundle: plans, models, source packages, reports, quantities, notes and numbered photos.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projektpaket mit Plänen, Modellen, Originalpaketen, Berichten, Mengen, Notizen und nummerierten Fotos."
+          }
+        }
+      }
+    },
+    "Photos use Photos/<room-name>.<number>/. Numbering restarts at 1 in each room. Same-name collisions receive a suffix; manifest.json preserves room IDs and original numbers.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos liegen unter Photos/<Raumname>.<Nummer>/. Die Nummerierung beginnt in jedem Raum bei 1. Bei gleichen Namen wird ein Zusatz angefügt. manifest.json enthält Raum-IDs und Originalnummern."
+          }
+        }
+      }
+    },
+    "Raw RoomPlan USDZ is not cleaned. Scan coordinates are not GPS. Device validation pending. Review manifest.json for missing or failed outputs; unavailable geometry is never invented.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die RoomPlan-USDZ-Rohaufnahme ist nicht bereinigt. Aufnahmekoordinaten sind kein GPS. Gerätevalidierung ausstehend. Prüfe fehlende oder fehlgeschlagene Exporte in manifest.json. Nicht verfügbare Geometrie wird nicht erfunden."
+          }
+        }
+      }
+    },
+    "Multiple levels are separated into level files. Design files may use local floor datums. Review each level README before combining elevations.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geschosse sind in separate Dateien aufgeteilt. Entwurfsdateien können lokale Bodenbezüge verwenden. Prüfe die jeweilige README, bevor du Höhenlagen kombinierst."
+          }
+        }
+      }
+    },
+    "Perimeter": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umfang"
+          }
+        }
+      }
+    },
+    "Photos use Photos/<room-name>.<number>/. Numbering restarts at 1 in each room. Same-name collisions receive a suffix; photo-index.json preserves room IDs and original numbers. Camera coordinates are not GPS. Device validation pending.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos liegen unter Photos/<Raumname>.<Nummer>/. Die Nummerierung beginnt in jedem Raum bei 1. Bei gleichen Namen wird ein Zusatz angefügt. photo-index.json enthält Raum-IDs und Originalnummern. Kamerakoordinaten sind kein GPS. Gerätevalidierung ausstehend."
+          }
+        }
+      }
+    },
+    "Everything · organised ZIP": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles · geordnetes ZIP"
+          }
+        }
+      }
+    },
+    "Waste allowance": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verschnitt- und Materialzuschlag"
+          }
+        }
+      }
+    },
+    "Pipe runs": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohrverläufe"
+          }
+        }
+      }
+    },
+    "Items": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einträge"
+          }
+        }
+      }
+    },
+    "Primary plan": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hauptgrundriss"
+          }
+        }
+      }
+    },
+    "Find objects": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Objekte suchen"
+          }
+        }
+      }
+    },
+    "Element ID": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Element-ID"
+          }
+        }
+      }
+    },
+    "Kind": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Art"
+          }
+        }
+      }
+    },
+    "Phase": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phase"
+          }
+        }
+      }
+    },
+    "X / width / wall length (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "X / Breite / Wandlänge (m)"
+          }
+        }
+      }
+    },
+    "Y / height / floor slab (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Y / Höhe / Plattendicke (m)"
+          }
+        }
+      }
+    },
+    "Z / depth / wall thickness (m)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Z / Tiefe / Wanddicke (m)"
+          }
+        }
+      }
+    },
+    "Measurement status": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfstatus der Maße"
+          }
+        }
+      }
+    },
+    "Verification reference": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfbezug"
+          }
+        }
+      }
+    },
+    "Verified at": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geprüft am"
+          }
+        }
+      }
+    },
+    "Issue": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgabe"
+          }
+        }
+      }
+    },
+    "Thickness source": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dickenquelle"
+          }
+        }
+      }
+    },
+    "Thickness reference": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dickenbezug"
+          }
+        }
+      }
+    },
+    "Sofa": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sofa"
+          }
+        }
+      }
+    },
+    "Bed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bett"
+          }
+        }
+      }
+    },
+    "Chair": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stuhl"
+          }
+        }
+      }
+    },
+    "Table": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tisch"
+          }
+        }
+      }
+    },
+    "Cabinet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schrank"
+          }
+        }
+      }
+    },
+    "Refrigerator": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kühlschrank"
+          }
+        }
+      }
+    },
+    "Stove": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Herd"
+          }
+        }
+      }
+    },
+    "Sink": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waschbecken"
+          }
+        }
+      }
+    },
+    "Toilet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toilette"
+          }
+        }
+      }
+    },
+    "Bathtub": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Badewanne"
+          }
+        }
+      }
+    },
+    "Shower": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dusche"
+          }
+        }
+      }
+    },
+    "Washer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waschmaschine"
+          }
+        }
+      }
+    },
+    "Desk": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schreibtisch"
+          }
+        }
+      }
+    },
+    "Computer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Computer"
+          }
+        }
+      }
+    },
+    "Monitor": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monitor"
+          }
+        }
+      }
+    },
+    "Bookshelf": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bücherregal"
+          }
+        }
+      }
+    },
+    "Whiteboard": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Whiteboard"
+          }
+        }
+      }
+    },
+    "Boiler": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heizkessel"
+          }
+        }
+      }
+    },
+    "Tank": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speicher"
+          }
+        }
+      }
+    },
+    "Pump": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pumpe"
+          }
+        }
+      }
+    },
+    "Manifold": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verteiler"
+          }
+        }
+      }
+    },
+    "Box": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quader"
+          }
+        }
+      }
+    },
+    "Cylinder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zylinder"
+          }
+        }
+      }
+    },
+    "nameplate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Typenschild"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nameplate"
+          }
+        }
+      }
+    },
+    "calculation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Berechnung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calculation"
+          }
+        }
+      }
+    },
+    "matte": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matte"
+          }
+        }
+      }
+    },
+    "painted": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lackiert"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Painted"
+          }
+        }
+      }
+    },
+    "metal": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metall"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metal"
+          }
+        }
+      }
+    },
+    "wood": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Holz"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wood"
+          }
+        }
+      }
+    },
+    "fabric": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stoff"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fabric"
+          }
+        }
+      }
+    },
+    "tile": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fliesen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tile"
+          }
+        }
+      }
+    },
+    "plain": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einfarbig"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plain"
+          }
+        }
+      }
+    },
+    "single": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einflügelig"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Single"
+          }
+        }
+      }
+    },
+    "double": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zweiflügelig"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double"
+          }
+        }
+      }
+    },
+    "glazed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verglast"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Glazed"
+          }
+        }
+      }
+    },
+    "sliding": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schiebeflügel"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sliding"
+          }
+        }
+      }
+    },
+    "fixed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Festverglasung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed"
+          }
+        }
+      }
+    },
+    "casement": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drehflügel"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Casement"
+          }
+        }
+      }
+    },
+    "doubleHung": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertikalschiebefenster"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double Hung"
+          }
+        }
+      }
+    },
+    "natural": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Natürlich"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Natural"
+          }
+        }
+      }
+    },
+    "scandinavian": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skandinavisch"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scandinavian"
+          }
+        }
+      }
+    },
+    "modern": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modern"
+          }
+        }
+      }
+    },
+    "industrial": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Industriell"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Industrial"
+          }
+        }
+      }
+    },
+    "pastel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pastell"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pastel"
+          }
+        }
+      }
+    },
+    "day": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Day"
+          }
+        }
+      }
+    },
+    "night": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nacht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Night"
+          }
+        }
+      }
+    },
+    "summer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sommer"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summer"
+          }
+        }
+      }
+    },
+    "winter": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Winter"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Winter"
+          }
+        }
+      }
+    },
+    "captured": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmefarben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captured"
+          }
+        }
+      }
+    },
+    "paintedMetal": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lackiertes Metall"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Painted Metal"
+          }
+        }
+      }
+    },
+    "bareMetal": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blankes Metall"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bare Metal"
+          }
+        }
+      }
+    },
+    "plastic": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunststoff"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plastic"
+          }
+        }
+      }
+    },
+    "insulation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dämmung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Insulation"
+          }
+        }
+      }
+    },
+    "Selected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgewählt"
+          }
+        }
+      }
+    },
+    "Unsaved pipe runs": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungesicherte Rohrverläufe"
+          }
+        }
+      }
+    },
+    "Mesh anchors": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Netzanker"
+          }
+        }
+      }
+    },
+    "Resident memory": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arbeitsspeicherbelegung"
+          }
+        }
+      }
+    },
+    "Checkpoint residual": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kontrollpunktabweichung"
+          }
+        }
+      }
+    },
+    "Depth confidence coverage": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abdeckung mit Tiefensicherheit"
+          }
+        }
+      }
+    },
+    "Model score — not measurement accuracy": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modellbewertung – keine Messgenauigkeit"
+          }
+        }
+      }
+    },
+    "Edited design": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bearbeiteter Entwurf"
+          }
+        }
+      }
+    },
+    "Unverified": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungeprüft"
+          }
+        }
+      }
+    },
+    "User verified": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vom Benutzer geprüft"
+          }
+        }
+      }
+    },
+    "Changed · recheck required": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geändert · erneute Prüfung erforderlich"
+          }
+        }
+      }
+    },
+    "Base value · not supplied by scan": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgangswert · nicht aus Aufnahme"
+          }
+        }
+      }
+    },
+    "Independently entered": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unabhängig eingegeben"
+          }
+        }
+      }
+    },
+    "Send %@ camera images?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Kamerabilder senden?"
+          }
+        }
+      }
+    },
+    "Images will be sent to %@. Its configured AI provider may also process them. Depth stays on this device; returned image regions are fitted to local depth. API quota may be consumed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilder werden an %@ gesendet. Auch der eingerichtete KI-Anbieter kann sie verarbeiten. Tiefendaten bleiben auf diesem Gerät. Zurückgegebene Bildbereiche werden mit lokalen Tiefendaten abgeglichen. API-Kontingent kann verbraucht werden."
+          }
+        }
+      }
+    },
+    "Some library items could not be read": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einige Bibliothekseinträge konnten nicht gelesen werden"
+          }
+        }
+      }
+    },
+    "Wait for the project catalogue to finish loading.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warte, bis die Projektübersicht vollständig geladen wurde."
+          }
+        }
+      }
+    },
+    "Start from a scan": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus einer Aufnahme beginnen"
+          }
+        }
+      }
+    },
+    "No source scans yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Ausgangsaufnahmen"
+          }
+        }
+      }
+    },
+    "Scan a room or import a saved scan before creating a design.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erfasse einen Raum oder importiere eine Aufnahme, bevor du einen Entwurf erstellst."
           }
         }
       }

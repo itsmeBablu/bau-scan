@@ -24,6 +24,7 @@ struct ExportSheet: View {
 
     @State private var meshSource: ExportService.MeshSource = .parametric
     @State private var showingRevit = false
+    @State private var photoOnly = false
 
     private var formats: [ExportFormat] { ExportService.availableFormats(for: subject) }
     private var hasScanMesh: Bool { subject.usdzMeshURL != nil }
@@ -34,6 +35,9 @@ struct ExportSheet: View {
                 Form {
                     Section {
                         Button { showingRevit = true } label: { Label("IFC (Revit)",systemImage:"building.2") }
+                        if subject.sourcePackageURL != nil {
+                            Button("Photos · ZIP",systemImage:"photo.on.rectangle") { exportPhotos() }.disabled(working)
+                        }
                     }
                     ForEach(ExportFormat.Group.allCases) { group in
                         let items = formats.filter { $0.group == group && (proDetails || $0 != .json) }
@@ -120,12 +124,13 @@ struct ExportSheet: View {
                 if LevelExportService.needsArchive(house:subject.house,format:format) { Text("Multiple levels: one file per level in a ZIP archive.").font(.caption).foregroundStyle(.secondary) }
             }
             Spacer()
-            if format == selected { Image(systemName: "checkmark").foregroundStyle(.tint) }
+            if format == selected && !photoOnly { Image(systemName: "checkmark").foregroundStyle(.tint) }
         }
         .contentShape(Rectangle())
     }
 
     private func select(_ format: ExportFormat) {
+        photoOnly = false
         selected = format
         result = nil; error = nil; savedToExports = false; working = true
         let subject = self.subject
@@ -140,6 +145,26 @@ struct ExportSheet: View {
                 case .failure(let e): error = e.localizedDescription
                 }
             }
+        }
+    }
+
+    private func exportPhotos() {
+        guard let url = subject.sourcePackageURL else { return }
+        selected = .zip; photoOnly = true; working = true; result = nil; error = nil; savedToExports = false
+        let subject = subject, locale = AppLanguage.locale
+        Task {
+            do {
+                let file = try await Task.detached(priority:.userInitiated) {
+                    let reference = ProjectReference(kind:subject.kind == .house ? .house : .room,itemID:subject.id,library:"local")
+                    let project = RenovationProject(name:subject.name,references:[reference])
+                    let entry = ProjectLibraryEntry(reference:reference,title:subject.name,date:subject.createdAt,area:nil,roomCount:subject.house.allRooms.count,root:url.deletingLastPathComponent().deletingLastPathComponent(),url:url)
+                    let folder = try ExportService.scratchDirectory()
+                    let file = folder.appendingPathComponent(ArchivePath.component(subject.name)+"-Photos.zip")
+                    try SurveyPhotoArchiveWriter.archive(project:project,entries:[entry],locale:locale,to:file)
+                    return file
+                }.value
+                guard photoOnly else { return }; result = file; working = false
+            } catch { if photoOnly { self.error = error.localizedDescription; working = false } }
         }
     }
 

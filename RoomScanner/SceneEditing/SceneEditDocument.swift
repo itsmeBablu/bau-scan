@@ -22,10 +22,10 @@ enum SceneFurniture: String,Codable,CaseIterable,Identifiable {
     }
     var title: String {
         switch self {
-        case .television: "TV"; case .electricalPanel: "Electrical panel"
-        case .roundDuct: "Round duct"; case .rectangularDuct: "Rectangular duct"
-        case .officeChair: "Office chair"; case .conferenceTable: "Conference table"
-        default: rawValue.prefix(1).uppercased()+rawValue.dropFirst()
+        case .television: AppLanguage.text("TV"); case .electricalPanel: AppLanguage.text("Electrical panel")
+        case .roundDuct: AppLanguage.text("Round duct"); case .rectangularDuct: AppLanguage.text("Rectangular duct")
+        case .officeChair: AppLanguage.text("Office chair"); case .conferenceTable: AppLanguage.text("Conference table")
+        default: AppLanguage.text(rawValue.prefix(1).uppercased()+rawValue.dropFirst())
         }
     }
     static func detected(_ category: String, size: TechnicalPoint3? = nil) -> Self {
@@ -196,10 +196,10 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         case captured, equipment, categories, monochrome
         var title: String {
             switch self {
-            case .captured: "Captured colours · measured shapes"
-            case .equipment: "Equipment shapes"
-            case .categories: "Category colours"
-            case .monochrome: "Monochrome engineering"
+            case .captured: AppLanguage.text("Captured colours · measured shapes")
+            case .equipment: AppLanguage.text("Equipment shapes")
+            case .categories: AppLanguage.text("Category colours")
+            case .monochrome: AppLanguage.text("Monochrome engineering")
             }
         }
     }

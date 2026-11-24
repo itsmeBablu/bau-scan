@@ -9,11 +9,11 @@ enum ProjectReportRenderer {
         let data = NSMutableData(); var box = CGRect(x:0,y:0,width:595,height:842)
         guard let consumer = CGDataConsumer(data:data as CFMutableData),
               let ctx = CGContext(consumer:consumer,mediaBox:&box,[kCGPDFContextTitle:report.name,kCGPDFContextCreator:"dWalkScan"] as CFDictionary) else { throw CocoaError(.fileWriteUnknown) }
-        func text(_ value: String, y: CGFloat, size: CGFloat = 12, height: CGFloat = 60) {
+        func text(_ value: String, y: CGFloat, size: CGFloat = 12, height: CGFloat = 60, x: CGFloat = 36) {
             let attributed = NSAttributedString(string:value,attributes:[
                 NSAttributedString.Key(kCTFontAttributeName as String):CTFontCreateWithName("Helvetica" as CFString,size,nil),
                 NSAttributedString.Key(kCTForegroundColorAttributeName as String):CGColor(gray:0,alpha:1)])
-            let path = CGPath(rect:CGRect(x:36,y:y-height,width:523,height:height),transform:nil)
+            let path = CGPath(rect:CGRect(x:x,y:y-height,width:595-x-36,height:height),transform:nil)
             let frame = CTFramesetterCreateFrame(CTFramesetterCreateWithAttributedString(attributed),CFRange(location:0,length:0),path,nil)
             CTFrameDraw(frame,ctx)
         }
@@ -71,10 +71,11 @@ enum ProjectReportRenderer {
                         for room in story.rooms { for wall in room.walls { ctx.move(to:point(room.transform.apply(wall.start))); ctx.addLine(to:point(room.transform.apply(wall.end))); ctx.strokePath() } }
                         for (index,pin) in scan.pins.filter({ $0.story == story.index }).enumerated() {
                             let p = point(pin.position); ctx.setFillColor(CGColor(red:0.9,green:0.5,blue:0,alpha:1)); ctx.fillEllipse(in:CGRect(x:p.x-6,y:p.y-6,width:12,height:12))
-                            text("\(index+1): "+pin.text,y:170-CGFloat(index)*20,size:10,height:18)
+                            text("\(index+1)",y:min(730,max(200,p.y+20)),size:10,height:18,x:min(530,max(36,p.x+7)))
                         }
                     }
                     end()
+                    lines(AppLanguage.text("Task pins",locale:locale),scan.pins.filter { $0.story == story.index }.enumerated().map { "\($0.offset+1): "+$0.element.text })
                 }
             }
             if !scan.detailLines.isEmpty { lines(scan.title,scan.detailLines) }

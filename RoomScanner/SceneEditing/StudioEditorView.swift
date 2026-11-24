@@ -104,7 +104,11 @@ struct StudioEditorView: View {
         .disabled(busy).allowsHitTesting(!busy)
         .navigationTitle(session.document.source == .technical ? "Design" : "Design")
         #if os(iOS)
-        .toolbar(.hidden,for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement:.cancellationAction) { closeButton }
+            ToolbarItem(placement:.primaryAction) { Menu("Design actions",systemImage:"ellipsis.circle") { designActions } }
+            ToolbarItem(placement:.confirmationAction) { saveButton }
+        }
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size in landscape = size.width > size.height; canvasWidth = size.width }
         .sheet(isPresented: Binding(get: { showInspector && !landscape },set: { if !landscape { showInspector = $0 } })) {
             NavigationStack {
@@ -204,39 +208,28 @@ struct StudioEditorView: View {
 
     @ViewBuilder private var editorLayout: some View {
         #if os(iOS)
-        ZStack {
-            viewport.ignoresSafeArea()
-            if session.document.source == .technical && session.document.objects.isEmpty {
-                technikEmptyState
+        VStack(spacing:0) {
+            Picker("Interaction",selection:interaction) { Text("Orbit").tag("orbit"); Text("Move").tag("move"); Text("Rotate").tag("rotate") }
+                .pickerStyle(.segmented).padding(.horizontal)
+            if session.document.shell.stories.count > 1 {
+                Picker("Level",selection:$story) { ForEach(session.document.shell.stories,id: \.index) { Text(StoryNaming.localizedName(for:$0.index)).tag($0.index) } }
             }
-            VStack(spacing: 0) {
-                phoneHeader.padding(.horizontal,16).padding(.top,8)
-                Spacer(minLength: 12)
-                if !landscape {
-                    VStack(spacing: 4) {
-                        selectionHUD
-                        if busy { ProgressView("Working…").padding(10).background(.regularMaterial,in: Capsule()) }
-                        else if !status.isEmpty { Text(status).font(.caption).padding(10).background(.regularMaterial,in: Capsule()) }
-                        phoneDock
-                    }.padding(.horizontal,10).padding(.bottom,0)
+            HStack(spacing:0) {
+                ZStack {
+                    viewport
+                    if session.document.source == .technical && session.document.objects.isEmpty { technikEmptyState }
                 }
+                if showInspector && landscape { inspector.frame(width:min(340,canvasWidth*0.4)) }
             }
-            if landscape {
-                HStack(alignment: .bottom,spacing: 12) {
-                    phoneDock.frame(maxWidth: 520)
-                    Spacer(minLength: 0)
-                    if showInspector {
-                        NavigationStack {
-                            inspector.navigationTitle("Object properties")
-                                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showInspector = false } } }
-                        }.frame(width: min(310,canvasWidth*0.38)).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 24)).clipShape(RoundedRectangle(cornerRadius: 24))
-                            .sheet(item: $equipmentEditor) { item in equipmentSheet(item) }
-                    }
-                }.frame(maxWidth: .infinity,maxHeight: .infinity,alignment: .bottom)
-                    .padding(.horizontal,10).padding(.top,76).padding(.bottom,0)
-            }
+            selectionHUD
+            HStack {
+                Button("Objects",systemImage:"slider.horizontal.3") { showInspector.toggle() }
+                Button(showPlan ? "3D" : "Floor plan",systemImage:"square") { showPlan.toggle() }
+                Button("Reset camera",systemImage:"scope") { reset += 1 }
+            }.buttonStyle(.bordered).padding(8)
+            if busy { ProgressView("Working…") }
+            else if !status.isEmpty { Text(status).font(.caption).padding(.horizontal) }
         }
-            .foregroundStyle(.primary)
         #else
         VStack(spacing: 0) {
             HStack {
@@ -341,7 +334,7 @@ struct StudioEditorView: View {
         HStack {
             Toggle("Select multiple",isOn:$multipleSelection).toggleStyle(.button)
             if multipleSelection {
-                Text("\(session.selectedIDs.count) selected")
+                Text(AppLanguage.text("Selected")+": "+String(session.selectedIDs.count))
                 Button("Delete selected",role:.destructive) { perform { try session.deleteSelection() } }
                     .disabled(session.selectedIDs.isEmpty)
                 Button("Clear") { session.selectedIDs = []; session.selectedID = nil }
@@ -598,7 +591,7 @@ struct StudioEditorView: View {
                 if session.document.source != .technical {
                     Section("Doors & windows · SmartBau style") {
                         Picker("Door template",selection: Binding(get: { session.document.doorTemplate ?? .single },set: { value in perform { try session.change { $0.doorTemplate = value } } })) {
-                            ForEach(SceneEditDocument.DoorTemplate.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                            ForEach(SceneEditDocument.DoorTemplate.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                         }
                         Stepper("Door opening: \(Int(session.document.doorOpeningDegrees ?? 0))°",value: Binding(get: { session.document.doorOpeningDegrees ?? 0 },set: { value in perform { try session.change { $0.doorOpeningDegrees = value } } }),in: 0...120,step: 5)
                         Picker("Window template",selection: Binding(get: { session.document.windowTemplate ?? .casement },set: { value in perform { try session.change { $0.windowTemplate = value } } })) {
@@ -623,14 +616,14 @@ struct StudioEditorView: View {
                 Section("Interior") {
                   if session.document.source != .technical {
                     Picker("Style",selection: Binding(get: { session.document.interior },set: { value in perform { try session.change { $0.apply(value) } } })) {
-                        ForEach(SceneEditDocument.Interior.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                        ForEach(SceneEditDocument.Interior.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                     }
                   }
                     ColorPicker("Walls",selection: colorBinding(wall: true),supportsOpacity: false)
                     ColorPicker("Floor",selection: colorBinding(wall: false),supportsOpacity: false)
                     if session.document.source != .technical {
                         Picker("Floor finish",selection: Binding(get: { session.document.floorFinish ?? .wood },set: { value in perform { try session.change { $0.floorFinish = value; $0.floorPatternSize = nil } } })) {
-                            ForEach(SceneEditDocument.FloorFinish.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                            ForEach(SceneEditDocument.FloorFinish.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                         }
                         if session.document.floorFinish != .plain {
                             Stepper("Pattern repeat: \((session.document.floorPatternSize ?? (session.document.floorFinish == .tile ? 0.3 : 0.72)).formatted()) m",value: Binding(get: { session.document.floorPatternSize ?? (session.document.floorFinish == .tile ? 0.3 : 0.72) },set: { value in perform { try session.change { $0.floorPatternSize = value } } }),in: 0.1...2,step: 0.05)
@@ -640,10 +633,10 @@ struct StudioEditorView: View {
                 }
                 if session.document.source != .technical { Section("Lighting and mood") {
                     Picker("Lighting",selection: Binding(get: { session.document.lighting },set: { value in perform { try session.change { $0.lighting = value } } })) {
-                        ForEach(SceneEditDocument.Lighting.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                        ForEach(SceneEditDocument.Lighting.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                     }
                     Picker("Season",selection: Binding(get: { session.document.season },set: { value in perform { try session.change { $0.season = value } } })) {
-                        ForEach(SceneEditDocument.Season.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                        ForEach(SceneEditDocument.Season.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                     }
                     Text("Season changes the lighting mood. Styles recolour design furniture; scan evidence and measured geometry stay intact. Exports preserve model materials; PNG captures this lighting and camera view.").font(.caption)
                 } }
@@ -753,7 +746,7 @@ private struct StudioObjectFields: View {
         if let captured = item.capturedColor,item.colorSource != .cameraSample {
             Button("Restore captured colour") { var next = item; next.color = captured; next.colorSource = .cameraSample; update(next) }
         }
-        Picker("Material",selection: field(\.finish)) { ForEach(SceneEditObject.Finish.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
+        Picker("Material",selection: field(\.finish)) { ForEach(SceneEditObject.Finish.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) } }
         Text(item.origin).font(.caption2).foregroundStyle(.secondary)
     }
     private func field<T>(_ path: WritableKeyPath<SceneEditObject,T>) -> Binding<T> { Binding(get: { item[keyPath: path] },set: { value in var next = item; next[keyPath: path] = value; update(next) }) }

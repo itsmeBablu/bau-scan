@@ -22,6 +22,7 @@ enum CloudAvailability {
     /// iCloud location, or `nil` if signed out, container absent, or disabled.
     /// Must be called from a detached background task.
     nonisolated static func resolveLocation() -> StorageLocation? {
+        if UserDefaults.standard.object(forKey:preferenceKey) != nil && !isEnabledByUser { return nil }
         guard isSignedIn,
               let container = FileManager.default.url(forUbiquityContainerIdentifier: containerIdentifier) else { return nil }
         if UserDefaults.standard.object(forKey:preferenceKey) == nil {

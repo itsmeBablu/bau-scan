@@ -12,7 +12,7 @@ struct ProjectQuantitiesView: View {
         List {
             Section("Assumptions") {
                 Text("Independent surveys may overlap. Ceiling area is projected; volume is a height-based range. Device validation pending.")
-                Stepper(value:$wastePercent,in:0...100,step:1) { Text("Waste allowance: \(wastePercent, specifier:"%.0f")%") }
+                Stepper(value:$wastePercent,in:0...100,step:1) { Text(AppLanguage.text("Waste allowance")+": "+String(format:"%.0f%%",locale:locale,wastePercent)) }
             }
             Section("Sum of listed survey quantities") {
                 LabeledContent("Floor area",value:MeasurementFormat.squareMeters(quantities.reduce(0){$0+$1.floorArea},locale:locale))
@@ -34,6 +34,7 @@ struct ProjectQuantitiesView: View {
             if let report { ForEach(report.unresolved,id:\.self) { Text($0).foregroundStyle(.secondary) } }
             if let error { Text(error).foregroundStyle(.red) }
         }.navigationTitle("Quantities").task {
+            if !wastePercent.isFinite { wastePercent = 10 }
             guard let project = workspace.project(projectID) else { return }
             let entries = workspace.entries, locale = locale
             do { report = try await Task.detached { try ProjectReportLoader.load(project:project,entries:entries,locale:locale) }.value }

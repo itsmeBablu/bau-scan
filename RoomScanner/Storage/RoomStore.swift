@@ -44,7 +44,6 @@ final class RoomStore {
         guard allowsCloud, !isCloud, !isResolvingCloud else { return }
         isResolvingCloud = true
         defer { isResolvingCloud = false }
-        let local = location
         let cloud = await Task.detached(priority: .utility) { () -> StorageLocation? in
             guard let cloud = CloudAvailability.resolveLocation() else { return nil }
             // Project references retain their library identity. Opting into cloud does
@@ -93,7 +92,7 @@ final class RoomStore {
     private func resolveConflicts(at urls: [URL]) {
         guard !isResolvingConflicts else { return }
         isResolvingConflicts = true
-        let suffix = String(localized: "cloud.conflictSuffix")
+        let suffix = AppLanguage.text("cloud.conflictSuffix")
         Task { [weak self] in
             let failures = await Task.detached(priority: .utility) { () -> [(URL, Error)] in
                 var failed: [(URL, Error)] = []
@@ -128,7 +127,7 @@ final class RoomStore {
             // not directly writable in sandbox), then moved to `Rooms/`.
             let staging = FileManager.default.temporaryDirectory.appendingPathComponent("import-\(UUID().uuidString)", isDirectory: true)
             defer { try? FileManager.default.removeItem(at: staging) }
-            let copy = try ConflictResolver.duplicateAsConflictCopy(packageAt: url, suffix: String(localized: "cloud.importedSuffix"), into: staging)
+            let copy = try ConflictResolver.duplicateAsConflictCopy(packageAt: url, suffix: AppLanguage.text("cloud.importedSuffix"), into: staging)
             let tmpCopy = staging.appendingPathComponent(copy.id.uuidString).appendingPathExtension(FileLayout.packageExtension)
             try RoomPackage.coordinatedWrite(at: location.packageURL(for: copy.id), options: .forReplacing) { target in
                 try FileManager.default.moveItem(at: tmpCopy, to: target)
@@ -160,7 +159,7 @@ final class RoomStore {
         let dest = location.housePackageURL(for: record.id)
         if FileManager.default.fileExists(atPath: dest.path) {
             var house = try HousePackage.readHouse(from: url)
-            record.id = UUID(); record.name += " " + String(localized: "cloud.importedSuffix"); house.id = record.id; house.name = record.name
+            record.id = UUID(); record.name += " " + AppLanguage.text("cloud.importedSuffix"); house.id = record.id; house.name = record.name
             let rooms = try HousePackage.roomPackageURLs(in: url).map { try RoomPackage.read(from: $0) }
             var package = HousePackage(record: record, house: house, structure: try HousePackage.readStructure(from: url), capturedStructureData: nil,
                                        rooms: rooms, usdzData: HousePackage.usdzURL(in: url).flatMap { try? Data(contentsOf: $0) },
@@ -299,7 +298,7 @@ final class RoomStore {
 
     /// Suggested name for a new house ('House', 'House 2', ...).
     func proposedHouseName() -> String {
-        let base = String(localized: "house.defaultName")
+        let base = AppLanguage.text("house.defaultName")
         let existing = Set(houseRecords.map(\.name))
         if !existing.contains(base) { return base }
         var n = 2
