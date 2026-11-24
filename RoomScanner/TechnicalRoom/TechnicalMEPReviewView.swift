@@ -36,7 +36,7 @@ struct TechnicalMEPReviewView: View {
                     .disabled(busy || TechnicalSavedMeshGeometry.latest(in: package.journal.meshes) == nil)
             }
             Section("Google AI mode") {
-                Toggle("Google AI mode",isOn: $aiEnabled)
+                GoogleAIConsentToggle()
                 if aiEnabled {
                 TechnicalGoogleAIStatus()
                 Text("Select up to five viewpoints for Gemini recognition. Nothing is sent automatically. If free quota is unavailable, local detection still works.")

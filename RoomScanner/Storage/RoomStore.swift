@@ -38,7 +38,7 @@ final class RoomStore {
 
     // MARK: iCloud
 
-    /// At launch: resolves container off main thread, migrates local to iCloud,
+    /// At launch: resolves the selected container off main thread without moving local files.
     /// switches and starts monitoring. Without account or container, stays local.
     func activateCloudIfAvailable() async {
         guard allowsCloud, !isCloud, !isResolvingCloud else { return }
@@ -47,7 +47,8 @@ final class RoomStore {
         let local = location
         let cloud = await Task.detached(priority: .utility) { () -> StorageLocation? in
             guard let cloud = CloudAvailability.resolveLocation() else { return nil }
-            try? CloudAvailability.migrate(from: local, to: cloud)
+            // Project references retain their library identity. Opting into cloud does
+            // not move or rewrite existing local packages.
             return cloud
         }.value
         guard let cloud else { return }

@@ -10,7 +10,7 @@ struct SettingsView: View {
     @AppStorage("profile.organisation") private var organisation = ""
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(CloudAvailability.preferenceKey) private var useICloud = true
+    @AppStorage(CloudAvailability.preferenceKey) private var useICloud = false
     @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
     @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
     @AppStorage(ScanPerformance.preferenceKey) private var scanPerformance = ScanPerformance.balanced.rawValue
@@ -43,6 +43,11 @@ struct SettingsView: View {
 
     private var form: some View {
         Form {
+            Section("Privacy") {
+                GoogleAIConsentToggle()
+                NavigationLink("Project data and deletion") { ProjectPrivacyView() }
+                Text("Scans stay on this device unless you enable iCloud, share a file or explicitly send selected images for AI processing.").font(.caption)
+            }
             Section("Display") {
                 Toggle("Pro details",isOn:$proDetails)
                 Text("Show pipe designations, systems, provenance and structured schema exports. Existing data is always retained.").font(.caption).foregroundStyle(.secondary)
