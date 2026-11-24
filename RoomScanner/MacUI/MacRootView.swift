@@ -197,6 +197,7 @@ struct MacRootView: View {
         let url: URL
         let appState: MacAppState
         @Binding var pendingDeletion: MacItem?
+        @Environment(\.openWindow) private var openWindow
         func body(content: Content) -> some View {
             content
                 .onDrag { DragExportProvider.packageProvider(url: url) }
@@ -204,6 +205,8 @@ struct MacRootView: View {
                     switch item {
                     case .house, .room:
                         Button("mac.menu.export") { appState.selected = item; appState.request(.export(nil)) }
+                    case .design(let d):
+                        Button("Open in new window") { openWindow(value: d.sourceID) }
                     default:
                         EmptyView()
                     }

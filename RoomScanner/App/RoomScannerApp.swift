@@ -19,6 +19,14 @@ struct RoomScannerApp: App {
                 .environment(updater)
         }
         .commands { MacMenuCommands(updater: updater) }
+        WindowGroup("Design Studio", for: UUID.self) { $designID in
+            if let id = designID {
+                MacStudioWindow(designID: id)
+                    .environment(\.locale,(AppLanguage(rawValue:language) ?? .system).locale)
+                    .environment(store)
+                    .environment(updater)
+            }
+        }
         Settings {
             SettingsView()
                 .environment(\.locale,(AppLanguage(rawValue:language) ?? .system).locale)

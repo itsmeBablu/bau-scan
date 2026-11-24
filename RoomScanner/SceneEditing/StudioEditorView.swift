@@ -102,7 +102,8 @@ struct StudioEditorView: View {
     var body: some View {
         editorLayout
         .disabled(busy).allowsHitTesting(!busy)
-        .navigationTitle(session.document.source == .technical ? "Design" : "Design")
+        .navigationTitle(session.dirty ? "\(session.document.title) •" : session.document.title)
+        .focusedSceneValue(\.studioSession, session)
         #if os(iOS)
         .toolbar {
             ToolbarItem(placement:.cancellationAction) { closeButton }
@@ -124,10 +125,64 @@ struct StudioEditorView: View {
         #else
         .frame(minWidth: 760,minHeight: 650)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { closeButton }
-            ToolbarItem(placement: .automatic) { undoButton }
-            ToolbarItem(placement: .automatic) { designOptions }
-            ToolbarItem(placement: .confirmationAction) { saveButton }
+            ToolbarItem(placement: .navigation) {
+                if session.document.shell.stories.count > 1 {
+                    Picker("house.story", selection: $story) {
+                        ForEach(session.document.shell.stories, id: \.index) { story in
+                            Text(StoryNaming.localizedName(for: story.index)).tag(story.index)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
+            ToolbarItem(placement: .principal) {
+                Picker("View mode", selection: Binding(
+                    get: { session.document.engineering?.view ?? .all },
+                    set: { v in try? session.change { $0.engineering = ($0.engineering ?? .init()); $0.engineering?.view = v } }
+                )) {
+                    Text("All").tag(StudioEngineeringData.ViewMode.all)
+                    Text("Existing").tag(StudioEngineeringData.ViewMode.existing)
+                    Text("Demolition").tag(StudioEngineeringData.ViewMode.demolition)
+                    Text("Proposed").tag(StudioEngineeringData.ViewMode.proposed)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 300)
+            }
+            ToolbarItemGroup(placement: .automatic) {
+                Toggle(isOn: $showPhotos) { Label("Photos", systemImage: "camera") }
+                Toggle(isOn: $showDimensions) { Label("Dimensions", systemImage: "ruler") }
+                Button { showAppearance = true } label: { Label("Appearance", systemImage: "paintpalette") }
+                Button { showEngineering = true } label: { Label("Engineering", systemImage: "hammer") }
+                Button { export3D(.usdz) } label: { Label("Export", systemImage: "square.and.arrow.up") }
+                Button { showInspector.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }
+                saveButton
+            }
+        }
+        .inspector(isPresented: $showInspector) {
+            inspector
+                .frame(minWidth: 280, idealWidth: 320)
+        }
+        .background {
+            Group {
+                Button("") { nudgeSelected(dx: -0.01, dz: 0) }.keyboardShortcut(.leftArrow, modifiers: [])
+                Button("") { nudgeSelected(dx: 0.01, dz: 0) }.keyboardShortcut(.rightArrow, modifiers: [])
+                Button("") { nudgeSelected(dx: 0, dz: -0.01) }.keyboardShortcut(.upArrow, modifiers: [])
+                Button("") { nudgeSelected(dx: 0, dz: 0.01) }.keyboardShortcut(.downArrow, modifiers: [])
+                Button("") { nudgeSelected(dx: -0.10, dz: 0) }.keyboardShortcut(.leftArrow, modifiers: .shift)
+                Button("") { nudgeSelected(dx: 0.10, dz: 0) }.keyboardShortcut(.rightArrow, modifiers: .shift)
+                Button("") { nudgeSelected(dx: 0, dz: -0.10) }.keyboardShortcut(.upArrow, modifiers: .shift)
+                Button("") { nudgeSelected(dx: 0, dz: 0.10) }.keyboardShortcut(.downArrow, modifiers: .shift)
+                Button("") { try? session.deleteSelection() }.keyboardShortcut(.delete, modifiers: [])
+                Button("") { try? session.deleteSelection() }.keyboardShortcut(.deleteForward, modifiers: [])
+                Button("") {
+                    multipleSelection = true
+                    session.selectedIDs = Set(session.document.presentationObjects.filter { $0.story == story }.map(\.id))
+                    session.selectedID = nil
+                }.keyboardShortcut("a", modifiers: .command)
+                Button("") { save() }.keyboardShortcut("s", modifiers: .command)
+            }
+            .opacity(0)
+            .allowsHitTesting(false)
         }
         #endif
         .tint(.blue)
@@ -155,6 +210,12 @@ struct StudioEditorView: View {
         .onChange(of:photos) { _,value in controller.setPhotos(showPhotos ? value : []) }
         .onAppear {
             hasSaved = FileManager.default.fileExists(atPath: storageURL.path)
+            session.onSave = { save() }
+            session.selectAllOnFloor = {
+                multipleSelection = true
+                session.selectedIDs = Set(session.document.presentationObjects.filter { $0.story == story }.map(\.id))
+                session.selectedID = nil
+            }
             controller.setPhotos(showPhotos ? photos : [])
             controller.onPhoto = { id in selectedPhoto = photos.first { $0.id == id } }
             controller.onSelect = { session.select($0,multiple:multipleSelection) }
@@ -685,6 +746,27 @@ struct StudioEditorView: View {
             try session.addDesignObject(copy,allowOverlap: allowOverlap)
         }
     }
+    private func nudgeSelected(dx: Double, dz: Double) {
+        guard let id = session.selectedID ?? session.selectedIDs.first,
+              var item = session.document.objects.first(where: { $0.id == id }) else { return }
+        var pos = item.position
+        pos.x += dx
+        pos.z += dz
+        item.position = pos
+        if snapping {
+            item = StudioPlacement.snapped(item, in: session.document, axis: nil)
+        }
+        do {
+            try update(item)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func export3D(_ format: StudioExporter.Format) {
+        export(format)
+    }
+
     private func save(close: Bool = false) {
         busy = true; let document = session.document
         Task { @MainActor in

@@ -519,6 +519,10 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     private(set) var saved: SceneEditDocument
     var selectedID: UUID?
     var selectedIDs: Set<UUID> = []
+    var onSave: (() -> Void)?
+    var selectAllOnFloor: (() -> Void)?
+    var canUndo: Bool { !undoStack.isEmpty }
+    var canRedo: Bool { !redoStack.isEmpty }
     func select(_ id: UUID?, multiple: Bool) {
         if multiple {
             guard let id else { return }

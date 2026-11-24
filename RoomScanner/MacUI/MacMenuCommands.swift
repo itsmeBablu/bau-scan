@@ -4,12 +4,31 @@ import SwiftUI
 /// Print... (⌘P), Reveal in Finder (⇧⌘R), Open dWalkScan Folder.
 struct MacMenuCommands: Commands {
     @FocusedValue(\.macAppState) private var state
+    @FocusedValue(\.studioSession) private var session
     let updater: UpdaterController
 
     var body: some Commands {
         CommandGroup(after: .appInfo) {
             Button("mac.menu.checkForUpdates") { updater.checkForUpdates() }
                 .disabled(!updater.canCheckForUpdates)
+        }
+        CommandGroup(replacing: .saveItem) {
+            Button("mac.menu.save") { session?.onSave?() }
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(session == nil || !session!.dirty)
+        }
+        CommandGroup(replacing: .undoRedo) {
+            Button("common.undo") { session?.undo() }
+                .keyboardShortcut("z", modifiers: .command)
+                .disabled(session?.canUndo != true)
+            Button("common.redo") { session?.redo() }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+                .disabled(session?.canRedo != true)
+        }
+        CommandGroup(after: .pasteboard) {
+            Button("studio.selectAllOnFloor") { session?.selectAllOnFloor?() }
+                .keyboardShortcut("a", modifiers: .command)
+                .disabled(session == nil)
         }
         CommandGroup(replacing: .newItem) {
             Button("mac.menu.import") { state?.request(.importPackage) }
