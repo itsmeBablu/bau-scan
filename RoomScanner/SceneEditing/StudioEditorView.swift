@@ -753,9 +753,6 @@ struct StudioEditorView: View {
         pos.x += dx
         pos.z += dz
         item.position = pos
-        if snapping {
-            item = StudioPlacement.snapped(item, in: session.document, axis: nil)
-        }
         do {
             try update(item)
         } catch {

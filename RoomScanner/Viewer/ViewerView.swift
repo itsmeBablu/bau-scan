@@ -112,7 +112,8 @@ struct ViewerView: View {
         .onChange(of: showPhotos) { _,_ in rebuildScene() }
         .simultaneousGesture(SpatialTapGesture().targetedToAnyEntity().onEnded { value in
             if state.isMeasuring {
-                let worldPos = value.entity.convert(position: value.location3D, to: nil)
+                let localPos = SIMD3<Float>(Float(value.location3D.x), Float(value.location3D.y), Float(value.location3D.z))
+                let worldPos = value.entity.convert(position: localPos, to: nil)
                 if let start = measureStart {
                     let dist = Double(simd_distance(start, worldPos))
                     let text = MeasurementFormat.length(dist, unit: unit, locale: AppLanguage.locale)
@@ -156,7 +157,9 @@ struct ViewerView: View {
         let lineMesh = MeshResource.generateBox(width: 0.015, height: 0.015, depth: dist)
         let lineEntity = ModelEntity(mesh: lineMesh, materials: [material])
         lineEntity.position = (p1 + p2) / 2
-        lineEntity.look(at: p2, from: lineEntity.position, relativeTo: nil)
+        let dir = p2 - p1
+        let up: SIMD3<Float> = abs(dir.x) < 0.001 && abs(dir.z) < 0.001 ? SIMD3<Float>(1, 0, 0) : SIMD3<Float>(0, 1, 0)
+        lineEntity.look(at: p2, from: lineEntity.position, upVector: up, relativeTo: nil)
         container.addChild(lineEntity)
 
         let sphereMesh = MeshResource.generateSphere(radius: 0.03)

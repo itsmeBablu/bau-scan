@@ -85,10 +85,11 @@ final class MacOrganisedExportTests: XCTestCase {
 
         // Add object
         let item = SceneEditObject(
-            category: "chair",
+            origin: "test",
             name: "Office Chair",
+            family: .chair,
+            position: TechnicalPoint3(x: 1.0, y: 0.45, z: 1.0),
             size: TechnicalPoint3(x: 0.6, y: 0.9, z: 0.6),
-            position: SIMD3<Double>(1.0, 0, 1.0),
             yaw: 0,
             story: 0
         )
