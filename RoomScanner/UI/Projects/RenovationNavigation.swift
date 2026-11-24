@@ -228,6 +228,7 @@ struct RenovationProjectPage: View {
                 Section("Exports") { NavigationLink("Project report and exports") { ProjectDeliverablesView(projectID:projectID) } }
                 Section("Measurements") { NavigationLink("Quantities") { ProjectQuantitiesView(projectID:projectID) } }
                 Section("Photos & notes") {
+                    NavigationLink("Notes & task pins") { ProjectPinsView(projectID:projectID) }
                     TextEditor(text:$notes).frame(minHeight:100).accessibilityLabel("Project notes")
                     Button("Save notes") { workspace.note(notes,projectID:projectID) }
                 }

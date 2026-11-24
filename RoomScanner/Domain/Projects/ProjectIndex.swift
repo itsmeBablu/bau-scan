@@ -27,6 +27,7 @@ struct ProjectIndex: Codable, Equatable {
     var schemaVersion = 1
     var projects: [RenovationProject] = []
     var displayNames: [String: String]? = nil
+    var pins: [ProjectPin]? = nil
     static let unsortedID = UUID(uuidString: "95B5DAB3-9B80-49D7-945B-C9B6B4B18791")!
 
     /// Idempotent discovery preserves missing references for offline/cloud recovery.
@@ -43,6 +44,9 @@ struct ProjectIndex: Codable, Equatable {
 
     mutating func assign(_ reference: ProjectReference, to projectID: UUID, now: Date = Date()) throws {
         guard projects.contains(where: { $0.id == projectID }) else { throw CocoaError(.fileNoSuchFile) }
+        if let currentPins = pins {
+            pins = currentPins.map { value in var pin = value; if pin.reference == reference { pin.projectID = projectID }; return pin }
+        }
         for index in projects.indices {
             let old = projects[index].references
             projects[index].references.removeAll { $0 == reference }
@@ -52,6 +56,11 @@ struct ProjectIndex: Codable, Equatable {
     }
 
     func validate() throws {
+        for pin in pins ?? [] {
+            try pin.validate()
+            guard projects.contains(where:{ $0.id == pin.projectID && $0.references.contains(pin.reference) }) else { throw CocoaError(.fileReadCorruptFile) }
+        }
+        guard (pins ?? []).count <= 100_000,Set((pins ?? []).map(\.id)).count == (pins ?? []).count else { throw CocoaError(.fileReadCorruptFile) }
         let refs = projects.flatMap(\.references)
         guard schemaVersion == 1, projects.count <= 10_000,
               Set(projects.map(\.id)).count == projects.count,

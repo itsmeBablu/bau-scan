@@ -2,7 +2,7 @@ import Foundation
 
 enum ProjectReportLoader {
     /// Runs on a worker. Every referenced source remains read-only.
-    static func load(project: RenovationProject, entries: [ProjectLibraryEntry], locale: Locale, generatedAt: Date = Date()) throws -> ProjectReport {
+    static func load(project: RenovationProject, entries: [ProjectLibraryEntry], locale: Locale, generatedAt: Date = Date(), pins: [ProjectPin] = []) throws -> ProjectReport {
         var report = ProjectReport(name:project.name,generatedAt:generatedAt,notes:project.notes,scans:[],photos:[],unresolved:[])
         for reference in project.references where !reference.kind.rawValue.hasPrefix("design") {
             guard let entry = entries.first(where:{ $0.reference == reference }) else {
@@ -22,7 +22,9 @@ enum ProjectReportLoader {
                     if reference.kind == .house { house = try HousePackage.readHouse(from:entry.url) }
                     else { house = House(room:try RoomPackage.readPlan(from:entry.url)) }
                     let quantities = house.allRooms.flatMap { ProjectQuantitiesCSV.lines(RenovationQuantities($0),locale:locale) }
-                    report.scans.append(.init(title:entry.title,house:house,detailLines:quantities))
+                    let sourcePins = pins.filter { $0.projectID == project.id && $0.reference == reference }
+                    let pinNotes = sourcePins.map { "\($0.text) · \(AppLanguage.text($0.status.rawValue,locale:locale))" }
+                    report.scans.append(.init(title:entry.title,house:house,detailLines:quantities+pinNotes,pins:sourcePins))
                     report.photos += try SurveyPhotoStore.images(from:entry.url,house:house).map { .init(number:$0.photo.number,room:$0.roomName,jpeg:$0.jpegData) }
                 }
             } catch { report.unresolved.append(entry.title+": "+error.localizedDescription) }

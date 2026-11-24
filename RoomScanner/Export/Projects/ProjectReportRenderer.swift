@@ -61,6 +61,21 @@ enum ProjectReportRenderer {
                     return room.name+" · "+MeasurementFormat.squareMeters(m.floorArea,locale:locale)+" · "+AppLanguage.text("Perimeter",locale:locale)+" "+MeasurementFormat.meters(m.perimeter,locale:locale)
                 }
                 lines(scan.title+" — "+AppLanguage.text("Rooms",locale:locale),rows)
+                for story in house.stories where scan.pins.contains(where:{ $0.story == story.index }) {
+                    begin(scan.title+" — "+AppLanguage.text("Task pins",locale:locale)+" · \(story.index)")
+                    let level = House(id:house.id,name:house.name,stories:[story]), b = level.bounds
+                    if !b.isEmpty {
+                        let scale = min(500/max(0.1,b.width),480/max(0.1,b.height))
+                        func point(_ p: Point2D) -> CGPoint { CGPoint(x:45+(p.x-b.minX)*scale,y:210+(p.y-b.minY)*scale) }
+                        ctx.setStrokeColor(CGColor(gray:0.15,alpha:1)); ctx.setLineWidth(2)
+                        for room in story.rooms { for wall in room.walls { ctx.move(to:point(room.transform.apply(wall.start))); ctx.addLine(to:point(room.transform.apply(wall.end))); ctx.strokePath() } }
+                        for (index,pin) in scan.pins.filter({ $0.story == story.index }).enumerated() {
+                            let p = point(pin.position); ctx.setFillColor(CGColor(red:0.9,green:0.5,blue:0,alpha:1)); ctx.fillEllipse(in:CGRect(x:p.x-6,y:p.y-6,width:12,height:12))
+                            text("\(index+1): "+pin.text,y:170-CGFloat(index)*20,size:10,height:18)
+                        }
+                    }
+                    end()
+                }
             }
             if !scan.detailLines.isEmpty { lines(scan.title,scan.detailLines) }
         }

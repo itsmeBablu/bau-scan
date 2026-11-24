@@ -5,6 +5,7 @@ struct ProjectReport {
         var title: String
         var house: House?
         var detailLines: [String]
+        var pins: [ProjectPin] = []
     }
     struct Photo {
         var number: Int
