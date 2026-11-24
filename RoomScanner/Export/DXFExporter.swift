@@ -6,13 +6,21 @@ import Foundation
 /// R12 does not support LWPOLYLINE or simple DIMENSION: walls and objects are
 /// closed POLYLINEs, dimensions are LINE + TEXT.
 struct DXFExporter {
-    var locale: Locale = .current
+    var locale: Locale = AppLanguage.locale
     var textHeight = 0.12  // m
     var unit: MeasurementUnit = .both
 
     enum Layer: String, CaseIterable {
         case walls = "WALLS", doors = "DOORS", windows = "WINDOWS", openings = "OPENINGS"
         case floor = "FLOOR", objects = "OBJECTS", dimensions = "DIMENSIONS", text = "TEXT"
+        func name(locale: Locale) -> String {
+            guard locale.identifier.hasPrefix("de") else { return rawValue }
+            switch self {
+            case .walls: return "WAENDE"; case .doors: return "TUEREN"; case .windows: return "FENSTER"
+            case .openings: return "OEFFNUNGEN"; case .floor: return "BODEN"; case .objects: return "OBJEKTE"
+            case .dimensions: return "BEMASSUNG"; case .text: return "TEXT"
+            }
+        }
         /// ACI color index.
         var color: Int {
             switch self {
@@ -23,7 +31,7 @@ struct DXFExporter {
     }
 
     func dxf(for house: House) -> String {
-        var e = Entities(fmt: fmt)
+        var e = Entities(fmt: fmt, locale: locale)
         let renderer = PlanRenderer()
         let hiddenDoors = PlanRenderer.duplicateDoorIndices(in: house.allRooms)
         for room in house.allRooms {
@@ -139,7 +147,7 @@ struct DXFExporter {
         var s = "0\nSECTION\n2\nTABLES\n"
         s += "0\nTABLE\n2\nLTYPE\n70\n1\n0\nLTYPE\n2\nCONTINUOUS\n70\n0\n3\nFloorid line\n72\n65\n73\n0\n40\n0\n0\nENDTAB\n"
         s += "0\nTABLE\n2\nLAYER\n70\n\(Layer.allCases.count)\n"
-        for l in Layer.allCases { s += "0\nLAYER\n2\n\(l.rawValue)\n70\n0\n62\n\(l.color)\n6\nCONTINUOUS\n" }
+        for l in Layer.allCases { s += "0\nLAYER\n2\n\(l.name(locale:locale))\n70\n0\n62\n\(l.color)\n6\nCONTINUOUS\n" }
         s += "0\nENDTAB\n"
         s += "0\nTABLE\n2\nSTYLE\n70\n1\n0\nSTYLE\n2\nSTANDARD\n70\n0\n40\n0\n41\n1\n50\n0\n71\n0\n42\n0.2\n3\ntxt\n4\n\n0\nENDTAB\n"
         s += "0\nENDSEC\n"
@@ -148,29 +156,30 @@ struct DXFExporter {
 
     private struct Entities {
         var fmt: (Double) -> String
+        var locale: Locale
         var body = ""
         mutating func line(_ a: Point2D, _ b: Point2D, layer: Layer) {
-            body += "0\nLINE\n8\n\(layer.rawValue)\n10\n\(fmt(a.x))\n20\n\(fmt(a.y))\n30\n0\n11\n\(fmt(b.x))\n21\n\(fmt(b.y))\n31\n0\n"
+            body += "0\nLINE\n8\n\(layer.name(locale:locale))\n10\n\(fmt(a.x))\n20\n\(fmt(a.y))\n30\n0\n11\n\(fmt(b.x))\n21\n\(fmt(b.y))\n31\n0\n"
         }
         mutating func polyline(_ pts: [Point2D], layer: Layer) {
             guard pts.count >= 2 else { return }
             // R12 requires a dummy coordinate point (10/20/30 zero) on POLYLINE before VERTEX.
-            body += "0\nPOLYLINE\n8\n\(layer.rawValue)\n10\n0.0\n20\n0.0\n30\n0.0\n66\n1\n70\n1\n"
-            for p in pts { body += "0\nVERTEX\n8\n\(layer.rawValue)\n10\n\(fmt(p.x))\n20\n\(fmt(p.y))\n30\n0\n" }
-            body += "0\nSEQEND\n8\n\(layer.rawValue)\n"
+            body += "0\nPOLYLINE\n8\n\(layer.name(locale:locale))\n10\n0.0\n20\n0.0\n30\n0.0\n66\n1\n70\n1\n"
+            for p in pts { body += "0\nVERTEX\n8\n\(layer.name(locale:locale))\n10\n\(fmt(p.x))\n20\n\(fmt(p.y))\n30\n0\n" }
+            body += "0\nSEQEND\n8\n\(layer.name(locale:locale))\n"
         }
         /// Counterclockwise arc from `from` to `to` (radians); DXF requires this orientation.
         mutating func arc(center c: Point2D, radius r: Double, from a1: Double, to a2: Double, layer: Layer) {
             var d = a2 - a1
             while d > .pi { d -= 2 * .pi }; while d < -.pi { d += 2 * .pi }
             let (s, e) = d >= 0 ? (a1, a2) : (a2, a1)
-            body += "0\nARC\n8\n\(layer.rawValue)\n10\n\(fmt(c.x))\n20\n\(fmt(c.y))\n30\n0\n40\n\(fmt(r))\n50\n\(fmt(deg(s)))\n51\n\(fmt(deg(e)))\n"
+            body += "0\nARC\n8\n\(layer.name(locale:locale))\n10\n\(fmt(c.x))\n20\n\(fmt(c.y))\n30\n0\n40\n\(fmt(r))\n50\n\(fmt(deg(s)))\n51\n\(fmt(deg(e)))\n"
         }
         mutating func text(_ raw: String, at p: Point2D, angle: Double, height: Double, layer: Layer) {
             // Thin / non-breaking spaces converted to standard space for CP1252 compatibility.
             let str = raw.replacingOccurrences(of: "\u{202F}", with: " ").replacingOccurrences(of: "\u{00A0}", with: " ")
             // 72=1: horizontally centered on second point (11/21); 73=2: vertically centered.
-            body += "0\nTEXT\n8\n\(layer.rawValue)\n10\n\(fmt(p.x))\n20\n\(fmt(p.y))\n30\n0\n40\n\(fmt(height))\n1\n\(str)\n50\n\(fmt(deg(angle)))\n72\n1\n11\n\(fmt(p.x))\n21\n\(fmt(p.y))\n31\n0\n73\n2\n"
+            body += "0\nTEXT\n8\n\(layer.name(locale:locale))\n10\n\(fmt(p.x))\n20\n\(fmt(p.y))\n30\n0\n40\n\(fmt(height))\n1\n\(str)\n50\n\(fmt(deg(angle)))\n72\n1\n11\n\(fmt(p.x))\n21\n\(fmt(p.y))\n31\n0\n73\n2\n"
         }
         private func deg(_ r: Double) -> Double { var d = r * 180 / .pi; while d < 0 { d += 360 }; while d >= 360 { d -= 360 }; return d }
     }

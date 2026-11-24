@@ -18,7 +18,7 @@ struct PlanRenderer {
 
     struct Options {
         var mode: Mode = .page(titleBlock: true)
-        var locale: Locale = .current
+        var locale: Locale = AppLanguage.locale
         var unit: MeasurementUnit = .both
         var showDimensions = true
         var showOpeningDimensions = true

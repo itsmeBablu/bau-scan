@@ -19,7 +19,7 @@ final class CloudStorageTests: XCTestCase {
     func testDocumentsURLAndPreferenceDefault() {
         XCTAssertEqual(CloudAvailability.documentsURL(containerURL: URL(fileURLWithPath: "/c")).path, "/c/Documents")
         UserDefaults.standard.removeObject(forKey: CloudAvailability.preferenceKey)
-        XCTAssertTrue(CloudAvailability.isEnabledByUser, "iCloud actif par défaut")
+        XCTAssertFalse(CloudAvailability.isEnabledByUser, "New installations require explicit cloud opt-in")
         UserDefaults.standard.set(false, forKey: CloudAvailability.preferenceKey)
         XCTAssertFalse(CloudAvailability.isEnabledByUser)
         XCTAssertNil(CloudAvailability.resolveLocation(), "désactivé par l'utilisateur → local")

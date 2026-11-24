@@ -50,7 +50,7 @@ struct RoomDetailView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Button { viewerState.mode = .threeD; showingStudio = true } label: { Label("Open in Studio",systemImage: "square.stack.3d.up") }.disabled(plan == nil)
+                    Button { viewerState.mode = .threeD; showingStudio = true } label: { Label("Open in Design",systemImage: "square.stack.3d.up") }.disabled(plan == nil)
                     Button { newName = currentRecord.name; renaming = true } label: { Label("detail.rename", systemImage: "pencil") }
                 } label: { Label("Options",systemImage: "ellipsis.circle") }
             }

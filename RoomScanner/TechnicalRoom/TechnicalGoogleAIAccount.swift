@@ -154,7 +154,7 @@ struct GoogleAccountSettingsView: View {
         Form {
             Section("Google account") { TechnicalGoogleAIConnection() }
             Section("AI recognition") {
-                Toggle("Google AI mode",isOn: $enabled)
+                GoogleAIConsentToggle()
                 Text("Scanning and offline recognition work without Google. Images stay local until you choose them and confirm sending in MEP review.").font(.caption).foregroundStyle(.secondary)
             }
             Section {
@@ -165,5 +165,20 @@ struct GoogleAccountSettingsView: View {
             }
         }.formStyle(.grouped).navigationTitle("Google account & AI")
             .onAppear { if endpoint.isEmpty { endpoint = Bundle.main.object(forInfoDictionaryKey: "TechnicalGoogleAIServiceURL") as? String ?? "" } }
+    }
+}
+
+/// Consent is explicit; enabling AI alone never sends a photo. Review confirms each upload.
+struct GoogleAIConsentToggle: View {
+    @AppStorage("technical.googleAI.enabled") private var enabled = false
+    @State private var consent = false
+    var body: some View {
+        Toggle("Google AI mode",isOn:Binding(get:{ enabled },set:{ value in if value { consent = true } else { enabled = false } }))
+            .confirmationDialog("Enable optional Google AI?",isPresented:$consent,titleVisibility:.visible) {
+                Button("Enable Google AI") { enabled = true }
+                Button("Cancel",role:.cancel) {}
+            } message: {
+                Text("Only images you select and confirm in review are sent to your configured service and its AI provider. They may show private rooms, people or labels. Google sign-in identifies your account. Depth stays local. Provider retention depends on your service configuration. You can switch AI off at any time; scans still work offline.")
+            }
     }
 }

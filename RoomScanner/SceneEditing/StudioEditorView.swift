@@ -102,7 +102,7 @@ struct StudioEditorView: View {
     var body: some View {
         editorLayout
         .disabled(busy).allowsHitTesting(!busy)
-        .navigationTitle(session.document.source == .technical ? "Technik Studio" : "House Studio")
+        .navigationTitle(session.document.source == .technical ? "Design" : "Design")
         #if os(iOS)
         .toolbar(.hidden,for: .navigationBar)
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size in landscape = size.width > size.height; canvasWidth = size.width }
@@ -308,7 +308,7 @@ struct StudioEditorView: View {
     private var phoneHeader: some View {
         VStack(alignment: .leading,spacing: 8) {
             if textSize.isAccessibilitySize {
-                Text(session.document.source == .technical ? "Technik Studio" : "House Studio")
+                Text(session.document.source == .technical ? "Design" : "Design")
                     .font(.headline).padding(.horizontal,12).padding(.vertical,8)
                     .background(.regularMaterial,in: Capsule())
             }
@@ -317,7 +317,7 @@ struct StudioEditorView: View {
                     .accessibilityLabel("Close Studio").background(.regularMaterial,in: Circle())
                 if !textSize.isAccessibilitySize {
                     VStack(alignment: .leading,spacing: 2) {
-                        Text(session.document.source == .technical ? "Technik Studio" : "House Studio").font(.headline)
+                        Text(session.document.source == .technical ? "Design" : "Design").font(.headline)
                         Text(session.dirty || !hasSaved ? "Unsaved design" : "Design saved").font(.caption).foregroundStyle(.secondary)
                     }.lineLimit(1).padding(.horizontal,14).padding(.vertical,8).background(.regularMaterial,in: Capsule())
                 }

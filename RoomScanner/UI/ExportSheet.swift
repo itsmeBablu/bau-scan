@@ -4,6 +4,7 @@ import SwiftUI
 /// sharing (`ShareLink`), saving via system file exporter,
 /// or copies into `Exports/` folder of current storage.
 struct ExportSheet: View {
+    @AppStorage("renovation.proDetails") private var proDetails = false
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     let subject: ExportSubject
@@ -35,7 +36,7 @@ struct ExportSheet: View {
                         Button { showingRevit = true } label: { Label("IFC (Revit)",systemImage:"building.2") }
                     }
                     ForEach(ExportFormat.Group.allCases) { group in
-                        let items = formats.filter { $0.group == group }
+                        let items = formats.filter { $0.group == group && (proDetails || $0 != .json) }
                         if !items.isEmpty {
                             Section(LocalizedStringKey(group.titleKey)) {
                                 ForEach(items) { format in
@@ -61,7 +62,7 @@ struct ExportSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("common.close") { dismiss() } } }
-            .fileExporter(isPresented: $savingWithPicker, items: result.map { [$0] } ?? [], contentTypes: [selected.utType]) { outcome in
+            .fileExporter(isPresented: $savingWithPicker, items: result.map { [$0] } ?? [], contentTypes: [result?.pathExtension == "zip" ? .zip : selected.utType]) { outcome in
                 if case .failure(let e) = outcome { error = e.localizedDescription }
             }
         }
@@ -97,7 +98,7 @@ struct ExportSheet: View {
                               systemImage: savedToExports ? "checkmark.circle" : (store.isCloud ? "icloud.and.arrow.up" : "arrow.down.doc"))
                     }.disabled(savedToExports)
                     #if os(macOS)
-                    OpenWithMenu(fileURL: result, type: selected.utType).fixedSize()
+                    OpenWithMenu(fileURL: result, type: result.pathExtension == "zip" ? .zip : selected.utType).fixedSize()
                     #endif
                 }
                 Spacer()
@@ -116,6 +117,7 @@ struct ExportSheet: View {
             VStack(alignment: .leading) {
                 Text(LocalizedStringKey(format.titleKey))
                 Text(LocalizedStringKey(format.descriptionKey)).font(.caption).foregroundStyle(.secondary)
+                if LevelExportService.needsArchive(house:subject.house,format:format) { Text("Multiple levels: one file per level in a ZIP archive.").font(.caption).foregroundStyle(.secondary) }
             }
             Spacer()
             if format == selected { Image(systemName: "checkmark").foregroundStyle(.tint) }

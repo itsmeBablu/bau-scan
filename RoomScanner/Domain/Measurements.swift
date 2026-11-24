@@ -77,27 +77,27 @@ struct HouseMeasurements: Equatable {
 /// and meters (m), m² to 1 decimal place, English dot-decimal standard.
 enum MeasurementFormat {
     /// Formatted whole millimeters (e.g. "4,000 mm" or "4000 mm").
-    static func millimeters(_ meters: Double, locale: Locale = Locale(identifier: "en_US")) -> String {
+    static func millimeters(_ meters: Double, locale: Locale = AppLanguage.locale) -> String {
         let mm = (meters * 1000).rounded()
         let f = NumberFormatter(); f.locale = locale; f.maximumFractionDigits = 0
         return (f.string(from: mm as NSNumber) ?? "\(Int(mm))") + " mm"
     }
 
     /// Formatted meters with 2 decimal places using period separator (e.g. "4.00 m").
-    static func meters(_ meters: Double, locale: Locale = Locale(identifier: "en_US")) -> String {
+    static func meters(_ meters: Double, locale: Locale = AppLanguage.locale) -> String {
         let f = NumberFormatter(); f.locale = locale; f.minimumFractionDigits = 2; f.maximumFractionDigits = 2
         return (f.string(from: meters as NSNumber) ?? String(format: "%.2f", meters)) + " m"
     }
 
     /// Centimeters for backward compatibility (e.g. "400 cm").
-    static func centimeters(_ meters: Double, locale: Locale = Locale(identifier: "en_US")) -> String {
+    static func centimeters(_ meters: Double, locale: Locale = AppLanguage.locale) -> String {
         let cm = (meters * 100).rounded()
         let f = NumberFormatter(); f.locale = locale; f.maximumFractionDigits = 0
         return (f.string(from: cm as NSNumber) ?? "\(Int(cm))") + " cm"
     }
 
     /// Length formatting based on selected unit (mm, m, or both).
-    static func length(_ metersValue: Double, unit: MeasurementUnit = .both, locale: Locale = Locale(identifier: "en_US")) -> String {
+    static func length(_ metersValue: Double, unit: MeasurementUnit = .both, locale: Locale = AppLanguage.locale) -> String {
         switch unit {
         case .millimeters:
             return millimeters(metersValue, locale: locale)
@@ -109,13 +109,13 @@ enum MeasurementFormat {
     }
 
     /// Floor area in m² with 1 decimal place (e.g. "12.0 m²").
-    static func squareMeters(_ m2: Double, locale: Locale = Locale(identifier: "en_US")) -> String {
+    static func squareMeters(_ m2: Double, locale: Locale = AppLanguage.locale) -> String {
         let f = NumberFormatter(); f.locale = locale; f.minimumFractionDigits = 1; f.maximumFractionDigits = 1
         return (f.string(from: m2 as NSNumber) ?? String(format: "%.1f", m2)) + " m²"
     }
 
     /// Opening width (top label on dimension line).
-    static func openingWidth(_ width: Double, unit: MeasurementUnit = .both, locale: Locale = Locale(identifier: "en_US")) -> String {
+    static func openingWidth(_ width: Double, unit: MeasurementUnit = .both, locale: Locale = AppLanguage.locale) -> String {
         switch unit {
         case .millimeters:
             return millimeters(width, locale: locale)
@@ -129,7 +129,7 @@ enum MeasurementFormat {
     }
 
     /// Opening height (bottom label under dimension line).
-    static func openingHeight(_ height: Double, unit: MeasurementUnit = .both, locale: Locale = Locale(identifier: "en_US")) -> String {
+    static func openingHeight(_ height: Double, unit: MeasurementUnit = .both, locale: Locale = AppLanguage.locale) -> String {
         switch unit {
         case .millimeters:
             return millimeters(height, locale: locale)
@@ -143,12 +143,12 @@ enum MeasurementFormat {
     }
 
     /// Combined opening dimensions (W / H).
-    static func openingDimensions(width: Double, height: Double, unit: MeasurementUnit = .both, locale: Locale = Locale(identifier: "en_US")) -> String {
+    static func openingDimensions(width: Double, height: Double, unit: MeasurementUnit = .both, locale: Locale = AppLanguage.locale) -> String {
         "W: \(openingWidth(width, unit: unit, locale: locale)) · H: \(openingHeight(height, unit: unit, locale: locale))"
     }
 
     /// Parapet / sill height (BRH: Brüstungshöhe / Parapet Height) for windows.
-    static func parapetHeight(_ sillHeight: Double, unit: MeasurementUnit = .both, locale: Locale = Locale(identifier: "en_US")) -> String {
+    static func parapetHeight(_ sillHeight: Double, unit: MeasurementUnit = .both, locale: Locale = AppLanguage.locale) -> String {
         switch unit {
         case .millimeters:
             return "BRH: \(millimeters(sillHeight, locale: locale))"

@@ -140,7 +140,8 @@ private struct TechnicalExportDocument: FileDocument {
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 
-private struct TechnicalStoredRoomView: View {
+struct TechnicalStoredRoomView: View {
+    @AppStorage("renovation.proDetails") private var proDetails = false
     let id: UUID
     let library: TechnicalRoomLibraryStore
     @State private var package: TechnicalRoomPackage?
@@ -195,7 +196,7 @@ private struct TechnicalStoredRoomView: View {
                         do { studioDocument = try await Task.detached { try SceneEditDocument.technical(package) }.value }
                         catch { self.error = error.localizedDescription }
                     }
-                } label: { Label("Open in Studio",systemImage: "square.stack.3d.up") }.disabled(package == nil || busy)
+                } label: { Label("Open in Design",systemImage: "square.stack.3d.up") }.disabled(package == nil || busy)
             }
             ToolbarItem(placement: .primaryAction) {
                 if tab == .details { Button("Save") { save() }.disabled(package == nil || busy) }
@@ -203,11 +204,11 @@ private struct TechnicalStoredRoomView: View {
             ToolbarItem(placement: .primaryAction) {
                 Menu("Export", systemImage: "square.and.arrow.up") {
                     Button("Full survey package") { save(exportAfter: true) }
-                    Button("Editable technical survey JSON") { exportSurveyJSON() }
+                    if proDetails { Button("Editable technical survey JSON") { exportSurveyJSON() } }
                     ForEach(TechnicalMeshExporter.Format.allCases, id: \.self) { format in
                         Button(format.rawValue.uppercased()) { exportMesh(format) }
                     }
-                    Menu("Accepted MEP elements") {
+                    Menu(proDetails ? "Accepted MEP elements" : "Confirmed objects") {
                         ForEach(TechnicalMeshExporter.Format.allCases,id: \.self) { format in
                             Button(format.rawValue.uppercased()) { exportMesh(format,acceptedMEPOnly: true) }
                         }
