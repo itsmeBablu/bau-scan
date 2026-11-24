@@ -2,8 +2,11 @@ import Foundation
 
 enum ProjectReportLoader {
     /// Runs on a worker. Every referenced source remains read-only.
-    static func load(project: RenovationProject, entries: [ProjectLibraryEntry], locale: Locale, generatedAt: Date = Date(), pins: [ProjectPin] = []) throws -> ProjectReport {
+    static func load(project: RenovationProject, entries: [ProjectLibraryEntry], locale: Locale, generatedAt: Date = Date(), pins: [ProjectPin] = [], checks: [ProjectDistanceCheck] = []) throws -> ProjectReport {
         var report = ProjectReport(name:project.name,generatedAt:generatedAt,notes:project.notes,scans:[],photos:[],unresolved:[])
+        for check in checks where check.projectID == project.id {
+            report.notes += "\n"+check.label+": "+MeasurementFormat.meters(check.referenceMeters,locale:locale)+" → "+MeasurementFormat.meters(check.observedMeters,locale:locale)+" · "+MeasurementFormat.millimeters(check.absoluteErrorMeters,locale:locale)+" · "+check.method
+        }
         for reference in project.references where !reference.kind.rawValue.hasPrefix("design") {
             guard let entry = entries.first(where:{ $0.reference == reference }) else {
                 report.unresolved.append(AppLanguage.text("Item unavailable",locale:locale)+": "+reference.itemID.uuidString); continue

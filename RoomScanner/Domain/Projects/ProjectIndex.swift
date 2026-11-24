@@ -28,6 +28,7 @@ struct ProjectIndex: Codable, Equatable {
     var projects: [RenovationProject] = []
     var displayNames: [String: String]? = nil
     var pins: [ProjectPin]? = nil
+    var distanceChecks: [ProjectDistanceCheck]? = nil
     static let unsortedID = UUID(uuidString: "95B5DAB3-9B80-49D7-945B-C9B6B4B18791")!
 
     /// Idempotent discovery preserves missing references for offline/cloud recovery.
@@ -47,6 +48,7 @@ struct ProjectIndex: Codable, Equatable {
         if let currentPins = pins {
             pins = currentPins.map { value in var pin = value; if pin.reference == reference { pin.projectID = projectID }; return pin }
         }
+        if let checks = distanceChecks { distanceChecks = checks.map { value in var check = value; if check.reference == reference { check.projectID = projectID }; return check } }
         for index in projects.indices {
             let old = projects[index].references
             projects[index].references.removeAll { $0 == reference }
@@ -56,6 +58,11 @@ struct ProjectIndex: Codable, Equatable {
     }
 
     func validate() throws {
+        for check in distanceChecks ?? [] {
+            try check.validate()
+            guard projects.contains(where:{ $0.id == check.projectID && $0.references.contains(check.reference) }) else { throw CocoaError(.fileReadCorruptFile) }
+        }
+        guard (distanceChecks ?? []).count <= 100_000,Set((distanceChecks ?? []).map(\.id)).count == (distanceChecks ?? []).count else { throw CocoaError(.fileReadCorruptFile) }
         for pin in pins ?? [] {
             try pin.validate()
             guard projects.contains(where:{ $0.id == pin.projectID && $0.references.contains(pin.reference) }) else { throw CocoaError(.fileReadCorruptFile) }

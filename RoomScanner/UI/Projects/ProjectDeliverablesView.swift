@@ -28,12 +28,12 @@ struct ProjectDeliverablesView: View {
     private func generatePDF(csv: Bool = false) {
         guard let project = workspace.project(projectID) else { return }
         busy = true
-        let entries = workspace.entries, root = root, locale = locale, pins = workspace.index.pins ?? []
+        let entries = workspace.entries, root = root, locale = locale, pins = workspace.index.pins ?? [], checks = workspace.index.distanceChecks ?? []
         Task {
             defer { busy = false }
             do {
                 _ = try await Task.detached(priority:.userInitiated) {
-                    let report = try ProjectReportLoader.load(project:project,entries:entries,locale:locale,pins:pins)
+                    let report = try ProjectReportLoader.load(project:project,entries:entries,locale:locale,pins:pins,checks:checks)
                     let data = csv ? ProjectQuantitiesCSV.data(report,locale:locale,wastePercent:UserDefaults.standard.double(forKey:"renovation.wastePercent")) : try ProjectReportRenderer.pdf(report,locale:locale)
                     return try ProjectArtifacts.save(data,extension:csv ? "csv" : "pdf",root:root,projectID:projectID)
                 }.value
