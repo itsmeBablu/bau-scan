@@ -20,6 +20,10 @@ struct ViewerView: View {
     @State private var selectedPhoto: SurveyPhotoImage?
     @State private var photoError: String?
     @State private var pendingPhoto: SurveyPhotoImage?
+    @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
+    @State private var measureStart: SIMD3<Float>?
+    @State private var lastMeasurementText: String?
+    @State private var measureRoot = Entity()
 
     /// Root of the scene, rebuilt when visual options change.
     @State private var sceneRoot = Entity()
@@ -52,6 +56,31 @@ struct ViewerView: View {
             }.padding().background(.regularMaterial,in:Capsule())
             }
         }
+        .overlay(alignment: .top) {
+            if state.isMeasuring || lastMeasurementText != nil {
+                HStack(spacing: 10) {
+                    if let last = lastMeasurementText {
+                        Text("Measured: \(last)").bold()
+                        Text("measure.copied").font(.caption).foregroundStyle(.secondary)
+                        Button("Clear") {
+                            lastMeasurementText = nil
+                            measureStart = nil
+                            measureRoot.children.removeAll()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    } else if measureStart != nil {
+                        Text("Click second point").font(.callout)
+                    } else {
+                        Text("measure.clickTwoPoints").font(.callout)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.regularMaterial, in: Capsule())
+                .padding(.top, 10)
+            }
+        }
         .sheet(item:$selectedPhoto) { photo in
             SurveyPhotoGallery(photos:photos,initial:photo.id) { flyToPhoto($0) }
         }
@@ -61,6 +90,7 @@ struct ViewerView: View {
         RealityView { content in
             rebuildScene()
             content.add(sceneRoot)
+            content.add(measureRoot)
             content.add(camera)
             frameCamera()
             #if os(iOS)
@@ -80,13 +110,63 @@ struct ViewerView: View {
         .onChange(of: radiators) { _, _ in rebuildScene() }
         .onChange(of: photos) { _,_ in rebuildScene() }
         .onChange(of: showPhotos) { _,_ in rebuildScene() }
-        .simultaneousGesture(TapGesture().targetedToAnyEntity().onEnded { value in
+        .simultaneousGesture(SpatialTapGesture().targetedToAnyEntity().onEnded { value in
+            if state.isMeasuring {
+                let worldPos = value.entity.convert(position: value.location3D, to: nil)
+                if let start = measureStart {
+                    let dist = Double(simd_distance(start, worldPos))
+                    let text = MeasurementFormat.length(dist, unit: unit, locale: AppLanguage.locale)
+                    lastMeasurementText = text
+                    #if os(macOS)
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                    #endif
+                    measureRoot.children.removeAll()
+                    measureRoot.addChild(makeLineEntity(from: start, to: worldPos))
+                    measureStart = nil
+                } else {
+                    measureStart = worldPos
+                    measureRoot.children.removeAll()
+                    let marker = ModelEntity(mesh: .generateSphere(radius: 0.04), materials: [UnlitMaterial(color: .yellow)])
+                    marker.position = worldPos
+                    measureRoot.addChild(marker)
+                }
+                return
+            }
             guard value.entity.name.hasPrefix(SurveyPhotoMarkers.prefix),
                   let id = UUID(uuidString:String(value.entity.name.dropFirst(SurveyPhotoMarkers.prefix.count))) else { return }
             selectedPhoto = photos.first { $0.id == id }
         })
+        .onChange(of: state.isMeasuring) { _, active in
+            if !active {
+                measureStart = nil
+                lastMeasurementText = nil
+                measureRoot.children.removeAll()
+            }
+        }
         .onChange(of: state.resetToken) { _, _ in resetView() }
         .background(AppTheme.darkCharcoal)
+    }
+
+    private func makeLineEntity(from p1: SIMD3<Float>, to p2: SIMD3<Float>) -> Entity {
+        let container = Entity()
+        let dist = simd_distance(p1, p2)
+        guard dist > 0.001 else { return container }
+        let material = UnlitMaterial(color: .yellow)
+        let lineMesh = MeshResource.generateBox(width: 0.015, height: 0.015, depth: dist)
+        let lineEntity = ModelEntity(mesh: lineMesh, materials: [material])
+        lineEntity.position = (p1 + p2) / 2
+        lineEntity.look(at: p2, from: lineEntity.position, relativeTo: nil)
+        container.addChild(lineEntity)
+
+        let sphereMesh = MeshResource.generateSphere(radius: 0.03)
+        let sphere1 = ModelEntity(mesh: sphereMesh, materials: [material])
+        sphere1.position = p1
+        let sphere2 = ModelEntity(mesh: sphereMesh, materials: [material])
+        sphere2.position = p2
+        container.addChild(sphere1)
+        container.addChild(sphere2)
+        return container
     }
 
     // MARK: - Scene

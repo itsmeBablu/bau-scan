@@ -51,6 +51,7 @@ final class ViewerState {
     var mode: ViewerMode = .threeD
     var showDimensions = false
     var showObjects = true
+    var isMeasuring = false
     var arScale: ARScale = .oneToFifty
     /// Incremented to request recentering or anchor reset.
     var resetToken = 0

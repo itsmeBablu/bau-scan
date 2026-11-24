@@ -144,6 +144,8 @@ struct PlanSceneBuilder {
     private func makeBox(_ box: WallBox, material: RealityKit.Material) -> ModelEntity {
         let mesh = MeshResource.generateBox(width: Float(box.segment.length), height: Float(box.height), depth: Float(box.thickness))
         let e = ModelEntity(mesh: mesh, materials: [material])
+        e.components.set(InputTargetComponent())
+        e.generateCollisionShapes(recursive: false)
         let mid = box.segment.midpoint
         e.position = SIMD3(Float(mid.x), Float(box.bottom + box.height / 2), Float(-mid.y))
         // Local X axis follows segment; plan angle is measured in coordinate space (x, y_plan) = (x, -z).
@@ -171,6 +173,8 @@ struct PlanSceneBuilder {
         }
         let e = ModelEntity(mesh: mesh, materials: [material])
         e.name = Names.floor
+        e.components.set(InputTargetComponent())
+        e.generateCollisionShapes(recursive: false)
         // Polygonal mesh is already in room coordinates; fallback plane is centered.
         e.position = polygonMesh != nil ? SIMD3(0, 0.001, 0) : SIMD3(Float(b.center.x), 0.001, Float(-b.center.y))
         return e

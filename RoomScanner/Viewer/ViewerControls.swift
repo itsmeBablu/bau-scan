@@ -42,6 +42,8 @@ struct ViewerControls: View {
     @ViewBuilder private var tools: some View {
         Toggle(isOn: $state.showDimensions) { controlLabel("viewer.dimensions",icon: "ruler") }
             .toggleStyle(.button).help(Text("viewer.dimensions"))
+        Toggle(isOn: $state.isMeasuring) { controlLabel("viewer.measure",icon: "ruler.fill") }
+            .toggleStyle(.button).help(Text("viewer.measure"))
         Toggle(isOn: $state.showObjects) { controlLabel("viewer.objects",icon: "chair.lounge") }
             .toggleStyle(.button).help(Text("viewer.objects"))
         Button { state.resetToken += 1 } label: { controlLabel("viewer.recenter",icon: "scope") }

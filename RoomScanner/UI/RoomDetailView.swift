@@ -86,11 +86,11 @@ struct RoomDetailView: View {
             switch tab {
             case .plan:
                 #if os(macOS)
-                Plan2DView(house: House(room: plan))
+                Plan2DView(house: House(room: plan), packageURL: store.packageURL(for: currentRecord))
                     .onDrag { DragExportProvider.provider(subject: ExportSubject(record: currentRecord, plan: plan, packageURL: store.packageURL(for: currentRecord)), format: .pdf) }
                     .help("mac.dragHint")
                 #else
-                Plan2DView(house: House(room: plan))
+                Plan2DView(house: House(room: plan), packageURL: store.packageURL(for: currentRecord))
                 #endif
             case .viewer:
                 VStack(spacing: 0) {

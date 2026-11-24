@@ -1,19 +1,30 @@
 import SwiftUI
 
 /// Interactive 2D plan: rendered by `PlanRenderer` in high-resolution bitmap,
-/// pinch/scroll zoom, pan drag, double-tap to recenter.
+/// pinch/scroll zoom, pan drag, double-tap to recenter, 2-point measurement, and photo markers.
 struct Plan2DView: View {
     let house: House
+    var packageURL: URL? = nil
     @AppStorage("planTextScale") private var textScale = 1.0
     @AppStorage("planShowDimensions") private var showDimensions = true
     @AppStorage("planShowLabels") private var showLabels = true
     @AppStorage("planShowObjects") private var showObjects = true
     @AppStorage("planShowGrid") private var showGrid = true
+    @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
+
     @State private var showingOptions = false
     @State private var scale: CGFloat = 1
     @State private var lastScale: CGFloat = 1
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
+    @State private var isMeasuring = false
+    @State private var measureStart: CGPoint?
+    @State private var measureEnd: CGPoint?
+    @State private var lastMeasurementText: String?
+    @State private var photos: [SurveyPhotoImage] = []
+    @State private var showPhotos = true
+    @State private var selectedPhoto: SurveyPhotoImage?
+
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
@@ -30,13 +41,77 @@ struct Plan2DView: View {
                         .scaleEffect(scale)
                         .offset(offset)
                 }
+
+                // Photo markers on 2D plan
+                if showPhotos && !photos.isEmpty {
+                    ForEach(photos) { photo in
+                        let pos = viewPoint(from: Point2D(x: photo.photo.viewingPose[12], y: -photo.photo.viewingPose[14]), size: size)
+                        Button { selectedPhoto = photo } label: {
+                            ZStack {
+                                Circle().fill(.yellow).frame(width: 22, height: 22)
+                                Circle().stroke(.black.opacity(0.4), lineWidth: 1).frame(width: 22, height: 22)
+                                Text("\(photo.photo.number)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.black)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .position(pos)
+                    }
+                }
+
+                // Measurement line overlay
+                if isMeasuring {
+                    Canvas { ctx, _ in
+                        if let start = measureStart, let end = measureEnd {
+                            var path = Path()
+                            path.move(to: start)
+                            path.addLine(to: end)
+                            ctx.stroke(path, with: .color(.yellow), lineWidth: 2)
+                            ctx.fill(Path(ellipseIn: CGRect(x: start.x - 4, y: start.y - 4, width: 8, height: 8)), with: .color(.yellow))
+                            ctx.fill(Path(ellipseIn: CGRect(x: end.x - 4, y: end.y - 4, width: 8, height: 8)), with: .color(.yellow))
+                        } else if let start = measureStart {
+                            ctx.fill(Path(ellipseIn: CGRect(x: start.x - 5, y: start.y - 5, width: 10, height: 10)), with: .color(.yellow))
+                        }
+                    }
+                }
             }
             .contentShape(Rectangle())
             .gesture(drag.simultaneously(with: magnify))
-            .onTapGesture(count: 2) { withAnimation(.snappy) { scale = 1; lastScale = 1; offset = .zero; lastOffset = .zero } }
+            .onTapGesture(count: 2) { withAnimation(.snappy) { resetView() } }
+            .simultaneousGesture(
+                SpatialTapGesture().onEnded { val in
+                    if isMeasuring {
+                        let pt = val.location
+                        if let start = measureStart {
+                            measureEnd = pt
+                            let p1 = housePoint(from: start, size: size)
+                            let p2 = housePoint(from: pt, size: size)
+                            let dist = hypot(p2.x - p1.x, p2.y - p1.y)
+                            let text = MeasurementFormat.length(dist, unit: unit, locale: AppLanguage.locale)
+                            lastMeasurementText = text
+                            #if os(macOS)
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(text, forType: .string)
+                            #endif
+                        } else {
+                            measureStart = pt
+                            measureEnd = nil
+                            lastMeasurementText = nil
+                        }
+                    }
+                }
+            )
             .clipped()
         }
         .accessibilityLabel(Text("plan.accessibility"))
+        .task(id: packageURL) {
+            guard let url = packageURL else { return }
+            photos = (try? await Task.detached { try SurveyPhotoStore.images(from: url, house: house) }.value) ?? []
+        }
+        .sheet(item: $selectedPhoto) { photo in
+            SurveyPhotoGallery(photos: photos, initial: photo.id)
+        }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 12) {
                 Button { textScale = max(0.7, ((textScale - 0.1) * 10).rounded() / 10) } label: {
@@ -49,6 +124,26 @@ struct Plan2DView: View {
                     Label("Larger text", systemImage: "textformat.size.larger")
                 }
                 .disabled(textScale >= 1.8)
+
+                Divider().frame(height: 18)
+
+                Toggle(isOn: $isMeasuring) {
+                    Label("plan.measure", systemImage: "ruler.fill")
+                }
+                .toggleStyle(.button)
+
+                if let last = lastMeasurementText {
+                    Text("Measured: \(last)").bold()
+                    Text("measure.copied").font(.caption).foregroundStyle(.secondary)
+                    Button("Clear") {
+                        lastMeasurementText = nil
+                        measureStart = nil
+                        measureEnd = nil
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+
                 Spacer(minLength: 0)
                 Button { showingOptions = true } label: { Label("Plan options", systemImage: "slider.horizontal.3") }
             }
@@ -73,13 +168,14 @@ struct Plan2DView: View {
                         Toggle("Dimensions", isOn: $showDimensions)
                         Toggle("Room labels", isOn: $showLabels)
                         Toggle("Furniture and objects", isOn: $showObjects)
+                        Toggle("Photos", isOn: $showPhotos)
                         Toggle("Drafting grid", isOn: $showGrid)
                     }
                     Section {
                         Button("Reset view") { resetView(); showingOptions = false }
                         Button("Restore defaults") {
                             textScale = 1; showDimensions = true; showLabels = true
-                            showObjects = true; showGrid = true
+                            showObjects = true; showPhotos = true; showGrid = true
                         }
                     }
                 }
@@ -111,10 +207,44 @@ struct Plan2DView: View {
         r.options.dimensionLineColor = CGColor(gray: 0.62, alpha: 1)
         r.options.textColor = CGColor(gray: 0.94, alpha: 1)
         r.options.windowColor = CGColor(red: 0.35, green: 0.78, blue: 0.90, alpha: 1)
-        // On screen: plan fills area (no paper scale) and text is in points,
-        // rendered at 2× screen density to stay crisp when zoomed.
         r.options.mode = .fill
         return r.image(house, pageSize: size, pixelScale: displayScale * 2)
+    }
+
+    private func housePoint(from viewPt: CGPoint, size: CGSize) -> Point2D {
+        let b = house.bounds
+        guard !b.isEmpty else { return .zero }
+        let inset = size.width * 0.02
+        let area = CGRect(x: inset, y: inset, width: size.width - 2 * inset, height: size.height - 2 * inset)
+        let margin = showDimensions ? PlanRenderer.dimensionMargin : 0.15
+        let ppm = min(Double(area.width) / (b.width + 2 * margin), Double(area.height) / (b.height + 2 * margin))
+        let planW = (b.width + 2 * margin) * ppm, planH = (b.height + 2 * margin) * ppm
+        let origin = CGPoint(x: area.midX - planW / 2 + margin * ppm - b.minX * ppm,
+                             y: area.midY - planH / 2 + margin * ppm - b.minY * ppm)
+        let unscaledX = (viewPt.x - size.width / 2 - offset.width) / scale + size.width / 2
+        let unscaledY = (viewPt.y - size.height / 2 - offset.height) / scale + size.height / 2
+        let cgY = size.height - unscaledY
+        let meterX = Double(unscaledX - origin.x) / ppm
+        let meterY = Double(cgY - origin.y) / ppm
+        return Point2D(x: meterX, y: meterY)
+    }
+
+    private func viewPoint(from housePt: Point2D, size: CGSize) -> CGPoint {
+        let b = house.bounds
+        guard !b.isEmpty else { return .zero }
+        let inset = size.width * 0.02
+        let area = CGRect(x: inset, y: inset, width: size.width - 2 * inset, height: size.height - 2 * inset)
+        let margin = showDimensions ? PlanRenderer.dimensionMargin : 0.15
+        let ppm = min(Double(area.width) / (b.width + 2 * margin), Double(area.height) / (b.height + 2 * margin))
+        let planW = (b.width + 2 * margin) * ppm, planH = (b.height + 2 * margin) * ppm
+        let origin = CGPoint(x: area.midX - planW / 2 + margin * ppm - b.minX * ppm,
+                             y: area.midY - planH / 2 + margin * ppm - b.minY * ppm)
+        let unscaledX = origin.x + CGFloat(housePt.x * ppm)
+        let cgY = origin.y + CGFloat(housePt.y * ppm)
+        let unscaledY = size.height - cgY
+        let viewX = (unscaledX - size.width / 2) * scale + size.width / 2 + offset.width
+        let viewY = (unscaledY - size.height / 2) * scale + size.height / 2 + offset.height
+        return CGPoint(x: viewX, y: viewY)
     }
 
     private var drag: some Gesture {
@@ -125,6 +255,7 @@ struct Plan2DView: View {
 
     private func resetView() {
         scale = 1; lastScale = 1; offset = .zero; lastOffset = .zero
+        measureStart = nil; measureEnd = nil; lastMeasurementText = nil
     }
 
     private var magnify: some Gesture {
