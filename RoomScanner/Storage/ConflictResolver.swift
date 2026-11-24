@@ -38,6 +38,17 @@ enum ConflictResolver {
         if let coordError { throw coordError }
         if let copyError { throw copyError }
         try RoomPackage.update(record: copyRecord, plan: copyPlan, in: dest)
+        let photos = try SurveyPhotoStore.readCoordinated(from:dest)
+        if let records = photos.photos {
+            let remapped = records.map { original in
+                var photo = original
+                if photo.roomID == record.id { photo.roomID = newID }
+                return photo
+            }
+            try RoomPackage.coordinatedWrite(at:dest,options:.forMerging) { target in
+                try SurveyPhotoStore.write(remapped,assets:photos.assets,to:target)
+            }
+        }
         return copyRecord
     }
 

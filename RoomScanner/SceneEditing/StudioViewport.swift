@@ -34,8 +34,51 @@ enum StudioCameraFraming {
     private let selectionOverlay = SCNNode()
     var moving = false
     var rotating = false
+    var selectedIDs: Set<UUID> = [] { didSet { highlight(selected) } }
     var manipulating: Bool { moving || rotating }
     var onSelect: ((UUID?) -> Void)?
+    var onPhoto: ((UUID) -> Void)?
+    private var photos: [SurveyPhotoImage] = []
+    private let photoRoot = SCNNode()
+    func setPhotos(_ photos: [SurveyPhotoImage]) {
+        self.photos = photos
+        updatePhotos()
+    }
+    private func updatePhotos() {
+        photoRoot.removeFromParentNode()
+        photoRoot.childNodes.forEach { $0.removeFromParentNode() }
+        for image in photos {
+            if let roomID = image.photo.roomID,
+               let room = previous?.shell.allRooms.first(where:{ $0.id == roomID }), room.story != previousStory { continue }
+            let m = image.photo.viewingPose
+            guard m.count == 16 else { continue }
+            let node = SCNNode()
+            node.name = "photo:"+image.id.uuidString
+            node.simdTransform = simd_float4x4(columns:(
+                SIMD4(Float(m[0]),Float(m[1]),Float(m[2]),0),SIMD4(Float(m[4]),Float(m[5]),Float(m[6]),0),
+                SIMD4(Float(m[8]),Float(m[9]),Float(m[10]),0),SIMD4(Float(m[12]),Float(m[13]),Float(m[14]),1)))
+            let material = SCNMaterial(); material.lightingModel = .constant
+            material.diffuse.contents = platformColor(CGColor(red:1,green:0.8,blue:0,alpha:1))
+            let body = SCNNode(geometry:SCNBox(width:0.1,height:0.07,length:0.05,chamferRadius:0.01))
+            body.geometry?.materials = [material]; node.addChildNode(body)
+            let arrow = SCNNode(geometry:SCNBox(width:0.015,height:0.015,length:0.3,chamferRadius:0))
+            arrow.geometry?.materials = [material]; arrow.position.z = -0.18; node.addChildNode(arrow)
+            let text = SCNText(string:String(image.photo.number),extrusionDepth:0)
+            text.materials = [material]; text.font = .systemFont(ofSize:12,weight:.bold)
+            let label = SCNNode(geometry:text); label.scale = SCNVector3(0.008,0.008,0.008)
+            label.position.y = 0.12; label.constraints = [SCNBillboardConstraint()]; node.addChildNode(label)
+            photoRoot.addChildNode(node)
+        }
+        view?.scene?.rootNode.addChildNode(photoRoot)
+    }
+    func flyToPhoto(_ photo: SurveyPhoto) {
+        let m = photo.viewingPose
+        guard m.count == 16 else { return }
+        camera.simdTransform = simd_float4x4(columns:(
+            SIMD4(Float(m[0]),Float(m[1]),Float(m[2]),0),SIMD4(Float(m[4]),Float(m[5]),Float(m[6]),0),
+            SIMD4(Float(m[8]),Float(m[9]),Float(m[10]),0),SIMD4(Float(m[12]),Float(m[13]),Float(m[14]),1)))
+        view?.defaultCameraController.target = SCNVector3(Float(m[12]-m[8]),Float(m[13]-m[9]),Float(m[14]-m[10]))
+    }
     var onMove: ((UUID,TechnicalPoint3) -> Bool)?
     var onRotate: ((UUID,Double) -> Bool)?
     var movementAxis: TechnicalPointEditing.Axis {
@@ -46,7 +89,9 @@ enum StudioCameraFraming {
     }
     func configure(_ document: SceneEditDocument,story: Int,cutaway: Bool,selected: UUID?,moving: Bool,reset: Int,showDimensions: Bool = false,rotating: Bool = false) {
         guard let view else { return }
-        self.moving = moving; self.rotating = rotating; view.allowsCameraControl = !manipulating
+        self.moving = moving && selectedIDs.count <= 1
+        self.rotating = rotating && selectedIDs.count <= 1
+        view.allowsCameraControl = !manipulating
         let rendering = document.renderingSnapshot
         if dragNode == nil && (view.scene == nil || previousRendering != rendering || previousStory != story || previousCutaway != cutaway || previousDimensions != showDimensions || (showDimensions && previousDimensionSelection != selected)) {
             let scene = StudioSceneBuilder.scene(document,story: story,cutaway: cutaway,showDimensions: showDimensions,dimensionSelection: selected)
@@ -56,6 +101,7 @@ enum StudioCameraFraming {
             previousDimensions = showDimensions; previousDimensionSelection = selected
         }
         previous = document
+        if photoRoot.parent !== view.scene?.rootNode { updatePhotos() }
         if resetToken != reset { resetToken = reset; frame(document,story: story) }
         self.selected = selected; highlight(selected)
         applyCameraAppearance(document)
@@ -109,6 +155,17 @@ enum StudioCameraFraming {
         return result
     }
     func tap(_ point: CGPoint) {
+        if let hits = view?.hitTest(point,options:[.searchMode:SCNHitTestSearchMode.all.rawValue]) {
+            for hit in hits {
+                var node: SCNNode? = hit.node
+                while let current = node {
+                    if let name = current.name,name.hasPrefix("photo:"),let id = UUID(uuidString:String(name.dropFirst(6))) {
+                        onPhoto?(id); return
+                    }
+                    node = current.parent
+                }
+            }
+        }
         if gizmoAxis(at: point) != nil || hitsRotationRing(point) { return }
         let node = objectNode(at: point)
         let id = node?.name.flatMap { UUID(uuidString: String($0.dropFirst(7))) }
@@ -182,7 +239,8 @@ enum StudioCameraFraming {
             var ancestor: SCNNode? = node
             var active = false
             while let current = ancestor {
-                if current.name == id.map({ "object:"+$0.uuidString }) { active = true; break }
+                if let name = current.name,
+                   name == id.map({ "object:"+$0.uuidString }) || selectedIDs.contains(where: { name == "object:"+$0.uuidString }) { active = true; break }
                 ancestor = current.parent
             }
             for material in geometry.materials { material.emission.contents = active ? platformColor(CGColor(red: 0.12,green: 0.23,blue: 0.30,alpha: 1)) : platformColor(CGColor(gray: 0,alpha: 1)) }

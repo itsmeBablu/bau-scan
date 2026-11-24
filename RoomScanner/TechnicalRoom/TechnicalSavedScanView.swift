@@ -40,6 +40,8 @@ struct TechnicalSavedScanView: View {
     @State private var showRoomSurfaces = true
     @State private var selectedPhoto: TechnicalCaptureKeyframe?
     @State private var fullPhoto: TechnicalCaptureKeyframe?
+    @State private var photoPanel: SurveyPhotoImage?
+    @State private var flyTo: SurveyPhoto?
     private var surveyPhotos: [TechnicalCaptureKeyframe] { package.evidence.keyframes.filter { $0.userPhoto == true } }
     @State private var appearance = Appearance.both
     private enum Appearance: Hashable { case scan, mep, both }
@@ -109,7 +111,10 @@ struct TechnicalSavedScanView: View {
                 ScrollView(.horizontal) {
                     HStack {
                         ForEach(Array(surveyPhotos.enumerated()),id: \.element.id) { i, photo in
-                            Button { selectedPhoto = photo } label: { Label("Photo \(i+1)",systemImage: selectedPhoto?.id == photo.id ? "checkmark.circle.fill" : "camera") }.buttonStyle(.bordered)
+                            Button {
+                                selectedPhoto = photo
+                                photoPanel = SurveyPhotoStore.images(technical:package).first { $0.id == photo.id }
+                            } label: { Label("Photo \(i+1)",systemImage: selectedPhoto?.id == photo.id ? "checkmark.circle.fill" : "camera") }.buttonStyle(.bordered)
                         }
                     }.padding(8)
                 }
@@ -126,6 +131,11 @@ struct TechnicalSavedScanView: View {
             }
         }
         .accessibilityIdentifier("technical.savedScanViewer")
+        .sheet(item:$photoPanel) { photo in
+            SurveyPhotoGallery(photos:SurveyPhotoStore.images(technical:package),initial:photo.id) {
+                flyTo = $0.photo; resetID = UUID()
+            }
+        }
 
         .onChange(of: package.recognition) { _,_ in resetID = UUID() }
         .onChange(of: selectedSuggestion) { _,_ in resetID = UUID() }
@@ -156,6 +166,15 @@ struct TechnicalSavedScanView: View {
                         let camera = PerspectiveCamera()
                         let radius = Float(max(geometry.extent.x, geometry.extent.y, geometry.extent.z, 0.5))
                         camera.look(at: .zero, from: SIMD3(radius * 0.9, radius * 0.65, radius * 1.1), relativeTo: nil)
+                        if let flyTo {
+                            let m = flyTo.viewingPose
+                            if m.count == 16 {
+                                camera.transform = Transform(matrix:simd_float4x4(columns:(
+                                    SIMD4(Float(m[0]),Float(m[1]),Float(m[2]),0),SIMD4(Float(m[4]),Float(m[5]),Float(m[6]),0),
+                                    SIMD4(Float(m[8]),Float(m[9]),Float(m[10]),0),
+                                    SIMD4(Float(m[12]-geometry.center.x),Float(m[13]-geometry.center.y),Float(m[14]-geometry.center.z),1))))
+                            }
+                        }
                         content.add(camera)
                         content.camera = .virtual
                         let light = DirectionalLight()
@@ -229,6 +248,7 @@ struct TechnicalSavedScanView: View {
                     let prefix = "technicalPhoto:"
                     guard value.entity.name.hasPrefix(prefix),let id = UUID(uuidString: String(value.entity.name.dropFirst(prefix.count))) else { return }
                     selectedPhoto = package.evidence.keyframes.first { $0.id == id }
+                    photoPanel = SurveyPhotoStore.images(technical:package).first { $0.id == id }
                 })
                 .id(resetID)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

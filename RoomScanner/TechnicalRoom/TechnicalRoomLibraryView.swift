@@ -195,7 +195,7 @@ private struct TechnicalStoredRoomView: View {
                         do { studioDocument = try await Task.detached { try SceneEditDocument.technical(package) }.value }
                         catch { self.error = error.localizedDescription }
                     }
-                } label: { Label("3D Edit · Technik Studio",systemImage: "square.stack.3d.up") }.disabled(package == nil || busy)
+                } label: { Label("Open in Studio",systemImage: "square.stack.3d.up") }.disabled(package == nil || busy)
             }
             ToolbarItem(placement: .primaryAction) {
                 if tab == .details { Button("Save") { save() }.disabled(package == nil || busy) }

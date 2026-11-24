@@ -15,6 +15,8 @@ struct HousePackage {
     var thumbnailPNG: Data?
     /// Optional independent observations; never reconstructed from RoomPlan's furniture categories.
     var radiators: HouseRadiatorSurvey? = nil
+    var surveyPhotos: [SurveyPhoto]? = nil
+    var surveyPhotoAssets: [UUID:Data] = [:]
 
     typealias F = FileLayout.HousePackageFile
 
@@ -54,6 +56,7 @@ struct HousePackage {
         if let capturedStructureData { try capturedStructureData.write(to: staging.appendingPathComponent(F.capturedStructure)) }
         if let usdzData { try usdzData.write(to: staging.appendingPathComponent(F.usdz)) }
         if let thumbnailPNG { try thumbnailPNG.write(to: staging.appendingPathComponent(F.thumbnail)) }
+        try SurveyPhotoStore.write(surveyPhotos,assets:surveyPhotoAssets,to:staging)
         for room in rooms {
             try room.write(to: staging.appendingPathComponent(F.rooms).appendingPathComponent(room.record.id.uuidString).appendingPathExtension(FileLayout.packageExtension))
         }

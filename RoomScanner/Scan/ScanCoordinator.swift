@@ -42,6 +42,8 @@ final class ScanCoordinator {
     private(set) var state: State = .idle
     /// Prevents late camera-permission and processing callbacks from reviving a dismissed scan.
     private var active = false
+    private(set) var cameraDiagnostic: String?
+    private var cameraWatchdog: Task<Void,Never>?
     let mode: ScanMode
     static let radiatorPreferenceKey = "houseScan.detectRadiators"
     let detectsRadiators: Bool
@@ -71,15 +73,16 @@ final class ScanCoordinator {
     func start() {
         guard !active else { return }
         active = true
-        guard Self.isSupported else { state = .failed(.unsupportedDevice); return }
+        guard Self.isSupported else { active = false; state = .failed(.unsupportedDevice); return }
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .denied, .restricted:
+            active = false
             state = .failed(.cameraDenied)
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { granted in
                 Task { @MainActor in
                     guard self.active else { return }
-                    granted ? self.run() : (self.state = .failed(.cameraDenied))
+                    if granted { self.run() } else { self.active = false; self.state = .failed(.cameraDenied) }
                 }
             }
         default:
@@ -88,6 +91,7 @@ final class ScanCoordinator {
     }
 
     private func run() {
+        cameraDiagnostic = nil
         guard active else { return }
         if mode == .house {
             // Configure the shared session before RoomPlan starts. Never rerun it
@@ -102,6 +106,13 @@ final class ScanCoordinator {
         config.isCoachingEnabled = true
         state = .scanning
         captureView.captureSession.run(configuration: config)
+        cameraWatchdog?.cancel()
+        cameraWatchdog = Task { @MainActor [weak self] in
+            try? await Task.sleep(for:.seconds(8))
+            guard !Task.isCancelled,let self,self.active,self.state == .scanning,
+                  self.arSession.currentFrame == nil else { return }
+            self.cameraDiagnostic = "No camera frames received. Check camera access in Settings and close other camera views before reopening this scan."
+        }
     }
 
     /// User completes room: RoomPlan post-processes and calls `didPresent`.
@@ -135,6 +146,7 @@ final class ScanCoordinator {
     }
 
     func stop() {
+        cameraWatchdog?.cancel(); cameraWatchdog = nil
         active = false
         if state == .scanning {
             captureView.captureSession.stop()

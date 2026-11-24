@@ -13,14 +13,26 @@ struct StudioProjectView: View {
     let seed: SceneEditDocument
     let storageRoot: URL
     @State private var loaded: SceneEditDocument?
+    @State private var photos: [SurveyPhotoImage] = []
     @State private var error: String?
     var body: some View {
         Group {
-            if let loaded { StudioEditorView(document: loaded,storageURL: SceneEditStore.url(root: storageRoot,source: seed.source,id: seed.sourceID)) }
+            if let loaded { StudioEditorView(document: loaded,storageURL: SceneEditStore.url(root: storageRoot,source: seed.source,id: seed.sourceID),photos:photos) }
             else if let error { ContentUnavailableView("Could not open design",systemImage: "exclamationmark.triangle",description: Text(error)) }
             else { ProgressView("Opening Studio…") }
         }
         .task {
+            let source = seed.source, id = seed.sourceID, house = seed.shell, root = storageRoot
+            photos = (try? await Task.detached { () throws -> [SurveyPhotoImage] in
+                if source == .technical {
+                    let url = root.appendingPathComponent("TechnicalRooms").appendingPathComponent(id.uuidString).appendingPathExtension("technicalroom")
+                    return SurveyPhotoStore.images(technical:try TechnicalRoomPackage.read(from:url),studio:true)
+                }
+                let location = StorageLocation(kind:.local,documentsURL:root)
+                let url = source == .house ? location.housesURL.appendingPathComponent(id.uuidString).appendingPathExtension(FileLayout.housePackageExtension) :
+                    location.roomsURL.appendingPathComponent(id.uuidString).appendingPathExtension(FileLayout.packageExtension)
+                return try SurveyPhotoStore.images(from:url,house:house)
+            }.value) ?? []
             do {
                 let url = SceneEditStore.url(root: storageRoot,source: seed.source,id: seed.sourceID)
                 let document = try await Task.detached { () throws -> SceneEditDocument in
@@ -44,6 +56,10 @@ struct StudioProjectView: View {
 }
 
 struct StudioEditorView: View {
+    var photos: [SurveyPhotoImage] = []
+    @State private var showPhotos = true
+    @State private var selectedPhoto: SurveyPhotoImage?
+    @State private var multipleSelection = false
     let storageURL: URL
     @State private var session: SceneEditSession
     @State private var controller = StudioSceneController()
@@ -76,7 +92,8 @@ struct StudioEditorView: View {
     @State private var confirmClose = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var textSize
-    init(document: SceneEditDocument,storageURL: URL) {
+    init(document: SceneEditDocument,storageURL: URL,photos: [SurveyPhotoImage] = []) {
+        self.photos = photos
         self.storageURL = storageURL
         _session = State(initialValue: SceneEditSession(document))
         _story = State(initialValue: document.shell.stories.first?.index ?? 0)
@@ -109,9 +126,33 @@ struct StudioEditorView: View {
         }
         #endif
         .tint(.blue)
+        .toolbar {
+            ToolbarItem {
+                Menu("Selection",systemImage:"checkmark.circle") {
+                    Toggle("Select multiple",isOn:$multipleSelection)
+                    Button("Select all objects on this floor") {
+                        multipleSelection = true
+                        session.selectedID = nil
+                        session.selectedIDs = Set(session.document.presentationObjects.filter { $0.story == story }.map(\.id))
+                    }
+                    Button("Delete selected",role:.destructive) { perform { try session.deleteSelection() } }.disabled(session.selectedIDs.isEmpty)
+                    Button("Clear selection") { session.select(nil,multiple:false) }
+                }
+            }
+            ToolbarItem {
+                if !photos.isEmpty { Toggle("Photos",isOn:$showPhotos).toggleStyle(.button) }
+            }
+        }
+        .sheet(item:$selectedPhoto) { photo in
+            SurveyPhotoGallery(photos:photos,initial:photo.id) { controller.flyToPhoto($0.photo) }
+        }
+        .onChange(of:showPhotos) { _,value in controller.setPhotos(value ? photos : []) }
+        .onChange(of:photos) { _,value in controller.setPhotos(showPhotos ? value : []) }
         .onAppear {
             hasSaved = FileManager.default.fileExists(atPath: storageURL.path)
-            controller.onSelect = { session.selectedID = $0 }
+            controller.setPhotos(showPhotos ? photos : [])
+            controller.onPhoto = { id in selectedPhoto = photos.first { $0.id == id } }
+            controller.onSelect = { session.select($0,multiple:multipleSelection) }
             controller.onRotate = { id,angle in
                 guard var item = session.document.objects.first(where: { $0.id == id }) else { return false }
                 item.yaw += angle
@@ -125,10 +166,22 @@ struct StudioEditorView: View {
                 do { try update(item); return true } catch { self.error = error.localizedDescription; return false }
             }
         }
-        .onDisappear { controller.onSelect = nil; controller.onMove = nil; controller.onRotate = nil }
+        .onDisappear { controller.onSelect = nil; controller.onMove = nil; controller.onRotate = nil; controller.onPhoto = nil }
         .sheet(isPresented: Binding(get: { showEngineering && !inspectorPresentedModally },set: { showEngineering = $0 })) { StudioEngineeringView(session: session) }
-        .onChange(of: story) { _,_ in session.selectedID = nil }
+        .onChange(of: story) { _,_ in session.select(nil,multiple:false) }
+        .onChange(of: session.selectedIDs) { _,ids in
+            controller.selectedIDs = ids
+        }
+        .onChange(of:session.selectedID) { _,id in
+            if !multipleSelection { session.selectedIDs = Set(id.map { [$0] } ?? []) }
+        }
+        .onChange(of: multipleSelection) { _,enabled in
+            moving = false; rotating = false
+            controller.onSelect = { session.select($0,multiple:enabled) }
+            if !enabled { session.select(session.selectedID,multiple:false) }
+        }
         .onChange(of: session.document.objects.map(\.id)) { _,ids in
+            session.selectedIDs.formIntersection(Set(ids))
             if let selected = session.selectedID,!ids.contains(selected) { session.selectedID = nil }
         }
         .interactiveDismissDisabled(session.dirty || busy)
@@ -283,6 +336,18 @@ struct StudioEditorView: View {
         }
     }
     @ViewBuilder private var selectionHUD: some View {
+        ScrollView(.horizontal) {
+        HStack {
+            Toggle("Select multiple",isOn:$multipleSelection).toggleStyle(.button)
+            if multipleSelection {
+                Text("\(session.selectedIDs.count) selected")
+                Button("Delete selected",role:.destructive) { perform { try session.deleteSelection() } }
+                    .disabled(session.selectedIDs.isEmpty)
+                Button("Clear") { session.selectedIDs = []; session.selectedID = nil }
+            }
+        }.padding(8)
+        }.scrollIndicators(.hidden).fixedSize(horizontal:false,vertical:true)
+            .background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))
         if let item = session.selected {
             HStack {
                 VStack(alignment: .leading,spacing: 3) {
@@ -339,6 +404,15 @@ struct StudioEditorView: View {
     @ViewBuilder private var designActions: some View {
                     undoButton
                     Button("Redo") { session.redo() }.disabled(session.redoStack.isEmpty)
+                    Toggle("Multiple selection",isOn:$multipleSelection)
+                    Button("Select all on this floor") {
+                        multipleSelection = true; session.selectedID = nil
+                        session.selectedIDs = Set(session.document.presentationObjects.filter { $0.story == story }.map(\.id))
+                    }
+                    Button("Delete selected",role:.destructive) { perform { try session.deleteSelection() } }
+                        .disabled(session.selectedIDs.isEmpty)
+                    Button("Clear selection") { session.select(nil,multiple:false) }
+                    if !photos.isEmpty { Toggle("Photos",isOn:$showPhotos) }
                     Button(showPlan ? "Show 3D" : "Show 2D plan") { showPlan.toggle() }
                     Button("Reset camera") { reset += 1 }
                     Toggle("3D dimensions",isOn: $showDimensions)

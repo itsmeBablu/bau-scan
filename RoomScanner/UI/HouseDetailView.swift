@@ -53,7 +53,7 @@ struct HouseDetailView: View {
                     Button {
                         viewerState.mode = .threeD
                         showingStudio = true
-                    } label: { Label("3D Edit · House Studio",systemImage: "square.stack.3d.up") }.disabled(house == nil)
+                    } label: { Label("Open in Studio",systemImage: "square.stack.3d.up") }.disabled(house == nil)
                     Button {
                         viewerState.mode = .threeD
                         showingRadiators = true
@@ -137,7 +137,7 @@ struct HouseDetailView: View {
                 #endif
             case .viewer:
                 VStack(spacing: 0) {
-                    ViewerView(house: shown(house), state: viewerState, radiators: radiators)
+                    ViewerView(house: shown(house), state: viewerState, radiators: radiators,photoPackageURL:store.packageURL(for:currentRecord))
                     ViewerControls(state: viewerState, usdzURL: HousePackage.usdzURL(in: store.packageURL(for: currentRecord)))
                 }
             case .measures: HouseMeasuresView(house: shown(house),onRename: { room in

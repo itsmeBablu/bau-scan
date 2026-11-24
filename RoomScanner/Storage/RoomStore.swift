@@ -168,6 +168,9 @@ final class RoomStore {
                 radiators.houseID = record.id
                 package.radiators = radiators
             }
+            let photos = try SurveyPhotoStore.readCoordinated(from:url)
+            package.surveyPhotos = photos.photos
+            package.surveyPhotoAssets = photos.assets
             try package.write(to: location.housePackageURL(for: record.id))
         } else {
             try RoomPackage.coordinatedWrite(at: dest, options: .forReplacing) { target in

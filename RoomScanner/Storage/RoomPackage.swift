@@ -23,6 +23,8 @@ struct RoomPackage {
     var thumbnailPNG: Data?
     /// Optional Technik Room annotations; existing room/house packages do not require this file.
     var technicalRoomData: Data? = nil
+    var surveyPhotos: [SurveyPhoto]? = nil
+    var surveyPhotoAssets: [UUID:Data] = [:]
 
     /// ISO 8601 dates with fractional seconds: readable in `meta.json`
     /// and stable on roundtrip (standard `.iso8601` strategy truncates subseconds).
@@ -64,6 +66,7 @@ struct RoomPackage {
         if let usdzMeshData { try usdzMeshData.write(to: staging.appendingPathComponent(FileLayout.PackageFile.usdzMesh)) }
         if let thumbnailPNG { try thumbnailPNG.write(to: staging.appendingPathComponent(FileLayout.PackageFile.thumbnail)) }
         if let technicalRoomData { try technicalRoomData.write(to: staging.appendingPathComponent("technical-room.json")) }
+        try SurveyPhotoStore.write(surveyPhotos,assets:surveyPhotoAssets,to:staging)
 
         try fileManager.createDirectory(at: packageURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Self.coordinatedWrite(at: packageURL, options: .forReplacing) { url in
@@ -105,9 +108,10 @@ struct RoomPackage {
             let record = try decoder.decode(RoomRecord.self, from: Data(contentsOf: url.appendingPathComponent(F.meta)))
             let plan = try decoder.decode(FloorPlan.self, from: Data(contentsOf: url.appendingPathComponent(F.plan)))
             let scan = try optional(F.scan).map { try decoder.decode(ScanInput.self, from: $0) }
+            let photos = try SurveyPhotoStore.read(from:url)
             return RoomPackage(record: record, plan: plan, scan: scan, capturedRoomData: optional(F.capturedRoom),
                                usdzData: optional(F.usdz), usdzMeshData: optional(F.usdzMesh), thumbnailPNG: optional(F.thumbnail),
-                               technicalRoomData: optional("technical-room.json"))
+                               technicalRoomData: optional("technical-room.json"),surveyPhotos:photos.photos,surveyPhotoAssets:photos.assets)
         }
     }
 

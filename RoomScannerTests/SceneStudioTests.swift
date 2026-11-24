@@ -9,6 +9,27 @@ import UIKit
 @testable import RoomScanner
 
 final class SceneStudioTests: XCTestCase {
+    @MainActor func testMultiSelectionDeleteIsOneUndoableEditForBothStudios() throws {
+        for source in [SceneEditDocument.Source.house,.technical] {
+            var document = seed()
+            document.source = source
+            let first = try XCTUnwrap(document.objects.first)
+            var second = first; second.id = UUID(); second.position.x += 4
+            document.objects.append(second)
+            let session = SceneEditSession(document)
+            session.select(first.id,multiple:true)
+            session.select(second.id,multiple:true)
+            XCTAssertEqual(session.selectedIDs.count,2)
+            try session.deleteSelection()
+            XCTAssertTrue(session.document.objects.isEmpty)
+            XCTAssertEqual(session.document.shell,document.shell)
+            XCTAssertEqual(session.undoStack.count,1)
+            session.undo()
+            XCTAssertEqual(session.document.objects,document.objects)
+            session.redo()
+            XCTAssertTrue(session.document.objects.isEmpty)
+        }
+    }
     @MainActor func testLegacySingleRoomOffsetDoorsRenderOnlyOneDoorway() throws {
         var room = seed().shell.allRooms[0]; room.transform = .identity
         let door = Opening(id: UUID(),kind: .door,wallID: nil,center: .init(x: 1,y: 1),width: 0.9,height: 2,sillHeight: 0,angle: 0,confidence: .high)

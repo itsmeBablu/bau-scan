@@ -50,7 +50,7 @@ struct RoomDetailView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Button { viewerState.mode = .threeD; showingStudio = true } label: { Label("3D Edit · House Studio",systemImage: "square.stack.3d.up") }.disabled(plan == nil)
+                    Button { viewerState.mode = .threeD; showingStudio = true } label: { Label("Open in Studio",systemImage: "square.stack.3d.up") }.disabled(plan == nil)
                     Button { newName = currentRecord.name; renaming = true } label: { Label("detail.rename", systemImage: "pencil") }
                 } label: { Label("Options",systemImage: "ellipsis.circle") }
             }
@@ -93,7 +93,7 @@ struct RoomDetailView: View {
                 #endif
             case .viewer:
                 VStack(spacing: 0) {
-                    ViewerView(house: House(room: plan), state: viewerState)
+                    ViewerView(house: House(room: plan), state: viewerState,photoPackageURL:store.packageURL(for:currentRecord))
                     ViewerControls(state: viewerState, usdzURL: RoomPackage.usdzURL(in: store.packageURL(for: currentRecord)))
                 }
             case .measures: MeasuresView(plan: plan,onRename: { newName = currentRecord.name; renaming = true })

@@ -12,6 +12,9 @@ struct ScanView: View {
     @State private var radiatorScanner: HouseRadiatorScanCoordinator?
     @State private var radiators: [HouseRadiator] = []
     @State private var radiatorBusy = false
+    @State private var photoCapture = HouseSurveyPhotoCapture()
+    @State private var cameraLive = false
+    @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
     @Environment(\.scenePhase) private var scenePhase
     let mode: ScanMode
     /// Created item (room or house) passed to caller to display.
@@ -38,8 +41,28 @@ struct ScanView: View {
             }
         }
         .onDisappear { radiatorScanner?.stop(); coordinator.stop() }
+        .modifier(ScanPhotoFeedback(count:photoCapture.completed))
+        .overlay(alignment:.bottomTrailing) {
+            if ScanPhotoPolicy.buttonVisible(enabled:cameraPhotos,cameraRunning:cameraLive) {
+                ScanPhotoButton(busy:photoCapture.busy) { Task { await photoCapture.capture(session:coordinator.arSession) } }.padding(20)
+            }
+        }
+        .alert("Survey photo",isPresented:Binding(get:{ photoCapture.error != nil },set:{ if !$0 { photoCapture.error = nil } })) {
+            Button("OK") { photoCapture.error = nil }
+        } message: { Text(photoCapture.error ?? "") }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { radiatorScanner?.resume() } else { radiatorScanner?.pause() }
+            if phase == .active {
+                if coordinator.state == .failed(.cameraDenied) { coordinator.start() }
+                radiatorScanner?.resume()
+            } else { radiatorScanner?.pause() }
+        }
+        .task(id:coordinator.state == .scanning) {
+            cameraLive = false
+            while !Task.isCancelled,coordinator.state == .scanning {
+                cameraLive = scenePhase == .active && coordinator.arSession.currentFrame?.camera.trackingState == .normal
+                try? await Task.sleep(for:.milliseconds(250))
+            }
+            cameraLive = false
         }
         .task(id: radiatorScanner != nil) {
             while !Task.isCancelled,radiatorScanner != nil {
@@ -90,10 +113,13 @@ struct ScanView: View {
                 }
                 Button { Task { await finishScan() } } label: { Text(mode == .house ? "scan.finishHouse" : "scan.finish") }
                     .buttonStyle(.borderedProminent)
-                    .disabled(coordinator.state != .scanning || radiatorBusy)
+                    .disabled(coordinator.state != .scanning || radiatorBusy || photoCapture.busy)
             }
             .padding()
             Spacer()
+            if let diagnostic = coordinator.cameraDiagnostic {
+                Text(diagnostic).font(.callout).padding().background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))
+            }
             if coordinator.detectsRadiators, radiatorScanner != nil, coordinator.state == .scanning {
                 VStack(spacing: 4) {
                     Label("Radiator candidates · \(radiators.count)",systemImage: "heater.vertical.fill").font(.subheadline.bold())
@@ -159,9 +185,11 @@ struct ScanView: View {
             do {
                 let name = store.proposedName(for: result.scan.sectionLabels.first ?? .unidentified)
                 let plan = FloorPlanBuilder().build(from: result.scan, name: name)
-                let package = RoomPackage(record: RoomRecord(plan: plan), plan: plan, scan: result.scan,
+                var package = RoomPackage(record: RoomRecord(plan: plan), plan: plan, scan: result.scan,
                                           capturedRoomData: result.capturedRoomData, usdzData: result.usdzData, usdzMeshData: result.usdzMeshData,
                                           thumbnailPNG: PlanRenderer.thumbnailPNG(for: plan))
+                package.surveyPhotos = photoCapture.registered(house:House(room:plan),scans:[result.scan],alignSingleRoom:true)
+                package.surveyPhotoAssets = photoCapture.assets
                 let record = try store.save(package)
                 onSaved(.room(record))
                 dismiss()
@@ -176,6 +204,8 @@ struct ScanView: View {
                 if !radiators.isEmpty {
                     package.radiators = try HouseRadiatorRegistration.associate(radiators,house: package.house,structure: result.structure)
                 }
+                package.surveyPhotos = photoCapture.registered(house:package.house,scans:result.structure.rooms,alignSingleRoom:false)
+                package.surveyPhotoAssets = photoCapture.assets
                 let record = try store.saveHouse(package)
                 onSaved(.house(record))
                 dismiss()

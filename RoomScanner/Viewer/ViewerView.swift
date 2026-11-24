@@ -1,5 +1,6 @@
 import SwiftUI
 import RealityKit
+import simd
 #if os(iOS)
 import ARKit
 import AVFoundation
@@ -13,6 +14,12 @@ struct ViewerView: View {
     let house: House
     @Bindable var state: ViewerState
     var radiators: [HouseRadiator] = []
+    var photoPackageURL: URL? = nil
+    @State private var photos: [SurveyPhotoImage] = []
+    @State private var showPhotos = true
+    @State private var selectedPhoto: SurveyPhotoImage?
+    @State private var photoError: String?
+    @State private var pendingPhoto: SurveyPhotoImage?
 
     /// Root of the scene, rebuilt when visual options change.
     @State private var sceneRoot = Entity()
@@ -20,6 +27,7 @@ struct ViewerView: View {
     @State private var planNavigation = ViewerPlanNavigation()
 
     var body: some View {
+        Group {
         #if os(iOS)
         if state.mode == .ar {
             CameraARView(house: house, state: state, radiators: radiators)
@@ -30,6 +38,23 @@ struct ViewerView: View {
         #else
         virtualView
         #endif
+        }
+        .task(id:photoPackageURL) {
+            guard let url = photoPackageURL else { return }
+            do { photos = try await Task.detached { try SurveyPhotoStore.images(from:url,house:house) }.value }
+            catch { photos = []; photoError = "Survey photos could not be loaded: "+error.localizedDescription }
+        }
+        .overlay(alignment:.topLeading) {
+            if !photos.isEmpty || photoError != nil {
+            VStack {
+                if !photos.isEmpty { Toggle("Photos",isOn:$showPhotos).toggleStyle(.button) }
+                if let photoError { Text(photoError).font(.caption).foregroundStyle(.red) }
+            }.padding().background(.regularMaterial,in:Capsule())
+            }
+        }
+        .sheet(item:$selectedPhoto) { photo in
+            SurveyPhotoGallery(photos:photos,initial:photo.id) { flyToPhoto($0) }
+        }
     }
 
     private var virtualView: some View {
@@ -53,6 +78,13 @@ struct ViewerView: View {
         .onChange(of: state.showObjects) { _, _ in rebuildScene() }
         .onChange(of: house) { _, _ in rebuildScene(); resetView() }
         .onChange(of: radiators) { _, _ in rebuildScene() }
+        .onChange(of: photos) { _,_ in rebuildScene() }
+        .onChange(of: showPhotos) { _,_ in rebuildScene() }
+        .simultaneousGesture(TapGesture().targetedToAnyEntity().onEnded { value in
+            guard value.entity.name.hasPrefix(SurveyPhotoMarkers.prefix),
+                  let id = UUID(uuidString:String(value.entity.name.dropFirst(SurveyPhotoMarkers.prefix.count))) else { return }
+            selectedPhoto = photos.first { $0.id == id }
+        })
         .onChange(of: state.resetToken) { _, _ in resetView() }
         .background(AppTheme.darkCharcoal)
     }
@@ -69,15 +101,43 @@ struct ViewerView: View {
         // Replaces children while preserving root entity (already attached to content).
         for child in sceneRoot.children.map({ $0 }) { child.removeFromParent() }
         for child in fresh.children.map({ $0 }) { sceneRoot.addChild(child) }
+        if showPhotos {
+            for photo in photos where photo.photo.roomID.map({ id in house.allRooms.contains { $0.id == id } }) ?? true {
+                sceneRoot.addChild(SurveyPhotoMarkers.entity(photo.photo))
+            }
+        }
         // Recenters house at origin: RealityView orbit controls rotate
         // around world origin, and AR anchor places model by its center.
         let b = house.bounds
         sceneRoot.position = b.isEmpty ? .zero : SIMD3(Float(-b.center.x), 0, Float(b.center.y))
     }
 
+    private func flyToPhoto(_ photo: SurveyPhotoImage) {
+        if state.mode != .threeD {
+            pendingPhoto = photo
+            state.mode = .threeD
+            return
+        }
+        applyPhotoCamera(photo)
+    }
+
+    private func applyPhotoCamera(_ photo: SurveyPhotoImage) {
+        let m = photo.photo.viewingPose
+        guard m.count == 16 else { return }
+        camera.transform = Transform(matrix:simd_float4x4(columns:(
+            SIMD4(Float(m[0]),Float(m[1]),Float(m[2]),0),
+            SIMD4(Float(m[4]),Float(m[5]),Float(m[6]),0),
+            SIMD4(Float(m[8]),Float(m[9]),Float(m[10]),0),
+            SIMD4(Float(m[12])+sceneRoot.position.x,Float(m[13]),Float(m[14])+sceneRoot.position.z,1))))
+    }
+
     private func modeChanged() {
         rebuildScene()
         frameCamera()
+        if let photo = pendingPhoto {
+            pendingPhoto = nil
+            applyPhotoCamera(photo)
+        }
     }
 
     private func resetView() {

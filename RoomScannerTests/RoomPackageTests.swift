@@ -25,6 +25,24 @@ final class RoomPackageTests: XCTestCase {
         XCTAssertTrue(UTType.roomScan.conforms(to: .package))
     }
 
+    func testOptionalSurveyPhotosPreserveLegacyPackagesAndSurviveRename() throws {
+        var package = makePackage()
+        let url = location.packageURL(for:package.record.id)
+        try package.write(to:url)
+        XCTAssertNil(try RoomPackage.read(from:url).surveyPhotos)
+        let photo = SurveyPhoto(id:UUID(),roomID:package.plan.id,number:1,
+            pose:[1,0,0,0,0,1,0,0,0,0,1,0,2,1.5,3,1],timestamp:1)
+        let jpeg = Data([0xff,0xd8,0xff,0xd9])
+        package.surveyPhotos = [photo]; package.surveyPhotoAssets = [photo.id:jpeg]
+        try package.write(to:url)
+        package.record.name = "Renamed room"; package.plan.name = package.record.name
+        try RoomPackage.update(record:package.record,plan:package.plan,in:url)
+        let reopened = try RoomPackage.read(from:url)
+        XCTAssertEqual(reopened.surveyPhotos,[photo])
+        XCTAssertEqual(reopened.surveyPhotoAssets[photo.id],jpeg)
+        XCTAssertEqual(reopened.plan.name,"Renamed room")
+    }
+
     func testTechnicalRoomAnnotationsSurvivePackageReadAndRename() throws {
         var package = makePackage()
         let technical = TechnicalRoom.capturedShell(id: package.plan.id, notes: "  Boiler access restricted  ")

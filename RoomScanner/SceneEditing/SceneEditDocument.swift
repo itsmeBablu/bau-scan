@@ -494,6 +494,22 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     private(set) var redoStack: [SceneEditDocument] = []
     private(set) var saved: SceneEditDocument
     var selectedID: UUID?
+    var selectedIDs: Set<UUID> = []
+    func select(_ id: UUID?, multiple: Bool) {
+        if multiple {
+            guard let id else { return }
+            if selectedIDs.contains(id) { selectedIDs.remove(id) } else { selectedIDs.insert(id) }
+            selectedID = selectedIDs.count == 1 ? selectedIDs.first : nil
+        } else {
+            selectedID = id
+            selectedIDs = Set(id.map { [$0] } ?? [])
+        }
+    }
+    func deleteSelection() throws {
+        let ids = selectedIDs.union(selectedID.map { [$0] } ?? [])
+        try change { $0.objects.removeAll { ids.contains($0.id) } }
+        selectedIDs = []; selectedID = nil
+    }
     var selected: SceneEditObject? { document.objects.first { $0.id == selectedID } }
     var dirty: Bool { document != saved }
     init(_ document: SceneEditDocument) { self.document = document; saved = document }

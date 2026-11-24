@@ -28,6 +28,13 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     private(set) var meshSnapshot: TechnicalMeshSnapshot?
     private(set) var liveMeshSnapshot: TechnicalMeshSnapshot?
     private var lastLiveMeshTimestamp = -Double.infinity
+    private var meshTask: Task<Void,Never>?
+    private var copyingSnapshot = false
+    private var cameraWatchdog: Task<Void,Never>?
+    private(set) var meshProcessingMs = 0.0
+    private(set) var previewVertexCount = 0
+    private(set) var processingSkipped = 0
+    private(set) var photoCompleted = 0
     private(set) var depthSnapshot: TechnicalDepthSnapshot?
     private(set) var residentMemoryBytes: UInt64?
     private(set) var journal = TechnicalCaptureJournal()
@@ -203,9 +210,19 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
         session.run(configuration,options: [])
     }
 
-    @discardableResult func captureMeshSnapshot() -> Bool {
+    @discardableResult func captureMeshSnapshot() async -> Bool {
+        guard !copyingSnapshot else { return false }
+        copyingSnapshot = true
+        defer { copyingSnapshot = false }
+        await meshTask?.value
         guard active, let frame = session.currentFrame else { return false }
-        let snapshot = sceneMesh.merge(sceneColors.merge(TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate)))
+        let requestGeneration = generation
+        let verified = state.canAnnotate
+        let copied = await Task.detached(priority:.userInitiated) {
+            TechnicalRoomMeshCollector.snapshot(frame:frame,alignmentVerified:verified)
+        }.value
+        guard active,generation == requestGeneration else { return false }
+        let snapshot = sceneMesh.merge(sceneColors.merge(copied))
         guard TechnicalSavedMeshGeometry.latest(in: [snapshot]) != nil else {
             errorMessage = "No 3D surfaces captured yet. Move around the room before saving."
             return false
@@ -230,6 +247,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
         collectingEvidence = false
         await evidenceTask?.value
         await photoTask?.value
+        await meshTask?.value
     }
 
     func takeSurveyPhoto() {
@@ -248,6 +266,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
                 guard var photo = copied else { throw TechnicalCaptureJournal.JournalError.invalidEvidence }
                 photo.userPhoto = true
                 try self.evidence.append(photo)
+                self.photoCompleted += 1
                 self.evidenceMessage = "Photo saved locally at this camera position. Save the survey to keep it."
             } catch { self.errorMessage = "Photo could not be retained. The photo budget may be full; save this survey before continuing." }
         }
@@ -349,6 +368,13 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     }
 
     private func run(recoveryMap: ARWorldMap? = nil) {
+        cameraWatchdog?.cancel()
+        let framesBeforeStart = frameCount
+        cameraWatchdog = Task { @MainActor [weak self] in
+            try? await Task.sleep(for:.seconds(8))
+            guard !Task.isCancelled,let self,self.active,self.frameCount == framesBeforeStart else { return }
+            self.errorMessage = "No camera frames received. Check camera permission, close other camera views, then reopen this scan."
+        }
         guard ARWorldTrackingConfiguration.isSupported else { errorMessage = "World tracking unavailable"; return }
         // ARKit's delegate protocol predates actor isolation. Its callbacks are
         // deliberately delivered on the main queue for the MainActor conformance.
@@ -383,6 +409,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     }
 
     func stop() {
+        cameraWatchdog?.cancel(); cameraWatchdog = nil
         guard active || requestingPermission else { return }
         generation += 1
         requestingPermission = false
@@ -463,13 +490,10 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
             previousTracking = tracking
             record(.trackingChanged, tracking)
         }
+        processMesh(frame)
         if frame.timestamp - lastRecordedTimestamp >= 1 {
             lastRecordedTimestamp = frame.timestamp
             residentMemoryBytes = TechnicalRoomFrameProcessor.residentMemoryBytes()
-            if state.trackingNormal,frame.timestamp-lastLiveMeshTimestamp >= 1,(residentMemoryBytes ?? 0) < 800*1_048_576 {
-                lastLiveMeshTimestamp = frame.timestamp
-                liveMeshSnapshot = TechnicalRoomMeshCollector.snapshot(frame: frame,alignmentVerified: false,maximumVertices: 60_000,includeColors: false)
-            }
             let matrix = frame.camera.transform
             let intrinsics = frame.camera.intrinsics
             let record = TechnicalFrameRecord(timestamp: frame.timestamp,
@@ -485,11 +509,39 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
             healthWarnings = TechnicalCaptureHealth.warnings(for: .init(trackingNormal: state.trackingNormal, fps: fps,
                 residentMemoryBytes: residentMemoryBytes, ambientIntensity: frame.lightEstimate.map { Double($0.ambientIntensity) },
                 depthCoverage: TechnicalRoomFrameProcessor.depthCoverage(frame: frame), elapsedSeconds: frame.timestamp - (firstTimestamp ?? frame.timestamp)))
-            if state.trackingNormal, frame.timestamp - lastColorSampleTimestamp >= 3,
-               (residentMemoryBytes ?? 0) < 800 * 1_048_576 {
-                lastColorSampleTimestamp = frame.timestamp
-                _ = sceneMesh.merge(sceneColors.merge(TechnicalRoomMeshCollector.snapshot(frame: frame, alignmentVerified: state.canAnnotate)))
-            }
+        }
+    }
+
+    private func processMesh(_ frame: ARFrame) {
+        let mode = ScanPerformance(rawValue:UserDefaults.standard.string(forKey:ScanPerformance.preferenceKey) ?? "") ?? .balanced
+        guard !copyingSnapshot,state.trackingNormal,frame.timestamp-lastLiveMeshTimestamp >= mode.previewInterval,
+              (residentMemoryBytes ?? 0) < 800*1_048_576 else { return }
+        guard meshTask == nil else { processingSkipped += 1; return }
+        lastLiveMeshTimestamp = frame.timestamp
+        let colorsDue = frame.timestamp-lastColorSampleTimestamp >= 3
+        if colorsDue { lastColorSampleTimestamp = frame.timestamp }
+        let requestGeneration = generation
+        let verified = state.canAnnotate
+        // Value caches move into one bounded worker, then return with their results.
+        let colors = sceneColors, meshes = sceneMesh
+        meshTask = Task { @MainActor [weak self] in
+            let result = await Task.detached(priority:.utility) {
+                let start = Date()
+                let preview = TechnicalRoomMeshCollector.snapshot(frame:frame,alignmentVerified:false,
+                    maximumVertices:mode.previewVertices,includeColors:false,maximumTriangles:mode.previewTriangles)
+                var colors = colors,meshes = meshes
+                if colorsDue {
+                    _ = meshes.merge(colors.merge(TechnicalRoomMeshCollector.snapshot(frame:frame,alignmentVerified:verified)))
+                }
+                return (preview,colors,meshes,Date().timeIntervalSince(start)*1000)
+            }.value
+            guard let self else { return }
+            defer { self.meshTask = nil }
+            guard self.generation == requestGeneration,self.active else { return }
+            self.liveMeshSnapshot = result.0
+            self.previewVertexCount = result.0.patches.reduce(0){ $0+$1.vertices.count }
+            self.sceneColors = result.1; self.sceneMesh = result.2
+            self.meshProcessingMs = result.3
         }
     }
 

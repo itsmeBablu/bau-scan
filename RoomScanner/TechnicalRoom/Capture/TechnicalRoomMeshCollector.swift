@@ -3,7 +3,7 @@ import ARKit
 
 /// Copies one bounded snapshot on request, never retains Metal buffer pointers.
 enum TechnicalRoomMeshCollector {
-    static func snapshot(frame: ARFrame, alignmentVerified: Bool, maximumVertices: Int = 250_000,includeColors: Bool = true) -> TechnicalMeshSnapshot {
+    static func snapshot(frame: ARFrame, alignmentVerified: Bool, maximumVertices: Int = 250_000,includeColors: Bool = true,maximumTriangles: Int = .max) -> TechnicalMeshSnapshot {
         let image = frame.capturedImage
         let depth = includeColors ? (frame.sceneDepth ?? frame.smoothedSceneDepth)?.depthMap : nil
         if includeColors { CVPixelBufferLockBaseAddress(image, .readOnly) }
@@ -52,7 +52,9 @@ enum TechnicalRoomMeshCollector {
         var patches: [TechnicalMeshSnapshot.Patch] = []
         var count = 0
         var truncated = false
+        var triangles = 0
         for anchor in frame.anchors.compactMap({ $0 as? ARMeshAnchor }) {
+            guard triangles < maximumTriangles else { truncated = true; break }
             let geometry = anchor.geometry
             guard count + geometry.vertices.count <= maximumVertices else { truncated = true; continue }
             let source = geometry.vertices
@@ -70,9 +72,11 @@ enum TechnicalRoomMeshCollector {
             }
             let faces = geometry.faces
             guard faces.indexCountPerPrimitive == 3 else { continue }
+            let retainedFaces = min(faces.count,max(0,maximumTriangles-triangles))
+            if retainedFaces < faces.count { truncated = true }
             var indices: [UInt32] = []
-            indices.reserveCapacity(faces.count * 3)
-            for index in 0..<(faces.count * 3) {
+            indices.reserveCapacity(retainedFaces * 3)
+            for index in 0..<(retainedFaces * 3) {
                 let address = faces.buffer.contents().advanced(by: index * faces.bytesPerIndex)
                 let value: UInt32
                 if faces.bytesPerIndex == 2 { value = UInt32(address.load(as: UInt16.self)) }
@@ -83,12 +87,13 @@ enum TechnicalRoomMeshCollector {
             guard indices.allSatisfy({ Int($0) < vertices.count }) else { continue }
             let classes: [UInt8]? = geometry.classification.flatMap { source in
                 guard source.count == faces.count, source.stride > 0 else { return nil }
-                return (0..<source.count).map { index in
+                return (0..<retainedFaces).map { index in
                     source.buffer.contents().advanced(by: source.offset + index * source.stride).load(as: UInt8.self)
                 }
             }
             patches.append(.init(anchorID: anchor.identifier, vertices: vertices, triangleIndices: indices, colors: includeColors ? colors : nil, faceClasses: classes))
             count += vertices.count
+            triangles += retainedFaces
         }
         return TechnicalMeshSnapshot(timestamp: frame.timestamp, patches: patches,
                                      alignmentVerified: alignmentVerified, truncated: truncated)

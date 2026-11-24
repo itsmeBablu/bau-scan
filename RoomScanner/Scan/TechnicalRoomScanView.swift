@@ -10,6 +10,7 @@ struct TechnicalRoomScanView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var scanner: TechnicalRoomScanCoordinator
     @AppStorage("technical.googleAI.enabled") private var googleAIEnabled = false
+    @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
     @State private var viewport: ARView?
     @State private var showMesh = true
     @AppStorage("technical.showCeiling") private var showCeiling = false
@@ -94,7 +95,14 @@ struct TechnicalRoomScanView: View {
                 VStack(spacing: 12) {
                     Spacer()
                     if let error = scanner.errorMessage {
-                        Text(error).font(.callout).padding(12).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 14))
+                        VStack {
+                            Text(error).font(.callout)
+                            if AVCaptureDevice.authorizationStatus(for:.video) == .denied || AVCaptureDevice.authorizationStatus(for:.video) == .restricted {
+                                Button("Open Settings") {
+                                    if let url = URL(string:UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                                }
+                            }
+                        }.padding(12).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 14))
                     }
                     if showingControls { surveyControls.frame(maxHeight: max(80,min(340,captureHeight-300))).clipShape(RoundedRectangle(cornerRadius: 24)) }
                     ScrollView(.horizontal) {
@@ -115,23 +123,22 @@ struct TechnicalRoomScanView: View {
                             Image(systemName: "slider.horizontal.3").frame(width: 52,height: 52)
                         }.buttonStyle(.bordered).background(.regularMaterial,in: Circle())
                             .accessibilityLabel("Survey tools")
-                        Button { scanner.takeSurveyPhoto() } label: {
-                            ZStack {
-                                Circle().stroke(.white,lineWidth: 4).frame(width: 76,height: 76)
-                                Circle().fill(.white).frame(width: 62,height: 62)
-                                if scanner.takingPhoto { ProgressView().tint(.black) }
-                            }
-                        }.buttonStyle(.plain).accessibilityLabel("Take survey photo")
-                            .disabled(scanner.takingPhoto || !scanner.state.trackingNormal || saving)
                         Button { showMesh.toggle() } label: {
                             Image(systemName: showMesh ? "cube.fill" : "cube").frame(width: 52,height: 52)
                         }.buttonStyle(.bordered).background(.regularMaterial,in: Circle())
                             .accessibilityLabel(showMesh ? "Hide captured mesh" : "Show captured mesh")
+                        Spacer(minLength:70)
                     }.padding(.bottom, 12)
                 }.padding(.horizontal)
 
             }
             .disabled(saving)
+            .overlay(alignment:.bottomTrailing) {
+                if ScanPhotoPolicy.buttonVisible(enabled:cameraPhotos,cameraRunning:scenePhase == .active && scanner.hasLiveFrames && scanner.state.trackingNormal && !saving) {
+                    ScanPhotoButton(busy:scanner.takingPhoto) { scanner.takeSurveyPhoto() }.padding(20)
+                }
+            }
+            .modifier(ScanPhotoFeedback(count:scanner.photoCompleted))
             .navigationTitle("Technik Room")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden,for: .navigationBar)
@@ -142,7 +149,7 @@ struct TechnicalRoomScanView: View {
                     }.disabled(saving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(saving ? "Saving…" : "Save") { saveSurvey() }
+                    Button(saving ? "Saving…" : "Save") { Task { await saveSurvey() } }
                         .disabled(saving || !pipeHits.isEmpty || (saveThumbnail == nil && !scanner.hasLiveFrames))
                 }
             }
@@ -152,7 +159,7 @@ struct TechnicalRoomScanView: View {
         .onDisappear { scanner.stop() }
         .interactiveDismissDisabled(saving || !scanner.journal.frames.isEmpty)
         .confirmationDialog("Close this unsaved technical survey?", isPresented: $confirmingClose, titleVisibility: .visible) {
-            Button("Save survey") { saveSurvey() }.disabled(saveThumbnail == nil && !scanner.hasLiveFrames)
+            Button("Save survey") { Task { await saveSurvey() } }.disabled(saveThumbnail == nil && !scanner.hasLiveFrames)
             Button("Discard unsaved capture", role: .destructive) { scanner.stop(); dismiss() }
         } message: { Text("Capture evidence and annotations are only retained after saving a .technicalroom package.") }
         .sheet(isPresented: $showingPipeTool) { pipeTool.presentationDetents([.medium, .large]).presentationBackgroundInteraction(.enabled(upThrough: .medium)) }
@@ -196,9 +203,13 @@ struct TechnicalRoomScanView: View {
                 }
                 Text("Unsaved scan · dimensions require verification").font(.caption).foregroundStyle(.secondary)
                 Toggle("Google AI mode",isOn: $googleAIEnabled)
+                if cameraPhotos {
                 Button { scanner.takeSurveyPhoto() } label: { Label(scanner.takingPhoto ? "Saving photo…" : "Take photo",systemImage: "camera") }
                     .buttonStyle(.borderedProminent).controlSize(.large)
                     .disabled(scanner.takingPhoto || !scanner.state.trackingNormal)
+                }
+                Text("\(scanner.fps,specifier:"%.0f") FPS · \(scanner.meshAnchorCount) anchors · \(scanner.previewVertexCount) preview vertices · \(scanner.meshProcessingMs,specifier:"%.1f") ms mesh worker")
+                    .font(.caption).monospacedDigit()
                 Text("\(scanner.evidence.keyframes.filter { $0.userPhoto == true }.count) photos pinned to this scan. Photos are kept locally until you choose to copy them to Google Photos.")
                     .font(.caption).foregroundStyle(.secondary)
                 if googleAIEnabled {
@@ -258,7 +269,7 @@ struct TechnicalRoomScanView: View {
                 Text("Ceiling visibility affects the mesh display only. Original scan evidence is retained. Unclassified overhead pipes and ducts remain visible.").font(.caption).foregroundStyle(.secondary)
 
                 Text("Pipes and ducts are captured as observed surfaces. Thin, reflective or hidden parts may need a close-up or manual annotation.").font(.caption).foregroundStyle(.secondary)
-                Button("Capture mesh snapshot") { scanner.captureMeshSnapshot() }
+                Button("Capture mesh snapshot") { Task { await scanner.captureMeshSnapshot() } }
                     .disabled(!scanner.state.trackingNormal)
                 Button("Capture depth snapshot") { scanner.captureDepthSnapshot() }
                     .disabled(!scanner.state.trackingNormal)
@@ -498,12 +509,14 @@ struct TechnicalRoomScanView: View {
             try history.move(target: target, index: index, to: point, observation: hit, capture: scanner.state)
         } catch { message = error.localizedDescription }
     }
-    private func saveSurvey() {
+    private func saveSurvey() async {
         guard !saving, pipeHits.isEmpty else { message = "Keep or discard unfinished pipe points before saving."; return }
         guard saveThumbnail != nil || scanner.hasLiveFrames else { message = "Wait for live camera frames before saving this AR capture."; return }
         if let saveThumbnail { saving = true; persistSurvey(thumbnail: saveThumbnail); return }
         guard let viewport else { return }
-        guard scanner.captureMeshSnapshot() else {
+        saving = true
+        guard await scanner.captureMeshSnapshot() else {
+            saving = false
             message = scanner.errorMessage ?? "Capture some 3D surfaces before saving."
             return
         }
@@ -570,21 +583,38 @@ private final class TechnicalCameraHost: UIViewController {
     private var meshTimestamp: Double?
     private var meshVisible = false
     private var ceilingVisible = false
+    private var displayed: [UUID:TechnicalMeshSnapshot.Patch] = [:]
+    private var displayedNodes: [UUID:ModelEntity] = [:]
     func displayMesh(_ snapshot: TechnicalMeshSnapshot?,visible: Bool,showCeiling: Bool) {
         guard meshTimestamp != snapshot?.timestamp || meshVisible != visible || ceilingVisible != showCeiling else { return }
+        let changedCeiling = ceilingVisible != showCeiling
         meshTimestamp = snapshot?.timestamp; meshVisible = visible; ceilingVisible = showCeiling
-        meshOverlay.children.removeAll()
-        guard visible,let snapshot,
-              let geometry = try? TechnicalSavedMeshGeometry(snapshot: showCeiling ? snapshot : snapshot.hidingCeilings(),reference: nil) else { return }
+        guard visible,let snapshot else {
+            meshOverlay.children.removeAll(); displayed = [:]; displayedNodes = [:]; return
+        }
+        let filtered = showCeiling ? snapshot : snapshot.hidingCeilings()
+        let ids = Set(filtered.patches.map(\.anchorID))
+        for id in Array(displayed.keys) where !ids.contains(id) {
+            displayedNodes.removeValue(forKey:id)?.removeFromParent(); displayed.removeValue(forKey:id)
+        }
+        for patch in filtered.patches {
+        if !changedCeiling,displayed[patch.anchorID] == patch { continue }
+        displayedNodes.removeValue(forKey:patch.anchorID)?.removeFromParent()
+        guard let geometry = try? TechnicalSavedMeshGeometry(snapshot:.init(timestamp:snapshot.timestamp,patches:[patch],alignmentVerified:false,truncated:false),reference:nil) else {
+            displayed.removeValue(forKey:patch.anchorID); continue
+        }
         var descriptor = MeshDescriptor(name: "Live equipment mesh")
         descriptor.positions = MeshBuffers.Positions(geometry.vertices.map { SIMD3(Float($0.x),Float($0.y),Float($0.z)) })
         descriptor.primitives = .triangles(geometry.triangleIndices)
-        guard let mesh = try? MeshResource.generate(from: [descriptor]) else { return }
+        guard let mesh = try? MeshResource.generate(from: [descriptor]) else { continue }
         var material = UnlitMaterial(color: UIColor.systemCyan)
         material.triangleFillMode = .lines; material.faceCulling = .none
         material.blending = .transparent(opacity: .init(floatLiteral: 0.65))
         material.writesDepth = false
-        meshOverlay.addChild(ModelEntity(mesh: mesh,materials: [material]))
+        let node = ModelEntity(mesh:mesh,materials:[material])
+        meshOverlay.addChild(node)
+        displayed[patch.anchorID] = patch; displayedNodes[patch.anchorID] = node
+        }
     }
     init(scanner: TechnicalRoomScanCoordinator) {
         self.scanner = scanner

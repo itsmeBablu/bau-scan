@@ -10,6 +10,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(CloudAvailability.preferenceKey) private var useICloud = true
     @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
+    @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
+    @AppStorage(ScanPerformance.preferenceKey) private var scanPerformance = ScanPerformance.balanced.rawValue
     #if os(iOS) && canImport(RoomPlan)
     @AppStorage(ScanCoordinator.radiatorPreferenceKey) private var detectRadiators = true
     #endif
@@ -39,6 +41,13 @@ struct SettingsView: View {
 
     private var form: some View {
         Form {
+            Section("Capture") {
+                Toggle("Camera photos during scanning",isOn:$cameraPhotos)
+                Picker("Scan performance",selection:$scanPerformance) {
+                    ForEach(ScanPerformance.allCases,id:\.rawValue) { Text($0.rawValue.capitalized).tag($0.rawValue) }
+                }
+                Text("Performance changes the live preview. Saved scan evidence keeps the same capture settings.").font(.caption).foregroundStyle(.secondary)
+            }
             if includesProfile {
                 Section {
                     VStack(spacing: 10) {
