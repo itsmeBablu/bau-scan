@@ -53,7 +53,7 @@ struct HouseDetailView: View {
                     Button {
                         viewerState.mode = .threeD
                         showingStudio = true
-                    } label: { Label("Open in Studio",systemImage: "square.stack.3d.up") }.disabled(house == nil)
+                    } label: { Label("Open in Design",systemImage: "square.stack.3d.up") }.disabled(house == nil)
                     Button {
                         viewerState.mode = .threeD
                         showingRadiators = true

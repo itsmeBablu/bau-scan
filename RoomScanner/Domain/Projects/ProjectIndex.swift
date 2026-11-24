@@ -26,6 +26,7 @@ struct RenovationProject: Codable, Equatable, Identifiable {
 struct ProjectIndex: Codable, Equatable {
     var schemaVersion = 1
     var projects: [RenovationProject] = []
+    var displayNames: [String: String]? = nil
     static let unsortedID = UUID(uuidString: "95B5DAB3-9B80-49D7-945B-C9B6B4B18791")!
 
     /// Idempotent discovery preserves missing references for offline/cloud recovery.
@@ -57,6 +58,8 @@ struct ProjectIndex: Codable, Equatable {
               projects.filter(\.isUnsorted).count <= 1,
               refs.count <= 100_000, Set(refs).count == refs.count,
               refs.allSatisfy({ ["local", "icloud"].contains($0.library) }),
+              (displayNames ?? [:]).count <= 100_000,
+              (displayNames ?? [:]).allSatisfy({ $0.key.count <= 150 && !$0.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && $0.value.count <= 240 }),
               projects.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 240 && $0.notes.count <= 50_000 && $0.createdAt.timeIntervalSince1970.isFinite && $0.modifiedAt.timeIntervalSince1970.isFinite })
         else { throw CocoaError(.fileReadCorruptFile) }
     }

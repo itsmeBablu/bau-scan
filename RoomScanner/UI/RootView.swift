@@ -50,28 +50,8 @@ struct RootView: View {
     }
     @ViewBuilder private var applicationContent: some View {
         #if os(iOS)
-        TabView(selection: $tab) {
-            RoomListView(pendingItem: $pendingItem,includeTechnicalRooms: false)
-                .tabItem { Label("House",systemImage: "house.fill") }.tag(AppTab.house)
-            TechnicalRoomLibraryView(embedded: true,onRequestScan: { scanningTechnical = true },refreshToken: technicalRefresh)
-                .tabItem { Label("Technik",systemImage: "wrench.and.screwdriver.fill") }.tag(AppTab.technical)
-            CaptureHomeView(onSaved: { item in
-                pendingItem = item; tab = .house
-            },onTechnicalSaved: { id in
-                savedTechnicalID = id; technicalRefresh += 1; tab = .technical; showingTechnicalImport = true
-            })
-                .tabItem { Label("Capture",systemImage: "viewfinder") }.tag(AppTab.capture)
-            StudioLibraryView(embedded: true)
-                .tabItem { Label("Studio",systemImage: "square.stack.3d.up.fill") }.tag(AppTab.studio)
-            SettingsView(embedded: true,includesProfile: true)
-                .tabItem { Label("Profile",systemImage: "person.crop.circle.fill") }.tag(AppTab.profile)
-        }
-        .fullScreenCover(isPresented: $scanningTechnical,onDismiss: {
-            technicalRefresh += 1
-            if savedTechnicalID != nil { showingTechnicalImport = true }
-        }) {
-            TechnicalRoomScanView(onSaved: { savedTechnicalID = $0 })
-        }
+        RenovationNavigation()
+
         #else
         RoomListView()
         #endif
