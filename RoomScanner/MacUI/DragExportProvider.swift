@@ -8,7 +8,8 @@ enum DragExportProvider {
     static func provider(subject: ExportSubject, format: ExportFormat) -> NSItemProvider {
         let provider = NSItemProvider()
         provider.suggestedName = ExportService.fileName(for: subject, format: format)
-        provider.registerFileRepresentation(forTypeIdentifier: format.utType.identifier, fileOptions: [], visibility: .all) { completion in
+        let type: UTType = LevelExportService.needsArchive(house:subject.house,format:format) ? .zip : format.utType
+        provider.registerFileRepresentation(forTypeIdentifier: type.identifier, fileOptions: [], visibility: .all) { completion in
             do {
                 let url = try ExportService().export(subject, format: format)
                 completion(url, false, nil)

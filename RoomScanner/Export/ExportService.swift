@@ -60,7 +60,8 @@ struct ExportService {
     }
 
     static func fileName(for subject: ExportSubject, format: ExportFormat) -> String {
-        folderName(for: subject) + format.fileSuffix + "." + format.fileExtension
+        if LevelExportService.needsArchive(house:subject.house,format:format) { return folderName(for:subject)+"-"+format.rawValue+"-levels.zip" }
+        return folderName(for: subject) + format.fileSuffix + "." + format.fileExtension
     }
 
     /// Subdirectory name `Exports/<Room>/` (same sanitization). A name reduced to dots
@@ -153,6 +154,11 @@ struct ExportService {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let dest = dir.appendingPathComponent(Self.fileName(for: subject, format: format))
         try? FileManager.default.removeItem(at: dest)
+        if LevelExportService.needsArchive(house:subject.house,format:format), meshSource == .parametric || ![ExportFormat.obj,.stl,.ply].contains(format) {
+            let scans = try subject.sourcePackageURL.flatMap { try HousePackage.readStructure(from:$0)?.rooms } ?? []
+            try LevelExportService.write(house:subject.house,scans:scans,format:format,locale:locale,unit:unit,to:dest)
+            return dest
+        }
         switch format {
         case .usdzParametric: try copy(subject.usdzURL, missing: FileLayout.PackageFile.usdz, to: dest)
         case .usdzMesh: try copy(subject.usdzMeshURL, missing: FileLayout.PackageFile.usdzMesh, to: dest)

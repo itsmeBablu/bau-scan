@@ -13,9 +13,11 @@ struct ExportSubject: Equatable {
     var usdzURL: URL?
     /// Raw scan mesh (iPhone rooms only).
     var usdzMeshURL: URL?
+    var sourcePackageURL: URL? = nil
 
     init(record: RoomRecord, house: House, packageURL: URL?) {
         kind = .room; id = record.id; name = record.name; createdAt = record.createdAt; self.house = house
+        sourcePackageURL = packageURL
         usdzURL = packageURL.flatMap { RoomPackage.usdzURL(in: $0) }
         usdzMeshURL = packageURL.flatMap { RoomPackage.usdzMeshURL(in: $0) }
     }
@@ -26,6 +28,7 @@ struct ExportSubject: Equatable {
 
     init(record: HouseRecord, house: House, packageURL: URL?) {
         kind = .house; id = record.id; name = record.name; createdAt = record.createdAt; self.house = house
+        sourcePackageURL = packageURL
         usdzURL = packageURL.flatMap { HousePackage.usdzURL(in: $0) }
         usdzMeshURL = nil
     }
