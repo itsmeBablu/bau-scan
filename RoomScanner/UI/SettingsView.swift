@@ -5,6 +5,7 @@ struct SettingsView: View {
     var embedded = false
     var includesProfile = false
     @AppStorage(AppLanguage.preferenceKey) private var language = AppLanguage.system.rawValue
+    @AppStorage("renovation.proDetails") private var proDetails = false
     @AppStorage("profile.displayName") private var displayName = ""
     @AppStorage("profile.organisation") private var organisation = ""
     @Environment(RoomStore.self) private var store
@@ -42,6 +43,10 @@ struct SettingsView: View {
 
     private var form: some View {
         Form {
+            Section("Display") {
+                Toggle("Pro details",isOn:$proDetails)
+                Text("Show pipe designations, systems, provenance and structured schema exports. Existing data is always retained.").font(.caption).foregroundStyle(.secondary)
+            }
             Section("Language") {
                 Picker("Language",selection:$language) {
                     Text("System").tag(AppLanguage.system.rawValue)

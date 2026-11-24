@@ -4,6 +4,7 @@ import SwiftUI
 /// sharing (`ShareLink`), saving via system file exporter,
 /// or copies into `Exports/` folder of current storage.
 struct ExportSheet: View {
+    @AppStorage("renovation.proDetails") private var proDetails = false
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     let subject: ExportSubject

@@ -141,6 +141,7 @@ private struct TechnicalExportDocument: FileDocument {
 }
 
 struct TechnicalStoredRoomView: View {
+    @AppStorage("renovation.proDetails") private var proDetails = false
     let id: UUID
     let library: TechnicalRoomLibraryStore
     @State private var package: TechnicalRoomPackage?
@@ -203,11 +204,11 @@ struct TechnicalStoredRoomView: View {
             ToolbarItem(placement: .primaryAction) {
                 Menu("Export", systemImage: "square.and.arrow.up") {
                     Button("Full survey package") { save(exportAfter: true) }
-                    Button("Editable technical survey JSON") { exportSurveyJSON() }
+                    if proDetails { Button("Editable technical survey JSON") { exportSurveyJSON() } }
                     ForEach(TechnicalMeshExporter.Format.allCases, id: \.self) { format in
                         Button(format.rawValue.uppercased()) { exportMesh(format) }
                     }
-                    Menu("Accepted MEP elements") {
+                    Menu(proDetails ? "Accepted MEP elements" : "Confirmed objects") {
                         ForEach(TechnicalMeshExporter.Format.allCases,id: \.self) { format in
                             Button(format.rawValue.uppercased()) { exportMesh(format,acceptedMEPOnly: true) }
                         }

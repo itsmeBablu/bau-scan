@@ -6,6 +6,7 @@ import RealityKit
 import UIKit
 
 struct TechnicalAnnotationEditor: View {
+    @AppStorage("renovation.proDetails") private var proDetails = false
     @Binding var history: TechnicalAnnotationHistory
     @Bindable var scanner: TechnicalRoomScanCoordinator
     let hit: () -> TechnicalSurfaceHit?
@@ -122,7 +123,7 @@ struct TechnicalAnnotationEditor: View {
             TextField("Outside diameter (mm)", value: $diameter, format: .number)
             TextField("Insulation (mm)", value: $insulation, format: .number)
             TextField("Material", text: $pipeMaterial)
-            TextField("DN (optional)", text: $pipeDN)
+            if proDetails { TextField("DN (optional)", text: $pipeDN) }
             Button("Update dimensions") { change { doc in
                 guard let i = doc.room.pipeRuns.firstIndex(where: { $0.id == pipeID }) else { throw TechnicalAnnotationHistory.EditError.missingReference }
                 doc.room.pipeRuns[i].outerDiameterMm = entered(diameter, "mm")
@@ -187,7 +188,7 @@ struct TechnicalAnnotationEditor: View {
             Picker("Port medium", selection: $portMedium) {
                 ForEach(TechnicalMedium.allCases, id: \.self) { Text($0.rawValue).tag($0) }
             }
-            TextField("Port DN (optional)", text: $portDN)
+            if proDetails { TextField("Port DN (optional)", text: $portDN) }
             Button("Add port at crosshair") { withHit { value in change { doc in
                 guard let i = doc.room.equipment.firstIndex(where: { $0.id == equipmentID }) else { throw TechnicalAnnotationHistory.EditError.missingReference }
                 let length = direction.distance(to: .init(x: 0, y: 0, z: 0))
