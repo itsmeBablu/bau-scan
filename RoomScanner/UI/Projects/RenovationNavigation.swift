@@ -226,6 +226,7 @@ struct RenovationProjectPage: View {
                 Section("Scans") { ForEach(project.references.compactMap(workspace.entry).filter { !$0.isDesign }) { ProjectEntryRow(entry:$0) } }
                 Section("Designs") { ForEach(project.references.compactMap(workspace.entry).filter(\.isDesign)) { ProjectEntryRow(entry:$0) } }
                 Section("Exports") { NavigationLink("Project report and exports") { ProjectDeliverablesView(projectID:projectID) } }
+                Section("Measurements") { NavigationLink("Quantities") { ProjectQuantitiesView(projectID:projectID) } }
                 Section("Photos & notes") {
                     TextEditor(text:$notes).frame(minHeight:100).accessibilityLabel("Project notes")
                     Button("Save notes") { workspace.note(notes,projectID:projectID) }

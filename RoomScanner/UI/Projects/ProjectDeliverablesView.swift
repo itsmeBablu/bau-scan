@@ -13,6 +13,7 @@ struct ProjectDeliverablesView: View {
         List {
             Section("Create a report") {
                 Button("Project report · PDF",systemImage:"doc.richtext") { generatePDF() }.disabled(busy)
+                Button("Quantities · CSV",systemImage:"tablecells") { generatePDF(csv:true) }.disabled(busy)
                 if busy { ProgressView("Generating report…") }
                 Text("Reports include available source scans. Missing items are listed, never silently omitted.").font(.caption)
             }
@@ -24,7 +25,7 @@ struct ProjectDeliverablesView: View {
             .alert("Report",isPresented:Binding(get:{ error != nil },set:{ if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
     }
     private func reload() { do { files = try ProjectArtifacts.files(root:root,projectID:projectID) } catch { self.error = error.localizedDescription } }
-    private func generatePDF() {
+    private func generatePDF(csv: Bool = false) {
         guard let project = workspace.project(projectID) else { return }
         busy = true
         let entries = workspace.entries, root = root, locale = locale
@@ -33,7 +34,8 @@ struct ProjectDeliverablesView: View {
             do {
                 _ = try await Task.detached(priority:.userInitiated) {
                     let report = try ProjectReportLoader.load(project:project,entries:entries,locale:locale)
-                    return try ProjectArtifacts.save(ProjectReportRenderer.pdf(report,locale:locale),extension:"pdf",root:root,projectID:projectID)
+                    let data = csv ? ProjectQuantitiesCSV.data(report,locale:locale,wastePercent:UserDefaults.standard.double(forKey:"renovation.wastePercent")) : try ProjectReportRenderer.pdf(report,locale:locale)
+                    return try ProjectArtifacts.save(data,extension:csv ? "csv" : "pdf",root:root,projectID:projectID)
                 }.value
                 reload()
             } catch { self.error = error.localizedDescription }

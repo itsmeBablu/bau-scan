@@ -21,7 +21,8 @@ enum ProjectReportLoader {
                     let house: House
                     if reference.kind == .house { house = try HousePackage.readHouse(from:entry.url) }
                     else { house = House(room:try RoomPackage.readPlan(from:entry.url)) }
-                    report.scans.append(.init(title:entry.title,house:house,detailLines:[]))
+                    let quantities = house.allRooms.flatMap { ProjectQuantitiesCSV.lines(RenovationQuantities($0),locale:locale) }
+                    report.scans.append(.init(title:entry.title,house:house,detailLines:quantities))
                     report.photos += try SurveyPhotoStore.images(from:entry.url,house:house).map { .init(number:$0.photo.number,room:$0.roomName,jpeg:$0.jpegData) }
                 }
             } catch { report.unresolved.append(entry.title+": "+error.localizedDescription) }
