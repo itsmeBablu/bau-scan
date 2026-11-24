@@ -108,6 +108,34 @@ struct MacRootView: View {
             }
         } message: { Text("list.delete.message") }
         .navigationTitle(Text("app.name"))
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            if url.pathExtension == "technicalroom" {
+                Task {
+                    do {
+                        let id = try await technicalStore.importPackage(url)
+                        if let rec = technicalStore.records.first(where: { $0.id == id }) {
+                            appState.selected = .technicalRoom(rec)
+                        }
+                    } catch { errorMessage = error.localizedDescription }
+                }
+                return true
+            } else if [FileLayout.packageExtension, FileLayout.housePackageExtension].contains(url.pathExtension) {
+                do {
+                    if let item = try store.importAny(from: url) {
+                        switch item {
+                        case .house(let h): appState.selected = .house(h)
+                        case .room(let r): appState.selected = .room(r)
+                        }
+                    }
+                    return true
+                } catch {
+                    errorMessage = error.localizedDescription
+                    return false
+                }
+            }
+            return false
+        }
         .task {
             await store.activateCloudIfAvailable()
             try? technicalStore.reload()
