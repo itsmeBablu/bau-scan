@@ -714,6 +714,12 @@ final class SceneStudioTests: XCTestCase {
         XCTAssertEqual(SceneFurniture.detected("curved monitor display"), .monitor)
         XCTAssertEqual(SceneFurniture.detected("bookshelf bookcase"), .bookshelf)
         XCTAssertEqual(SceneFurniture.detected("dry erase whiteboard"), .whiteboard)
+        // 32-inch screen detection threshold: displays <= 32" are monitors, larger displays are televisions.
+        XCTAssertEqual(SceneFurniture.detected("television", size: .init(x: 0.72, y: 0.52, z: 0.20)), .monitor)
+        XCTAssertEqual(SceneFurniture.detected("tv", size: .init(x: 0.60, y: 0.42, z: 0.15)), .monitor)
+        XCTAssertEqual(SceneFurniture.detected("television", size: .init(x: 1.20, y: 0.70, z: 0.12)), .television)
+        XCTAssertEqual(SceneFurniture.detected("television"), .television)
+        XCTAssertEqual(SceneFurniture.monitor.defaultSize, .init(x: 0.72, y: 0.52, z: 0.20))
     }
     #if os(iOS)
     @MainActor func testCompactARControlsFitWithAccessibleText() async throws {

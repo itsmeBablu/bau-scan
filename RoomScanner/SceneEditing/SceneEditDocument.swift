@@ -28,7 +28,7 @@ enum SceneFurniture: String,Codable,CaseIterable,Identifiable {
         default: rawValue.prefix(1).uppercased()+rawValue.dropFirst()
         }
     }
-    static func detected(_ category: String) -> Self {
+    static func detected(_ category: String, size: TechnicalPoint3? = nil) -> Self {
         let c = category.lowercased()
         if c.contains("desk") { return .desk }
         if c.contains("office chair") || c.contains("swivel") { return .officeChair }
@@ -39,7 +39,16 @@ enum SceneFurniture: String,Codable,CaseIterable,Identifiable {
         if c.contains("whiteboard") { return .whiteboard }
         if c.contains("sofa") { return .sofa }; if c.contains("bed") { return .bed }
         if c.contains("chair") { return .chair }; if c.contains("table") { return .table }
-        if c.contains("television") || c == "tv" { return .television }
+        if c.contains("television") || c == "tv" || c.contains("screen") || c.contains("display") {
+            if let size {
+                let estimatedScreenHeight = min(size.y, size.x * 9.0 / 16.0)
+                let diagonalInches = sqrt(size.x * size.x + estimatedScreenHeight * estimatedScreenHeight) / 0.0254
+                if diagonalInches <= 32.5 || size.x <= 0.78 {
+                    return .monitor
+                }
+            }
+            return .television
+        }
         if c.contains("refrigerator") { return .refrigerator }; if c.contains("stove") || c.contains("oven") { return .stove }
         if c.contains("sink") { return .sink }; if c.contains("toilet") { return .toilet }
         if c.contains("bathtub") { return .bathtub }; if c.contains("shower") { return .shower }
@@ -53,7 +62,7 @@ enum SceneFurniture: String,Codable,CaseIterable,Identifiable {
         case .chair: .init(x: 0.5,y: 0.85,z: 0.55); case .table: .init(x: 1.4,y: 0.75,z: 0.85)
         case .desk: .init(x: 1.6,y: 0.75,z: 0.80); case .officeChair: .init(x: 0.65,y: 0.95,z: 0.65)
         case .conferenceTable: .init(x: 2.4,y: 0.75,z: 1.10); case .computer: .init(x: 0.22,y: 0.45,z: 0.45)
-        case .monitor: .init(x: 0.65,y: 0.45,z: 0.18); case .bookshelf: .init(x: 1.0,y: 1.8,z: 0.35)
+        case .monitor: .init(x: 0.72,y: 0.52,z: 0.20); case .bookshelf: .init(x: 1.0,y: 1.8,z: 0.35)
         case .whiteboard: .init(x: 1.5,y: 1.8,z: 0.45)
         case .television: .init(x: 1.2,y: 0.7,z: 0.12); case .radiator: .init(x: 1,y: 0.6,z: 0.12)
         case .pipe,.roundDuct: .init(x: 0.1,y: 1,z: 0.1)
@@ -458,8 +467,8 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         for room in house.allRooms {
             for object in room.objects {
                 let point = room.transform.apply(object.center)
-                let family = SceneFurniture.detected(object.category)
                 let size = TechnicalPoint3(x: max(0.005,object.size.width),y: max(0.005,object.height),z: max(0.005,object.size.depth))
+                let family = SceneFurniture.detected(object.category, size: size)
                 let scan = scans.first { $0.id == room.id }
                 let raw = scan?.objects.first { $0.id == object.id }
                 let elevation = raw.map { Double($0.transform.translation.y)-(scan.map { StoryDetector.floorHeight(of: $0) } ?? 0) } ?? size.y/2
