@@ -47,6 +47,9 @@ struct MacMenuCommands: Commands {
                         }
                     }
                 }
+                Divider()
+                Button("mac.menu.exportOrganised") { state?.request(.exportOrganised(false)) }
+                Button("mac.menu.exportPhotosOnly") { state?.request(.exportOrganised(true)) }
             }
             .disabled(state?.hasSelection != true)
             Divider()

@@ -18,6 +18,8 @@ struct MacRootView: View {
     @State private var technicalImport: URL?
 
     struct ExportRequest: Identifiable { let id = UUID(); let subject: ExportSubject; let format: ExportFormat? }
+    struct OrganisedRequest: Identifiable { let id = UUID(); let subject: ExportSubject; let photosOnly: Bool }
+    @State private var organisedRequest: OrganisedRequest?
 
     private func matches(_ name: String) -> Bool {
         let q = search.trimmingCharacters(in: .whitespaces)
@@ -178,6 +180,9 @@ struct MacRootView: View {
         .sheet(item: $exportSheet) { req in
             ExportSheet(subject: req.subject, initialFormat: req.format).environment(store)
         }
+        .sheet(item: $organisedRequest) { req in
+            OrganisedExportSheet(subject: req.subject, photosOnly: req.photosOnly).environment(store)
+        }
         .sheet(isPresented: $showingTechnicalLibrary) { TechnicalRoomLibraryView(importURL: technicalImport) }
         .sheet(isPresented: $showingStudio) { StudioLibraryView().environment(store) }
         .alert("mac.actionFailed", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
@@ -205,6 +210,8 @@ struct MacRootView: View {
                     switch item {
                     case .house, .room:
                         Button("mac.menu.export") { appState.selected = item; appState.request(.export(nil)) }
+                        Button("mac.menu.exportOrganised") { appState.selected = item; appState.request(.exportOrganised(false)) }
+                        Button("mac.menu.exportPhotosOnly") { appState.selected = item; appState.request(.exportOrganised(true)) }
                     case .design(let d):
                         Button("Open in new window") { openWindow(value: d.sourceID) }
                     default:
@@ -270,6 +277,9 @@ struct MacRootView: View {
         case .export(let format):
             guard let item = appState.selected, let subject = subject(for: item) else { return }
             exportSheet = ExportRequest(subject: subject, format: format)
+        case .exportOrganised(let photosOnly):
+            guard let item = appState.selected, let subject = subject(for: item) else { return }
+            organisedRequest = OrganisedRequest(subject: subject, photosOnly: photosOnly)
         case .print:
             guard let item = appState.selected, let subject = subject(for: item) else { return }
             PrintController.printPlan(subject.house, title: subject.name, window: NSApp.keyWindow)

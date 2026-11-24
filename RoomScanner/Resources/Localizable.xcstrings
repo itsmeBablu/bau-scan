@@ -12144,6 +12144,40 @@
           }
         }
       }
+    },
+    "mac.menu.exportOrganised": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Organised package (ZIP)…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strukturiertes Paket (ZIP)…"
+          }
+        }
+      }
+    },
+    "mac.menu.exportPhotosOnly": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photos only (ZIP)…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur Fotos (ZIP)…"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

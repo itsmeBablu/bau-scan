@@ -33,7 +33,7 @@ enum MacItem: Hashable, Identifiable {
 @Observable
 @MainActor
 final class MacAppState {
-    enum Action: Equatable { case export(ExportFormat?), print, revealInFinder, importPackage, openLibraryFolder }
+    enum Action: Equatable { case export(ExportFormat?), exportOrganised(Bool), print, revealInFinder, importPackage, openLibraryFolder }
     var selected: MacItem?
     /// Export formats available for selected item (USDZ availability depends on bundle contents).
     var availableFormats: [ExportFormat] = []
