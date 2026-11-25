@@ -142,3 +142,21 @@ rendering, engineering accuracy, generated sample deliverables and commercial
 reader compatibility remain UNVERIFIED. No actual geometry test pass is claimed.
 No remote CI or artifacts exist. Subsequent local phases proceed only under the
 user's instruction to keep doing the changes, not because Phase 0 became green.
+
+## Phase 3 local increment
+
+IN PROGRESS; see ORGANISED_EXPORT_REVIEW.md for output contracts, limitations and
+manual verification. Explicit multi-survey selection, complete technical photo
+copies, per-room photo numbering, CSV/JSON identity/pose/hash indexes, optional
+EXIF/GPS removal and manifest omission notes are implemented locally. Existing
+native package and Technical Room v1 formats remain unchanged.
+
+Changed files: OrganisedExportService.swift, OrganisedPhotoIndex.swift,
+PhotoExportPrivacy.swift, MacUI/OrganisedExportSheet.swift, Localizable.xcstrings,
+TechnicalExportLinkTests.swift, OrganisedPhotoIndexTests.swift,
+PhotoExportPrivacyTests.swift and these two report documents.
+
+Actual Windows checks: 13 service tests, 1,059 localization keys, six plist files
+and diff whitespace pass. All Swift tests, Apple builds, photo rendering, archive
+extraction, restore and device behavior remain UNVERIFIED. No phase-completion,
+DIN-compliance or accuracy claim is made. Nothing was pushed.

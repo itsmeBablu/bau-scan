@@ -56,6 +56,14 @@ struct OrganisedExportSheet: View {
                                 Text("None").tag(Optional<UUID>.none)
                                 ForEach(technicalRooms) { room in Text(room.name).tag(Optional(room.id)) }
                             }
+                            DisclosureGroup("Additional utility rooms") {
+                                ForEach(technicalRooms) { room in
+                                    Toggle(room.name,isOn:Binding(get:{ options.additionalTechnicalRoomIDs.contains(room.id) },set:{ selected in
+                                        if selected { options.additionalTechnicalRoomIDs.insert(room.id) }
+                                        else { options.additionalTechnicalRoomIDs.remove(room.id) }
+                                    }))
+                                }
+                            }
                         }
                         Toggle("Survey Photos (optional)", isOn: $options.includePhotos)
                         Toggle("Design Studio Layout", isOn: $options.includeStudio)
@@ -63,6 +71,13 @@ struct OrganisedExportSheet: View {
                 }
                 .formStyle(.grouped)
                 .frame(minHeight:220).disabled(isExporting)
+            }
+
+            if options.includePhotos || photosOnly {
+                Toggle("Remove photo metadata from export copies",isOn:$options.removePhotoMetadata)
+                    .padding(.horizontal).disabled(isExporting)
+                Text("Re-encodes JPEG copies without EXIF/GPS metadata. Camera poses remain in the photo index.")
+                    .font(.caption).foregroundStyle(.secondary).padding(.horizontal)
             }
 
             HStack {

@@ -13,5 +13,9 @@ final class TechnicalExportLinkTests: XCTestCase {
         XCTAssertNotEqual(url?.deletingPathExtension().lastPathComponent,a.id.uuidString)
         options.includeTechnicalRoom = false
         XCTAssertNil(OrganisedExportService.technicalRoomURL(options:options,storageRoot:root))
+        options.includeTechnicalRoom = true; options.additionalTechnicalRoomIDs = [a.id,b.id]
+        XCTAssertEqual(Set(OrganisedExportService.selectedTechnicalRoomIDs(options:options)),Set([a.id,b.id]))
+        options.photosOnly = true
+        XCTAssertTrue(OrganisedExportService.selectedTechnicalRoomIDs(options:options).isEmpty)
     }
 }

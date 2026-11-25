@@ -19,7 +19,9 @@ enum OrganisedExportService {
         var includeModels = true
         var includeTechnicalRoom = true
         var technicalRoomID: UUID? = nil
+        var additionalTechnicalRoomIDs: Set<UUID> = []
         var includePhotos = true
+        var removePhotoMetadata = false
         var includeStudio = true
         var photosOnly = false
         var unit: MeasurementUnit = .both
@@ -34,6 +36,11 @@ enum OrganisedExportService {
         let subjectName: String
         let accuracyNote = "Device validation pending. Measurements and camera poses are scan coordinates, not GPS."
         var items: [ManifestItem]
+        var sourceID: UUID? = nil
+        var technicalRoomIDs: [UUID]? = nil
+        var coordinateSystem: String? = nil
+        var units: String? = nil
+        var omissions: [String]? = nil
     }
 
     struct ManifestItem: Codable {
@@ -76,11 +83,19 @@ enum OrganisedExportService {
         }
 
         // 2. Only an explicit user selection may include a technical survey.
-        var technicalPackage: TechnicalRoomPackage? = nil
-        if let url = technicalRoomURL(options:options,storageRoot:storageRoot),let id = options.technicalRoomID {
+        var technicalPackages: [TechnicalRoomPackage] = []
+        var retainedTechnicalBytes = 0
+        let selectedTechnicalIDs = selectedTechnicalRoomIDs(options:options)
+        guard selectedTechnicalIDs.count <= 20 else { throw CocoaError(.fileReadTooLarge) }
+        for id in selectedTechnicalIDs {
+            try Task.checkCancellation()
+            let url = storageRoot.appendingPathComponent("TechnicalRooms").appendingPathComponent(id.uuidString).appendingPathExtension("technicalroom")
             let package = try TechnicalRoomPackage.read(from:url)
             guard package.manifest.id == id else { throw CocoaError(.fileReadCorruptFile) }
-            technicalPackage = package
+            let bytes = package.journal.snapshotBytes + package.evidence.bytes + package.document.photoAssets.reduce(0) { $0 + $1.jpegData.count }
+            guard bytes <= 256 * 1_048_576-retainedTechnicalBytes else { throw CocoaError(.fileReadTooLarge) }
+            retainedTechnicalBytes += bytes
+            technicalPackages.append(package)
         }
 
         // 3. Locate matching studio design if any
@@ -181,22 +196,63 @@ enum OrganisedExportService {
             }
 
             // Technical Room
-            if options.includeTechnicalRoom, let tech = technicalPackage {
-                table.append(TableRow(category: .technicalRoom, relativeFolder: "technical-room", filename: "technical-room-v1.json") { target in
+            for tech in technicalPackages {
+                let technicalFolder = technicalPackages.count == 1 ? "technical-room" : "technical-rooms/"+ArchivePath.component(tech.manifest.name)+"-"+tech.manifest.id.uuidString
+                table.append(TableRow(category: .technicalRoom, relativeFolder: technicalFolder, filename: "technical-room-v1.json") { target in
                     let data = try TechnicalRoomJSONExporter.handoff(for: tech)
                     try data.write(to: target)
                     return Int64(data.count)
                 })
-                table.append(TableRow(category: .technicalRoom, relativeFolder: "technical-room", filename: "mesh.obj") { target in
+                table.append(TableRow(category:.technicalRoom,relativeFolder:technicalFolder,filename:"survey-details.json") { target in
+                    try TechnicalMeshExporter.write(tech,format:.json,to:target)
+                    return Int64(try target.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0)
+                })
+                if options.includePhotos {
+                    let images = SurveyPhotoStore.images(technical:tech)
+                    let entries = images.map { image in
+                        OrganisedPhotoIndex.Entry(photo:image.photo,room:tech.manifest.name,story:nil,number:image.photo.number,
+                            path:technicalFolder+"/photos/"+String(format:"photo-%02lld.jpg",Int64(image.photo.number)))
+                    }
+                    for (image,entry) in zip(images,entries) {
+                        table.append(TableRow(category:.photos,relativeFolder:technicalFolder+"/photos",filename:URL(fileURLWithPath:entry.path).lastPathComponent) { target in
+                            try image.photo.validate()
+                            try image.jpegData.write(to:target)
+                            return options.removePhotoMetadata ? try PhotoExportPrivacy.removeMetadata(fromCopyAt:target) : Int64(image.jpegData.count)
+                        })
+                    }
+                    for asset in tech.document.photoAssets {
+                        table.append(TableRow(category:.photos,relativeFolder:technicalFolder+"/attachments",filename:asset.id.uuidString+".jpg") { target in
+                            try asset.jpegData.write(to:target)
+                            return options.removePhotoMetadata ? try PhotoExportPrivacy.removeMetadata(fromCopyAt:target) : Int64(asset.jpegData.count)
+                        })
+                    }
+                    table.append(TableRow(category:.photos,relativeFolder:technicalFolder,filename:"photo-index.json") { target in
+                        let records = try OrganisedPhotoIndex.records(entries,sourceID:tech.manifest.id,root:root)
+                        let attachments: [[String:Any]] = try tech.document.photoAssets.map { asset in
+                            let path = technicalFolder+"/attachments/"+asset.id.uuidString+".jpg"
+                            let file = root.appendingPathComponent(path)
+                            return ["photoID":asset.id.uuidString,"sourceID":tech.manifest.id.uuidString,"path":path,
+                                "originalReference":tech.document.room.photos.first(where:{ $0.id == asset.id }).map { $0.reference.value as Any } ?? NSNull(),
+                                "equipmentIDs":tech.document.room.equipment.filter { $0.photoRefs.contains(asset.id) }.map { $0.id.uuidString },
+                                "bytes":try file.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0,"sha256":try ExportChecksum.sha256(file),
+                                "cameraPose":NSNull(),"accuracyMm":NSNull(),"deviceValidationPending":true]
+                        }
+                        let data = try JSONSerialization.data(withJSONObject:["schemaVersion":1,"photos":records,"attachments":attachments],options:[.prettyPrinted,.sortedKeys])
+                        try data.write(to:target); return Int64(data.count)
+                    })
+                }
+                if !tech.journal.meshes.isEmpty {
+                table.append(TableRow(category: .technicalRoom, relativeFolder: technicalFolder, filename: "mesh.obj") { target in
                     try TechnicalMeshExporter.write(tech, format: .obj, to: target)
                     let attr = try FileManager.default.attributesOfItem(atPath: target.path)
                     return (attr[.size] as? NSNumber)?.int64Value ?? 0
                 })
-                table.append(TableRow(category: .technicalRoom, relativeFolder: "technical-room", filename: "survey.dxf") { target in
+                table.append(TableRow(category: .technicalRoom, relativeFolder: technicalFolder, filename: "survey.dxf") { target in
                     try TechnicalMeshExporter.write(tech, format: .dxf, to: target)
                     let attr = try FileManager.default.attributesOfItem(atPath: target.path)
                     return (attr[.size] as? NSNumber)?.int64Value ?? 0
                 })
+                }
             }
 
             // Studio Design
@@ -219,37 +275,38 @@ enum OrganisedExportService {
         // Photos & Photo Index
         if options.includePhotos || options.photosOnly {
             if !photosList.isEmpty {
-                var photoRows: [String] = ["number,level,room,file,timestamp,pos_x,pos_y,pos_z,yaw,pitch,roll"]
-                for (idx, item) in photosList.enumerated() {
-                    let roomClean = ArchivePath.component(item.roomName, fallback: "room")
-                    let storyIdx = subject.house.allRooms.first(where: { $0.id == item.photo.roomID })?.story ?? 0
-                    let levelClean = "level-\(storyIdx)"
-                    let folder = "photos/\(levelClean)/\(roomClean)"
-                    let photoNum = String(format: "photo-%02d.jpg", idx + 1)
-                    let relativeFile = "\(folder)/\(photoNum)"
-
-                    // Stream photo copy
-                    table.append(TableRow(category: .photos, relativeFolder: folder, filename: photoNum) { target in
-                        try item.copy(to:target)
+                var entries: [OrganisedPhotoIndex.Entry] = [],aliases: [String:String] = [:],usedAliases = Set<String>(),numbers: [String:Int] = [:]
+                for item in photosList {
+                    let story = subject.house.allRooms.first { $0.id == item.photo.roomID }?.story
+                    let level = story.map { "level-\($0)" } ?? "unassigned"
+                    let identity = level+"|"+(item.photo.roomID?.uuidString ?? "unassigned")
+                    let room: String
+                    if let alias = aliases[identity] { room = alias }
+                    else {
+                        let base = ArchivePath.component(item.roomName,fallback:"room")
+                        var candidate = base,n = 2
+                        while usedAliases.contains((level+"/"+candidate).lowercased()) { candidate = base+" \(n)"; n += 1 }
+                        usedAliases.insert((level+"/"+candidate).lowercased()); aliases[identity] = candidate; room = candidate
+                    }
+                    numbers[identity,default:0] += 1
+                    let number = numbers[identity] ?? 1,folder = "photos/"+level+"/"+room
+                    let filename = String(format:"photo-%02lld.jpg",Int64(number))
+                    entries.append(.init(photo:item.photo,room:room,story:story,number:number,path:folder+"/"+filename))
+                    table.append(TableRow(category:.photos,relativeFolder:folder,filename:filename) { target in
+                        let bytes = try item.copy(to:target)
+                        return options.removePhotoMetadata ? try PhotoExportPrivacy.removeMetadata(fromCopyAt:target) : bytes
                     })
-
-                    // CSV row
-                    let m = item.photo.viewingPose
-                    let x = m.count > 12 ? m[12] : 0
-                    let y = m.count > 13 ? m[13] : 0
-                    let z = m.count > 14 ? m[14] : 0
-                    let yaw = m.count > 10 ? atan2(m[8], m[10]) : 0
-                    let pitch = m.count > 9 ? asin(-m[9]) : 0
-                    let roll = m.count > 4 ? atan2(m[1], m[5]) : 0
-                    let ts = item.photo.capturedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "\(item.photo.timestamp)"
-                    photoRows.append("\(idx + 1),\(levelClean),\(roomClean),\(relativeFile),\(ts),\(String(format: "%.4f", x)),\(String(format: "%.4f", y)),\(String(format: "%.4f", z)),\(String(format: "%.4f", yaw)),\(String(format: "%.4f", pitch)),\(String(format: "%.4f", roll))")
                 }
-
-                // photos/index.csv
-                table.append(TableRow(category: .photos, relativeFolder: "photos", filename: "index.csv") { target in
-                    let csvData = Data(photoRows.joined(separator:"\n").utf8)
-                    try csvData.write(to: target)
-                    return Int64(csvData.count)
+                let indexEntries = entries
+                table.append(TableRow(category:.photos,relativeFolder:"photos",filename:"index.json") { target in
+                    let records = try OrganisedPhotoIndex.records(indexEntries,sourceID:subject.id,root:root)
+                    let data = try JSONSerialization.data(withJSONObject:["schemaVersion":1,"photos":records],options:[.prettyPrinted,.sortedKeys])
+                    try data.write(to:target); return Int64(data.count)
+                })
+                table.append(TableRow(category:.photos,relativeFolder:"photos",filename:"index.csv") { target in
+                    let records = try OrganisedPhotoIndex.records(indexEntries,sourceID:subject.id,root:root)
+                    let data = OrganisedPhotoIndex.csv(records)
+                    try data.write(to:target); return Int64(data.count)
                 })
             }
         }
@@ -275,7 +332,15 @@ enum OrganisedExportService {
         }
 
         // 6. Write manifest.json
-        let manifest = Manifest(createdAt: Date(), subjectName: subject.name, items: manifestItems)
+        var manifest = Manifest(createdAt:Date(),subjectName:subject.name,items:manifestItems)
+        manifest.sourceID = subject.id; manifest.technicalRoomIDs = selectedTechnicalIDs
+        manifest.coordinateSystem = "Architectural plan X,-Z; mesh Y-up metres; technical detail includes original-frame alignment. No GPS."
+        manifest.units = "Geometry: metres; SVG: millimetres; labelled dimensions: "+options.unit.rawValue
+        manifest.omissions = []
+        manifest.omissions?.append(options.removePhotoMetadata ? "Export JPEG copies were re-encoded without source EXIF/GPS/IPTC metadata; image compression may change. Survey camera poses remain in the indexes." : "Original photo metadata is preserved and may contain private information. Survey indexes include camera poses.")
+        if options.includeTechnicalRoom && !options.photosOnly && selectedTechnicalIDs.isEmpty { manifest.omissions?.append("No technical survey was explicitly selected.") }
+        for tech in technicalPackages where tech.journal.meshes.isEmpty { manifest.omissions?.append("Technical survey \(tech.manifest.id): no captured mesh; OBJ and mesh DXF omitted.") }
+        manifest.omissions?.append("This export does not contain native backups or voice audio. Technical selections are handoff selections, not verified spatial registration to the house.")
         let manifestData = try JSONEncoder().encode(manifest)
         try manifestData.write(to: root.appendingPathComponent("manifest.json"))
 
@@ -306,6 +371,7 @@ enum OrganisedExportService {
         s += "Units: \(options.unit.shortLabel)\n"
         s += "Accuracy: Device validation pending. All coordinates are scan relative, no GPS.\n\n"
         s += AppLanguage.text("export.manifest.checksums",locale:options.locale)+"\n\n"
+        for omission in manifest.omissions ?? [] { s += "Omission / limitation: "+omission+"\n" }
         s += "CONTENTS:\n"
         for item in manifest.items {
             s += "  - \(item.path) [\(item.format)] (\(item.bytes / 1024) KB)\n"
@@ -334,5 +400,9 @@ enum OrganisedExportService {
     static func technicalRoomURL(options: Options,storageRoot: URL) -> URL? {
         guard options.includeTechnicalRoom,!options.photosOnly,let id = options.technicalRoomID else { return nil }
         return storageRoot.appendingPathComponent("TechnicalRooms").appendingPathComponent(id.uuidString).appendingPathExtension("technicalroom")
+    }
+    static func selectedTechnicalRoomIDs(options: Options) -> [UUID] {
+        guard options.includeTechnicalRoom,!options.photosOnly else { return [] }
+        return options.additionalTechnicalRoomIDs.union(options.technicalRoomID.map { [$0] } ?? []).sorted { $0.uuidString < $1.uuidString }
     }
 }
