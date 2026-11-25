@@ -37,6 +37,7 @@ struct SurveyPhotoGallery: View {
                 #endif
                 Text("Taken at this camera position (scan coordinates, not GPS). Device validation pending.")
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal)
+                ViewThatFits(in:.horizontal) {
                 HStack {
                     Button { selectPrevious() } label: { Label("Previous", systemImage: "chevron.left") }
                         .disabled(photos.firstIndex(where: { $0.id == (selected ?? initial) }) == 0)
@@ -47,6 +48,15 @@ struct SurveyPhotoGallery: View {
                     Button { selectNext() } label: { Label("Next", systemImage: "chevron.right") }
                         .disabled(photos.firstIndex(where: { $0.id == (selected ?? initial) }) == photos.count - 1)
                 }.buttonStyle(.bordered).padding(.bottom,10)
+                VStack {
+                    HStack {
+                        Button("Previous",systemImage:"chevron.left") { selectPrevious() }
+                        Button("Next",systemImage:"chevron.right") { selectNext() }
+                    }
+                    Button("Full screen",systemImage:"arrow.up.left.and.arrow.down.right") { fullScreen = true }
+                    if let flyTo,let current { Button("Go to camera",systemImage:"viewfinder") { flyTo(current); dismiss() } }
+                }.buttonStyle(.bordered).padding(.bottom,10)
+                }
             }
             .navigationTitle(current?.title ?? "Survey photos")
             .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Done") { dismiss() } } }
@@ -58,6 +68,7 @@ struct SurveyPhotoGallery: View {
                 }
                 .opacity(0)
                 .allowsHitTesting(false)
+                .accessibilityHidden(true)
             }
             #endif
         }
@@ -82,6 +93,7 @@ struct SurveyPhotoCanvas: View {
     let data: Data
     @State private var image: CGImage?
     @State private var zoom = 1.0
+    @State private var failed = false
     var body: some View {
         VStack {
             GeometryReader { geometry in
@@ -89,7 +101,8 @@ struct SurveyPhotoCanvas: View {
                     if let image {
                         Image(decorative:image,scale:1).resizable().scaledToFit()
                             .frame(width:geometry.size.width*zoom)
-                    } else { ProgressView("Loading photo…") }
+                    } else if failed { ContentUnavailableView("Photo unavailable",systemImage:"photo.badge.exclamationmark") }
+                    else { ProgressView("Loading photo…") }
                 }
             }
             HStack {
@@ -97,12 +110,17 @@ struct SurveyPhotoCanvas: View {
                 Button("Zoom in",systemImage:"plus.magnifyingglass") { zoom = min(6,zoom*1.5) }.disabled(zoom >= 6)
             }.buttonStyle(.bordered).labelStyle(.iconOnly)
         }
-        .task {
-            guard let source = CGImageSourceCreateWithData(data as CFData,nil) else { return }
-            image = CGImageSourceCreateThumbnailAtIndex(source,0,[
+        .task(id:data) {
+            image = nil; failed = false
+            let decoded = await Task.detached(priority:.userInitiated) {
+            guard let source = CGImageSourceCreateWithData(data as CFData,nil) else { return nil as CGImage? }
+            return CGImageSourceCreateThumbnailAtIndex(source,0,[
                 kCGImageSourceCreateThumbnailFromImageAlways:true,
                 kCGImageSourceCreateThumbnailWithTransform:true,
                 kCGImageSourceThumbnailMaxPixelSize:2048] as CFDictionary)
+            }.value
+            guard !Task.isCancelled else { return }
+            image = decoded; failed = decoded == nil
         }
     }
 }

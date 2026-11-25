@@ -17,6 +17,12 @@ struct OrganisedExportSheet: View {
     @State private var completedURL: URL?
     @State private var errorMessage: String?
     @State private var technicalRooms: [TechnicalRoomManifest] = []
+    @State private var estimatedBytes: Int64?
+    private var estimateRequest: String {
+        [subject.id.uuidString,store.location.documentsURL.absoluteString,
+         String(describing:[options.includePlans,options.includeModels,options.includeTechnicalRoom,options.includePhotos,options.includeStudio,options.includeIFC,options.includeNativePackages,options.photosOnly]),
+         OrganisedExportService.selectedTechnicalRoomIDs(options:options).map(\.uuidString).joined(separator:",")].joined(separator:"|")
+    }
 
     var body: some View {
         VStack(spacing: 18) {
@@ -99,7 +105,7 @@ struct OrganisedExportSheet: View {
             }
 
             HStack {
-                Text("Estimated size: \(formatBytes(OrganisedExportService.estimateSize(subject: subject, options: options, storageRoot: store.location.documentsURL)))")
+                Text("Estimated size: \(estimatedBytes.map(formatBytes) ?? "—")")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -109,6 +115,8 @@ struct OrganisedExportSheet: View {
             if isExporting {
                 VStack(spacing: 6) {
                     ProgressView(value: progress, total: 1.0)
+                        .accessibilityLabel("Export progress")
+                        .accessibilityValue(Text(progress,format:.percent.precision(.fractionLength(0))))
                     HStack {
                         Text(progressStatus)
                             .font(.caption2)
@@ -152,6 +160,13 @@ struct OrganisedExportSheet: View {
             let library = TechnicalRoomLibraryStore(root:store.location.documentsURL.appendingPathComponent("TechnicalRooms"))
             do { try library.reload(); technicalRooms = library.records }
             catch { errorMessage = error.localizedDescription }
+        }
+        .task(id:estimateRequest) {
+            let selected = options,root = store.location.documentsURL,request = estimateRequest
+            estimatedBytes = nil
+            let bytes = await Task.detached { OrganisedExportService.estimateSize(subject:subject,options:selected,storageRoot:root) }.value
+            guard !Task.isCancelled,request == estimateRequest else { return }
+            estimatedBytes = bytes
         }
         .onDisappear { exportTask?.cancel() }
         .alert("Export Successful", isPresented: Binding(get: { completedURL != nil }, set: { if !$0 { completedURL = nil } })) {

@@ -1,6 +1,8 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Photo unavailable": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Photo unavailable"}},"de":{"stringUnit":{"state":"translated","value":"Foto nicht verfügbar"}}}},
+    "Export progress": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Export progress"}},"de":{"stringUnit":{"state":"translated","value":"Exportfortschritt"}}}},
     "Recover unsaved recordings": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Recover unsaved recordings"}},"de":{"stringUnit":{"state":"translated","value":"Ungespeicherte Aufnahmen wiederherstellen"}}}},
     "Include voice audio in export": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Include voice audio in export"}},"de":{"stringUnit":{"state":"translated","value":"Sprachaudio in den Export einschließen"}}}},
     "Export voice notes ZIP": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Export voice notes ZIP"}},"de":{"stringUnit":{"state":"translated","value":"Sprachnotizen als ZIP exportieren"}}}},
