@@ -56,6 +56,7 @@ This manual verification checklist covers testing procedures for the **dWalkScan
 ## 4. Large Scans & Performance
 - [ ] **Large Multi-Story House**: Verify memory footprint when viewing a 3+ story building with 15+ rooms.
 - [ ] **Photo Streaming**: Verify that large photo batches (50+ photos) stream directly during export without causing high memory spikes.
+- [ ] Pending fixes 16/18: export 200 photos, cancel partway, check staging cleanup and measure memory. These fixes are not implemented at this checkpoint.
 - [ ] **Mesh Simplification & Junctions**: Wall junctions render cleanly without visual tearing or FPS drops.
 
 ---
@@ -69,6 +70,7 @@ This manual verification checklist covers testing procedures for the **dWalkScan
   - Adding a `.housescan` or `.roomscan` file on another device appears in the Mac sidebar.
   - Rename or delete on Mac reflects in iCloud without data loss.
 - [ ] **Drag & Drop**: Drag a `.housescan`, `.roomscan`, or `.technicalroom` package from Finder directly into the Mac app window to import.
+- [ ] Duplicate house import: both copies reopen, nested room/structure IDs agree, photo links and radiator room references resolve, and raw captured structure, USDZ, thumbnail and other assets are retained. Mac validation pending.
 
 ---
 
