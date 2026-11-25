@@ -7,7 +7,7 @@ enum MacItem: Hashable, Identifiable {
     case house(HouseRecord)
     case room(RoomRecord)
     case technicalRoom(TechnicalRoomManifest)
-    case design(SceneEditDocument)
+    case design(DesignRef)
 
     var id: String {
         switch self {

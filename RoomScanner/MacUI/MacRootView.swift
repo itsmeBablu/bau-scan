@@ -65,8 +65,8 @@ struct MacRootView: View {
                 if !filteredDesigns.isEmpty {
                     Section("sidebar.designs") {
                         ForEach(filteredDesigns, id: \.sourceID) { document in
-                            DesignRow(document: document).tag(MacItem.design(document))
-                                .modifier(RowActions(item: .design(document), url: designURL(for: document), appState: appState, pendingDeletion: $pendingDeletion))
+                            DesignRow(document: document).tag(MacItem.design(designRef(document)))
+                                .modifier(RowActions(item: .design(designRef(document)), url: designURL(for: document), appState: appState, pendingDeletion: $pendingDeletion))
                         }
                     }
                 }
@@ -85,8 +85,8 @@ struct MacRootView: View {
                 RoomDetailView(record: record).id(record.id)
             case .technicalRoom(let manifest) where technicalStore.records.contains(manifest):
                 TechnicalStoredRoomView(id: manifest.id, library: technicalStore).id(manifest.id)
-            case .design(let document):
-                StudioProjectView(seed: document, storageRoot: designRoots[document.sourceID] ?? store.location.documentsURL).id(document.sourceID)
+            case .design(let reference):
+                MacDesignDetail(reference:reference,root:designRoots[reference.sourceID] ?? store.location.documentsURL).id(reference.id)
             default:
                 MacEmptyStateView { importPackage() }
             }
@@ -192,6 +192,12 @@ struct MacRootView: View {
     }
 
     private func designURL(for document: SceneEditDocument) -> URL {
+        designURL(for:DesignRef(document))
+    }
+    private func designRef(_ document: SceneEditDocument) -> DesignRef {
+        DesignRef(document,modifiedAt:(try? designURL(for:document).resourceValues(forKeys:[.contentModificationDateKey]))?.contentModificationDate)
+    }
+    private func designURL(for document: DesignRef) -> URL {
         let root = designRoots[document.sourceID] ?? store.location.documentsURL
         return root.appendingPathComponent("SceneEdits/\(document.source.rawValue)-\(document.sourceID.uuidString).json")
     }
@@ -268,7 +274,7 @@ struct MacRootView: View {
             if let h = store.houseRecords.first { appState.selected = .house(h) }
             else if let r = store.records.first { appState.selected = .room(r) }
             else if let t = technicalStore.records.first { appState.selected = .technicalRoom(t) }
-            else if let d = designs.first { appState.selected = .design(d) }
+            else if let d = designs.first { appState.selected = .design(designRef(d)) }
         }
     }
 
