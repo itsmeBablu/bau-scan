@@ -102,3 +102,12 @@ The SQLite counter/cache is suitable for a single local prototype. Cloud Run's f
 - Accepted/rejected candidates are kept separately from raw observations. Re-running the detector suppresses matching candidates rather than resurrecting rejected objects. Material presets are user-selected appearances; the app does not claim to identify physical material from colour.
 - Physical acceptance remains necessary: new scan → AI-mode image retention → save/reopen → photo marker tap → Google sign-in → selected-image analysis → candidate review → Google Photos upload → signed-in private link. No real Google request or cloud upload can be validated without your configured project.
 - Mac UI validation completed for importing the earlier phone survey, opening its 3D viewer/MEP form, running offline candidate detection, and safely showing the missing-Google-configuration notice. This does not validate the candidate's semantic identity or measurement accuracy.
+# Process-local recognition coordination
+
+Run one service instance with one Uvicorn worker (the Dockerfile already uses
+`--workers 1`) until shared distributed rate limiting is implemented. The semaphore
+and identical-request in-flight results are per process. SQLite usage limits and
+cache apply to the local DB path; separate instances/private volumes have separate
+limits. Do not treat them as a shared provider quota enforcement system.
+Cache entries expire after 24 hours and evict oldest-first beyond 200 entries.
+Change `RECOGNITION_VERSION` when recognition prompts or interpretation change.
