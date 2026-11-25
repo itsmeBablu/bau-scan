@@ -17,13 +17,9 @@ enum SurveyPhotoStore {
     static func read(from root: URL) throws -> (photos:[SurveyPhoto]?,assets:[UUID:Data]) {
         let meta = root.appendingPathComponent("survey-photos.json")
         guard FileManager.default.fileExists(atPath:meta.path) else { return (nil,[:]) }
-        let base = root.resolvingSymlinksInPath().standardizedFileURL
+        try SafePackageRead.validate(root)
         func data(_ url: URL,limit: Int) throws -> Data {
-            let resolved = url.resolvingSymlinksInPath().standardizedFileURL
-            let attrs = try FileManager.default.attributesOfItem(atPath:resolved.path)
-            guard resolved.path.hasPrefix(base.path+"/"),attrs[.type] as? FileAttributeType == .typeRegular,
-                  let size = attrs[.size] as? NSNumber,size.intValue <= limit else { throw CocoaError(.fileReadCorruptFile) }
-            return try Data(contentsOf:resolved)
+            try SafePackageRead.data(url,root:root,maximum:limit,preflight:false)
         }
         let photos = try RoomPackage.decoder.decode([SurveyPhoto].self,from:data(meta,limit:1_048_576))
         guard photos.count <= 200,Set(photos.map(\.id)).count == photos.count else { throw CocoaError(.fileReadCorruptFile) }

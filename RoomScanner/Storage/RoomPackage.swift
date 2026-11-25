@@ -77,13 +77,13 @@ struct RoomPackage {
 
     static func readRecord(from packageURL: URL) throws -> RoomRecord {
         try coordinatedRead(at: packageURL) { url in
-            try decoder.decode(RoomRecord.self, from: Data(contentsOf: url.appendingPathComponent(FileLayout.PackageFile.meta)))
+            try decoder.decode(RoomRecord.self, from: SafePackageRead.data(url.appendingPathComponent(FileLayout.PackageFile.meta),root:url))
         }
     }
 
     static func readPlan(from packageURL: URL) throws -> FloorPlan {
         try coordinatedRead(at: packageURL) { url in
-            try decoder.decode(FloorPlan.self, from: Data(contentsOf: url.appendingPathComponent(FileLayout.PackageFile.plan)))
+            try decoder.decode(FloorPlan.self, from: SafePackageRead.data(url.appendingPathComponent(FileLayout.PackageFile.plan),root:url))
         }
     }
 
@@ -91,7 +91,7 @@ struct RoomPackage {
         try coordinatedRead(at: packageURL) { url in
             let f = url.appendingPathComponent(FileLayout.PackageFile.scan)
             guard FileManager.default.fileExists(atPath: f.path) else { return nil }
-            return try decoder.decode(ScanInput.self, from: Data(contentsOf: f))
+            return try decoder.decode(ScanInput.self, from: SafePackageRead.data(f,root:url))
         }
     }
 
@@ -99,17 +99,17 @@ struct RoomPackage {
     static func read(from packageURL: URL) throws -> RoomPackage {
         try coordinatedRead(at: packageURL) { url in
             typealias F = FileLayout.PackageFile
-            func optional(_ name: String) -> Data? {
+            func optional(_ name: String) throws -> Data? {
                 let f = url.appendingPathComponent(name)
-                return FileManager.default.fileExists(atPath: f.path) ? try? Data(contentsOf: f) : nil
+                return FileManager.default.fileExists(atPath: f.path) ? try SafePackageRead.data(f,root:url) : nil
             }
-            let record = try decoder.decode(RoomRecord.self, from: Data(contentsOf: url.appendingPathComponent(F.meta)))
-            let plan = try decoder.decode(FloorPlan.self, from: Data(contentsOf: url.appendingPathComponent(F.plan)))
+            let record = try decoder.decode(RoomRecord.self, from: SafePackageRead.data(url.appendingPathComponent(F.meta),root:url))
+            let plan = try decoder.decode(FloorPlan.self, from: SafePackageRead.data(url.appendingPathComponent(F.plan),root:url))
             let scan = try optional(F.scan).map { try decoder.decode(ScanInput.self, from: $0) }
             let photos = try SurveyPhotoStore.read(from:url)
-            return RoomPackage(record: record, plan: plan, scan: scan, capturedRoomData: optional(F.capturedRoom),
-                               usdzData: optional(F.usdz), usdzMeshData: optional(F.usdzMesh), thumbnailPNG: optional(F.thumbnail),
-                               technicalRoomData: optional("technical-room.json"),surveyPhotos:photos.photos,surveyPhotoAssets:photos.assets)
+            return try RoomPackage(record: record, plan: plan, scan: scan, capturedRoomData: optional(F.capturedRoom),
+                                   usdzData: optional(F.usdz), usdzMeshData: optional(F.usdzMesh), thumbnailPNG: optional(F.thumbnail),
+                                   technicalRoomData: optional("technical-room.json"),surveyPhotos:photos.photos,surveyPhotoAssets:photos.assets)
         }
     }
 

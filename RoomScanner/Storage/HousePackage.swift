@@ -69,11 +69,11 @@ struct HousePackage {
     // MARK: Lecture
 
     static func readRecord(from url: URL) throws -> HouseRecord {
-        try RoomPackage.coordinatedRead(at: url) { u in try RoomPackage.decoder.decode(HouseRecord.self, from: Data(contentsOf: u.appendingPathComponent(F.meta))) }
+        try RoomPackage.coordinatedRead(at: url) { u in try RoomPackage.decoder.decode(HouseRecord.self, from: SafePackageRead.data(u.appendingPathComponent(F.meta),root:u)) }
     }
 
     static func readHouse(from url: URL) throws -> House {
-        try RoomPackage.coordinatedRead(at: url) { u in try RoomPackage.decoder.decode(House.self, from: Data(contentsOf: u.appendingPathComponent(F.house))) }
+        try RoomPackage.coordinatedRead(at: url) { u in try RoomPackage.decoder.decode(House.self, from: SafePackageRead.data(u.appendingPathComponent(F.house),root:u)) }
     }
     static func readRadiators(from url: URL) throws -> HouseRadiatorSurvey? {
         try RoomPackage.coordinatedRead(at: url) { root in
@@ -84,8 +84,8 @@ struct HousePackage {
             let attributes = try FileManager.default.attributesOfItem(atPath: resolved.path)
             guard resolved.path.hasPrefix(base.path+"/"),attributes[.type] as? FileAttributeType == .typeRegular,
                   let size = attributes[.size] as? NSNumber,size.intValue <= 64 * 1_048_576 else { throw HouseRadiatorSurvey.Failure.invalid }
-            let result = try RoomPackage.decoder.decode(HouseRadiatorSurvey.self,from: Data(contentsOf: resolved))
-            let house = try RoomPackage.decoder.decode(House.self,from: Data(contentsOf: root.appendingPathComponent(F.house)))
+            let result = try RoomPackage.decoder.decode(HouseRadiatorSurvey.self,from: SafePackageRead.data(file,root:root,maximum:64*1_048_576))
+            let house = try RoomPackage.decoder.decode(House.self,from: SafePackageRead.data(root.appendingPathComponent(F.house),root:root))
             try result.validate(for: house)
             return result
         }
@@ -107,7 +107,7 @@ struct HousePackage {
         try RoomPackage.coordinatedRead(at: url) { u in
             let f = u.appendingPathComponent(F.structure)
             guard FileManager.default.fileExists(atPath: f.path) else { return nil }
-            return try RoomPackage.decoder.decode(StructureInput.self, from: Data(contentsOf: f))
+            return try RoomPackage.decoder.decode(StructureInput.self, from: SafePackageRead.data(f,root:u))
         }
     }
 
