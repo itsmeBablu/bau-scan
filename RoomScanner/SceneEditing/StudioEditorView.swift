@@ -21,7 +21,8 @@ struct StudioProjectView: View {
             else if let error { ContentUnavailableView("Could not open design",systemImage: "exclamationmark.triangle",description: Text(error)) }
             else { ProgressView("Opening Studio…") }
         }
-        .task {
+        .task(id:storageRoot.path+seed.source.rawValue+seed.sourceID.uuidString) {
+            loaded = nil; error = nil; photos = []
             let source = seed.source, id = seed.sourceID, house = seed.shell, root = storageRoot
             photos = (try? await Task.detached { () throws -> [SurveyPhotoImage] in
                 if source == .technical {
@@ -33,6 +34,7 @@ struct StudioProjectView: View {
                     location.roomsURL.appendingPathComponent(id.uuidString).appendingPathExtension(FileLayout.packageExtension)
                 return try SurveyPhotoStore.images(from:url,house:house)
             }.value) ?? []
+            guard !Task.isCancelled else { return }
             do {
                 let url = SceneEditStore.url(root: storageRoot,source: seed.source,id: seed.sourceID)
                 let document = try await Task.detached { () throws -> SceneEditDocument in
@@ -49,8 +51,8 @@ struct StudioProjectView: View {
                     }
                     return value
                 }.value
-                try document.validate(); loaded = document
-            } catch { self.error = error.localizedDescription }
+                try document.validate(); guard !Task.isCancelled else { return }; loaded = document
+            } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
         }
     }
 }
@@ -79,6 +81,7 @@ struct StudioEditorView: View {
     @State private var landscape = false
     @State private var canvasWidth: CGFloat = 393
     @State private var modelSearch = ""
+    @State private var modelCategory = "All"
     @State private var error: String?
     @State private var status = ""
     @State private var busy = false
@@ -87,9 +90,12 @@ struct StudioEditorView: View {
     @State private var exportType = UTType.data
     @State private var exportName = "Design"
     @State private var exporting = false
+    @State private var exportTask: Task<Void,Never>?
+    @State private var exportProgress = 0.0
     @State private var importing = false
     @State private var equipmentEditor: SceneEditObject?
     @State private var confirmClose = false
+    @FocusState private var viewportFocused: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var textSize
     init(document: SceneEditDocument,storageURL: URL,photos: [SurveyPhotoImage] = []) {
@@ -101,9 +107,25 @@ struct StudioEditorView: View {
     var body: some View {
         editorLayout
         .disabled(busy).allowsHitTesting(!busy)
-        .navigationTitle(session.document.source == .technical ? "Technik Studio" : "House Studio")
+        .overlay {
+            if exportTask != nil {
+                VStack(spacing:12) {
+                    ProgressView("export.generating",value:exportProgress,total:1)
+                    Button("Cancel") { exportTask?.cancel() }
+                }.padding(24).frame(width:280).background(.regularMaterial,in:RoundedRectangle(cornerRadius:16))
+            }
+        }
+        .navigationTitle(session.document.title)
+        #if os(macOS)
+        .background(StudioWindowGuard(dirty:{ session.dirty },save:{ try await persistDesign() }))
+        #endif
+        .focusedSceneValue(\.studioSession, session)
         #if os(iOS)
-        .toolbar(.hidden,for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement:.cancellationAction) { closeButton }
+            ToolbarItem(placement:.primaryAction) { Menu("Design actions",systemImage:"ellipsis.circle") { designActions } }
+            ToolbarItem(placement:.confirmationAction) { saveButton }
+        }
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size in landscape = size.width > size.height; canvasWidth = size.width }
         .sheet(isPresented: Binding(get: { showInspector && !landscape },set: { if !landscape { showInspector = $0 } })) {
             NavigationStack {
@@ -119,10 +141,42 @@ struct StudioEditorView: View {
         #else
         .frame(minWidth: 760,minHeight: 650)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { closeButton }
-            ToolbarItem(placement: .automatic) { undoButton }
-            ToolbarItem(placement: .automatic) { designOptions }
-            ToolbarItem(placement: .confirmationAction) { saveButton }
+            ToolbarItem(placement: .navigation) {
+                if session.document.shell.stories.count > 1 {
+                    Picker("house.story", selection: $story) {
+                        ForEach(session.document.shell.stories, id: \.index) { story in
+                            Text(StoryNaming.localizedName(for: story.index)).tag(story.index)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
+            ToolbarItem(placement: .principal) {
+                Picker("View mode", selection: Binding(
+                    get: { session.document.engineering?.view ?? .all },
+                    set: { v in try? session.change { $0.engineering = ($0.engineering ?? .init()); $0.engineering?.view = v } }
+                )) {
+                    Text("All").tag(StudioEngineeringData.ViewMode.all)
+                    Text("Existing").tag(StudioEngineeringData.ViewMode.existing)
+                    Text("Demolition").tag(StudioEngineeringData.ViewMode.demolition)
+                    Text("Proposed").tag(StudioEngineeringData.ViewMode.proposed)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 300)
+            }
+            ToolbarItemGroup(placement: .automatic) {
+                Toggle(isOn: $showPhotos) { Label("Photos", systemImage: "camera") }
+                Toggle(isOn: $showDimensions) { Label("Dimensions", systemImage: "ruler") }
+                Button { showAppearance = true } label: { Label("Appearance", systemImage: "paintpalette") }
+                Button { showEngineering = true } label: { Label("Engineering", systemImage: "hammer") }
+                Button { export3D(.usdz) } label: { Label("Export", systemImage: "square.and.arrow.up") }
+                Button { showInspector.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }
+                saveButton
+            }
+        }
+        .inspector(isPresented: $showInspector) {
+            inspector
+                .frame(minWidth: 280, idealWidth: 320)
         }
         #endif
         .tint(.blue)
@@ -150,6 +204,12 @@ struct StudioEditorView: View {
         .onChange(of:photos) { _,value in controller.setPhotos(showPhotos ? value : []) }
         .onAppear {
             hasSaved = FileManager.default.fileExists(atPath: storageURL.path)
+            session.onSave = { save() }
+            session.selectAllOnFloor = {
+                multipleSelection = true
+                session.selectedIDs = Set(session.document.presentationObjects.filter { $0.story == story }.map(\.id))
+                session.selectedID = nil
+            }
             controller.setPhotos(showPhotos ? photos : [])
             controller.onPhoto = { id in selectedPhoto = photos.first { $0.id == id } }
             controller.onSelect = { session.select($0,multiple:multipleSelection) }
@@ -166,7 +226,7 @@ struct StudioEditorView: View {
                 do { try update(item); return true } catch { self.error = error.localizedDescription; return false }
             }
         }
-        .onDisappear { controller.onSelect = nil; controller.onMove = nil; controller.onRotate = nil; controller.onPhoto = nil }
+        .onDisappear { exportTask?.cancel(); controller.onSelect = nil; controller.onMove = nil; controller.onRotate = nil; controller.onPhoto = nil }
         .sheet(isPresented: Binding(get: { showEngineering && !inspectorPresentedModally },set: { showEngineering = $0 })) { StudioEngineeringView(session: session) }
         .onChange(of: story) { _,_ in session.select(nil,multiple:false) }
         .onChange(of: session.selectedIDs) { _,ids in
@@ -203,39 +263,28 @@ struct StudioEditorView: View {
 
     @ViewBuilder private var editorLayout: some View {
         #if os(iOS)
-        ZStack {
-            viewport.ignoresSafeArea()
-            if session.document.source == .technical && session.document.objects.isEmpty {
-                technikEmptyState
+        VStack(spacing:0) {
+            Picker("Interaction",selection:interaction) { Text("Orbit").tag("orbit"); Text("Move").tag("move"); Text("Rotate").tag("rotate") }
+                .pickerStyle(.segmented).padding(.horizontal)
+            if session.document.shell.stories.count > 1 {
+                Picker("Level",selection:$story) { ForEach(session.document.shell.stories,id: \.index) { Text(StoryNaming.localizedName(for:$0.index)).tag($0.index) } }
             }
-            VStack(spacing: 0) {
-                phoneHeader.padding(.horizontal,16).padding(.top,8)
-                Spacer(minLength: 12)
-                if !landscape {
-                    VStack(spacing: 4) {
-                        selectionHUD
-                        if busy { ProgressView("Working…").padding(10).background(.regularMaterial,in: Capsule()) }
-                        else if !status.isEmpty { Text(status).font(.caption).padding(10).background(.regularMaterial,in: Capsule()) }
-                        phoneDock
-                    }.padding(.horizontal,10).padding(.bottom,0)
+            HStack(spacing:0) {
+                ZStack {
+                    viewport
+                    if session.document.source == .technical && session.document.objects.isEmpty { technikEmptyState }
                 }
+                if showInspector && landscape { inspector.frame(width:min(340,canvasWidth*0.4)) }
             }
-            if landscape {
-                HStack(alignment: .bottom,spacing: 12) {
-                    phoneDock.frame(maxWidth: 520)
-                    Spacer(minLength: 0)
-                    if showInspector {
-                        NavigationStack {
-                            inspector.navigationTitle("Object properties")
-                                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showInspector = false } } }
-                        }.frame(width: min(310,canvasWidth*0.38)).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 24)).clipShape(RoundedRectangle(cornerRadius: 24))
-                            .sheet(item: $equipmentEditor) { item in equipmentSheet(item) }
-                    }
-                }.frame(maxWidth: .infinity,maxHeight: .infinity,alignment: .bottom)
-                    .padding(.horizontal,10).padding(.top,76).padding(.bottom,0)
-            }
+            selectionHUD
+            HStack {
+                Button("Objects",systemImage:"slider.horizontal.3") { showInspector.toggle() }
+                Button(showPlan ? "3D" : "Floor plan",systemImage:"square") { showPlan.toggle() }
+                Button("Reset camera",systemImage:"scope") { reset += 1 }
+            }.buttonStyle(.bordered).padding(8)
+            if busy { ProgressView("Working…") }
+            else if !status.isEmpty { Text(status).font(.caption).padding(.horizontal) }
         }
-            .foregroundStyle(.primary)
         #else
         VStack(spacing: 0) {
             HStack {
@@ -307,7 +356,7 @@ struct StudioEditorView: View {
     private var phoneHeader: some View {
         VStack(alignment: .leading,spacing: 8) {
             if textSize.isAccessibilitySize {
-                Text(session.document.source == .technical ? "Technik Studio" : "House Studio")
+                Text(session.document.source == .technical ? "Design" : "Design")
                     .font(.headline).padding(.horizontal,12).padding(.vertical,8)
                     .background(.regularMaterial,in: Capsule())
             }
@@ -316,7 +365,7 @@ struct StudioEditorView: View {
                     .accessibilityLabel("Close Studio").background(.regularMaterial,in: Circle())
                 if !textSize.isAccessibilitySize {
                     VStack(alignment: .leading,spacing: 2) {
-                        Text(session.document.source == .technical ? "Technik Studio" : "House Studio").font(.headline)
+                        Text(session.document.source == .technical ? "Design" : "Design").font(.headline)
                         Text(session.dirty || !hasSaved ? "Unsaved design" : "Design saved").font(.caption).foregroundStyle(.secondary)
                     }.lineLimit(1).padding(.horizontal,14).padding(.vertical,8).background(.regularMaterial,in: Capsule())
                 }
@@ -340,7 +389,7 @@ struct StudioEditorView: View {
         HStack {
             Toggle("Select multiple",isOn:$multipleSelection).toggleStyle(.button)
             if multipleSelection {
-                Text("\(session.selectedIDs.count) selected")
+                Text(AppLanguage.text("Selected")+": "+String(session.selectedIDs.count))
                 Button("Delete selected",role:.destructive) { perform { try session.deleteSelection() } }
                     .disabled(session.selectedIDs.isEmpty)
                 Button("Clear") { session.selectedIDs = []; session.selectedID = nil }
@@ -381,6 +430,19 @@ struct StudioEditorView: View {
         if showPlan { Plan2DView(house: House(id: session.document.shell.id,name: session.document.title,stories: session.document.plan.stories.filter { $0.index == story })) }
         else {
             StudioViewport(controller: controller,document: session.document,story: story,cutaway: cutaway,selected: session.selectedID,moving: moving && (session.document.engineering?.view == nil || session.document.engineering?.view == .all || session.document.engineering?.view == .proposed),reset: reset,showDimensions: showDimensions,rotating: rotating && (session.document.engineering?.view == nil || session.document.engineering?.view == .all || session.document.engineering?.view == .proposed))
+                #if os(macOS)
+                .focusable().focused($viewportFocused)
+                .focusedValue(\.studioViewportSession,viewportFocused ? session : nil)
+                .simultaneousGesture(TapGesture().onEnded { viewportFocused = true })
+                .onKeyPress(keys:[.leftArrow,.rightArrow,.upArrow,.downArrow],phases:[.down,.repeat]) { press in
+                    guard viewportFocused,press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
+                    let step = press.modifiers.contains(.shift) ? 0.10 : 0.01
+                    nudgeSelected(dx:press.key == .leftArrow ? -step : press.key == .rightArrow ? step : 0,
+                                  dz:press.key == .upArrow ? -step : press.key == .downArrow ? step : 0)
+                    return .handled
+                }
+                .onDeleteCommand { if viewportFocused { perform { try session.deleteSelection() } } }
+                #endif
                 .frame(maxWidth: .infinity,minHeight: 200,maxHeight: .infinity)
         }
     }
@@ -395,7 +457,24 @@ struct StudioEditorView: View {
     private var undoButton: some View { Button { session.undo() } label: { Label("Undo",systemImage: "arrow.uturn.backward") }.disabled(session.undoStack.isEmpty || busy) }
     private var catalogue: [SceneFurniture] {
         if session.document.source == .technical { return [.pipe,.roundDuct,.rectangularDuct,.boiler,.tank,.radiator,.pump,.manifold,.electricalPanel,.box,.cylinder] }
-        return [.sofa,.bed,.chair,.table,.television,.cabinet,.refrigerator,.stove,.sink,.toilet,.bathtub,.shower,.washer,.radiator,.box,.cylinder]
+        return [.sofa,.bed,.chair,.table,.television,.cabinet,.refrigerator,.stove,.sink,.toilet,.bathtub,.shower,.washer,.desk,.officeChair,.conferenceTable,.computer,.monitor,.bookshelf,.whiteboard,.radiator,.box,.cylinder]
+    }
+    private var filteredCatalogue: [SceneFurniture] {
+        catalogue.filter { family in
+            let matchesSearch = modelSearch.isEmpty || family.title.localizedCaseInsensitiveContains(modelSearch)
+            guard matchesSearch else { return false }
+            if session.document.source == .technical || modelCategory == "All" { return true }
+            switch modelCategory {
+            case "Office":
+                return [.desk, .officeChair, .conferenceTable, .computer, .monitor, .bookshelf, .whiteboard].contains(family)
+            case "Living":
+                return [.sofa, .bed, .chair, .table, .television, .cabinet, .bookshelf, .box, .cylinder].contains(family)
+            case "Kitchen & Bath":
+                return [.refrigerator, .stove, .sink, .toilet, .bathtub, .shower, .washer].contains(family)
+            default:
+                return true
+            }
+        }
     }
     private var modelMenu: some View { ForEach(catalogue) { family in Button(family.title) { add(family) } }.disabled(session.document.objects.count >= 500) }
     private var designOptions: some View {
@@ -482,8 +561,29 @@ struct StudioEditorView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
                 }
+                if session.document.source != .technical {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(["All", "Office", "Living", "Kitchen & Bath"], id: \.self) { category in
+                                Button {
+                                    modelCategory = category
+                                } label: {
+                                    Text(category)
+                                        .font(.caption.weight(.medium))
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(modelCategory == category ? Color.accentColor : Color.secondary.opacity(0.15), in: Capsule())
+                                        .foregroundStyle(modelCategory == category ? .black : .primary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 4)
+                    }
+                }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 130),spacing: 12)],spacing: 12) {
-                    ForEach(catalogue.filter { modelSearch.isEmpty || $0.title.localizedCaseInsensitiveContains(modelSearch) }) { family in
+                    ForEach(filteredCatalogue) { family in
                         Button { add(family) } label: {
                             VStack(spacing: 10) {
                                 Image(systemName: family.symbol).font(.title2)
@@ -559,7 +659,7 @@ struct StudioEditorView: View {
                 if session.document.source != .technical {
                     Section("Doors & windows · SmartBau style") {
                         Picker("Door template",selection: Binding(get: { session.document.doorTemplate ?? .single },set: { value in perform { try session.change { $0.doorTemplate = value } } })) {
-                            ForEach(SceneEditDocument.DoorTemplate.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                            ForEach(SceneEditDocument.DoorTemplate.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                         }
                         Stepper("Door opening: \(Int(session.document.doorOpeningDegrees ?? 0))°",value: Binding(get: { session.document.doorOpeningDegrees ?? 0 },set: { value in perform { try session.change { $0.doorOpeningDegrees = value } } }),in: 0...120,step: 5)
                         Picker("Window template",selection: Binding(get: { session.document.windowTemplate ?? .casement },set: { value in perform { try session.change { $0.windowTemplate = value } } })) {
@@ -584,14 +684,14 @@ struct StudioEditorView: View {
                 Section("Interior") {
                   if session.document.source != .technical {
                     Picker("Style",selection: Binding(get: { session.document.interior },set: { value in perform { try session.change { $0.apply(value) } } })) {
-                        ForEach(SceneEditDocument.Interior.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                        ForEach(SceneEditDocument.Interior.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                     }
                   }
                     ColorPicker("Walls",selection: colorBinding(wall: true),supportsOpacity: false)
                     ColorPicker("Floor",selection: colorBinding(wall: false),supportsOpacity: false)
                     if session.document.source != .technical {
                         Picker("Floor finish",selection: Binding(get: { session.document.floorFinish ?? .wood },set: { value in perform { try session.change { $0.floorFinish = value; $0.floorPatternSize = nil } } })) {
-                            ForEach(SceneEditDocument.FloorFinish.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                            ForEach(SceneEditDocument.FloorFinish.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                         }
                         if session.document.floorFinish != .plain {
                             Stepper("Pattern repeat: \((session.document.floorPatternSize ?? (session.document.floorFinish == .tile ? 0.3 : 0.72)).formatted()) m",value: Binding(get: { session.document.floorPatternSize ?? (session.document.floorFinish == .tile ? 0.3 : 0.72) },set: { value in perform { try session.change { $0.floorPatternSize = value } } }),in: 0.1...2,step: 0.05)
@@ -601,10 +701,10 @@ struct StudioEditorView: View {
                 }
                 if session.document.source != .technical { Section("Lighting and mood") {
                     Picker("Lighting",selection: Binding(get: { session.document.lighting },set: { value in perform { try session.change { $0.lighting = value } } })) {
-                        ForEach(SceneEditDocument.Lighting.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                        ForEach(SceneEditDocument.Lighting.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                     }
                     Picker("Season",selection: Binding(get: { session.document.season },set: { value in perform { try session.change { $0.season = value } } })) {
-                        ForEach(SceneEditDocument.Season.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                        ForEach(SceneEditDocument.Season.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                     }
                     Text("Season changes the lighting mood. Styles recolour design furniture; scan evidence and measured geometry stay intact. Exports preserve model materials; PNG captures this lighting and camera view.").font(.caption)
                 } }
@@ -653,16 +753,28 @@ struct StudioEditorView: View {
             try session.addDesignObject(copy,allowOverlap: allowOverlap)
         }
     }
+    private func nudgeSelected(dx: Double, dz: Double) {
+        perform { try session.nudgeSelection(dx:dx,dz:dz,allowOverlap:allowOverlap) }
+    }
+
+    private func export3D(_ format: StudioExporter.Format) {
+        export(format)
+    }
+
     private func save(close: Bool = false) {
-        busy = true; let document = session.document
         Task { @MainActor in
-            defer { busy = false }
             do {
-                try await Task.detached { try SceneEditStore.write(document,to: storageURL) }.value
-                session.markSaved(); hasSaved = true; status = "Design saved separately from the scan."
+                try await persistDesign()
                 if close { dismiss() }
             } catch { self.error = error.localizedDescription }
         }
+    }
+    private func persistDesign() async throws {
+        guard !busy else { throw CocoaError(.fileWriteUnknown) }
+        busy = true; defer { busy = false }
+        let document = session.document
+        let committed = try await Task.detached { try SceneEditStore.write(document,to:storageURL) }.value
+        session.markSaved(committed); hasSaved = true; status = "Design saved separately from the scan."
     }
     private func image() {
         perform { exportFile = StudioFile(try controller.png()); exportType = .png; exportName = "Edited-design.png"; exporting = true }
@@ -677,15 +789,19 @@ struct StudioEditorView: View {
         }
     }
     private func export(_ format: StudioExporter.Format) {
-        busy = true
-        Task { @MainActor in
-            defer { busy = false }
+        guard !busy,exportTask == nil else { return }
+        busy = true; exportProgress = 0
+        let document = session.document,floor = story
+        exportTask = Task { @MainActor in
+            defer { busy = false; exportTask = nil }
             do {
-                exportFile = StudioFile(try StudioExporter.data(session.document,format: format,story: story))
+                let data = try await StudioExporter.dataAsync(document,format:format,story:floor,progress:{ exportProgress = $0 })
+                try Task.checkCancellation(); exportFile = StudioFile(data)
                 let ext = format == .project ? "json" : format == .obj ? "zip" : format.rawValue
                 exportType = UTType(filenameExtension: ext) ?? .data
                 exportName = "Edited-design."+ext; exporting = true
-            } catch { self.error = error.localizedDescription }
+            } catch is CancellationError { /* Cancellation produces no export or error alert. */ }
+            catch { self.error = error.localizedDescription }
         }
     }
     private func importProject(_ result: Result<URL,Error>) {
@@ -714,7 +830,7 @@ private struct StudioObjectFields: View {
         if let captured = item.capturedColor,item.colorSource != .cameraSample {
             Button("Restore captured colour") { var next = item; next.color = captured; next.colorSource = .cameraSample; update(next) }
         }
-        Picker("Material",selection: field(\.finish)) { ForEach(SceneEditObject.Finish.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
+        Picker("Material",selection: field(\.finish)) { ForEach(SceneEditObject.Finish.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) } }
         Text(item.origin).font(.caption2).foregroundStyle(.secondary)
     }
     private func field<T>(_ path: WritableKeyPath<SceneEditObject,T>) -> Binding<T> { Binding(get: { item[keyPath: path] },set: { value in var next = item; next[keyPath: path] = value; update(next) }) }

@@ -11,6 +11,7 @@ final class RoomStore {
     private(set) var records: [RoomRecord] = []
     /// Houses (`.housescan`, v2), from newest to oldest.
     private(set) var houseRecords: [HouseRecord] = []
+    private(set) var libraryProblems: [LibraryProblem] = []
     private(set) var lastError: AppError?
     /// iCloud status per package (empty in local storage).
     private(set) var cloudStatus: [UUID: CloudItemStatus] = [:]
@@ -18,6 +19,7 @@ final class RoomStore {
     private(set) var pendingDownloads = 0
     /// `true` during container resolution at launch.
     private(set) var isResolvingCloud = false
+    private var cloudGeneration = 0
     /// Forced root (`-RoomScannerStorageRoot`): no iCloud switching.
     let allowsCloud: Bool
 
@@ -38,25 +40,34 @@ final class RoomStore {
 
     // MARK: iCloud
 
-    /// At launch: resolves container off main thread, migrates local to iCloud,
+    /// At launch: resolves the selected container off main thread without moving local files.
     /// switches and starts monitoring. Without account or container, stays local.
-    func activateCloudIfAvailable() async {
+    func activateCloudIfAvailable(resolver: (@Sendable () async -> StorageLocation?)? = nil) async {
         guard allowsCloud, !isCloud, !isResolvingCloud else { return }
+        guard UserDefaults.standard.object(forKey:CloudAvailability.preferenceKey) == nil || CloudAvailability.isEnabledByUser else { return }
+        let generation = cloudGeneration
         isResolvingCloud = true
-        defer { isResolvingCloud = false }
-        let local = location
-        let cloud = await Task.detached(priority: .utility) { () -> StorageLocation? in
+        defer { if generation == cloudGeneration { isResolvingCloud = false } }
+        let cloud: StorageLocation?
+        if let resolver { cloud = await resolver() }
+        else { cloud = await Task.detached(priority: .utility) { () -> StorageLocation? in
             guard let cloud = CloudAvailability.resolveLocation() else { return nil }
-            try? CloudAvailability.migrate(from: local, to: cloud)
+            // Project references retain their library identity. Opting into cloud does
+            // not move or rewrite existing local packages.
             return cloud
-        }.value
-        guard let cloud else { return }
+        }.value }
+        guard generation == cloudGeneration,let cloud else { return }
+        if UserDefaults.standard.object(forKey:CloudAvailability.preferenceKey) == nil {
+            UserDefaults.standard.set(true,forKey:CloudAvailability.preferenceKey)
+        }
+        guard CloudAvailability.isEnabledByUser else { return }
         switchLocation(to: cloud)
     }
 
     /// Setting 'Use iCloud Drive': immediate toggle. Disabling reverts to local folder
     /// (iCloud files remain in iCloud Drive; nothing is moved or deleted).
     func setCloudEnabled(_ enabled: Bool) async {
+        cloudGeneration += 1; isResolvingCloud = false
         UserDefaults.standard.set(enabled, forKey: CloudAvailability.preferenceKey)
         if enabled { await activateCloudIfAvailable() }
         else if isCloud { switchLocation(to: .local()) }
@@ -84,7 +95,8 @@ final class RoomStore {
         cloudStatus = status
         pendingDownloads = items.filter { !$0.isAvailableLocally }.count
         reload()
-        let conflicts = items.filter { $0.hasUnresolvedConflicts && $0.isAvailableLocally && $0.url.pathExtension == FileLayout.packageExtension && !failedConflictResolutions.contains($0.url) }.map(\.url)
+        let conflicts = items.filter { $0.hasUnresolvedConflicts && $0.isAvailableLocally && !failedConflictResolutions.contains($0.url) &&
+            ([FileLayout.packageExtension,FileLayout.housePackageExtension].contains($0.url.pathExtension) || $0.url.deletingLastPathComponent().lastPathComponent == "SceneEdits") }.map(\.url)
         if !conflicts.isEmpty { resolveConflicts(at: conflicts) }
     }
 
@@ -92,12 +104,15 @@ final class RoomStore {
     private func resolveConflicts(at urls: [URL]) {
         guard !isResolvingConflicts else { return }
         isResolvingConflicts = true
-        let suffix = String(localized: "cloud.conflictSuffix")
+        let suffix = AppLanguage.text("cloud.conflictSuffix")
         Task { [weak self] in
             let failures = await Task.detached(priority: .utility) { () -> [(URL, Error)] in
                 var failed: [(URL, Error)] = []
                 for url in urls {
-                    do { try ConflictResolver.resolve(packageAt: url, suffix: suffix) } catch { failed.append((url, error)) }
+                    do {
+                        if url.pathExtension == FileLayout.packageExtension { try ConflictResolver.resolve(packageAt:url,suffix:suffix) }
+                        else { try ConflictResolver.resolveAdditional(at:url,suffix:suffix) }
+                    } catch { failed.append((url, error)) }
                 }
                 return failed
             }.value
@@ -127,7 +142,7 @@ final class RoomStore {
             // not directly writable in sandbox), then moved to `Rooms/`.
             let staging = FileManager.default.temporaryDirectory.appendingPathComponent("import-\(UUID().uuidString)", isDirectory: true)
             defer { try? FileManager.default.removeItem(at: staging) }
-            let copy = try ConflictResolver.duplicateAsConflictCopy(packageAt: url, suffix: String(localized: "cloud.importedSuffix"), into: staging)
+            let copy = try ConflictResolver.duplicateAsConflictCopy(packageAt: url, suffix: AppLanguage.text("cloud.importedSuffix"), into: staging)
             let tmpCopy = staging.appendingPathComponent(copy.id.uuidString).appendingPathExtension(FileLayout.packageExtension)
             try RoomPackage.coordinatedWrite(at: location.packageURL(for: copy.id), options: .forReplacing) { target in
                 try FileManager.default.moveItem(at: tmpCopy, to: target)
@@ -158,20 +173,9 @@ final class RoomStore {
         var record = try HousePackage.readRecord(from: url)
         let dest = location.housePackageURL(for: record.id)
         if FileManager.default.fileExists(atPath: dest.path) {
-            var house = try HousePackage.readHouse(from: url)
-            record.id = UUID(); record.name += " " + String(localized: "cloud.importedSuffix"); house.id = record.id; house.name = record.name
-            let rooms = try HousePackage.roomPackageURLs(in: url).map { try RoomPackage.read(from: $0) }
-            var package = HousePackage(record: record, house: house, structure: try HousePackage.readStructure(from: url), capturedStructureData: nil,
-                                       rooms: rooms, usdzData: HousePackage.usdzURL(in: url).flatMap { try? Data(contentsOf: $0) },
-                                       thumbnailPNG: HousePackage.thumbnailURL(in: url).flatMap { try? Data(contentsOf: $0) })
-            if var radiators = try HousePackage.readRadiators(from: url) {
-                radiators.houseID = record.id
-                package.radiators = radiators
-            }
-            let photos = try SurveyPhotoStore.readCoordinated(from:url)
-            package.surveyPhotos = photos.photos
-            package.surveyPhotoAssets = photos.assets
-            try package.write(to: location.housePackageURL(for: record.id))
+            let newID = UUID()
+            record = try HouseImportCopy.write(from:url,to:location.housePackageURL(for:newID),
+                name:record.name+" "+AppLanguage.text("cloud.importedSuffix"))
         } else {
             try RoomPackage.coordinatedWrite(at: dest, options: .forReplacing) { target in
                 try FileManager.default.copyItem(at: url, to: target)
@@ -209,32 +213,59 @@ final class RoomStore {
     func reload() {
         do {
             try location.prepare()
+            try PackageReplacement.recover(in:location.roomsURL)
+            try PackageReplacement.recover(in:location.housesURL)
             let fm = FileManager.default
             let urls = try fm.contentsOfDirectory(at: location.roomsURL, includingPropertiesForKeys: nil)
                 .filter { $0.pathExtension == FileLayout.packageExtension }
             // Undownloaded iCloud package has no readable `meta.json`: ignored
             // until notified by file monitor.
-            records = urls.compactMap { try? RoomPackage.readRecord(from: $0) }
+            libraryProblems = []
+            func read<T>(_ url: URL,_ load: () throws -> T,_ version: (T) -> Int) -> T? {
+                do {
+                    let record = try load()
+                    guard version(record) <= FloorPlan.schemaVersion else {
+                        libraryProblems.append(.init(url:url,reason:.unsupportedSchema,detail:String(version(record)))); return nil
+                    }
+                    return record
+                } catch {
+                    let info = try? url.resourceValues(forKeys:[.isUbiquitousItemKey,.ubiquitousItemDownloadingStatusKey])
+                    let downloaded = info?.isUbiquitousItem != true || info?.ubiquitousItemDownloadingStatus == .current
+                    libraryProblems.append(.init(url:url,reason:LibraryProblem.classify(error,downloaded:downloaded),detail:error.localizedDescription))
+                    return nil
+                }
+            }
+            records = urls.compactMap { url in read(url,{ try RoomPackage.readRecord(from:url) },{ $0.schemaVersion }) }
                 .sorted { $0.createdAt > $1.createdAt }
-            let houseURLs = ((try? fm.contentsOfDirectory(at: location.housesURL, includingPropertiesForKeys: nil)) ?? [])
+            let houseURLs = try fm.contentsOfDirectory(at:location.housesURL,includingPropertiesForKeys:nil)
                 .filter { $0.pathExtension == FileLayout.housePackageExtension }
-            houseRecords = houseURLs.compactMap { try? HousePackage.readRecord(from: $0) }
+            houseRecords = houseURLs.compactMap { url in read(url,{ try HousePackage.readRecord(from:url) },{ $0.schemaVersion }) }
                 .sorted { $0.createdAt > $1.createdAt }
             // Schema upgrade: a house saved by an earlier version retains outdated
             // `meta.json` area and names (schema 2: room union, compound
             // names). Recomputed once here so library displays accurate values.
             // rather than stale cached values.
+            var migrationError: Error?
             for record in houseRecords where record.schemaVersion < FloorPlan.schemaVersion && !migratedHouses.contains(record.id) {
-                migratedHouses.insert(record.id)
-                _ = try? house(for: record)
+                do { _ = try house(for:record); migratedHouses.insert(record.id) }
+                catch { migrationError = error }
             }
-            lastError = nil
+            lastError = migrationError.map { .storageFailed($0.localizedDescription) }
         } catch {
             lastError = .storageFailed(error.localizedDescription)
         }
     }
 
     func packageURL(for record: RoomRecord) -> URL { location.packageURL(for: record.id) }
+    func retry(_ problem: LibraryProblem) {
+        if problem.reason == .notDownloaded { do { try FileManager.default.startDownloadingUbiquitousItem(at:problem.url) } catch { lastError = .storageFailed(error.localizedDescription) } }
+        reload()
+    }
+    func delete(_ problem: LibraryProblem) throws {
+        guard libraryProblems.contains(problem),[location.roomsURL,location.housesURL].contains(problem.url.deletingLastPathComponent()) else { throw CocoaError(.fileWriteNoPermission) }
+        try RoomPackage.coordinatedWrite(at:problem.url,options:.forDeleting) { try FileManager.default.removeItem(at:$0) }
+        reload()
+    }
 
     /// Suggested name for a new room, deduplicated against existing names.
     func proposedName(for label: RoomLabel) -> String {
@@ -259,14 +290,14 @@ final class RoomStore {
     func plan(for record: RoomRecord) throws -> FloorPlan {
         let url = packageURL(for: record)
         let stored = try RoomPackage.readPlan(from: url)
-        guard let scan = (try? RoomPackage.readScan(from: url)) ?? nil else { return stored }
+        guard let scan = try RoomPackage.readScan(from:url) else { return stored }
         var rebuilt = FloorPlanBuilder().build(from: scan, name: record.name)
         rebuilt.id = stored.id; rebuilt.story = stored.story; rebuilt.transform = stored.transform
         if rebuilt != stored {
             var updated = record
             updated.areaM2 = RoomMeasurements(plan: rebuilt).floorArea
-            try? RoomPackage.update(record: updated, plan: rebuilt, in: url)
-            if let png = PlanRenderer.thumbnailPNG(for: rebuilt) { try? RoomPackage.writeThumbnail(png, in: url) }
+            try RoomPackage.update(record:updated,plan:rebuilt,in:url)
+            if let png = PlanRenderer.thumbnailPNG(for:rebuilt) { try RoomPackage.writeThumbnail(png,in:url) }
             if let i = records.firstIndex(where: { $0.id == record.id }) { records[i] = updated }
         }
         return rebuilt
@@ -298,7 +329,7 @@ final class RoomStore {
 
     /// Suggested name for a new house ('House', 'House 2', ...).
     func proposedHouseName() -> String {
-        let base = String(localized: "house.defaultName")
+        let base = AppLanguage.text("house.defaultName")
         let existing = Set(houseRecords.map(\.name))
         if !existing.contains(base) { return base }
         var n = 2
@@ -327,8 +358,15 @@ final class RoomStore {
     func house(for record: HouseRecord) throws -> House {
         let url = packageURL(for: record)
         let stored = try HousePackage.readHouse(from: url)
-        guard let structure = try? HousePackage.readStructure(from: url) else { return stored }
-        var rebuilt = HouseBuilder().build(from: structure, name: record.name)
+        guard let structure = try HousePackage.readStructure(from:url) else {
+            if record.schemaVersion < FloorPlan.schemaVersion {
+                let updated = HouseRecord(house:stored,createdAt:record.createdAt)
+                try HousePackage.update(record:updated,house:stored,in:url)
+                if let i = houseRecords.firstIndex(where:{ $0.id == record.id }) { houseRecords[i] = updated }
+            }
+            return stored
+        }
+        var rebuilt = try HouseBuilder().build(from: structure, name: record.name)
         rebuilt.id = stored.id
         if record.schemaVersion >= FloorPlan.schemaVersion {
             let storedNames = Dictionary(stored.allRooms.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
@@ -340,8 +378,8 @@ final class RoomStore {
         }
         let updated = HouseRecord(house: rebuilt, createdAt: record.createdAt)
         if rebuilt != stored || updated.areaM2 != record.areaM2 || updated.schemaVersion != record.schemaVersion {
-            try? HousePackage.update(record: updated, house: rebuilt, in: url)
-            if let png = PlanRenderer.thumbnailPNG(for: rebuilt) { try? HousePackage.writeThumbnail(png, in: url) }
+            try HousePackage.update(record:updated,house:rebuilt,in:url)
+            if let png = PlanRenderer.thumbnailPNG(for:rebuilt) { try HousePackage.writeThumbnail(png,in:url) }
             if let i = houseRecords.firstIndex(where: { $0.id == record.id }) { houseRecords[i] = updated }
         }
         return rebuilt

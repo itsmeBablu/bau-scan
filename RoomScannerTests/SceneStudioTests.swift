@@ -267,7 +267,7 @@ final class SceneStudioTests: XCTestCase {
         XCTAssertEqual(Double(node.simdPosition.x),item.position.x,accuracy: 0.0001)
     }
     private func seed() -> SceneEditDocument {
-        var house = HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(),name: "Studio test")
+        var house = try! HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(),name: "Studio test")
         let object = PlacedObject(id: UUID(),category: "sofa",center: .init(x: 1,y: -1),size: .init(width: 2,depth: 0.9),height: 0.85,angle: 0.3,confidence: .high)
         house.stories[0].rooms[0].objects = [object]
         return .seed(house: house,source: .house,id: house.id)
@@ -439,7 +439,7 @@ final class SceneStudioTests: XCTestCase {
         XCTAssertTrue(csv.contains("'@engineer"))
         XCTAssertTrue(csv.contains("'=SUM(1,2)"))
         XCTAssertTrue(csv.contains("Check \"\"valve\"\"\naccess"))
-        XCTAssertTrue(csv.contains("Unverified"))
+        XCTAssertTrue(csv.contains(AppLanguage.text("Unverified")))
     }
     func testExistingViewUsesReferenceEnvelopeAndFamily() {
         var document = seed(); var data = StudioEngineering(); data.view = .existing
@@ -486,15 +486,16 @@ final class SceneStudioTests: XCTestCase {
     func testIndependentSaveDoesNotChangeHousePackageAndRoundTrips() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
-        let package = HousePackage.assemble(structure: SyntheticRooms.twoRoomApartment(),name: "Original",capturedStructureData: nil,usdzData: Data("original-usdz".utf8))
+        let package = try HousePackage.assemble(structure: SyntheticRooms.twoRoomApartment(),name: "Original",capturedStructureData: nil,usdzData: Data("original-usdz".utf8))
         let original = root.appendingPathComponent("original.housescan")
         try package.write(to: original)
         let beforeHouse = try Data(contentsOf: original.appendingPathComponent("house.json"))
         let beforeModel = try Data(contentsOf: original.appendingPathComponent("house.usdz"))
         let document = SceneEditDocument.seed(house: package.house,source: .house,id: package.house.id)
         let url = SceneEditStore.url(root: root,source: document.source,id: document.sourceID)
-        try SceneEditStore.write(document,to: url)
-        XCTAssertEqual(try SceneEditStore.read(url,source: document.source,id: document.sourceID),document)
+        let committed = try SceneEditStore.write(document,to: url)
+        XCTAssertEqual(try SceneEditStore.read(url,source: document.source,id: document.sourceID),committed)
+        XCTAssertEqual(committed.revision,1)
         XCTAssertThrowsError(try SceneEditStore.read(url,source: .technical,id: document.sourceID))
         XCTAssertEqual(try Data(contentsOf: original.appendingPathComponent("house.json")),beforeHouse)
         XCTAssertEqual(try Data(contentsOf: original.appendingPathComponent("house.usdz")),beforeModel)
@@ -667,9 +668,9 @@ final class SceneStudioTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("dwalk-studio-review-"+UUID().uuidString)
         try FileManager.default.createDirectory(at: root,withIntermediateDirectories: true)
         var structure = SyntheticRooms.twoRoomApartment()
-        let roomBounds = HouseBuilder().build(from: structure,name: "Fixture").allRooms[0].bounds
+        let roomBounds = try HouseBuilder().build(from: structure,name: "Fixture").allRooms[0].bounds
         structure.rooms[0].objects = [.init(category: "sofa",dimensions: SIMD3(2,0.85,0.9),transform: .roomPlacement(x: Float(roomBounds.center.x),y: 0.425,z: Float(-roomBounds.center.y)))]
-        let package = HousePackage.assemble(structure: structure,name: "Studio review fixture",capturedStructureData: nil,usdzData: nil)
+        let package = try HousePackage.assemble(structure: structure,name: "Studio review fixture",capturedStructureData: nil,usdzData: nil)
         let url = root.appendingPathComponent("Studio review.housescan")
         try package.write(to: url)
         let document = SceneEditDocument.seed(house: package.house,source: .house,id: package.house.id)
@@ -694,6 +695,32 @@ final class SceneStudioTests: XCTestCase {
         b.segment.start = .zero; room.walls = [a,b]
         room.openings = [.init(id: UUID(),kind: .door,wallID: b.id,center: .init(x: 0,y: 0.25),width: 0.5,height: 2,sillHeight: 0,angle: .pi/2,confidence: .high)]
         XCTAssertTrue(StudioWallJoins.mesh(room: room,visible: [a.id,b.id]).isEmpty)
+    }
+    @MainActor func testOfficeFurnitureCollectionBuildsAndValidates() throws {
+        let officeFamilies: [SceneFurniture] = [.desk, .officeChair, .conferenceTable, .computer, .monitor, .bookshelf, .whiteboard]
+        for family in officeFamilies {
+            XCTAssertFalse(family.title.isEmpty)
+            XCTAssertFalse(family.symbol.isEmpty)
+            let item = SceneEditObject(origin: "office",name: family.title,family: family,position: .init(x: 0,y: family.defaultSize.y/2,z: 0),size: family.defaultSize)
+            try item.validate()
+            let node = StudioSceneBuilder.model(item)
+            XCTAssertFalse(node.childNodes.isEmpty, "Node for \(family.rawValue) must have child nodes")
+            XCTAssertLessThanOrEqual(node.childNodes.count, 20)
+            XCTAssertTrue(node.childNodes.allSatisfy { $0.geometry?.firstMaterial?.lightingModel == .physicallyBased })
+        }
+        XCTAssertEqual(SceneFurniture.detected("office desk"), .desk)
+        XCTAssertEqual(SceneFurniture.detected("ergonomic office chair"), .officeChair)
+        XCTAssertEqual(SceneFurniture.detected("conference meeting table"), .conferenceTable)
+        XCTAssertEqual(SceneFurniture.detected("desktop computer workstation"), .computer)
+        XCTAssertEqual(SceneFurniture.detected("curved monitor display"), .monitor)
+        XCTAssertEqual(SceneFurniture.detected("bookshelf bookcase"), .bookshelf)
+        XCTAssertEqual(SceneFurniture.detected("dry erase whiteboard"), .whiteboard)
+        // 32-inch screen detection threshold: displays <= 32" are monitors, larger displays are televisions.
+        XCTAssertEqual(SceneFurniture.detected("television", size: .init(x: 0.72, y: 0.52, z: 0.20)), .monitor)
+        XCTAssertEqual(SceneFurniture.detected("tv", size: .init(x: 0.60, y: 0.42, z: 0.15)), .monitor)
+        XCTAssertEqual(SceneFurniture.detected("television", size: .init(x: 1.20, y: 0.70, z: 0.12)), .television)
+        XCTAssertEqual(SceneFurniture.detected("television"), .television)
+        XCTAssertEqual(SceneFurniture.monitor.defaultSize, .init(x: 0.72, y: 0.52, z: 0.20))
     }
     #if os(iOS)
     @MainActor func testCompactARControlsFitWithAccessibleText() async throws {

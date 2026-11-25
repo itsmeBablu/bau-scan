@@ -11,6 +11,8 @@ import os
 import re
 import sqlite3
 import threading
+import time
+from concurrent.futures import Future
 from contextlib import closing
 import urllib.error
 import urllib.request
@@ -25,6 +27,8 @@ from PIL import Image, ImageDraw
 from starlette.concurrency import run_in_threadpool
 
 MAX_BODY = 6 * 1024 * 1024
+RECOGNITION_VERSION = "mep-polygons-v1"
+CACHE_TTL_SECONDS = 86400
 KINDS = {"pipe", "roundDuct", "rectangularDuct"}
 app = FastAPI(title="dWalkScan Technical Room Google AI", docs_url=None, redoc_url=None)
 slots = asyncio.Semaphore(2)
@@ -110,12 +114,16 @@ class UsageStore:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.path = path
         self.lock = threading.Lock()
+        self.inflight: dict[str, Future] = {}
         with closing(sqlite3.connect(path)) as db, db:
             db.execute("CREATE TABLE IF NOT EXISTS usage (day TEXT, subject TEXT, count INTEGER, PRIMARY KEY(day,subject))")
             db.execute("CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, result TEXT)")
+            if "created_at" not in {row[1] for row in db.execute("PRAGMA table_info(cache)")}:
+                db.execute("ALTER TABLE cache ADD COLUMN created_at REAL NOT NULL DEFAULT 0")
 
     def lookup(self, key: str) -> dict | None:
         with self.lock, closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("DELETE FROM cache WHERE created_at < ?", (time.time() - CACHE_TTL_SECONDS,))
             row = db.execute("SELECT result FROM cache WHERE key=?", (key,)).fetchone()
             return json.loads(row[0]) if row else None
 
@@ -134,9 +142,28 @@ class UsageStore:
 
     def save(self, key: str, result: dict):
         with self.lock, closing(sqlite3.connect(self.path)) as db, db:
-            if db.execute("SELECT COUNT(*) FROM cache").fetchone()[0] >= 200:
-                db.execute("DELETE FROM cache")
-            db.execute("INSERT OR REPLACE INTO cache VALUES (?,?)", (key, json.dumps(result)))
+            db.execute("INSERT OR REPLACE INTO cache (key,result,created_at) VALUES (?,?,?)", (key, json.dumps(result), time.time()))
+            db.execute("DELETE FROM cache WHERE key IN (SELECT key FROM cache ORDER BY created_at,key LIMIT MAX(0,(SELECT COUNT(*) FROM cache)-200))")
+
+    def singleflight(self, key: str, produce):
+        with self.lock:
+            future = self.inflight.get(key)
+            leader = future is None
+            if leader:
+                future = Future()
+                self.inflight[key] = future
+        if not leader:
+            return future.result()
+        try:
+            result = produce()
+            future.set_result(result)
+            return result
+        except BaseException as error:
+            future.set_exception(error)
+            raise
+        finally:
+            with self.lock:
+                self.inflight.pop(key, None)
 
 
 _store: UsageStore | None = None
@@ -195,16 +222,21 @@ def analyse(data: dict, subject: str) -> dict:
     model = os.environ.get("GEMINI_MODEL", "")
     if not re.fullmatch(r"[a-zA-Z0-9._-]{1,70}", model):
         raise HTTPException(503, "Choose an available free-tier Gemini model")
-    cache_key = hashlib.sha256(f"v1:{subject}:{model}:{data['imageSHA256']}:{width}:{height}".encode()).hexdigest()
-    result = store().lookup(cache_key)
-    if result is None:
-        store().reserve(subject)
+    cache_key = hashlib.sha256(f"{RECOGNITION_VERSION}:{subject}:{model}:{data['imageSHA256']}:{width}:{height}".encode()).hexdigest()
+    usage = store()
+    def produce():
+        result = usage.lookup(cache_key)
+        if result is not None:
+            return result
+        usage.reserve(subject)
         try:
             instances = polygon_instances(gemini_regions(raw, model), width, height)
         except ValueError:
             raise HTTPException(502, "Gemini regions failed validation") from None
         result = {"schemaVersion": 1, "model": f"gemini:{model}", "imageSHA256": data["imageSHA256"], "instances": instances}
-        store().save(cache_key, result)
+        usage.save(cache_key, result)
+        return result
+    result = usage.singleflight(cache_key, produce)
     return {**result, "frameID": data["frameID"]}
 
 

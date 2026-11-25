@@ -19,11 +19,12 @@ enum StudioPlacement {
         return near
     }
     enum Failure: LocalizedError {
-        case overlap(String), floor
+        case overlap(String), floor, outsideFloor
         var errorDescription: String? {
             switch self {
             case .overlap(let name): "Placement overlaps \(name). Move it clear or explicitly enable Allow overlaps for an intentional connection."
             case .floor: "The object would extend below the design floor."
+            case .outsideFloor: AppLanguage.text("studio.floor.outside")
             }
         }
     }
@@ -64,6 +65,7 @@ enum StudioPlacement {
     static func check(_ item: SceneEditObject,in document: SceneEditDocument) throws {
         try item.validate()
         guard corners(item).allSatisfy({ $0.y >= -0.002 }) else { throw Failure.floor }
+        guard footprintInside(item,in:document) else { throw Failure.outsideFloor }
         for other in document.presentationObjects where other.id != item.id && other.story == item.story {
             if intersects(item,other) { throw Failure.overlap(other.name) }
         }
@@ -103,17 +105,81 @@ enum StudioPlacement {
         if axis == .z { result.position.x = item.position.x; result.position.y = item.position.y }
         return result
     }
+    static func floorPolygons(_ document: SceneEditDocument,story: Int) -> [[Point2D]] {
+        document.architecturalShell.allRooms.filter { $0.story == story }.flatMap { room -> [[Point2D]] in
+            let regions = document.floorRegions?.filter { $0.roomID == room.id }.map(\.polygon) ?? []
+            return (regions.isEmpty ? [room.floorPolygon] : regions).filter { $0.count >= 3 }.map { $0.map(room.transform.apply) }
+        }
+    }
+    static func footprintInside(_ item: SceneEditObject,in document: SceneEditDocument) -> Bool {
+        let polygons = floorPolygons(document,story:item.story)
+        guard !polygons.isEmpty else { return false }
+        let projected = corners(item).map { Point2D(x:$0.x,y:-$0.z) }
+        guard corners(item).allSatisfy({ corner in
+            let point = Point2D(x:corner.x,y:-corner.z)
+            return polygons.contains { polygon in
+                Polygon2D.contains(polygon,point) || polygon.indices.contains { i in
+                    Segment2D(start:polygon[i],end:polygon[(i+1)%polygon.count]).distance(to:point) <= 0.002
+                }
+            }
+        }) else { return false }
+        // Corners alone miss concave notches and holes inside the box projection.
+        let points = Array(Set(projected)).sorted { $0.x == $1.x ? $0.y < $1.y : $0.x < $1.x }
+        func cross(_ a: Point2D,_ b: Point2D,_ c: Point2D) -> Double { (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x) }
+        func chain(_ points: [Point2D]) -> [Point2D] {
+            var result: [Point2D] = []
+            for p in points { while result.count >= 2 && cross(result[result.count-2],result[result.count-1],p) <= 0 { result.removeLast() }; result.append(p) }
+            return result
+        }
+        let hull = Array(chain(points).dropLast())+Array(chain(Array(points.reversed())).dropLast())
+        var remaining = [hull]
+        for polygon in polygons {
+            let triangulation = Polygon2D.triangulation(polygon)
+            guard triangulation.complete else { return false }
+            for (a,b,c) in triangulation.triangles {
+                remaining = remaining.flatMap { subtract($0,triangle:[polygon[a],polygon[b],polygon[c]]) }
+                guard remaining.count <= 10_000 else { return false }
+                if remaining.isEmpty { return true }
+            }
+        }
+        return remaining.reduce(0) { $0+Polygon2D.area($1) } <= 1e-8
+    }
+    private static func subtract(_ subject: [Point2D],triangle: [Point2D]) -> [[Point2D]] {
+        var inside = subject,outside: [[Point2D]] = []
+        for i in triangle.indices {
+            let a = triangle[i],b = triangle[(i+1)%3]
+            func side(_ p: Point2D) -> Double { (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x) }
+            var keep: [Point2D] = [],remove: [Point2D] = []
+            guard var previous = inside.last else { break }
+            for point in inside {
+                let u = side(previous),v = side(point)
+                if (u >= 0) != (v >= 0) {
+                    let t = u/(u-v),hit = previous+(point-previous)*t
+                    keep.append(hit); remove.append(hit)
+                }
+                if v >= 0 { keep.append(point) } else { remove.append(point) }
+                previous = point
+            }
+            if remove.count >= 3,Polygon2D.area(remove) > 1e-10 { outside.append(remove) }
+            inside = keep
+        }
+        return outside
+    }
     static func available(_ item: SceneEditObject,in document: SceneEditDocument,allowOverlap: Bool) throws -> SceneEditObject {
-        if allowOverlap { return item }
-        if (try? check(item,in: document)) != nil { return item }
+        try item.validate()
+        guard corners(item).allSatisfy({ $0.y >= -0.002 }) else { throw Failure.floor }
+        if footprintInside(item,in:document) && (allowOverlap || (try? check(item,in:document)) != nil) { return item }
+        let polygons = floorPolygons(document,story:item.story)
+        guard let largest = polygons.max(by:{ Polygon2D.area($0) < Polygon2D.area($1) }) else { throw Failure.floor }
+        var origin = item
+        let center = Polygon2D.interiorPoint(largest)
+        origin.position.x = center.x; origin.position.z = -center.y
         let step = max(item.size.x,item.size.z,0.5)+0.1
-        for radius in 1...8 { for x in -radius...radius { for z in -radius...radius where abs(x) == radius || abs(z) == radius {
-            var candidate = item
+        for radius in 0...8 { for x in -radius...radius { for z in -radius...radius where abs(x) == radius || abs(z) == radius {
+            var candidate = origin
             candidate.position.x += Double(x)*step; candidate.position.z += Double(z)*step
-            // Keep automatic placement inside the captured room's bounds.
-            let b = document.shell.bounds
-            guard b.isEmpty || (candidate.position.x >= b.minX && candidate.position.x <= b.maxX && -candidate.position.z >= b.minY && -candidate.position.z <= b.maxY) else { continue }
-            if (try? check(candidate,in: document)) != nil { return candidate }
+            guard footprintInside(candidate,in:document) else { continue }
+            if allowOverlap || (try? check(candidate,in: document)) != nil { return candidate }
         } } }
         throw Failure.overlap("existing geometry; no free position was found")
     }

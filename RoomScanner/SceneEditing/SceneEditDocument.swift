@@ -4,11 +4,14 @@ import simd
 
 enum SceneFurniture: String,Codable,CaseIterable,Identifiable {
     case sofa, bed, chair, table, television, cabinet, refrigerator, stove, sink, toilet, bathtub, shower, washer
+    case desk, officeChair, conferenceTable, computer, monitor, bookshelf, whiteboard
     case radiator, boiler, tank, pump, manifold, electricalPanel, pipe, roundDuct, rectangularDuct, box, cylinder
     var id: String { rawValue }
     var symbol: String {
         switch self {
         case .sofa: "sofa.fill"; case .bed: "bed.double.fill"; case .chair: "chair.fill"; case .table: "table.furniture.fill"
+        case .desk: "table.furniture.fill"; case .officeChair: "chair.lounge.fill"; case .conferenceTable: "person.3.sequence.fill"
+        case .computer: "desktopcomputer"; case .monitor: "display"; case .bookshelf: "books.vertical.fill"; case .whiteboard: "character.textbox"
         case .television: "tv"; case .cabinet: "cabinet.fill"; case .refrigerator: "refrigerator.fill"
         case .stove: "stove.fill"; case .sink: "sink.fill"; case .toilet: "toilet.fill"; case .bathtub: "bathtub.fill"
         case .shower: "shower.fill"; case .washer: "washer.fill"; case .radiator: "heater.vertical.fill"
@@ -19,16 +22,33 @@ enum SceneFurniture: String,Codable,CaseIterable,Identifiable {
     }
     var title: String {
         switch self {
-        case .television: "TV"; case .electricalPanel: "Electrical panel"
-        case .roundDuct: "Round duct"; case .rectangularDuct: "Rectangular duct"
-        default: rawValue.prefix(1).uppercased()+rawValue.dropFirst()
+        case .television: AppLanguage.text("TV"); case .electricalPanel: AppLanguage.text("Electrical panel")
+        case .roundDuct: AppLanguage.text("Round duct"); case .rectangularDuct: AppLanguage.text("Rectangular duct")
+        case .officeChair: AppLanguage.text("Office chair"); case .conferenceTable: AppLanguage.text("Conference table")
+        default: AppLanguage.text(rawValue.prefix(1).uppercased()+rawValue.dropFirst())
         }
     }
-    static func detected(_ category: String) -> Self {
+    static func detected(_ category: String, size: TechnicalPoint3? = nil) -> Self {
         let c = category.lowercased()
+        if c.contains("desk") { return .desk }
+        if c.contains("office chair") || c.contains("swivel") { return .officeChair }
+        if c.contains("conference") || c.contains("meeting") { return .conferenceTable }
+        if c.contains("computer") || c.contains("desktop") || c.contains("pc") { return .computer }
+        if c.contains("monitor") { return .monitor }
+        if c.contains("bookshelf") || c.contains("bookcase") { return .bookshelf }
+        if c.contains("whiteboard") { return .whiteboard }
         if c.contains("sofa") { return .sofa }; if c.contains("bed") { return .bed }
-        if c.contains("chair") { return .chair }; if c.contains("table") || c.contains("desk") { return .table }
-        if c.contains("television") || c == "tv" { return .television }
+        if c.contains("chair") { return .chair }; if c.contains("table") { return .table }
+        if c.contains("television") || c == "tv" || c.contains("screen") || c.contains("display") {
+            if let size {
+                let estimatedScreenHeight = min(size.y, size.x * 9.0 / 16.0)
+                let diagonalInches = sqrt(size.x * size.x + estimatedScreenHeight * estimatedScreenHeight) / 0.0254
+                if diagonalInches <= 32.5 || size.x <= 0.78 {
+                    return .monitor
+                }
+            }
+            return .television
+        }
         if c.contains("refrigerator") { return .refrigerator }; if c.contains("stove") || c.contains("oven") { return .stove }
         if c.contains("sink") { return .sink }; if c.contains("toilet") { return .toilet }
         if c.contains("bathtub") { return .bathtub }; if c.contains("shower") { return .shower }
@@ -40,6 +60,10 @@ enum SceneFurniture: String,Codable,CaseIterable,Identifiable {
         switch self {
         case .sofa: .init(x: 2,y: 0.85,z: 0.9); case .bed: .init(x: 1.6,y: 0.9,z: 2)
         case .chair: .init(x: 0.5,y: 0.85,z: 0.55); case .table: .init(x: 1.4,y: 0.75,z: 0.85)
+        case .desk: .init(x: 1.6,y: 0.75,z: 0.80); case .officeChair: .init(x: 0.65,y: 0.95,z: 0.65)
+        case .conferenceTable: .init(x: 2.4,y: 0.75,z: 1.10); case .computer: .init(x: 0.22,y: 0.45,z: 0.45)
+        case .monitor: .init(x: 0.72,y: 0.52,z: 0.20); case .bookshelf: .init(x: 1.0,y: 1.8,z: 0.35)
+        case .whiteboard: .init(x: 1.5,y: 1.8,z: 0.45)
         case .television: .init(x: 1.2,y: 0.7,z: 0.12); case .radiator: .init(x: 1,y: 0.6,z: 0.12)
         case .pipe,.roundDuct: .init(x: 0.1,y: 1,z: 0.1)
         case .rectangularDuct: .init(x: 0.4,y: 1,z: 0.25)
@@ -155,6 +179,8 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     var sourceID: UUID
     var id: UUID { sourceID }
     var title: String
+    var revision: Int? = nil
+    var modifiedAt: Date? = nil
     /// Immutable shell snapshot: furniture edits never write to original scan packages.
     var shell: House
     var objects: [SceneEditObject]
@@ -172,10 +198,10 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         case captured, equipment, categories, monochrome
         var title: String {
             switch self {
-            case .captured: "Captured colours · measured shapes"
-            case .equipment: "Equipment shapes"
-            case .categories: "Category colours"
-            case .monochrome: "Monochrome engineering"
+            case .captured: AppLanguage.text("Captured colours · measured shapes")
+            case .equipment: AppLanguage.text("Equipment shapes")
+            case .categories: AppLanguage.text("Category colours")
+            case .monochrome: AppLanguage.text("Monochrome engineering")
             }
         }
     }
@@ -373,7 +399,8 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         }
     }
     func validate() throws {
-        guard schemaVersion == 1,!title.isEmpty,title.count <= 240,objects.count <= 500,
+        guard (revision ?? 0) >= 0,modifiedAt?.timeIntervalSince1970.isFinite ?? true,
+              schemaVersion == 1,!title.isEmpty,title.count <= 240,objects.count <= 500,
               Set(objects.map(\.id)).count == objects.count,shell.allRooms.count <= 100,
               shell.allRooms.reduce(0,{ $0+$1.walls.count+$1.openings.count+$1.floorPolygon.count }) <= 20_000,
               [wallColor.x,wallColor.y,wallColor.z,floorColor.x,floorColor.y,floorColor.z].allSatisfy({ $0.isFinite && (0...1).contains($0) }) else { throw Failure.invalid }
@@ -431,11 +458,20 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         if house.stories.isEmpty { house.stories = [.init(index: 0,rooms: [])] }
         for si in house.stories.indices {
             let story = house.stories[si].index
-            let overlay = FloorPlan(id: sourceID,name: "Edited objects",label: .unidentified,story: story,transform: .identity,walls: [],openings: [],
+            let overlay = FloorPlan(id: overlayID(story:story),name: "Edited objects",label: .unidentified,story: story,transform: .identity,walls: [],openings: [],
                 objects: presentationObjects.filter { $0.story == story }.map(\.planObject),floorPolygon: [],ceilingHeight: 0...0)
             house.stories[si].rooms.append(overlay)
         }
         return house
+    }
+    func overlayID(story: Int) -> UUID {
+        var uuid = sourceID.uuid
+        var bytes = withUnsafeBytes(of:&uuid) { Array($0) }
+        // Namespace the overlay and inject all 64 story bits in a fixed byte order.
+        bytes[0] ^= 0xA5
+        let level = UInt64(bitPattern:Int64(story))
+        for i in 0..<8 { bytes[8+i] ^= UInt8(truncatingIfNeeded:level >> (i*8)) }
+        return UUID(uuid:(bytes[0],bytes[1],bytes[2],bytes[3],bytes[4],bytes[5],bytes[6],bytes[7],bytes[8],bytes[9],bytes[10],bytes[11],bytes[12],bytes[13],bytes[14],bytes[15]))
     }
     static func seed(house: House,source: Source,id: UUID,scans: [ScanInput] = []) -> Self {
         var shell = house
@@ -443,8 +479,8 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         for room in house.allRooms {
             for object in room.objects {
                 let point = room.transform.apply(object.center)
-                let family = SceneFurniture.detected(object.category)
                 let size = TechnicalPoint3(x: max(0.005,object.size.width),y: max(0.005,object.height),z: max(0.005,object.size.depth))
+                let family = SceneFurniture.detected(object.category, size: size)
                 let scan = scans.first { $0.id == room.id }
                 let raw = scan?.objects.first { $0.id == object.id }
                 let elevation = raw.map { Double($0.transform.translation.y)-(scan.map { StoryDetector.floorHeight(of: $0) } ?? 0) } ?? size.y/2
@@ -492,9 +528,17 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     private(set) var document: SceneEditDocument
     private(set) var undoStack: [SceneEditDocument] = []
     private(set) var redoStack: [SceneEditDocument] = []
+    private var undoBytes: [Int] = []
+    private var redoBytes: [Int] = []
+    let historyByteLimit: Int
+    var estimatedHistoryBytes: Int { undoBytes.reduce(0,+)+redoBytes.reduce(0,+) }
     private(set) var saved: SceneEditDocument
     var selectedID: UUID?
     var selectedIDs: Set<UUID> = []
+    var onSave: (() -> Void)?
+    var selectAllOnFloor: (() -> Void)?
+    var canUndo: Bool { !undoStack.isEmpty }
+    var canRedo: Bool { !redoStack.isEmpty }
     func select(_ id: UUID?, multiple: Bool) {
         if multiple {
             guard let id else { return }
@@ -511,16 +555,40 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         selectedIDs = []; selectedID = nil
     }
     var selected: SceneEditObject? { document.objects.first { $0.id == selectedID } }
+    func nudgeSelection(dx: Double,dz: Double,allowOverlap: Bool) throws {
+        let ids = selectedIDs.union(selectedID.map { [$0] } ?? [])
+        guard !ids.isEmpty else { return }
+        var next = document
+        for i in next.objects.indices where ids.contains(next.objects[i].id) {
+            next.objects[i].position.x += dx; next.objects[i].position.z += dz
+        }
+        if !allowOverlap {
+            for item in next.objects where ids.contains(item.id) { try StudioPlacement.check(item,in:next) }
+        }
+        try change { $0 = next }
+    }
     var dirty: Bool { document != saved }
-    init(_ document: SceneEditDocument) { self.document = document; saved = document }
+    init(_ document: SceneEditDocument,historyByteLimit: Int = 64*1_048_576) {
+        self.document = document; saved = document; self.historyByteLimit = max(0,historyByteLimit)
+    }
+    /// Conservative serialized-size estimate, not a measurement of resident memory.
+    static func historyCost(_ document: SceneEditDocument) -> Int {
+        ((try? JSONEncoder().encode(document).count) ?? 12*1_048_576)*4
+    }
+    private func remember(_ value: SceneEditDocument,stack: inout [SceneEditDocument],bytes: inout [Int]) {
+        stack.append(value); bytes.append(Self.historyCost(value))
+        while stack.count > 40 || bytes.reduce(0,+) > historyByteLimit/2 {
+            stack.removeFirst(); bytes.removeFirst()
+        }
+    }
     func change(_ body: (inout SceneEditDocument) -> Void) throws {
         var next = document; body(&next)
         let ids = Set(next.engineeringElements.map(\.id))
         next.engineering?.records.removeAll { !ids.contains($0.id) }
         try next.validate()
         guard next != document else { return }
-        undoStack.append(document); if undoStack.count > 40 { undoStack.removeFirst() }
-        redoStack = []; document = next
+        remember(document,stack:&undoStack,bytes:&undoBytes)
+        redoStack = []; redoBytes = []; document = next
     }
     func update(_ item: SceneEditObject) throws {
         try change { doc in if let index = doc.objects.firstIndex(where: { $0.id == item.id }) { doc.objects[index] = item } }
@@ -534,12 +602,22 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         var record = data.record(placed.id); record.phase = .new; data.set(record); target.engineering = data
         try change { $0 = target }; selectedID = placed.id
     }
-    func undo() { guard let previous = undoStack.popLast() else { return }; redoStack.append(document); document = previous }
-    func redo() { guard let next = redoStack.popLast() else { return }; undoStack.append(document); document = next }
-    func markSaved() { saved = document }
+    func undo() {
+        guard let previous = undoStack.popLast() else { return }; undoBytes.removeLast()
+        remember(document,stack:&redoStack,bytes:&redoBytes); document = previous
+    }
+    func redo() {
+        guard let next = redoStack.popLast() else { return }; redoBytes.removeLast()
+        remember(document,stack:&undoStack,bytes:&undoBytes); document = next
+    }
+    func markSaved(_ committed: SceneEditDocument? = nil) { if let committed { document = committed }; saved = document }
 }
 
 enum SceneEditStore {
+    struct Conflict: LocalizedError {
+        let copy: URL
+        var errorDescription: String? { AppLanguage.text("studio.conflict.saved")+"\n"+copy.path }
+    }
     static func url(root: URL,source: SceneEditDocument.Source,id: UUID) -> URL {
         root.appendingPathComponent("SceneEdits",isDirectory: true).appendingPathComponent(source.rawValue+"-"+id.uuidString+".json")
     }
@@ -553,15 +631,33 @@ enum SceneEditStore {
             try document.validate(); return document
         }
     }
-    static func write(_ document: SceneEditDocument,to url: URL) throws {
+    @discardableResult static func write(_ document: SceneEditDocument,to url: URL) throws -> SceneEditDocument {
         try document.validate()
+        var committed = document
+        guard (document.revision ?? 0) >= 0,(document.revision ?? 0) < Int.max else { throw SceneEditDocument.Failure.invalid }
+        committed.revision = (document.revision ?? 0)+1; committed.modifiedAt = Date()
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted,.sortedKeys]
-        let data = try encoder.encode(document)
+        let data = try encoder.encode(committed)
         guard data.count <= 12*1_048_576 else { throw SceneEditDocument.Failure.oversized }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),withIntermediateDirectories: true)
         try RoomPackage.coordinatedWrite(at: url,options: .forReplacing) { file in
             guard (try? file.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true else { throw SceneEditDocument.Failure.invalid }
+            var latest: SceneEditDocument?
+            if FileManager.default.fileExists(atPath:file.path) {
+                let info = try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey])
+                guard info.isRegularFile == true,(info.fileSize ?? Int.max) <= 12*1_048_576 else { throw SceneEditDocument.Failure.oversized }
+                latest = try JSONDecoder().decode(SceneEditDocument.self,from:Data(contentsOf:file))
+                try latest?.validate()
+            }
+            if (latest?.revision ?? 0) != (document.revision ?? 0) || latest?.modifiedAt != document.modifiedAt {
+                var copy = document; copy.sourceID = UUID(); copy.revision = nil; copy.modifiedAt = nil
+                copy.title = String(document.title.prefix(200))+" "+AppLanguage.text("cloud.conflictSuffix")
+                let destination = Self.url(root:file.deletingLastPathComponent().deletingLastPathComponent(),source:copy.source,id:copy.sourceID)
+                try encoder.encode(copy).write(to:destination,options:.atomic)
+                throw Conflict(copy:destination)
+            }
             try data.write(to: file,options: .atomic)
         }
+        return committed
     }
 }

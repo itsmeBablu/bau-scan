@@ -236,24 +236,9 @@ enum Polygon2D {
         intersectionPieces(polygons).reduce(0) { $0 + area($1) }
     }
 
-    /// Area of the **union** of multiple simple polygons via inclusion-exclusion with
-    /// prunes early when intersection is empty. Adjacent rooms overlap
-    /// slightly (wall thickness, scan boundary inaccuracy); summing their areas
-    /// overestimates area — measured at +2.14 m² on initial real scans.
+    /// Union area using polynomial-time vertical slab decomposition.
     static func unionArea(_ polygons: [[Point2D]]) -> Double {
-        let polys = polygons.filter { $0.count >= 3 }
-        guard !polys.isEmpty else { return 0 }
-        var total = 0.0
-        func walk(from start: Int, pieces: [[Point2D]], sign: Double) {
-            total += sign * pieces.reduce(0) { $0 + area($1) }
-            guard start < polys.count else { return }
-            for j in start..<polys.count {
-                let next = clipPieces(pieces, by: polys[j])
-                if !next.isEmpty { walk(from: j + 1, pieces: next, sign: -sign) }
-            }
-        }
-        for i in polys.indices { walk(from: i + 1, pieces: convexPieces(of: polys[i]), sign: 1) }
-        return total
+        PolygonUnion.area(polygons)
     }
 
     private static func intersectionPieces(_ polygons: [[Point2D]]) -> [[Point2D]] {

@@ -2,8 +2,14 @@ import XCTest
 @testable import RoomScanner
 
 final class HouseBuilderTests: XCTestCase {
+    func testDuplicateRoomIDReturnsTypedError() {
+        let room = SyntheticRooms.rectangularRoom().scan
+        XCTAssertThrowsError(try HouseBuilder().build(from:.init(rooms:[room,room]),name:"Invalid")) {
+            XCTAssertEqual($0 as? HouseBuilder.BuildError,.duplicateRoomID(room.id))
+        }
+    }
     func testMultiStoryPDFHasOnePagePerStoryAndPNGStacksPages() throws {
-        let house = HouseBuilder().build(from: SyntheticRooms.twoStoryHouse(), name: "Maison")
+        let house = try HouseBuilder().build(from: SyntheticRooms.twoStoryHouse(), name: "Maison")
         XCTAssertEqual(house.stories.count, 2)
         let pages = PlanRenderer.pages(of: house)
         XCTAssertEqual(pages.count, 2)
@@ -12,7 +18,7 @@ final class HouseBuilderTests: XCTestCase {
         let pdf = PlanRenderer().pdfData(house)
         let text = String(decoding: pdf, as: UTF8.self)
         XCTAssertEqual(text.components(separatedBy: "/Type /Page\n").count - 1 + text.components(separatedBy: "/Type /Page ").count - 1, 2, "deux pages")
-        let single = HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(), name: "Appartement")
+        let single = try HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(), name: "Appartement")
         XCTAssertEqual(PlanRenderer.pages(of: single).count, 1, "un niveau → une page, nom inchangé")
         XCTAssertEqual(PlanRenderer.pages(of: single)[0].name, "Appartement")
         let png = try XCTUnwrap(PlanRenderer().image(house, pageSize: CGSize(width: 842, height: 595), pixelScale: 1))
@@ -48,8 +54,8 @@ final class HouseBuilderTests: XCTestCase {
         XCTAssertEqual(StoryDetector.floorHeight(of: scan), 2.7, accuracy: 1e-5, "bas des murs")
     }
 
-    func testTwoRoomApartmentIsOneStoryInSharedFrame() {
-        let house = HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(), name: "Appartement")
+    func testTwoRoomApartmentIsOneStoryInSharedFrame() throws {
+        let house = try HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(), name: "Appartement")
         XCTAssertEqual(house.stories.count, 1)
         XCTAssertEqual(house.allRooms.map(\.name), [RoomNaming.defaultBaseName(.livingRoom), RoomNaming.defaultBaseName(.kitchen)])
         XCTAssertTrue(house.allRooms.allSatisfy { $0.transform == .identity }, "repère monde partagé")
@@ -64,8 +70,8 @@ final class HouseBuilderTests: XCTestCase {
         XCTAssertEqual(shared.count, 2)
     }
 
-    func testTwoStoryHouseGroupsRoomsByLevel() {
-        let house = HouseBuilder().build(from: SyntheticRooms.twoStoryHouse(), name: "Maison")
+    func testTwoStoryHouseGroupsRoomsByLevel() throws {
+        let house = try HouseBuilder().build(from: SyntheticRooms.twoStoryHouse(), name: "Maison")
         XCTAssertEqual(house.stories.map(\.index), [0, 1])
         XCTAssertEqual(house.stories[0].rooms.map(\.name), [RoomNaming.defaultBaseName(.livingRoom), RoomNaming.defaultBaseName(.kitchen)])
         XCTAssertEqual(house.stories[1].rooms.map(\.name), [RoomNaming.defaultBaseName(.bedroom)])
@@ -75,17 +81,17 @@ final class HouseBuilderTests: XCTestCase {
         XCTAssertEqual(StoryNaming.localizationKey(for: 2), "story.upper %lld")
     }
 
-    func testDuplicateLabelsAreNumbered() {
+    func testDuplicateLabelsAreNumbered() throws {
         let s = StructureInput(rooms: [
             SyntheticRooms.rectangularRoom(origin: .zero, width: 3, depth: 3, label: .bedroom),
             SyntheticRooms.rectangularRoom(origin: Point2D(x: 3, y: 0), width: 3, depth: 3, label: .bedroom),
         ])
         let bedroom = RoomNaming.defaultBaseName(.bedroom)
-        XCTAssertEqual(HouseBuilder().build(from: s, name: "M").allRooms.map(\.name), [bedroom, "\(bedroom) 2"])
+        XCTAssertEqual(try HouseBuilder().build(from: s, name: "M").allRooms.map(\.name), [bedroom, "\(bedroom) 2"])
     }
 
     func testHouseRendersAndExportsAcrossRooms() throws {
-        let house = HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(), name: "Appartement")
+        let house = try HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(), name: "Appartement")
         XCTAssertGreaterThan(PlanRenderer().pdfData(house).count, 1000)
         let svg = SVGExporter().svg(for: house)
         XCTAssertEqual(svg.components(separatedBy: "<polygon ").count - 1, 2, "un sol par pièce")

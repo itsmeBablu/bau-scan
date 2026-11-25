@@ -140,7 +140,8 @@ private struct TechnicalExportDocument: FileDocument {
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 
-private struct TechnicalStoredRoomView: View {
+struct TechnicalStoredRoomView: View {
+    @AppStorage("renovation.proDetails") private var proDetails = false
     let id: UUID
     let library: TechnicalRoomLibraryStore
     @State private var package: TechnicalRoomPackage?
@@ -168,7 +169,7 @@ private struct TechnicalStoredRoomView: View {
                     Picker("Saved survey view", selection: $tab) {
                         Text("3D scan").tag(Tab.scan)
                         Text("Survey details").tag(Tab.details)
-                        Text("MEP review").tag(Tab.recognition)
+                        Text(proDetails ? "MEP review" : "Find objects").tag(Tab.recognition)
                     }
                     .pickerStyle(.segmented).labelsHidden().padding(.horizontal).padding(.vertical, 8)
                     if tab == .scan { TechnicalSavedScanView(package: package,onPhotoLink: savePhotoLink) }
@@ -195,7 +196,7 @@ private struct TechnicalStoredRoomView: View {
                         do { studioDocument = try await Task.detached { try SceneEditDocument.technical(package) }.value }
                         catch { self.error = error.localizedDescription }
                     }
-                } label: { Label("Open in Studio",systemImage: "square.stack.3d.up") }.disabled(package == nil || busy)
+                } label: { Label("Open in Design",systemImage: "square.stack.3d.up") }.disabled(package == nil || busy)
             }
             ToolbarItem(placement: .primaryAction) {
                 if tab == .details { Button("Save") { save() }.disabled(package == nil || busy) }
@@ -203,11 +204,11 @@ private struct TechnicalStoredRoomView: View {
             ToolbarItem(placement: .primaryAction) {
                 Menu("Export", systemImage: "square.and.arrow.up") {
                     Button("Full survey package") { save(exportAfter: true) }
-                    Button("Editable technical survey JSON") { exportSurveyJSON() }
+                    if proDetails { Button("Editable technical survey JSON") { exportSurveyJSON() } }
                     ForEach(TechnicalMeshExporter.Format.allCases, id: \.self) { format in
                         Button(format.rawValue.uppercased()) { exportMesh(format) }
                     }
-                    Menu("Accepted MEP elements") {
+                    Menu(proDetails ? "Accepted MEP elements" : "Confirmed objects") {
                         ForEach(TechnicalMeshExporter.Format.allCases,id: \.self) { format in
                             Button(format.rawValue.uppercased()) { exportMesh(format,acceptedMEPOnly: true) }
                         }
@@ -260,6 +261,7 @@ private struct TechnicalStoredRoomView: View {
                 #endif
             }
             if let current = package {
+                if proDetails {
                 Section("Capture evidence") {
                     if let png = current.thumbnailPNG { TechnicalStoredPhoto(data: png, name: "Survey thumbnail").id(current.manifest.modifiedAt) }
                     Text("\(current.journal.frames.count) frame records · \(current.journal.depths.count) depth · \(current.journal.meshes.count) mesh snapshots")
@@ -268,6 +270,7 @@ private struct TechnicalStoredRoomView: View {
                     Text("\(current.alignment.checkpoints.count) checkpoint observations")
                     Text(current.worldMapData == nil ? "No saved world map" : "Recovery map retained")
                     if current.journal.retentionLimited { Text("Some older capture records exceeded retention limits.").foregroundStyle(.orange) }
+                }
                 }
                 Section("Pipes — manual dimensions") {
                     ForEach(Array(current.document.room.pipeRuns.enumerated()), id: \.element.id) { index, pipe in

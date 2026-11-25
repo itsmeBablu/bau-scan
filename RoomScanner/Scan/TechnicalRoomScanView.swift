@@ -11,6 +11,7 @@ struct TechnicalRoomScanView: View {
     @State private var scanner: TechnicalRoomScanCoordinator
     @AppStorage("technical.googleAI.enabled") private var googleAIEnabled = false
     @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
+    @AppStorage("renovation.proDetails") private var proDetails = false
     @State private var viewport: ARView?
     @State private var showMesh = true
     @AppStorage("technical.showCeiling") private var showCeiling = false
@@ -139,7 +140,7 @@ struct TechnicalRoomScanView: View {
                 }
             }
             .modifier(ScanPhotoFeedback(count:scanner.photoCompleted))
-            .navigationTitle("Technik Room")
+            .navigationTitle("Utility room")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden,for: .navigationBar)
             .toolbar {
@@ -202,7 +203,7 @@ struct TechnicalRoomScanView: View {
                     }
                 }
                 Text("Unsaved scan · dimensions require verification").font(.caption).foregroundStyle(.secondary)
-                Toggle("Google AI mode",isOn: $googleAIEnabled)
+                GoogleAIConsentToggle()
                 if cameraPhotos {
                 Button { scanner.takeSurveyPhoto() } label: { Label(scanner.takingPhoto ? "Saving photo…" : "Take photo",systemImage: "camera") }
                     .buttonStyle(.borderedProminent).controlSize(.large)
@@ -242,7 +243,7 @@ struct TechnicalRoomScanView: View {
                 }
                 Button("Pipe annotation") { showingPipeTool = true }
                     .disabled(!scanner.state.canAnnotate)
-                Text("Unsaved pipe runs: \(pipes.count)").font(.caption)
+                Text(AppLanguage.text("Unsaved pipe runs")+": "+String(pipes.count)).font(.caption)
                 Button("Review pipe runs") { showingPipeReview = true }.disabled(pipes.isEmpty)
                 Button("Place equipment") { showingEquipmentTool = true }.disabled(!scanner.state.canAnnotate)
                 Button("Annotation tools") { showingAnnotations = true }.disabled(!scanner.state.canAnnotate)
@@ -252,11 +253,11 @@ struct TechnicalRoomScanView: View {
                 }
                 if selectedPoints != nil {
                     Text("Drag numbered surface control points in the camera view.").font(.caption)
-                    Picker("Axis lock", selection: $pointAxis) { ForEach(TechnicalPointEditing.Axis.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
+                    Picker("Axis lock", selection: $pointAxis) { ForEach(TechnicalPointEditing.Axis.allCases, id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) } }
                     TextField("Snap grid (m; 0 disables)", value: $pointGrid, format: .number)
                     Button("Finish point editing") { selectedPoints = nil }
                 }
-                Text("Unsaved equipment: \(equipment.count)").font(.caption)
+                Text(AppLanguage.text("Unsaved equipment")+": "+String(equipment.count)).font(.caption)
                 }
                 DisclosureGroup("Capture diagnostics") {
                 Text("Journal: \(scanner.journal.frames.count) frames · \(scanner.journal.depths.count) depth · \(scanner.journal.meshes.count) mesh snapshots").font(.caption)
@@ -274,7 +275,7 @@ struct TechnicalRoomScanView: View {
                 Button("Capture depth snapshot") { scanner.captureDepthSnapshot() }
                     .disabled(!scanner.state.trackingNormal)
                 if let bytes = scanner.residentMemoryBytes {
-                    Text("Resident memory \(Double(bytes) / 1_048_576, specifier: "%.1f") MiB").font(.caption)
+                    Text(AppLanguage.text("Resident memory")+": "+String(format:"%.1f MiB",locale:AppLanguage.locale,Double(bytes)/1_048_576)).font(.caption)
                 }
                 if let depth = scanner.depthSnapshot {
                     Text("Depth snapshot \(depth.width) × \(depth.height)").font(.caption)
@@ -285,7 +286,7 @@ struct TechnicalRoomScanView: View {
                 }
                 HStack {
                     Text("FPS \(scanner.fps, specifier: "%.0f")")
-                    Text("Mesh anchors \(scanner.meshAnchorCount)")
+                    Text(AppLanguage.text("Mesh anchors")+": "+String(scanner.meshAnchorCount))
                     Text(scanner.state.phase.rawValue)
                 }.font(.caption)
                 }
@@ -305,7 +306,7 @@ struct TechnicalRoomScanView: View {
                         Button("Check point at crosshair") { verify() }
                     }
                     if let residual = scanner.state.checkpointResidualMm {
-                        Text("Checkpoint residual \(residual, specifier: "%.1f") mm")
+                        Text(AppLanguage.text("Checkpoint residual")+": "+String(format:"%.1f mm",locale:AppLanguage.locale,residual))
                     }
                     Text(scanner.state.canAnnotate ? "Alignment checkpoint accepted" : "Alignment verification required")
                     Text("\(scanner.alignment.checkpoints.count) checkpoint observations recorded").font(.caption)
@@ -320,7 +321,7 @@ struct TechnicalRoomScanView: View {
         NavigationStack {
             Form {
                 Text("Aim the camera crosshair at the visible pipe surface. Close this sheet to adjust the camera view between points.")
-                Text("Points: \(pipeHits.count)")
+                Text(AppLanguage.text("Points")+": "+String(pipeHits.count))
                 Button("Add crosshair point") {
                     guard let viewport,
                           let hit = scanner.surfaceHit(at: CGPoint(x: viewport.bounds.midX, y: viewport.bounds.midY), viewport: viewport) else {
@@ -330,10 +331,10 @@ struct TechnicalRoomScanView: View {
                 }.disabled(!scanner.state.canAnnotate)
                 Button("Undo point") { if !pipeHits.isEmpty { pipeHits.removeLast() } }
                 Picker("Medium", selection: $medium) {
-                    ForEach(TechnicalMedium.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    ForEach(TechnicalMedium.allCases, id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                 }
                 TextField("Measured outside diameter (mm)", text: $diameter)
-                TextField("DN designation (optional)", text: $nominalDN)
+                if proDetails { TextField("DN designation (optional)", text: $nominalDN) }
                 TextField("Material", text: $material)
                 TextField("Insulation thickness (mm)", text: $insulation)
                 Button("Keep pipe run in preview") { keepPipe() }
@@ -394,7 +395,7 @@ struct TechnicalRoomScanView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach([TechnicalEquipmentType.boiler, .bufferTank, .expansionVessel, .pump, .manifold, .electricalPanel, .heatPump], id: \.self) { type in
-                                Button(type.rawValue.capitalized) {
+                                Button(AppLanguage.text(type.rawValue)) {
                                     applyPreset(type)
                                 }
                                 .buttonStyle(.bordered)
@@ -405,7 +406,7 @@ struct TechnicalRoomScanView: View {
                 Section("Properties") {
                     Text("The crosshair hit sets the equipment base centre. Enter verified dimensions in metres.")
                     Picker("Type", selection: $equipmentType) {
-                        ForEach(TechnicalEquipmentType.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                        ForEach(TechnicalEquipmentType.allCases, id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                     }
                     .onChange(of: equipmentType) { _, newType in
                         applyPreset(newType)
@@ -442,7 +443,7 @@ struct TechnicalRoomScanView: View {
         equipmentWidth = String(format: "%.2f", s.x)
         equipmentHeight = String(format: "%.2f", s.y)
         equipmentDepth = String(format: "%.2f", s.z)
-        equipmentName = type.rawValue.capitalized
+        equipmentName = AppLanguage.text(type.rawValue)
     }
 
     private func placeEquipment() {

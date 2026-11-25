@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StudioLibraryView: View {
     var embedded = false
+    var onSettings: (() -> Void)? = nil
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var mode = Mode.house
@@ -11,13 +12,13 @@ struct StudioLibraryView: View {
     @State private var designRoots: [UUID:URL] = [:]
     @State private var error: String?
     @State private var busy = false
-    enum Mode: String,CaseIterable { case house = "House", technical = "Technik Room" }
+    enum Mode: String,CaseIterable { case house = "Whole home", technical = "Utility room" }
     private struct Launch: Identifiable { let id = UUID(); let document: SceneEditDocument; var root: URL? = nil }
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    Picker("Studio mode",selection: $mode) { ForEach(Mode.allCases,id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented)
+                    Picker("Design type",selection: $mode) { ForEach(Mode.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) } }.pickerStyle(.segmented)
                     Text("Create a separate design from a saved scan. Original scans, measurements and survey evidence remain unchanged.").font(.callout).foregroundStyle(.secondary)
                 }
                 if !filteredDesigns.isEmpty {
@@ -52,7 +53,8 @@ struct StudioLibraryView: View {
                     Text(mode == .house ? "Recognised furniture is replaced with dimension-fitted generic models. Appearance is a design interpretation." : "MEP recognition stays in survey review. Studio imports accepted results; add or replace unknown equipment with shapes. It does not invent hidden connections.").font(.caption).foregroundStyle(.secondary)
                 }
             }.disabled(busy)
-            .navigationTitle("Design Studio")
+            .navigationTitle("Design")
+            .toolbar { ToolbarItem(placement:.primaryAction) { if let onSettings { Button("Settings",systemImage:"person.crop.circle",action:onSettings).labelStyle(.iconOnly) } } }
             .toolbar { ToolbarItem(placement: .cancellationAction) { if !embedded { Button("Done") { dismiss() }.disabled(busy) } } }
         }
         #if os(macOS)

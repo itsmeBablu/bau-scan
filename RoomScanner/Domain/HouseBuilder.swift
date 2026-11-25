@@ -5,13 +5,18 @@ import Foundation
 /// stories are inferred from floor elevation, rooms are named and
 /// deduplicated. No RoomPlan dependency (v2, D26).
 struct HouseBuilder {
+    enum BuildError: Error, Equatable { case duplicateRoomID(UUID) }
     /// Shared world coordinates: no per-room alignment (house is aligned globally in v2).
     var planBuilder: FloorPlanBuilder = { var b = FloorPlanBuilder(); b.alignToLongestWall = false; return b }()
     var storyDetector = StoryDetector()
     var naming = RoomNaming()
 
-    func build(from structure: StructureInput, name: String) -> House {
-        let heights = Dictionary(uniqueKeysWithValues: structure.rooms.map { ($0.id, StoryDetector.floorHeight(of: $0)) })
+    func build(from structure: StructureInput, name: String) throws -> House {
+        var heights: [UUID:Double] = [:]
+        for room in structure.rooms {
+            guard heights[room.id] == nil else { throw BuildError.duplicateRoomID(room.id) }
+            heights[room.id] = StoryDetector.floorHeight(of:room)
+        }
         let storyOf = storyDetector.stories(floorHeights: heights)
         var names: [String] = []
         var plans: [FloorPlan] = []

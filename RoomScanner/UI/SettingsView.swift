@@ -4,11 +4,13 @@ import SwiftUI
 struct SettingsView: View {
     var embedded = false
     var includesProfile = false
+    @AppStorage(AppLanguage.preferenceKey) private var language = AppLanguage.system.rawValue
+    @AppStorage("renovation.proDetails") private var proDetails = false
     @AppStorage("profile.displayName") private var displayName = ""
     @AppStorage("profile.organisation") private var organisation = ""
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(CloudAvailability.preferenceKey) private var useICloud = true
+    @AppStorage(CloudAvailability.preferenceKey) private var useICloud = false
     @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
     @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
     @AppStorage(ScanPerformance.preferenceKey) private var scanPerformance = ScanPerformance.balanced.rawValue
@@ -41,10 +43,26 @@ struct SettingsView: View {
 
     private var form: some View {
         Form {
+            Section("Privacy") {
+                GoogleAIConsentToggle()
+                NavigationLink("Project data and deletion") { ProjectPrivacyView() }
+                Text("Scans stay on this device unless you enable iCloud, share a file or explicitly send selected images for AI processing.").font(.caption)
+            }
+            Section("Display") {
+                Toggle("Pro details",isOn:$proDetails)
+                Text("Show pipe designations, systems, provenance and structured schema exports. Existing data is always retained.").font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Language") {
+                Picker("Language",selection:$language) {
+                    Text("System").tag(AppLanguage.system.rawValue)
+                    Text("English").tag(AppLanguage.english.rawValue)
+                    Text("Deutsch").tag(AppLanguage.german.rawValue)
+                }
+            }
             Section("Capture") {
                 Toggle("Camera photos during scanning",isOn:$cameraPhotos)
                 Picker("Scan performance",selection:$scanPerformance) {
-                    ForEach(ScanPerformance.allCases,id:\.rawValue) { Text($0.rawValue.capitalized).tag($0.rawValue) }
+                    ForEach(ScanPerformance.allCases,id:\.rawValue) { Text(AppLanguage.text($0.rawValue)).tag($0.rawValue) }
                 }
                 Text("Performance changes the live preview. Saved scan evidence keeps the same capture settings.").font(.caption).foregroundStyle(.secondary)
             }
@@ -111,7 +129,7 @@ struct SettingsView: View {
                     .disabled(!updater.isConfigured)
                     .onChange(of: autoCheck) { _, on in if updater.isConfigured { updater.automaticallyChecksForUpdates = on } }
                 LabeledContent("settings.updates.last") {
-                    Text(updater.lastUpdateCheckDate.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? String(localized: "settings.updates.never")).foregroundStyle(.secondary)
+                    Text(updater.lastUpdateCheckDate.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? AppLanguage.text("settings.updates.never")).foregroundStyle(.secondary)
                 }
                 Button("mac.menu.checkForUpdates") { updater.checkForUpdates() }.disabled(!updater.canCheckForUpdates)
                 if !updater.isConfigured { Text("settings.updates.devBuild").font(.footnote).foregroundStyle(.secondary) }

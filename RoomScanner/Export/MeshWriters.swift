@@ -57,6 +57,10 @@ enum MeshWriters {
         end_header
 
         """
+        let comments = mesh.groups.map { group in
+            "comment group \(group.name.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ")) faces \(group.triangles.lowerBound) \(group.triangles.upperBound)\n"
+        }.joined()
+        s = s.replacingOccurrences(of: "end_header\n", with: comments + "end_header\n")
         for (p, n) in zip(mesh.positions, mesh.normals) { s += "\(f(p.x)) \(f(p.y)) \(f(p.z)) \(f(n.x)) \(f(n.y)) \(f(n.z))\n" }
         for t in mesh.triangles { s += "3 \(t.x) \(t.y) \(t.z)\n" }
         return Data(s.utf8)

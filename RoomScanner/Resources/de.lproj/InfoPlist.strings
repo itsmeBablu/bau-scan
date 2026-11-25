@@ -1,0 +1,2 @@
+"NSCameraUsageDescription" = "dWalkScan verwendet Kamera und LiDAR für Raumgeometrie und Aufmaßfotos. Gerätevalidierung ausstehend.";
+"NSMicrophoneUsageDescription" = "dWalkScan nimmt Sprachnotizen nur auf Ihre Anforderung auf. Audio bleibt in Ihrer gewählten Bibliothek und wird nicht an KI-Dienste gesendet.";

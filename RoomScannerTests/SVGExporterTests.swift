@@ -23,7 +23,7 @@ final class SVGExporterTests: XCTestCase {
             XCTAssertTrue(svg.contains("<g id=\"\(id)\">"), id)
         }
         XCTAssertEqual(svg.components(separatedBy: "stroke-dasharray=\"50 40\"").count - 1, 1, "un arc de porte")
-        XCTAssertEqual(svg.components(separatedBy: "<polygon ").count - 1, 2, "sol + table")
+        XCTAssertGreaterThan(svg.components(separatedBy: "<polygon ").count - 1, 2, "floor, object and resolved wall footprints")
         XCTAssertTrue(svg.contains("4") && (svg.contains("mm") || svg.contains("m") || svg.contains("cm")), "cote du grand mur")
         XCTAssertTrue(svg.contains("Table"))
         XCTAssertTrue(svg.contains("Salon"), "nom de la pièce dans le calque text")

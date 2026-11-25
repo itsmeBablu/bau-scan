@@ -216,7 +216,7 @@ final class ScanCoordinator {
             ("invalidInput", "error.roomplan.invalidInput"),
         ]
         if let (_, key) = known.first(where: { text.contains($0.0) }) {
-            return String(localized: String.LocalizationValue(key), bundle: .main)
+            return String(localized: String.LocalizationValue(key), bundle: .main, locale: AppLanguage.locale)
         }
         return error.localizedDescription
     }

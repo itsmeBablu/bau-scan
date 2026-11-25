@@ -6,7 +6,7 @@ struct StudioEngineering: Codable, Equatable {
     enum ViewMode: String, Codable, CaseIterable { case all, existing, demolition, proposed }
     enum IssueStatus: String, Codable, CaseIterable {
         case open, inProgress, resolved
-        var title: String { self == .inProgress ? "In progress" : rawValue.capitalized }
+        var title: String { AppLanguage.text(rawValue) }
     }
     struct Verification: Codable, Equatable {
         var dimensions: TechnicalPoint3
@@ -133,20 +133,22 @@ extension SceneEditDocument {
     }
     /// Quoted RFC4180 rows; spreadsheet formula prefixes are neutralised in textual cells.
     func engineeringCSV() -> Data {
+        let locale = AppLanguage.locale
+        func number(_ value: Double) -> String { String(format:"%.4f",locale:locale,value) }
         func cell(_ text: String) -> String {
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             let safe = trimmed.first.map { "=+-@".contains($0) } == true ? "'"+text : text
             return "\""+safe.replacingOccurrences(of: "\"",with: "\"\"")+"\""
         }
         let header = ["Element ID","Name","Kind","Floor","Phase","X / width / wall length (m)","Y / height / floor slab (m)","Z / depth / wall thickness (m)","Measurement status","Verification reference","Verified at","Issue","Issue status","Assignee","Notes","Thickness source","Thickness reference"]
-        var rows = [header]
+        var rows = [header.map { AppLanguage.text($0) }]
         for element in engineeringElements {
             let r = engineering?.record(element.id) ?? .init(id: element.id)
-            rows.append([element.id.uuidString,element.name,element.kind,String(element.story),r.phase.rawValue,
-                         String(element.dimensions.x),String(element.dimensions.y),String(element.dimensions.z),measurementStatus(element),
+            rows.append([element.id.uuidString,element.name,AppLanguage.text(element.kind),String(element.story),AppLanguage.text(r.phase.rawValue),
+                         number(element.dimensions.x),number(element.dimensions.y),number(element.dimensions.z),AppLanguage.text(measurementStatus(element)),
                          r.verification?.reference ?? "",r.verification.map { ISO8601DateFormatter().string(from: $0.date) } ?? "",
-                         r.issue,r.issue.isEmpty ? "" : r.issueStatus.rawValue,r.assignee,r.note,
-                         element.kind == "Wall" || element.kind == "Floor" ? (r.thicknessOverride == nil ? "Base value · not supplied by scan" : "Independently entered") : "",r.thicknessReference ?? ""])
+                         r.issue,r.issue.isEmpty ? "" : AppLanguage.text(r.issueStatus.rawValue),r.assignee,r.note,
+                         element.kind == "Wall" || element.kind == "Floor" ? AppLanguage.text(r.thicknessOverride == nil ? "Base value · not supplied by scan" : "Independently entered") : "",r.thicknessReference ?? ""])
         }
         return Data((rows.map { $0.map(cell).joined(separator: ",") }.joined(separator: "\r\n")+"\r\n").utf8)
     }
@@ -164,7 +166,7 @@ struct StudioEngineeringView: View {
                 Section("Renovation view") {
                     Picker("Show",selection: Binding(get: { session.document.engineering?.view ?? .all },set: { mode in
                         change { $0.view = mode }
-                    })) { ForEach(StudioEngineering.ViewMode.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
+                    })) { ForEach(StudioEngineering.ViewMode.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) } }
                     Text("Existing includes elements to be removed. Proposed excludes removed elements. Replace keeps the design element in the proposed view; its original scan remains preserved.").font(.caption).foregroundStyle(.secondary)
                 }
                 Section("Element register") {
@@ -219,7 +221,7 @@ private struct StudioEngineeringRecordView: View {
     var body: some View {
         if element.kind != "Floor" {
             Picker("Work",selection: binding(\.phase)) {
-                ForEach(StudioEngineering.Phase.allCases,id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                ForEach(StudioEngineering.Phase.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
             }
         }
         Text("Dimensions (m): \(element.dimensions.x.formatted()) × \(element.dimensions.y.formatted()) × \(element.dimensions.z.formatted())")

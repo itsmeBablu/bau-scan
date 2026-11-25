@@ -122,7 +122,7 @@ struct TechnicalSavedScanView: View {
                     Button { fullPhoto = photo } label: {
                         HStack {
                             SurveyPhotoThumbnail(photo: photo).id(photo.id)
-                            Text("Photo \(index + 1)")
+                            Text(AppLanguage.text("Photo")+" "+String(index+1))
                             Spacer()
                             Label("Full screen", systemImage: "arrow.up.left.and.arrow.down.right")
                         }.padding(.horizontal)

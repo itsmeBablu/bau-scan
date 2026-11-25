@@ -2,6 +2,22 @@ import XCTest
 @testable import RoomScanner
 
 final class GeometryTests: XCTestCase {
+    func testUnionMatchesIndependentIntegerCellOracle() {
+        var seed: UInt64 = 7
+        for _ in 0..<40 {
+            var polygons: [[Point2D]] = [],occupied = Set<String>()
+            for _ in 0..<10 {
+                seed = seed &* 6364136223846793005 &+ 1
+                let x = Int(seed%8),y = Int((seed>>8)%8),w = Int((seed>>16)%4)+1,h = Int((seed>>24)%4)+1
+                polygons.append([.init(x:Double(x),y:Double(y)),.init(x:Double(x+w),y:Double(y)),.init(x:Double(x+w),y:Double(y+h)),.init(x:Double(x),y:Double(y+h))])
+                for a in x..<(x+w) { for b in y..<(y+h) { occupied.insert("\(a),\(b)") } }
+            }
+            XCTAssertEqual(Polygon2D.unionArea(polygons),Double(occupied.count),accuracy:0.000001)
+        }
+    }
+    func testUnionDoesNotReportFiniteAreaForNonFiniteCoordinates() {
+        XCTAssertTrue(Polygon2D.unionArea([[.init(x:0,y:0),.init(x:.nan,y:1),.init(x:1,y:0)]]).isNaN)
+    }
     let square = [Point2D(x: 0, y: 0), Point2D(x: 4, y: 0), Point2D(x: 4, y: 3), Point2D(x: 0, y: 3)]
 
     func testShoelaceArea() {
@@ -134,6 +150,13 @@ final class GeometryTests: XCTestCase {
         let a = rect(0, 0, 1, 1)
         XCTAssertEqual(Polygon2D.unionArea([a, [], [Point2D(x: 5, y: 5), Point2D(x: 6, y: 6)]]), 1, accuracy: 1e-9)
         XCTAssertEqual(Polygon2D.unionArea([]), 0)
+    }
+
+    func testUnionOfTenOverlappingRooms() {
+        let rooms = (0..<10).map { rect(Double($0), 0, Double($0) + 2, 3) }
+        XCTAssertEqual(Polygon2D.unionArea(rooms), 33, accuracy: 0.01)
+        XCTAssertEqual(Polygon2D.unionArea(Array(repeating: rect(0, 0, 4, 3), count: 10)), 12, accuracy: 0.01)
+        XCTAssertEqual(Polygon2D.unionArea(Array(rooms.reversed())), 33, accuracy: 0.01)
     }
 
     func testClipByConvexKeepsTheCommonPart() {

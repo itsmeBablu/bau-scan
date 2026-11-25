@@ -25,10 +25,11 @@ struct RoomListView: View {
     var body: some View {
         NavigationStack(path: $path) {
             Group {
-                if store.records.isEmpty && store.houseRecords.isEmpty && (!includeTechnicalRooms || technicalRooms.records.isEmpty) {
+                if store.records.isEmpty && store.houseRecords.isEmpty && store.libraryProblems.isEmpty && (!includeTechnicalRooms || technicalRooms.records.isEmpty) {
                     emptyState
                 } else {
                     List {
+                        LibraryProblemRows()
                         if includeTechnicalRooms && !technicalRooms.records.isEmpty {
                             Section("Technical Rooms") {
                                 ForEach(technicalRooms.records.filter { matches($0.name) }) { record in

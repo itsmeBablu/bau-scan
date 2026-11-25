@@ -6,7 +6,7 @@ import Foundation
 /// 2D and JSON are generated; USDZ copied from package; OBJ/STL/PLY built from
 /// the plan (`PlanMeshBuilder`) or converted from scan mesh (`ModelIOConverter`).
 struct ExportService {
-    var locale: Locale = .current
+    var locale: Locale = AppLanguage.locale
     var unit: MeasurementUnit = MeasurementUnit(rawValue: UserDefaults.standard.string(forKey: "measurementUnit") ?? "") ?? .both
     var pageSize = CGSize(width: 842, height: 595)  // A4 paysage, points
     var pngPixelScale: CGFloat = 3
@@ -16,8 +16,8 @@ struct ExportService {
         case missingSource(String)
         var errorDescription: String? {
             switch self {
-            case .notAvailable(let f): String(localized: "export.error.notAvailable \(String(localized: String.LocalizationValue(f.titleKey)))")
-            case .missingSource(let n): String(localized: "export.error.missingSource \(n)")
+            case .notAvailable(let f): String(localized:"export.error.notAvailable \(String(localized: String.LocalizationValue(f.titleKey)))",locale:AppLanguage.locale)
+            case .missingSource(let n): String(localized:"export.error.missingSource \(n)",locale:AppLanguage.locale)
             }
         }
     }
@@ -60,7 +60,8 @@ struct ExportService {
     }
 
     static func fileName(for subject: ExportSubject, format: ExportFormat) -> String {
-        folderName(for: subject) + format.fileSuffix + "." + format.fileExtension
+        if LevelExportService.needsArchive(house:subject.house,format:format) { return folderName(for:subject)+"-"+format.rawValue+"-levels.zip" }
+        return folderName(for: subject) + format.fileSuffix + "." + format.fileExtension
     }
 
     /// Subdirectory name `Exports/<Room>/` (same sanitization). A name reduced to dots
@@ -76,7 +77,7 @@ struct ExportService {
         let forbidden = CharacterSet(charactersIn: "/\\:*?\"<>|\n\r\t")
         base = String(base.unicodeScalars.map { forbidden.contains($0) ? "-" : Character($0) })
         if base.isEmpty || base.allSatisfy({ $0 == "." }) { return fallback }
-        return base
+        return ArchivePath.component(base,fallback:fallback)
     }
 
     static let scratchRoot = FileManager.default.temporaryDirectory.appendingPathComponent("RoomScannerExports", isDirectory: true)
@@ -127,9 +128,20 @@ struct ExportService {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: staging) }
         var files: [(name: String, format: ExportFormat)] = []
+        let geometryFolder = folder.appendingPathComponent("Data",isDirectory:true)
+        try FileManager.default.createDirectory(at:geometryFolder,withIntermediateDirectories:true)
+        try ResolvedGeometryExporter.data(for:subject.house,sourceID:subject.id).write(to:geometryFolder.appendingPathComponent("resolved-geometry.json"))
+        files.append(("Data/resolved-geometry.json",.json))
         for format in Self.availableFormats(for: subject) where format != .zip {
-            let url = try export(subject, format: format, to: folder)
-            files.append((url.lastPathComponent, format))
+            let category = format.group == .twoD ? "Plans" : format.group == .threeD ? "Models" : "Data"
+            let url = try export(subject, format: format, to: folder.appendingPathComponent(category,isDirectory:true))
+            files.append((category+"/"+url.lastPathComponent, format))
+        }
+        if let package = subject.sourcePackageURL {
+            var used = Set<String>()
+            let photos = try SurveyPhotoArchiveWriter.write(SurveyPhotoStore.images(from:package,house:subject.house),to:folder,used:&used,sourceID:subject.id.uuidString)
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted,.sortedKeys]
+            try encoder.encode(photos).write(to:folder.appendingPathComponent("photo-index.json"))
         }
         try ArchiveExporter.readme(subject: subject, files: files, locale: locale).write(to: folder.appendingPathComponent("README.txt"), atomically: true, encoding: .utf8)
         try ArchiveExporter.zip(directory: folder, to: dest)
@@ -153,6 +165,11 @@ struct ExportService {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let dest = dir.appendingPathComponent(Self.fileName(for: subject, format: format))
         try? FileManager.default.removeItem(at: dest)
+        if LevelExportService.needsArchive(house:subject.house,format:format), meshSource == .parametric || ![ExportFormat.obj,.stl,.ply].contains(format) {
+            let scans = try subject.sourcePackageURL.flatMap { try HousePackage.readStructure(from:$0)?.rooms } ?? []
+            try LevelExportService.write(house:subject.house,scans:scans,format:format,locale:locale,unit:unit,to:dest)
+            return dest
+        }
         switch format {
         case .usdzParametric: try copy(subject.usdzURL, missing: FileLayout.PackageFile.usdz, to: dest)
         case .usdzMesh: try copy(subject.usdzMeshURL, missing: FileLayout.PackageFile.usdzMesh, to: dest)

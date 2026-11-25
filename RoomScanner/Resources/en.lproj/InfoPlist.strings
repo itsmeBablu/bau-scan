@@ -1,0 +1,2 @@
+"NSCameraUsageDescription" = "dWalkScan uses the camera and LiDAR to capture room geometry and survey photos. Device validation pending.";
+"NSMicrophoneUsageDescription" = "dWalkScan records voice notes only when you choose Record. Audio stays in your selected library and is not sent to AI services.";

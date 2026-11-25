@@ -4,6 +4,28 @@ import Foundation
 /// **most recent version wins**, other version is preserved as
 /// '(conflict)' with a fresh UUID — scans are never lost.
 enum ConflictResolver {
+    /// Preserve all losing house/design versions before marking any version resolved.
+    static func resolveAdditional(at url: URL,suffix: String) throws {
+        guard let versions = NSFileVersion.unresolvedConflictVersionsOfItem(at:url),!versions.isEmpty else { return }
+        for version in versions {
+            let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(url.pathExtension)
+            defer { try? FileManager.default.removeItem(at:temporary) }
+            try version.replaceItem(at:temporary)
+            let folder = url.deletingLastPathComponent()
+            if url.pathExtension == "housescan" {
+                let record = try HousePackage.readRecord(from:temporary)
+                let destination = folder.appendingPathComponent(UUID().uuidString).appendingPathExtension("housescan")
+                _ = try HouseImportCopy.write(from:temporary,to:destination,name:record.name+" "+suffix)
+            } else {
+                var document = try JSONDecoder().decode(SceneEditDocument.self,from:Data(contentsOf:temporary))
+                document.sourceID = UUID(); document.title = String(document.title.prefix(200))+" "+suffix
+                document.revision = nil; document.modifiedAt = nil
+                _ = try SceneEditStore.write(document,to:SceneEditStore.url(root:folder.deletingLastPathComponent(),source:document.source,id:document.sourceID))
+            }
+        }
+        for version in versions { version.isResolved = true }
+        try NSFileVersion.removeOtherVersionsOfItem(at:url)
+    }
     struct Version { var date: Date; var isCurrent: Bool }
 
     /// Index of winning version (most recent; on tie, current version).

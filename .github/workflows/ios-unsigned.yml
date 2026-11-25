@@ -22,7 +22,7 @@ jobs:
           {
             xcodebuild -version
             xcrun --sdk iphoneos --show-sdk-version
-            brew install xcodegen
+            command -v xcodegen || brew install xcodegen
             xcodegen --version
             xcodegen generate
             /usr/libexec/PlistBuddy -c 'Delete :NSUbiquitousContainers' RoomScanner/Info-iOS.plist
@@ -57,13 +57,22 @@ jobs:
             ditto "$app" "$staging/Payload/dWalkScan.app"
             (cd "$staging" && ditto -c -k --keepParent Payload "$RUNNER_TEMP/dWalkScan-local-unsigned.ipa")
             unzip -tq "$RUNNER_TEMP/dWalkScan-local-unsigned.ipa"
+            version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")"
+            printf 'Commit: %s\nVersion: %s\nConfiguration: Release-Local\nArchitectures: %s\nMinimum iOS: %s\nSigning: unsigned\n' \
+              "$(git rev-parse HEAD)" "$version" "$architectures" "$minimum_os" > build-logs/build-info.txt
+            (cd "$RUNNER_TEMP" && shasum -a 256 dWalkScan-local-unsigned.ipa) > build-logs/SHA256SUMS.txt
+            printf '%s\n' 'Unsigned physical-device IPA. Not directly installable: use approved local signing/sideloading. Local-only storage configuration. Free-account entitlements and Google sign-in after re-signing need device testing. No Apple credentials are stored in this workflow.' > build-logs/INSTALLATION.txt
           } 2>&1 | tee build-logs/package.log
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
-          name: dWalkScan-local-unsigned-ipa
-          path: ${{ runner.temp }}/dWalkScan-local-unsigned.ipa
+          name: dWalkScan-local-unsigned-ipa-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/dWalkScan-local-unsigned.ipa
+            build-logs/build-info.txt
+            build-logs/SHA256SUMS.txt
+            build-logs/INSTALLATION.txt
           if-no-files-found: error
           retention-days: 7
           compression-level: 0

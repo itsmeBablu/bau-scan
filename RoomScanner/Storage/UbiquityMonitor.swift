@@ -55,7 +55,7 @@ final class UbiquityMonitor {
 
     init() {
         query.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
-        query.predicate = NSPredicate(format: "%K LIKE %@ OR %K LIKE %@", NSMetadataItemFSNameKey, "*.\(FileLayout.packageExtension)", NSMetadataItemFSNameKey, "*.\(FileLayout.housePackageExtension)")
+        query.predicate = NSPredicate(format: "%K LIKE %@ OR %K LIKE %@ OR %K LIKE %@", NSMetadataItemFSNameKey, "*.\(FileLayout.packageExtension)", NSMetadataItemFSNameKey, "*.\(FileLayout.housePackageExtension)", NSMetadataItemPathKey,"*/SceneEdits/*.json")
         query.notificationBatchingInterval = 0.5
     }
 

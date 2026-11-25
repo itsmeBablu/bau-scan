@@ -4,11 +4,11 @@ import Foundation
 /// `url(forUbiquityContainerIdentifier:)` can block: always execute off main thread.
 enum CloudAvailability {
     static let containerIdentifier = "iCloud.io.github.itsmebablu.dwalkscan"
-    /// User preference (settings); `true` by default.
+    /// New installations remain local. Existing cloud libraries are detected on a worker.
     static let preferenceKey = "RoomScannerUseICloud"
 
     static var isEnabledByUser: Bool {
-        UserDefaults.standard.object(forKey: preferenceKey) == nil ? true : UserDefaults.standard.bool(forKey: preferenceKey)
+        UserDefaults.standard.bool(forKey: preferenceKey)
     }
 
     /// Is an iCloud account signed in on the device?
@@ -22,8 +22,18 @@ enum CloudAvailability {
     /// iCloud location, or `nil` if signed out, container absent, or disabled.
     /// Must be called from a detached background task.
     nonisolated static func resolveLocation() -> StorageLocation? {
-        guard isEnabledByUser, isSignedIn,
+        if UserDefaults.standard.object(forKey:preferenceKey) != nil && !isEnabledByUser { return nil }
+        guard isSignedIn,
               let container = FileManager.default.url(forUbiquityContainerIdentifier: containerIdentifier) else { return nil }
+        if UserDefaults.standard.object(forKey:preferenceKey) == nil {
+            let root = documentsURL(containerURL:container)
+            let hasExisting = ["Rooms","Houses"].contains { directory in
+                ((try? FileManager.default.contentsOfDirectory(at:root.appendingPathComponent(directory),includingPropertiesForKeys:nil,options:.skipsHiddenFiles)) ?? []).contains { ["roomscan","housescan"].contains($0.pathExtension) }
+            }
+            // Preserve access to an existing cloud library; never migrate local files at launch.
+            guard hasExisting else { return nil }
+        }
+        guard UserDefaults.standard.object(forKey:preferenceKey) == nil || isEnabledByUser else { return nil }
         return StorageLocation(kind: .iCloud, documentsURL: documentsURL(containerURL: container))
     }
 

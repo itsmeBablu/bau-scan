@@ -18,7 +18,7 @@ struct PlanRenderer {
 
     struct Options {
         var mode: Mode = .page(titleBlock: true)
-        var locale: Locale = .current
+        var locale: Locale = AppLanguage.locale
         var unit: MeasurementUnit = .both
         var showDimensions = true
         var showOpeningDimensions = true
@@ -199,10 +199,11 @@ struct PlanRenderer {
                              y: area.midY - planH / 2 + margin * ppm - bounds.minY * ppm)
         let mapper = Mapper(origin: origin, ppm: ppm)
 
-        let hiddenDoors = Self.duplicateDoorIndices(in: rooms)
-        for (i, room) in rooms.enumerated() {
-            drawRoom(room, mapper: mapper, floor: floorColor(forRoomAt: i, of: rooms.count), hiddenDoors: hiddenDoors[room.id] ?? [], in: ctx)
-        }
+        let hiddenDoors = Self.duplicateDoorIndices(in:rooms)
+        for (i, room) in rooms.enumerated() { drawFloor(room, mapper: mapper, color: floorColor(forRoomAt: i, of: rooms.count), in: ctx) }
+        let graph = HouseWallGraph(house: house)
+        drawResolvedWalls(house, graph: graph, mapper: mapper, in: ctx)
+        for (i, room) in rooms.enumerated() { drawRoom(room, mapper: mapper, floor: floorColor(forRoomAt: i, of: rooms.count), graph:graph,hiddenDoors:hiddenDoors[room.id] ?? [],in:ctx) }
         if titleHeight > 0 { drawTitleBlock(house, rooms: rooms, scaleDenominator: scaleDenominator, in: ctx, size: size, height: titleHeight) }
     }
 
@@ -222,7 +223,11 @@ struct PlanRenderer {
         r.options.showDimensions = false
         r.options.showOpeningDimensions = false
         r.options.showRoomLabels = false
-        for (i, room) in rooms.enumerated() { r.drawRoom(room, mapper: mapper, floor: floorColor(forRoomAt: i, of: rooms.count), in: ctx) }
+        let hiddenDoors = Self.duplicateDoorIndices(in:rooms)
+        for (i, room) in rooms.enumerated() { r.drawFloor(room, mapper: mapper, color: floorColor(forRoomAt: i, of: rooms.count), in: ctx) }
+        let graph = HouseWallGraph(house: house)
+        r.drawResolvedWalls(house, graph: graph, mapper: mapper, in: ctx)
+        for (i, room) in rooms.enumerated() { r.drawRoom(room, mapper: mapper, floor: floorColor(forRoomAt: i, of: rooms.count), graph:graph,hiddenDoors:hiddenDoors[room.id] ?? [],in:ctx) }
         return ctx.makeImage()
     }
 
@@ -238,7 +243,23 @@ struct PlanRenderer {
         func length(_ m: Double) -> CGFloat { CGFloat(m * ppm) }
     }
 
-    private func drawRoom(_ room: FloorPlan, mapper base: Mapper, floor floorColor: CGColor, hiddenDoors: Set<Int> = [], in ctx: CGContext) {
+    private func drawResolvedWalls(_ house: House, graph: HouseWallGraph, mapper: Mapper, in ctx: CGContext) {
+        ctx.setFillColor(options.wallColor)
+        for solid in ResolvedWallGeometry.solids(house: house, graph: graph) where solid.bottom == 0 {
+            path(solid.footprint, mapper: mapper, in: ctx)
+            ctx.fillPath()
+        }
+    }
+
+    private func drawFloor(_ room: FloorPlan, mapper base: Mapper, color: CGColor, in ctx: CGContext) {
+        guard options.showFloor, room.floorPolygon.count >= 3 else { return }
+        var mapper = base
+        mapper.transform = room.transform
+        ctx.setFillColor(color)
+        path(room.floorPolygon, mapper: mapper, in: ctx)
+        ctx.fillPath()
+    }
+    private func drawRoom(_ room: FloorPlan, mapper base: Mapper, floor floorColor: CGColor, graph:HouseWallGraph,hiddenDoors:Set<Int> = [],in ctx: CGContext) {
         var mapper = base; mapper.transform = room.transform
         let side = InteriorSide(polygon: room.floorPolygon, fallback: room.bounds.center)
 
@@ -251,20 +272,8 @@ struct PlanRenderer {
         if options.showObjects {
             for o in room.objects { drawObject(o, mapper: mapper, in: ctx) }
         }
-        // Walls with openings
-        let thickness = max(mapper.length(FloorPlan.defaultWallThickness), 1.5)
-        ctx.setStrokeColor(options.wallColor); ctx.setLineWidth(thickness); ctx.setLineCap(.square)
-        for wall in room.walls {
-            let openings = room.openings.filter { $0.wallID == wall.id }
-            for piece in wallPieces(wall, openings: openings) {
-                ctx.move(to: mapper.point(piece.start)); ctx.addLine(to: mapper.point(piece.end))
-            }
-        }
-        ctx.strokePath()
         // Doors / windows / openings
-        for (index, o) in room.openings.enumerated() where !hiddenDoors.contains(index) {
-            drawOpening(o, side: side, mapper: mapper, in: ctx)
-        }
+        for (index,o) in room.openings.enumerated() where !hiddenDoors.contains(index) { drawOpening(o,side:side,mapper:mapper,thickness:graph.hostThickness(roomID:room.id,openingID:o.id),in:ctx) }
         // Dimensions
         if options.showDimensions {
             for wall in room.walls { drawDimension(wall, side: side, mapper: mapper, in: ctx) }
@@ -318,7 +327,7 @@ struct PlanRenderer {
         return pieces
     }
 
-    private func drawOpening(_ o: Opening, side: InteriorSide, mapper: Mapper, in ctx: CGContext) {
+    private func drawOpening(_ o: Opening, side: InteriorSide, mapper: Mapper, thickness: Double, in ctx: CGContext) {
         let seg = o.segment
         let a = mapper.point(seg.start), b = mapper.point(seg.end)
         let n = seg.leftNormal
@@ -345,7 +354,7 @@ struct PlanRenderer {
         case .window:
             // Two thin lines (glazing) within wall thickness.
             ctx.setStrokeColor(options.windowColor); ctx.setLineWidth(thin); ctx.setLineDash(phase: 0, lengths: [])
-            let off = n * (FloorPlan.defaultWallThickness * 0.3)
+            let off = n * (thickness * 0.3)
             for d in [off, off * -1] {
                 ctx.move(to: mapper.point(seg.start + d)); ctx.addLine(to: mapper.point(seg.end + d))
             }
@@ -484,9 +493,9 @@ struct PlanRenderer {
         ctx.setStrokeColor(CGColor(gray: 0.6, alpha: 1)); ctx.setLineWidth(0.8); ctx.setLineDash(phase: 0, lengths: [])
         ctx.stroke(rect)
         let loc = options.locale
-        let area = rooms.reduce(0) { $0 + Polygon2D.area($1.floorPolygon) }
+        let area = HouseMeasurements(house:house).floorArea
         let perimeter = rooms.reduce(0) { $0 + $1.walls.reduce(0) { $0 + $1.length } }
-        let ceil = rooms.first?.ceilingHeight ?? 0...0
+        let ceil = (rooms.map { $0.ceilingHeight.lowerBound }.min() ?? 0)...(rooms.map { $0.ceilingHeight.upperBound }.max() ?? 0)
         let ceilText = abs(ceil.upperBound - ceil.lowerBound) < 0.02 ? MeasurementFormat.meters(ceil.lowerBound, locale: loc)
             : "\(MeasurementFormat.meters(ceil.lowerBound, locale: loc)) – \(MeasurementFormat.meters(ceil.upperBound, locale: loc))"
         let date = house.allRooms.isEmpty ? Date() : Date()

@@ -176,12 +176,6 @@ struct TechnicalRoomPackage {
         return completed
     }
     private static func load(_ path: String, root: URL, maximum: Int) throws -> Data {
-        let base = root.resolvingSymlinksInPath()
-        let file = root.appendingPathComponent(path).resolvingSymlinksInPath()
-        guard file.path.hasPrefix(base.path + "/") else { throw PackageError.unsafePath }
-        let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
-        guard attributes[.type] as? FileAttributeType == .typeRegular,
-              let size = attributes[.size] as? NSNumber, size.intValue <= maximum else { throw PackageError.oversizedFile }
-        return try Data(contentsOf: file, options: .mappedIfSafe)
+        try SafePackageRead.data(root.appendingPathComponent(path),root:root,maximum:maximum)
     }
 }

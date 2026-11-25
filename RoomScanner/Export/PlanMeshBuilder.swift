@@ -56,13 +56,17 @@ struct PlanMeshBuilder {
     func build(_ house: House) -> TriangleMesh {
         var mesh = TriangleMesh()
         let geometry = WallGeometry()
+        let graph = HouseWallGraph(house: house)
+        let solids = ResolvedWallGeometry.solids(house: house, graph: graph)
+        let floors = HouseFloorGeometry.pieces(house: house)
+        var emittedWalls: Set<Int> = []
         for room in house.allRooms {
             let t = room.transform
             let prefix = house.allRooms.count > 1 ? "\(room.name)/" : ""
             mesh.group(prefix + "walls") { m in
-                for wall in room.walls {
-                    let ops = room.openings.filter { $0.wallID == wall.id }
-                    for box in geometry.wallBoxes(wall, openings: ops) { Self.addBox(box, transform: t, to: &m) }
+                for wall in graph.walls where wall.roomIdsOnSideA.contains(room.id) || wall.roomIdsOnSideB.contains(room.id) {
+                    guard emittedWalls.insert(wall.id).inserted else { continue }
+                    for solid in solids where solid.wallID == wall.id { Self.addSolid(solid, to: &m) }
                 }
                 let joins = StudioWallJoins.mesh(room: room, visible: Set(room.walls.map(\.id)))
                 if !joins.isEmpty {
@@ -76,12 +80,20 @@ struct PlanMeshBuilder {
                 for kind in [Opening.Kind.door, .window] {
                     mesh.group(prefix + (kind == .door ? "doors" : "windows")) { m in
                         for o in room.openings where o.kind == kind {
-                            if let box = geometry.panelBox(o, wall: room.wall(withID: o.wallID)) { Self.addBox(box, transform: t, to: &m) }
+                            guard graph.panelOwner(roomID: room.id, opening: o, house: house) else { continue }
+                            if var box = geometry.panelBox(o, wall: room.wall(withID: o.wallID)) {
+                                box.thickness = graph.hostThickness(roomID: room.id, openingID: o.id) * 0.35
+                                Self.addBox(box, transform: t, to: &m)
+                            }
                         }
                     }
                 }
             }
-            mesh.group(prefix + "floor") { m in Self.addFloor(room, transform: t, thickness: room.floorSlabThickness == nil ? floorThickness : room.displayFloorSlabThickness, to: &m) }
+            mesh.group(prefix + "floor") { m in
+                for floor in floors where floor.roomID == room.id {
+                    Self.addSolid(.init(wallID: -1, footprint: floor.polygon, bottom: -(room.floorSlabThickness == nil ? floorThickness : room.displayFloorSlabThickness), top: 0), to: &m)
+                }
+            }
             if includeObjects {
                 mesh.group(prefix + "objects") { m in
                     for o in room.objects { Self.addBox(WallGeometry.objectBox(o), transform: t, to: &m) }
@@ -92,6 +104,18 @@ struct PlanMeshBuilder {
     }
 
     // MARK: primitives
+
+    static func addSolid(_ solid: ResolvedWallGeometry.Solid, to mesh: inout TriangleMesh) {
+        let polygon = solid.footprint
+        for (i, j, k) in Polygon2D.triangulate(polygon) {
+            mesh.addTriangle(point(polygon[i], y: solid.top), point(polygon[j], y: solid.top), point(polygon[k], y: solid.top))
+            mesh.addTriangle(point(polygon[k], y: solid.bottom), point(polygon[j], y: solid.bottom), point(polygon[i], y: solid.bottom))
+        }
+        for i in polygon.indices {
+            let a = polygon[i], b = polygon[(i + 1) % polygon.count]
+            mesh.addQuad(point(b, y: solid.bottom), point(b, y: solid.top), point(a, y: solid.top), point(a, y: solid.bottom))
+        }
+    }
 
     static func point(_ p: Point2D, y: Double) -> SIMD3<Float> { SIMD3(Float(p.x), Float(y), Float(-p.y)) }
 

@@ -3,7 +3,7 @@ import Foundation
 enum TechnicalMEPKind: String, Codable, CaseIterable {
     case pipe, roundDuct, rectangularDuct
     var title: String {
-        switch self { case .pipe: "Pipe / cylindrical element"; case .roundDuct: "Round duct"; case .rectangularDuct: "Rectangular duct" }
+        switch self { case .pipe: AppLanguage.text("Pipe / cylindrical element"); case .roundDuct: AppLanguage.text("Round duct"); case .rectangularDuct: AppLanguage.text("Rectangular duct") }
     }
 }
 enum TechnicalMEPMaterial: String, Codable, CaseIterable { case captured, paintedMetal, bareMetal, plastic, insulation }

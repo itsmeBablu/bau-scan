@@ -47,6 +47,7 @@ enum ExportFormat: String, CaseIterable, Identifiable, Codable {
 
     var titleKey: String { "export.format.\(rawValue)" }
     var descriptionKey: String { "export.format.\(rawValue).description" }
+    var isRoomPlanScan: Bool { self == .usdzParametric || self == .usdzMesh }
     var systemImage: String {
         switch self {
         case .pdf: "doc.richtext"; case .png: "photo"; case .svg: "pencil.and.outline"; case .dxf: "ruler"

@@ -91,6 +91,13 @@ final class IFCModel {
         let shape = writer.add("IFCSHAPEREPRESENTATION", "#\(context),'Body','SweptSolid',(#\(solid))")
         return writer.add("IFCPRODUCTDEFINITIONSHAPE", "$,$,(#\(shape))")
     }
+    func extrusions(_ profiles: [Int],length: Double) -> Int {
+        let solids = profiles.map { profile in
+            writer.add("IFCEXTRUDEDAREASOLID","#\(profile),#\(world),#\(direction(P(x:0,y:0,z:1))),\(IFCWriter.number(length))")
+        }
+        let shape = writer.add("IFCSHAPEREPRESENTATION","#\(context),'Body','SweptSolid',\(IFCWriter.refs(solids))")
+        return writer.add("IFCPRODUCTDEFINITIONSHAPE","$,$,(#\(shape))")
+    }
     func product(_ type: String, key: String, name: String, placement: Int, shape: Int?, suffix: String = "") -> Int {
         writer.add(type, "\(IFCWriter.guid(key)),#\(owner),\(IFCWriter.text(name)),'device validation pending',$,#\(placement),\(shape.map { "#\($0)" } ?? "$"),$" + suffix)
     }

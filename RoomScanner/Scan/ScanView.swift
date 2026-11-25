@@ -199,7 +199,7 @@ struct ScanView: View {
         case .finishedHouse(let result):
             do {
                 let extras = result.rooms.mapValues { HousePackage.RoomExtras(capturedRoomData: $0.capturedRoomData, usdzData: $0.usdzData, usdzMeshData: $0.usdzMeshData) }
-                var package = HousePackage.assemble(structure: result.structure, name: store.proposedHouseName(),
+                var package = try HousePackage.assemble(structure: result.structure, name: store.proposedHouseName(),
                                                     capturedStructureData: result.capturedStructureData, usdzData: result.usdzData, roomExtras: extras)
                 if !radiators.isEmpty {
                     package.radiators = try HouseRadiatorRegistration.associate(radiators,house: package.house,structure: result.structure)

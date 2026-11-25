@@ -6,6 +6,7 @@ import RealityKit
 import UIKit
 
 struct TechnicalAnnotationEditor: View {
+    @AppStorage("renovation.proDetails") private var proDetails = false
     @Binding var history: TechnicalAnnotationHistory
     @Bindable var scanner: TechnicalRoomScanCoordinator
     let hit: () -> TechnicalSurfaceHit?
@@ -55,6 +56,7 @@ struct TechnicalAnnotationEditor: View {
                     measurementSection
                     notesSection
                 }.disabled(!scanner.state.canAnnotate)
+                if proDetails {
                 Section("Connection review") {
                     ForEach(history.document.connectionWarnings, id: \.self) { Text($0).font(.caption) }
                     ForEach(history.document.connections) { connection in
@@ -68,6 +70,7 @@ struct TechnicalAnnotationEditor: View {
                             } }.disabled(!scanner.state.canAnnotate)
                         }
                     }
+                }
                 }
             }
             .navigationTitle("Annotations")
@@ -122,7 +125,7 @@ struct TechnicalAnnotationEditor: View {
             TextField("Outside diameter (mm)", value: $diameter, format: .number)
             TextField("Insulation (mm)", value: $insulation, format: .number)
             TextField("Material", text: $pipeMaterial)
-            TextField("DN (optional)", text: $pipeDN)
+            if proDetails { TextField("DN (optional)", text: $pipeDN) }
             Button("Update dimensions") { change { doc in
                 guard let i = doc.room.pipeRuns.firstIndex(where: { $0.id == pipeID }) else { throw TechnicalAnnotationHistory.EditError.missingReference }
                 doc.room.pipeRuns[i].outerDiameterMm = entered(diameter, "mm")
@@ -133,7 +136,7 @@ struct TechnicalAnnotationEditor: View {
             Button("Edit pipe points in camera") { if let pipeID { editPoints(.pipe(pipeID)); dismiss() } }.disabled(pipeID == nil)
             Button("Delete pipe", role: .destructive) { perform { if let pipeID { try history.deletePipe(pipeID, capture: scanner.state) } } }
             Picker("Fitting", selection: $fittingType) {
-                ForEach([TechnicalFittingType.valve, .elbow, .tee, .reducer, .flange, .cross, .cap, .other], id: \.self) { Text($0.rawValue).tag($0) }
+                ForEach([TechnicalFittingType.valve, .elbow, .tee, .reducer, .flange, .cross, .cap, .other], id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
             }
             Button("Add fitting at crosshair") { withHit { value in
                 guard let pipeID else { throw TechnicalAnnotationHistory.EditError.missingReference }
@@ -181,13 +184,14 @@ struct TechnicalAnnotationEditor: View {
                 doc.room.equipment[i].center = center
             } } }
             Button("Delete equipment", role: .destructive) { perform { if let equipmentID { try history.deleteEquipment(equipmentID, capture: scanner.state) } } }
+            if proDetails {
             TextField("Port direction X", value: $direction.x, format: .number)
             TextField("Port direction Y", value: $direction.y, format: .number)
             TextField("Port direction Z", value: $direction.z, format: .number)
             Picker("Port medium", selection: $portMedium) {
-                ForEach(TechnicalMedium.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                ForEach(TechnicalMedium.allCases, id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
             }
-            TextField("Port DN (optional)", text: $portDN)
+            if proDetails { TextField("Port DN (optional)", text: $portDN) }
             Button("Add port at crosshair") { withHit { value in change { doc in
                 guard let i = doc.room.equipment.firstIndex(where: { $0.id == equipmentID }) else { throw TechnicalAnnotationHistory.EditError.missingReference }
                 let length = direction.distance(to: .init(x: 0, y: 0, z: 0))
@@ -200,7 +204,7 @@ struct TechnicalAnnotationEditor: View {
                 Text("Choose port").tag(UUID?.none)
                 ForEach(history.room.equipment.flatMap(\.ports), id: \.id) { Text($0.id.uuidString.prefix(8)).tag(Optional($0.id)) }
             }
-            Picker("Pipe end", selection: $endpoint) { ForEach(TechnicalPipeConnection.Endpoint.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
+            Picker("Pipe end", selection: $endpoint) { ForEach(TechnicalPipeConnection.Endpoint.allCases, id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) } }
             Button("Connect selected pipe and port") { perform {
                 guard let pipeID, let portID else { throw TechnicalAnnotationHistory.EditError.missingReference }
                 try history.connect(pipeID: pipeID, endpoint: endpoint, portID: portID, capture: scanner.state)
@@ -215,6 +219,7 @@ struct TechnicalAnnotationEditor: View {
                 doc.room.equipment[i].ports[j].medium = entered(portMedium, "category")
                 doc.room.equipment[i].ports[j].nominalDN = portDN.isEmpty ? nil : entered(portDN, "text")
             } }
+            }
         }
     }
     private var ductSection: some View {
@@ -291,7 +296,7 @@ struct TechnicalAnnotationEditor: View {
             PhotosPicker("Add survey photo", selection: $photo, matching: .images)
             ForEach(history.room.photos, id: \.id) { value in
                 HStack {
-                    Text("Photo \(value.id.uuidString.prefix(8))")
+                    Text(AppLanguage.text("Photo")+" "+value.id.uuidString.prefix(8))
                     Button("Link to equipment") { change { doc in
                         guard let i = doc.room.equipment.firstIndex(where: { $0.id == equipmentID }) else { throw TechnicalAnnotationHistory.EditError.missingReference }
                         if !doc.room.equipment[i].photoRefs.contains(value.id) { doc.room.equipment[i].photoRefs.append(value.id) }

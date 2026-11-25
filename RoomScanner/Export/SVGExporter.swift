@@ -4,7 +4,7 @@ import Foundation
 /// SVG coordinate system Y down: y_svg = (maxY - y_plan). Readable in Illustrator,
 /// Figma, Inkscape, and web browsers.
 struct SVGExporter {
-    var locale: Locale = .current
+    var locale: Locale = AppLanguage.locale
     var margin = 0.6  // margin around plan in meters (for dimension lines)
     var unit: MeasurementUnit = .both
 
@@ -13,7 +13,7 @@ struct SVGExporter {
         let b = house.bounds.insetBy(margin)
         guard !b.isEmpty else { return emptyDocument() }
         let W = mm(b.width), H = mm(b.height)
-        let renderer = PlanRenderer()
+        let graph = HouseWallGraph(house: house)
         var out = """
         <?xml version="1.0" encoding="UTF-8"?>
         <svg xmlns="http://www.w3.org/2000/svg" width="\(W)mm" height="\(H)mm" viewBox="0 0 \(W) \(H)" font-family="sans-serif">
@@ -32,15 +32,14 @@ struct SVGExporter {
 
         var floors = "", walls = "", doors = "", windows = "", openings = "", objects = "", dims = "", texts = ""
         let hiddenDoors = PlanRenderer.duplicateDoorIndices(in: rooms)
+        for solid in ResolvedWallGeometry.solids(house: house, graph: graph) where solid.bottom == 0 {
+            walls += poly(solid.footprint, .identity, "fill=\"#111110\" stroke=\"none\"")
+        }
         for room in rooms {
             let t = room.transform
             let side = PlanRenderer.InteriorSide(polygon: room.floorPolygon, fallback: room.bounds.center)
             if room.floorPolygon.count >= 3 { floors += poly(room.floorPolygon, t, "fill=\"#fef3c7\" stroke=\"none\"") }
             for wall in room.walls {
-                let ops = room.openings.filter { $0.wallID == wall.id }
-                for piece in renderer.wallPieces(wall, openings: ops) {
-                    walls += line(piece, t, "stroke=\"#111110\" stroke-width=\"\(mm(wall.thickness))\" stroke-linecap=\"square\"")
-                }
                 // Cote
                 let seg = wall.segment
                 guard seg.length >= PlanRenderer.minimumDimensionedLength else { continue }
@@ -71,7 +70,7 @@ struct SVGExporter {
                     let sweep = arcSweep(hinge: seg.start, from: seg.end, to: leaf.end, flipY: true)
                     doors += "  <path d=\"M \(X(seg.end, t)) \(Y(seg.end, t)) A \(r) \(r) 0 0 \(sweep) \(X(leaf.end, t)) \(Y(leaf.end, t))\" fill=\"none\" stroke=\"#1a1a1a\" stroke-width=\"10\" stroke-dasharray=\"50 40\"/>\n"
                 case .window:
-                    let n = seg.leftNormal * (FloorPlan.defaultWallThickness * 0.3)
+                    let n = seg.leftNormal * (graph.hostThickness(roomID: room.id, openingID: o.id) * 0.3)
                     windows += line(Segment2D(start: seg.start + n, end: seg.end + n), t, "stroke=\"#facc15\" stroke-width=\"15\"")
                     windows += line(Segment2D(start: seg.start - n, end: seg.end - n), t, "stroke=\"#facc15\" stroke-width=\"15\"")
                     let parText = MeasurementFormat.parapetHeight(o.sillHeight, unit: unit, locale: locale)

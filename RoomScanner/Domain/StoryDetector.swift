@@ -31,6 +31,6 @@ struct StoryDetector {
 enum StoryNaming {
     static func localizationKey(for index: Int) -> String { index == 0 ? "story.ground" : "story.upper %lld" }
     static func localizedName(for index: Int) -> String {
-        index == 0 ? String(localized: "story.ground") : String(localized: "story.upper \(index)")
+        index == 0 ? AppLanguage.text("story.ground") : String(localized:"story.upper \(index)",locale:AppLanguage.locale)
     }
 }
