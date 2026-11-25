@@ -8,6 +8,7 @@ import Observation
     var error: String?
     private(set) var loading = false
     private var catalogueRoot = StorageLocation.local().documentsURL
+    var notesRoot: URL { catalogueRoot }
     private var ready = false
     private var pendingReload: StorageLocation?
     var currentProject: RenovationProject? { index.projects.first { $0.id == currentProjectID } }

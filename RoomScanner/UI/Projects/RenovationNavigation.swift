@@ -276,6 +276,7 @@ struct RenovationProjectPage: View {
                 Section("Photos & notes") {
                     NavigationLink("Photos") { ProjectPhotosView(projectID:projectID) }
                     NavigationLink("Notes & task pins") { ProjectPinsView(projectID:projectID) }
+                    NavigationLink("Voice notes") { ProjectVoiceNotesView(projectID:projectID) }
                     TextEditor(text:$notes).frame(minHeight:100).accessibilityLabel("Project notes")
                     Button("Save notes") { workspace.note(notes,projectID:projectID) }
                 }

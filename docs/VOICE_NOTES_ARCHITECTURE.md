@@ -1,7 +1,8 @@
 # Voice notes recovery proposal — Phase 4
 
-Status: proposal; persistence integration awaits explicit approval. No voice-note
-code has been merged into the quality-review branch. No Apple tests have run.
+Status: independent storage approved by the user on 2026-11-25. Selected model,
+storage, recording and playback source is now recovered on the quality-review
+branch. No Apple tests have run.
 
 The local codex/ar-notes branch at c621070 contains an independent implementation
 (starting at 6c563f4), including Foundation models, coordinated storage, capture
@@ -69,3 +70,36 @@ backgrounding, camera coexistence, iCloud and native backup/restore are UNRUN.
 Approval requested: the new independent versioned notes sidecar and its backup/
 rollback plan. Approval does not authorize native scan-format changes or cloud
 audio processing.
+
+## Local implementation checkpoint
+
+Recovered ARNote, recording/transcript policies, ARNoteStore and regression tests
+selectively. Added optional title metadata within the approved new notes format.
+Hardened notes directory limits and symlink checks. Existing architectural
+ProjectPin is unchanged: technical notes do not become architectural pins.
+
+Projects now expose a separate Voice notes screen: explicit scan association,
+iOS record/pause/resume/stop with first-use confirmation, elapsed time, retry after
+a failed save, title/description editing, confirmed deletion, playback and seeking.
+Mac can read/edit/play; Mac microphone recording is not implemented. Permission
+descriptions are EN/DE. UI operations use detached storage tasks. No existing scan
+coordinator, ARSession, source package or House capture view is modified.
+
+Optional standalone voice-note ZIP export includes selected project/source notes,
+CSV/JSON indexes, text, hashes and optional M4A. Audio inclusion defaults off.
+Transcripts are excluded. Missing or unrelated source references are not silently
+exported. This is not yet integrated into every organized export/native backup.
+
+All Swift/audio/UI tests are UNRUN. Added a genuine synthetic AAC generation test
+for Apple hosts; older ftyp-header tests remain storage-structure tests only.
+Outstanding: live AR markers, per-equipment association controls, background/crash
+recovery for an unfinished clip, transcription UI, combined archives, audio-aware
+native restore, and complete hardware validation. Completed clips are staged in a
+local Application Support/VoiceNoteRecovery outbox using the approved ARNote
+format before delivery to the selected library. The outbox remains until the
+destination transaction succeeds; recovery uses stable IDs and explicit source
+references. Back/dismiss controls are guarded while recording/saving or when a clip
+could not be staged. If both stores reject writes, only in-memory retry remains;
+never claim crash recovery for that condition or for an unfinished clip killed by
+the OS.
+No phase-completion, full backup or microphone behavior is claimed.
