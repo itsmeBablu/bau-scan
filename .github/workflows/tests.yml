@@ -25,6 +25,10 @@ jobs:
           mkdir -p build-logs
           {
             xcodebuild -version
+            swift --version
+            sw_vers
+            uname -m
+            git rev-parse HEAD
             command -v xcodegen || brew install xcodegen
             xcodegen generate
           } 2>&1 | tee build-logs/generate.log
@@ -32,6 +36,7 @@ jobs:
         if: matrix.scheme == 'RoomScanner'
         run: |
           xcrun simctl list devices available -j > "$RUNNER_TEMP/devices.json"
+          cp "$RUNNER_TEMP/devices.json" build-logs/simulators.json
           python3 - <<'PY' >> "$GITHUB_ENV"
           import json, os
           with open(os.environ['RUNNER_TEMP']+'/devices.json') as f:
@@ -48,6 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           destination="${TEST_DESTINATION:-platform=macOS}"
+          printf 'Commit: %s\nScheme: %s\nDestination: %s\n' "$(git rev-parse HEAD)" "$SCHEME" "$destination" | tee build-logs/environment.txt
           xcodebuild -project RoomScanner.xcodeproj -scheme "$SCHEME" \
             -destination "$destination" -derivedDataPath "$RUNNER_TEMP/derived-data" \
             -resultBundlePath "$RUNNER_TEMP/TestResults.xcresult" \
