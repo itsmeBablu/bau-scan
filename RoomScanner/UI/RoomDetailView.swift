@@ -37,6 +37,7 @@ struct RoomDetailView: View {
                 ProgressView()
             }
         }
+        .safeAreaInset(edge:.top) { if currentRecord.incomplete == true { Text("Partial scan · not fully scanned").font(.caption).padding(8).frame(maxWidth:.infinity).background(.regularMaterial) } }
         .navigationTitle(currentRecord.name)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)

@@ -12,6 +12,7 @@ struct TechnicalRoomManifest: Codable, Hashable, Identifiable {
     var createdAt = Date()
     var modifiedAt = Date()
     var checkpointAcceptedAtSave = false
+    var incomplete: Bool? = nil
     /// This release has no device-validated engineering accuracy claim.
     var validationStatus = "deviceValidationPending"
 }

@@ -67,6 +67,7 @@ struct RenovationNavigation: View {
     private func beginScan() { activeCaptureProject = workspace.currentProjectID; scan = true }
     private var projects: some View {
         List {
+            Section { UnfinishedScansView() }
             if workspace.index.projects.isEmpty { ContentUnavailableView { Label("Your projects",systemImage:"folder") } description: { Text("Keep scans, designs and survey notes together.") } actions: { Button("Create a project") { creating = true } } }
             ForEach(workspace.index.projects.filter { projectQuery.isEmpty || ($0.isUnsorted ? AppLanguage.text("Unsorted") : $0.name).localizedCaseInsensitiveContains(projectQuery) }.sorted { sortNewest ? $0.modifiedAt > $1.modifiedAt : $0.name.localizedStandardCompare($1.name) == .orderedAscending }) { project in
                 NavigationLink(value:project.id) { ProjectSummary(project:project,workspace:workspace) }

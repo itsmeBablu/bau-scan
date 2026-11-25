@@ -11,6 +11,7 @@ struct SettingsView: View {
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @AppStorage(CloudAvailability.preferenceKey) private var useICloud = false
+    @AppStorage("scan.experimentalRelocalization") private var experimentalRelocalization = false
     @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
     @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
     @AppStorage(ScanPerformance.preferenceKey) private var scanPerformance = ScanPerformance.balanced.rawValue
@@ -60,6 +61,8 @@ struct SettingsView: View {
                 }
             }
             Section("Capture") {
+                Toggle("Experimental recovery alignment",isOn:$experimentalRelocalization)
+                Text("Read-only world-map test. Recovered and new rooms are never merged automatically.").font(.caption).foregroundStyle(.secondary)
                 Toggle("Camera photos during scanning",isOn:$cameraPhotos)
                 Picker("Scan performance",selection:$scanPerformance) {
                     ForEach(ScanPerformance.allCases,id:\.rawValue) { Text(AppLanguage.text($0.rawValue)).tag($0.rawValue) }
