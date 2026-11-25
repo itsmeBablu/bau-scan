@@ -22,6 +22,7 @@ enum OrganisedExportService {
         var technicalRoomID: UUID? = nil
         var additionalTechnicalRoomIDs: Set<UUID> = []
         var includePhotos = true
+        var includeSourcePhotos = true
         var removePhotoMetadata = false
         var includeStudio = true
         var includeNativePackages = false
@@ -71,6 +72,7 @@ enum OrganisedExportService {
         to destinationURL: URL
     ) async throws {
         guard !options.includeNativePackages || !options.removePhotoMetadata else { throw CocoaError(.fileWriteInvalidFileName) }
+        guard OrganisedExportPreset.matching(options) != .technical || !selectedTechnicalRoomIDs(options:options).isEmpty else { throw CocoaError(.fileNoSuchFile) }
         let stagingDir = FileManager.default.temporaryDirectory.appendingPathComponent("organised-export-" + UUID().uuidString, isDirectory: true)
         let archiveStem = ArchivePath.component(subject.name, fallback: "Export")
         let root = stagingDir.appendingPathComponent(archiveStem, isDirectory: true)
@@ -83,7 +85,7 @@ enum OrganisedExportService {
         // 1. Gather photo assets and determine structure
         let packageURL = subject.sourcePackageURL
         var photosList: [SurveyPhotoExportSource] = []
-        if (options.includePhotos || options.photosOnly),let packageURL {
+        if options.includeSourcePhotos,(options.includePhotos || options.photosOnly),let packageURL {
             photosList = try SurveyPhotoExportSource.list(from:packageURL,house:subject.house)
         }
 
@@ -154,7 +156,7 @@ enum OrganisedExportService {
                     }
                 }
             }
-            if options.includePlans || options.includeModels || options.includeIFC {
+            if options.includePlans || options.includeModels || (options.includeIFC && options.includeArchitectureIFC) {
                 table.append(TableRow(category:.models,relativeFolder:"data",filename:"resolved-geometry.json") { target in
                     let data = try ResolvedGeometryExporter.data(for:subject.house,sourceID:subject.id)
                     try data.write(to:target); return Int64(data.count)
@@ -436,7 +438,7 @@ enum OrganisedExportService {
             if options.includeIFC { size += 1_000_000 }
             if options.includeStudio { size += 2_000_000 }
         }
-        if options.includePhotos || options.photosOnly {
+        if options.includeSourcePhotos && (options.includePhotos || options.photosOnly) {
             if let packageURL = subject.sourcePackageURL {
                 let photos = (try? SurveyPhotoExportSource.list(from:packageURL,house:subject.house)) ?? []
                 size += Int64(photos.reduce(0) { $0+$1.byteCount })

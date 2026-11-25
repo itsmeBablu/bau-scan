@@ -25,6 +25,7 @@ final class OrganisedExportPresetTests: XCTestCase {
         OrganisedExportPreset.technical.apply(to:&options)
         XCTAssertTrue(options.includeIFC)
         XCTAssertFalse(options.includeArchitectureIFC)
+        XCTAssertFalse(options.includeSourcePhotos)
         XCTAssertNil(options.technicalRoomID)
     }
     func testNativeSnapshotKeepsSourceBytesAndCanBeReadWithoutMigration() throws {

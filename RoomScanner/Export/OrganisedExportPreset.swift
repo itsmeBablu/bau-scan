@@ -13,7 +13,7 @@ enum OrganisedExportPreset: String, CaseIterable, Identifiable {
 
     static func matching(_ options: OrganisedExportService.Options) -> Self {
         func flags(_ value: OrganisedExportService.Options) -> [Bool] {
-            [value.includePlans,value.includeModels,value.includeTechnicalRoom,value.includePhotos,value.includeStudio,value.includeNativePackages,value.includeIFC,value.includeArchitectureIFC,value.photosOnly]
+            [value.includePlans,value.includeModels,value.includeTechnicalRoom,value.includePhotos,value.includeSourcePhotos,value.includeStudio,value.includeNativePackages,value.includeIFC,value.includeArchitectureIFC,value.photosOnly]
         }
         return allCases.first { preset in
             guard preset != .custom else { return false }
@@ -29,6 +29,7 @@ enum OrganisedExportPreset: String, CaseIterable, Identifiable {
         options.includeModels = [.complete,.models].contains(self)
         options.includeTechnicalRoom = [.complete,.engineering,.technical,.backup].contains(self)
         options.includePhotos = [.complete,.technical,.photos].contains(self)
+        options.includeSourcePhotos = [.complete,.photos].contains(self)
         options.includeStudio = [.complete,.backup].contains(self)
         options.includeNativePackages = [.complete,.backup].contains(self)
         options.includeIFC = [.complete,.engineering,.technical].contains(self)

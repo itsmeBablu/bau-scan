@@ -20,7 +20,7 @@ struct OrganisedExportSheet: View {
     @State private var estimatedBytes: Int64?
     private var estimateRequest: String {
         [subject.id.uuidString,store.location.documentsURL.absoluteString,
-         String(describing:[options.includePlans,options.includeModels,options.includeTechnicalRoom,options.includePhotos,options.includeStudio,options.includeIFC,options.includeNativePackages,options.photosOnly]),
+         String(describing:[options.includePlans,options.includeModels,options.includeTechnicalRoom,options.includePhotos,options.includeSourcePhotos,options.includeStudio,options.includeIFC,options.includeNativePackages,options.photosOnly]),
          OrganisedExportService.selectedTechnicalRoomIDs(options:options).map(\.uuidString).joined(separator:",")].joined(separator:"|")
     }
 
@@ -78,6 +78,7 @@ struct OrganisedExportSheet: View {
                             }
                         }
                         Toggle("Survey Photos (optional)", isOn: $options.includePhotos)
+                        if options.includePhotos { Toggle("Include house or room photos",isOn:$options.includeSourcePhotos) }
                         Toggle("Design Studio Layout", isOn: $options.includeStudio)
                         Toggle("IFC (Revit)",isOn:$options.includeIFC)
                         if options.includeIFC {
