@@ -61,16 +61,17 @@ enum OrganisedExportService {
         let stagingDir = FileManager.default.temporaryDirectory.appendingPathComponent("organised-export-" + UUID().uuidString, isDirectory: true)
         let archiveStem = ArchivePath.component(subject.name, fallback: "Export")
         let root = stagingDir.appendingPathComponent(archiveStem, isDirectory: true)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: stagingDir) }
+        try Task.checkCancellation()
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
 
         progressHandler?(0.05, "Building declarative layout…")
 
         // 1. Gather photo assets and determine structure
         let packageURL = subject.sourcePackageURL
-        var photosList: [SurveyPhotoImage] = []
-        if let packageURL {
-            photosList = (try? SurveyPhotoStore.images(from: packageURL, house: subject.house)) ?? []
+        var photosList: [SurveyPhotoExportSource] = []
+        if (options.includePhotos || options.photosOnly),let packageURL {
+            photosList = try SurveyPhotoExportSource.list(from:packageURL,house:subject.house)
         }
 
         // 2. Only an explicit user selection may include a technical survey.
@@ -214,7 +215,7 @@ enum OrganisedExportService {
                 var photoRows: [String] = ["number,level,room,file,timestamp,pos_x,pos_y,pos_z,yaw,pitch,roll"]
                 for (idx, item) in photosList.enumerated() {
                     let roomClean = ArchivePath.component(item.roomName, fallback: "room")
-                    let storyIdx = subject.house.allRooms.first(where: { $0.id == item.photo.roomID })?.storyIndex ?? 0
+                    let storyIdx = subject.house.allRooms.first(where: { $0.id == item.photo.roomID })?.story ?? 0
                     let levelClean = "level-\(storyIdx)"
                     let folder = "photos/\(levelClean)/\(roomClean)"
                     let photoNum = String(format: "photo-%02d.jpg", idx + 1)
@@ -222,8 +223,7 @@ enum OrganisedExportService {
 
                     // Stream photo copy
                     table.append(TableRow(category: .photos, relativeFolder: folder, filename: photoNum) { target in
-                        try item.jpegData.write(to: target, options: .atomic)
-                        return Int64(item.jpegData.count)
+                        try item.copy(to:target)
                     })
 
                     // CSV row
@@ -251,6 +251,7 @@ enum OrganisedExportService {
         var manifestItems: [ManifestItem] = []
         let total = Double(table.count)
         for (i, row) in table.enumerated() {
+            try Task.checkCancellation()
             let progress = 0.1 + (Double(i) / max(total, 1)) * 0.75
             progressHandler?(progress, "Exporting \(row.filename)…")
             let folderURL = root.appendingPathComponent(row.relativeFolder, isDirectory: true)
@@ -276,7 +277,15 @@ enum OrganisedExportService {
 
         // 8. ZIP compression
         progressHandler?(0.90, "Compressing ZIP archive…")
-        try ArchiveExporter.zip(directory: root, to: destinationURL)
+        let archive = stagingDir.appendingPathComponent("completed.zip")
+        try Task.checkCancellation()
+        try ArchiveExporter.zip(directory:root,to:archive)
+        try Task.checkCancellation()
+        let staged = try PackageReplacement.staging(for:destinationURL)
+        defer { try? FileManager.default.removeItem(at:staged) }
+        try FileManager.default.copyItem(at:archive,to:staged)
+        try Task.checkCancellation()
+        try RoomPackage.coordinatedWrite(at:destinationURL,options:.forReplacing) { try PackageReplacement.commit(staged,to:$0) }
         progressHandler?(1.0, "Export completed.")
     }
 
@@ -307,8 +316,8 @@ enum OrganisedExportService {
         }
         if options.includePhotos || options.photosOnly {
             if let packageURL = subject.sourcePackageURL {
-                let photos = (try? SurveyPhotoStore.images(from: packageURL, house: subject.house)) ?? []
-                size += Int64(photos.reduce(0) { $0 + $1.jpegData.count })
+                let photos = (try? SurveyPhotoExportSource.list(from:packageURL,house:subject.house)) ?? []
+                size += Int64(photos.reduce(0) { $0+$1.byteCount })
             }
         }
         return size

@@ -83,7 +83,6 @@ struct OrganisedExportSheet: View {
                         Spacer()
                         Button("Cancel") {
                             exportTask?.cancel()
-                            isExporting = false
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
@@ -121,6 +120,7 @@ struct OrganisedExportSheet: View {
             do { try library.reload(); technicalRooms = library.records }
             catch { errorMessage = error.localizedDescription }
         }
+        .onDisappear { exportTask?.cancel() }
         .alert("Export Successful", isPresented: Binding(get: { completedURL != nil }, set: { if !$0 { completedURL = nil } })) {
             Button("Reveal in Finder") {
                 if let url = completedURL {
@@ -172,7 +172,7 @@ struct OrganisedExportSheet: View {
         progressStatus = "Preparing…"
 
         exportTask = Task { @MainActor in
-            defer { isExporting = false }
+            defer { isExporting = false; exportTask = nil }
             do {
                 try await OrganisedExportService.export(
                     subject: subject,
@@ -186,7 +186,7 @@ struct OrganisedExportSheet: View {
                     },
                     to: destinationURL
                 )
-                completedURL = destinationURL
+                try Task.checkCancellation(); completedURL = destinationURL
             } catch {
                 if !Task.isCancelled {
                     self.errorMessage = error.localizedDescription
