@@ -10,17 +10,18 @@ enum ProjectBundleExporter {
         var records: [Record]
         var photos: [SurveyPhotoArchiveWriter.Entry]
     }
-    static func write(project: RenovationProject, index: ProjectIndex, entries: [ProjectLibraryEntry], locale: Locale, to destination: URL) async throws {
+    static func write(project: RenovationProject, index: ProjectIndex, entries: [ProjectLibraryEntry], locale: Locale, to destination: URL,includeDetails:Bool = false) async throws {
         let staging = FileManager.default.temporaryDirectory.appendingPathComponent("project-bundle-"+UUID().uuidString,isDirectory:true)
         let root = staging.appendingPathComponent(ArchivePath.component(project.name,fallback:"Project"),isDirectory:true)
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         defer { try? FileManager.default.removeItem(at:staging) }
-        try await files(project:project,index:index,entries:entries,locale:locale,in:root)
+        try await files(project:project,index:index,entries:entries,locale:locale,in:root,includeDetails:includeDetails)
         try ArchiveExporter.zip(directory:root,to:destination)
     }
-    static func files(project: RenovationProject, index: ProjectIndex, entries: [ProjectLibraryEntry], locale: Locale, in root: URL) async throws {
+    static func files(project: RenovationProject, index: ProjectIndex, entries: [ProjectLibraryEntry], locale: Locale, in root: URL,includeDetails:Bool = false) async throws {
         try index.validate()
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        if includeDetails,let details = project.details { try JSONEncoder().encode(details).write(to:root.appendingPathComponent("project-details.json"),options:.atomic) }
         var manifest = Manifest(projectID:project.id,records:[],photos:[]), usedPhotoNames = Set<String>(), usedSourceNames = Set<String>()
         func directory(_ path: String) throws -> URL {
             let url = root.appendingPathComponent(path,isDirectory:true)

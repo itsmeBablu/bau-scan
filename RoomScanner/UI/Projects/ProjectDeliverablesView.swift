@@ -6,12 +6,14 @@ struct ProjectDeliverablesView: View {
     @Environment(RoomStore.self) private var store
     @State private var files: [URL] = []
     @State private var busy = false
+    @State private var includeDetails = false
     @State private var error: String?
     @Environment(\.locale) private var locale
     private var root: URL { RootView.hasForcedRoot ? store.location.documentsURL : StorageLocation.local().documentsURL }
     var body: some View {
         List {
             Section("Create a report") {
+                Toggle("Include project details in ZIP",isOn:$includeDetails)
                 Button("Project report · PDF",systemImage:"doc.richtext") { generatePDF() }.disabled(busy)
                 Button("Quantities · CSV",systemImage:"tablecells") { generatePDF(csv:true) }.disabled(busy)
                 Button("Everything · organised ZIP",systemImage:"archivebox") { generateBundle() }.disabled(busy)
@@ -58,7 +60,7 @@ struct ProjectDeliverablesView: View {
                     try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
                     let file = directory.appendingPathComponent(ArchivePath.component(project.name)+(photosOnly ? "-Photos-" : "-Complete-")+UUID().uuidString.prefix(8)+".zip")
                     if photosOnly { try SurveyPhotoArchiveWriter.archive(project:project,entries:entries,locale:locale,to:file) }
-                    else { try await ProjectBundleExporter.write(project:project,index:index,entries:entries,locale:locale,to:file) }
+                    else { try await ProjectBundleExporter.write(project:project,index:index,entries:entries,locale:locale,to:file,includeDetails:includeDetails) }
                     return file
                 }.value
                 reload()

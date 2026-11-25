@@ -16,6 +16,7 @@ struct RenovationProject: Codable, Equatable, Identifiable {
     var modifiedAt: Date
     var references: [ProjectReference]
     var notes: String
+    var details:ProjectDetails? = nil
     var isUnsorted: Bool
     init(id: UUID = UUID(), name: String, date: Date = Date(), references: [ProjectReference] = [], isUnsorted: Bool = false) {
         self.id = id; self.name = name; createdAt = date; modifiedAt = date
@@ -85,7 +86,7 @@ struct ProjectIndex: Codable, Equatable {
               refs.allSatisfy({ ["local", "icloud"].contains($0.library) }),
               (displayNames ?? [:]).count <= 100_000,
               (displayNames ?? [:]).allSatisfy({ $0.key.count <= 150 && !$0.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && $0.value.count <= 240 }),
-              projects.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 240 && $0.notes.count <= 50_000 && $0.createdAt.timeIntervalSince1970.isFinite && $0.modifiedAt.timeIntervalSince1970.isFinite })
+              projects.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 240 && $0.notes.count <= 50_000 && ($0.details?.valid ?? true) && $0.createdAt.timeIntervalSince1970.isFinite && $0.modifiedAt.timeIntervalSince1970.isFinite })
         else { throw CocoaError(.fileReadCorruptFile) }
     }
 }

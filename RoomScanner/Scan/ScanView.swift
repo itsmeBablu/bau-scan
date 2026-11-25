@@ -149,9 +149,9 @@ struct ScanView: View {
                 }
             }.padding(.bottom,8)
             HStack {
-                LiveScanNotes(reference:captureReference,persistence:persistence,workspace:workspace,projectID:voiceProjectID,
+                if workspace?.project(voiceProjectID ?? UUID())?.details?.preferences?.voice != false { VoiceNoteHUD(reference:captureReference,persistence:persistence,workspace:workspace,projectID:voiceProjectID,
                     position:{ coordinator.noteSurface() },pose:{ coordinator.notePose() },roomID:{ mode == .house ? coordinator.liveRoomID : captureID },level:{ coordinator.liveLevel })
-                    .disabled(coordinator.state != .scanning)
+                    .disabled(coordinator.state != .scanning) }
                 Spacer()
             }.padding(.horizontal,20).padding(.bottom,20)
 

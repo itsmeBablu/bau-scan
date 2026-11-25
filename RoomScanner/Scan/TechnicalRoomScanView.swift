@@ -201,7 +201,9 @@ struct TechnicalRoomScanView: View {
         } message: { Text("Capture evidence and annotations are only retained after saving a .technicalroom package.") }
         .sheet(isPresented: $showingPipeTool) { pipeTool.presentationDetents([.medium, .large]).presentationBackgroundInteraction(.enabled(upThrough: .medium)) }
         .sheet(isPresented: $showingPipeReview) { pipeReview }
-        .onAppear { scanner.aiEvidenceEnabled = googleAIEnabled; scanner.persistedDocument = history.document }
+        .onAppear { scanner.aiEvidenceEnabled = googleAIEnabled; scanner.persistedDocument = history.document
+            showAudio = workspace?.project(voiceProjectID ?? UUID())?.details?.preferences?.voice ?? true
+        }
         .onReceive(NotificationCenter.default.publisher(for:UIApplication.didReceiveMemoryWarningNotification)) { _ in scanner.flushIncremental(force:true) }
         .onChange(of: googleAIEnabled) { _, enabled in
             scanner.aiEvidenceEnabled = enabled

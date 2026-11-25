@@ -70,7 +70,7 @@ struct ExportSheet: View {
                 if case .failure(let e) = outcome { error = e.localizedDescription }
             }
         }
-        .onAppear { select(initialFormat ?? selected) }
+        .onAppear { select(initialFormat ?? UserDefaults.standard.string(forKey:"export.defaultFormat").flatMap(ExportFormat.init(rawValue:)) ?? selected) }
         .sheet(isPresented:$showingRevit) { RevitExportPanel(subject:subject) }
         #if os(macOS)
         .frame(minWidth: 480, minHeight: 560)

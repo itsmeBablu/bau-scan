@@ -801,7 +801,7 @@ final class SceneStudioTests: XCTestCase {
         func tabs(_ controller:UIViewController) -> [UITabBarController] {
             (controller as? UITabBarController).map { [$0] } ?? controller.children.flatMap(tabs)
         }
-        XCTAssertEqual(try XCTUnwrap(tabs(hosting).first).tabBar.items?.compactMap(\.title),["House","Technik","Studio"])
+        XCTAssertEqual(try XCTUnwrap(tabs(hosting).first).tabBar.items?.compactMap(\.title),["Project","House","Technik","Studio","Settings"])
     }
     @MainActor func testPhoneStudioKeepsCanvasFullHeightWithInspectorClosed() async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
