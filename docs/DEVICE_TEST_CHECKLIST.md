@@ -31,7 +31,7 @@ checks. See SCAN_PERSISTENCE_RESULTS.md for final validation totals.
 
 The live microphone control uses a 180 ms hold threshold, 60-second maximum and
 100 ms recorder meter interval. There is no live waveform over the camera. Inspect
-`CaptureAudio` logs alongside AR FPS before attributing a freeze to audio-session
+`voice` logs alongside AR FPS before attributing a freeze to audio-session
 changes. No physical camera fix or exact measurement accuracy is claimed.
 
 A resumed stored Technik survey is captured as a separate draft revision so a
@@ -39,3 +39,17 @@ failed continuation cannot replace the original. Recovered House geometry is
 partial; adding newly scanned rooms to its old coordinate system is not enabled.
 The alignment experiment only displays tracking status and never authorizes a
 merge. It must be followed by independently checking a known point.
+
+## Voice/UI regression checks (new branch, all device checks unrun)
+
+- [ ] Hold mic past 0.5 s in House and Technik; category/configuration notifications
+  must not stop the recorder; inspect voice logs and Settings diagnostics.
+- [ ] Disconnect an active microphone after the grace period; finish a partial clip
+  with the input-loss reason. Output-only route changes must not stop recording.
+- [ ] Test interruption began/ended, backgrounding, media reset and permission
+  cancellation; delayed permission must never resurrect a stopped recording.
+- [ ] Close during preparing, recording, busy writes and unstaged failure; confirm
+  discard always exits and committed recovery copies remain.
+- [ ] Check waveform, release-to-save and slide-left cancellation over live camera.
+- [ ] Check project cards on small iPhones/iPad, five tabs, editable parties/defaults,
+  ZIP opt-in privacy and the top-right Technik visibility menus.
