@@ -1,7 +1,5 @@
 import SwiftUI
 
-import SwiftUI
-
 /// Distinct item selectable in the macOS sidebar.
 enum MacItem: Hashable, Identifiable {
     case house(HouseRecord)
