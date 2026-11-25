@@ -15,6 +15,8 @@ struct TechnicalRoomScanView: View {
     @AppStorage("renovation.proDetails") private var proDetails = false
     @State private var viewport: ARView?
     @State private var showMesh = true
+    @State private var showRoomSurfaces = true
+    @State private var showAudio = true
     @AppStorage("technical.showCeiling") private var showCeiling = false
     @State private var showingControls = false
     @State private var showingVoiceNotes = false
@@ -99,7 +101,7 @@ struct TechnicalRoomScanView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                TechnicalCaptureCamera(scanner: scanner, viewport: $viewport,showMesh: showMesh,showCeiling: showCeiling)
+                TechnicalCaptureCamera(scanner: scanner, viewport: $viewport,showMesh: showMesh,showCeiling: showCeiling,showRoomSurfaces:showRoomSurfaces)
                     .overlay { Image(systemName: "plus").font(.title).foregroundStyle(.white).shadow(color: .black,radius: 1).allowsHitTesting(false) }
                     .overlay {
                         if let selectedPoints, let viewport, scanner.state.canAnnotate, let reference = scanner.referenceFrame {
@@ -132,7 +134,6 @@ struct TechnicalRoomScanView: View {
                             Label("\(history.document.ducts.count) duct annotations",systemImage: "wind")
                             Label("\(history.document.room.equipment.count) equipment annotations",systemImage: "shippingbox")
                             if scanner.liveMeshSnapshot?.truncated == true { Text("Partial live preview") }
-                            Toggle("Ceiling",isOn: $showCeiling).toggleStyle(.button)
                         }.font(.caption.weight(.medium)).padding(10)
                     }.scrollIndicators(.hidden).fixedSize(horizontal: false,vertical: true)
                         .background(.regularMaterial,in: Capsule()) }
@@ -142,12 +143,12 @@ struct TechnicalRoomScanView: View {
                             Image(systemName: "slider.horizontal.3").frame(width: 44,height: 44)
                         }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
                             .accessibilityLabel("Survey tools")
-                        LiveScanNotes(reference:.init(kind:.technicalRoom,itemID:persistence.id,library:"local"),
+                        if showAudio { VoiceNoteHUD(reference:.init(kind:.technicalRoom,itemID:persistence.id,library:"local"),
                             persistence:persistence,workspace:workspace,projectID:voiceProjectID,
                             position:{ CaptureSurfacePoint.center(session:scanner.session) },pose:{
                                 guard let m = scanner.session.currentFrame?.camera.transform else { return nil }
                                 return (0..<4).flatMap { c in (0..<4).map { Double(m[c][$0]) } }
-                            }).frame(width:112).disabled(saving || !scanner.hasLiveFrames)
+                            }).frame(width:112).disabled(saving || !scanner.hasLiveFrames) }
                         Button { showMesh.toggle() } label: {
                             Image(systemName: showMesh ? "cube.fill" : "cube").frame(width: 44,height: 44)
                         }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
@@ -168,6 +169,14 @@ struct TechnicalRoomScanView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden,for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement:.topBarTrailing) {
+                    Menu {
+                        Toggle("Room surfaces",isOn:$showRoomSurfaces)
+                        Toggle("Ceiling",isOn:$showCeiling)
+                        Toggle("Photos",isOn:$cameraPhotos)
+                        Toggle("Voice notes",isOn:$showAudio)
+                    } label: { Image(systemName:"ellipsis") }.accessibilityLabel("3D display options")
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") {
                         if scanner.journal.frames.isEmpty { scanner.stop(); dismiss() } else { confirmingClose = true }
@@ -604,6 +613,7 @@ private struct TechnicalCaptureCamera: UIViewControllerRepresentable {
     @Binding var viewport: ARView?
     let showMesh: Bool
     let showCeiling: Bool
+    let showRoomSurfaces: Bool
 
     func makeUIViewController(context: Context) -> TechnicalCameraHost {
         let host = TechnicalCameraHost(scanner: scanner)
@@ -613,7 +623,7 @@ private struct TechnicalCaptureCamera: UIViewControllerRepresentable {
     }
     func updateUIViewController(_ controller: TechnicalCameraHost, context: Context) { updateMesh(controller) }
     private func updateMesh(_ controller: TechnicalCameraHost) {
-        controller.displayMesh(scanner.liveMeshSnapshot,visible: showMesh,showCeiling: showCeiling)
+        controller.displayMesh(scanner.liveMeshSnapshot,visible: showMesh,showCeiling: showCeiling,showSurfaces:showRoomSurfaces)
     }
     static func dismantleUIViewController(_ controller: TechnicalCameraHost, coordinator: ()) {
         controller.scanner.stop()
@@ -627,11 +637,14 @@ private final class TechnicalCameraHost: UIViewController {
     private var meshTimestamp: Double?
     private var meshVisible = false
     private var ceilingVisible = false
+    private var surfacesVisible = true
     private var displayed: [UUID:TechnicalMeshSnapshot.Patch] = [:]
     private var displayedNodes: [UUID:ModelEntity] = [:]
-    func displayMesh(_ snapshot: TechnicalMeshSnapshot?,visible: Bool,showCeiling: Bool) {
-        guard meshTimestamp != snapshot?.timestamp || meshVisible != visible || ceilingVisible != showCeiling else { return }
-        let changedCeiling = ceilingVisible != showCeiling
+    func displayMesh(_ incoming: TechnicalMeshSnapshot?,visible: Bool,showCeiling: Bool,showSurfaces:Bool) {
+        let snapshot = showSurfaces ? incoming : incoming?.hidingRoomSurfaces()
+        guard meshTimestamp != snapshot?.timestamp || meshVisible != visible || ceilingVisible != showCeiling || surfacesVisible != showSurfaces else { return }
+        let changedCeiling = ceilingVisible != showCeiling || surfacesVisible != showSurfaces
+        surfacesVisible = showSurfaces
         meshTimestamp = snapshot?.timestamp; meshVisible = visible; ceilingVisible = showCeiling
         guard visible,let snapshot else {
             meshOverlay.children.removeAll(); displayed = [:]; displayedNodes = [:]; return

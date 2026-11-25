@@ -17,6 +17,8 @@ struct ProjectVoiceNotesView: View {
     @State private var includeAudio = false
     @State private var exportURL: URL?
     @State private var recoveryCount = 0
+    @State private var closing = false
+    @Environment(\.dismiss) private var dismiss
     #if os(iOS)
     @State private var recorder = NoteAudioRecorder()
     @State private var failedClip: NoteAudioRecorder.Clip?
@@ -61,6 +63,12 @@ struct ProjectVoiceNotesView: View {
                         .disabled(busy || recorder.preparing || !references.contains { $0.id == referenceID })
                 }
                 #endif
+                if !references.contains(where:{ $0.id == referenceID }) { Text("Select a scan before recording.").font(.caption).foregroundStyle(.secondary) }
+                #if os(iOS)
+                if audioActive || hasUnstagedClip {
+                    Button("Discard unsaved recording",role:.destructive) { recorder.stop(cancel:true,reason:"Recording discarded"); failedClip = nil }
+                }
+                #endif
                 if busy { ProgressView().accessibilityLabel("Saving voice note") }
                 if recoveryCount > 0 {
                     Button("Recover unsaved recordings") { recoverRecordings() }.disabled(busy || audioActive)
@@ -101,15 +109,14 @@ struct ProjectVoiceNotesView: View {
         .task(id:projectID.uuidString+workspace.notesRoot.absoluteString) {
             visible = true
             if let initialReference { referenceID = initialReference.id }
+            else if references.count == 1 { referenceID = references[0].id }
             await reload()
         }
-        .toolbar {
-            if let onClose {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done",action: onClose).disabled(busy || audioActive || hasUnstagedClip)
-                }
-            }
-        }
+        .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Close") { requestClose() } } }
+        .confirmationDialog("Close voice notes?",isPresented:$closing,titleVisibility:.visible) {
+            Button("Discard unsaved recording and close",role:.destructive) { finishClose() }
+            Button("Cancel",role:.cancel) {}
+        } message: { Text("Saved recordings stay in recovery. Only the active or unsaved clip is discarded.") }
         .sheet(item:$editing) { note in VoiceNoteEditor(note:note) { updated in saveEdit(updated) } }
         .alert("Delete voice note?",isPresented:Binding(get:{ deleting != nil },set:{ if !$0 { deleting = nil } })) {
             Button("Delete",role:.destructive) { if let deleting { remove(deleting) }; deleting = nil }
@@ -123,6 +130,14 @@ struct ProjectVoiceNotesView: View {
         .interactiveDismissDisabled(audioActive || busy || (failedClip != nil && !staged))
         .onChange(of:recorder.error) { _,message in if let message { error = message; recorder.error = nil } }
         #endif
+        .task(id:busy) {
+            guard busy else { return }; try? await Task.sleep(for:.seconds(30))
+            guard !Task.isCancelled,busy else { return }
+            busy = false; error = AppLanguage.text("Operation timed out. Saved recovery copies are kept. Retry or close.")
+        }
+        .onChange(of:references.map(\.id)) { _,_ in
+            if !references.contains(where:{ $0.id == referenceID }),references.count == 1 { referenceID = references[0].id }
+        }
         .onDisappear {
             visible = false
             playback.stop()
@@ -130,6 +145,16 @@ struct ProjectVoiceNotesView: View {
             recorder.stop(partial:true); recorder.onClip = nil
             #endif
         }
+    }
+    private func requestClose() {
+        if audioActive || busy || hasUnstagedClip { closing = true } else { finishClose() }
+    }
+    private func finishClose() {
+        #if os(iOS)
+        recorder.stop(cancel:true,reason:"Recording discarded"); failedClip = nil
+        #endif
+        playback.stop()
+        if let onClose { onClose() } else { dismiss() }
     }
     private var audioActive: Bool {
         #if os(iOS)

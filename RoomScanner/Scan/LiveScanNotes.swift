@@ -2,6 +2,8 @@
 import SwiftUI
 
 /// Small capture HUD. The existing recorder owns audio, never the ARSession.
+typealias VoiceNoteHUD = LiveScanNotes
+
 struct LiveScanNotes: View {
     let reference: ProjectReference
     let persistence: CapturePersistence
@@ -13,6 +15,7 @@ struct LiveScanNotes: View {
     var level: () -> Int? = { nil }
     @State private var recorder = NoteAudioRecorder()
     @State private var holding = false
+    @State private var cancelled = false
     @State private var pin: TechnicalPoint3?
     @State private var text = ""
     @State private var editing = false
@@ -30,25 +33,27 @@ struct LiveScanNotes: View {
                     .foregroundStyle(recorder.recording ? Color.red : Color.primary)
                     .frame(width:48,height:48).background(.regularMaterial,in:Circle())
                     .contentShape(Circle())
-                    .onLongPressGesture(minimumDuration:0.18,pressing:{ pressed in
+                    .onLongPressGesture(minimumDuration:0.18,maximumDistance:.infinity,pressing:{ pressed in
                         holding = pressed
-                        if !pressed { recorder.stop() }
+                        if pressed { cancelled = false }
+                        if !pressed && !cancelled { recorder.stop() }
                     }) {
-                        guard !busy else { return }
+                        guard !busy,!cancelled else { return }
                         capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level()
                         recorder.onClip = { clip in pending = clip; saveAudio(clip) }
                         Task { if holding { await recorder.start() }; if !holding { recorder.stop() } }
                     }
+                    .simultaneousGesture(DragGesture(minimumDistance:0).onChanged { value in
+                        if value.translation.width < -60,!cancelled {
+                            cancelled = true; holding = false; recorder.stop(cancel:true,reason:"Recording discarded")
+                        }
+                    }.onEnded { _ in if !cancelled { holding = false; recorder.stop() } })
                     .accessibilityLabel("Hold to record voice note")
                     .accessibilityAction(named:Text("Start recording")) {
                         capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level()
                         recorder.onClip = { clip in pending = clip; saveAudio(clip) }
                         Task { await recorder.start() }
                     }
-                if recorder.recording {
-                    Text(Duration.seconds(recorder.elapsed).formatted(.time(pattern:.minuteSecond))).monospacedDigit()
-                    Button("Stop") { recorder.stop() }
-                }
                 Button {
                     guard let point = position() else { message = AppLanguage.text("Aim at a tracked surface"); return }
                     pin = point; capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level(); editing = true
@@ -56,7 +61,13 @@ struct LiveScanNotes: View {
                     .background(.regularMaterial,in:Circle()).accessibilityLabel("Pin a note to this surface")
                 if pending != nil,!recorder.recording { Button("Retry saving") { if let pending { saveAudio(pending) } } }
             }.disabled(busy)
-            if recorder.recording { Text("Release to save · 60 s maximum").font(.caption) }
+            if recorder.recording {
+                HStack(spacing:2) { ForEach(Array(recorder.levels.suffix(20).enumerated()),id:\.offset) { _,level in
+                    Capsule().fill(.red).frame(width:3,height:max(2,level*22))
+                } }.frame(height:24).accessibilityHidden(true)
+                Button("Stop") { recorder.stop() }
+                Text("Release to save · slide left to cancel").font(.caption)
+            }
             else { Text("Hold mic · aim and pin").font(.caption).padding(4).background(.regularMaterial,in:Capsule()) }
             if let error = recorder.error ?? message { Text(error).font(.caption).padding(6).background(.regularMaterial,in:Capsule()) }
         }

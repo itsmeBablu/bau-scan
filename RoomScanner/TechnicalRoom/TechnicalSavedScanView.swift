@@ -37,6 +37,9 @@ struct TechnicalSavedScanView: View {
     var selectedSuggestion: UUID? = nil
     var onPhotoLink: ((UUID,URL) async throws -> Void)? = nil
     @State private var showPhotos = true
+    @State private var showAudio = true
+    @State private var voiceNotes: [ARNote] = []
+    @State private var selectedVoice: ARNote?
     @State private var showRoomSurfaces = true
     @State private var selectedPhoto: TechnicalCaptureKeyframe?
     @State private var fullPhoto: TechnicalCaptureKeyframe?
@@ -50,43 +53,27 @@ struct TechnicalSavedScanView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if !immersive, package.evidence.keyframes.contains(where: { $0.userPhoto == true }) {
-                Toggle(isOn: $showPhotos) { Label("Photos",systemImage: "camera") }.padding(.horizontal).padding(.vertical,6)
-            }
-            if !immersive, package.journal.meshes.contains(where: { $0.patches.contains(where: { $0.faceClasses != nil }) }) {
-                Toggle("Room surfaces", isOn: $showRoomSurfaces).padding(.horizontal)
-                Toggle("Ceiling",isOn: $showCeiling).padding(.horizontal)
-            }
-            if !immersive, !package.recognition.suggestions.isEmpty {
-                Picker("Display",selection: $appearance) {
-                    Text("Scan").tag(Appearance.scan)
-                    Text("MEP").tag(Appearance.mep)
-                    Text("Both").tag(Appearance.both)
-                }.pickerStyle(.segmented).padding(8)
-            }
             if let snapshot = TechnicalSavedMeshGeometry.latest(in: package.journal.meshes) {
                 meshViewport(snapshot)
                     .ignoresSafeArea(edges: immersive ? .all : [])
                     .overlay(alignment: .topTrailing) {
-                        if immersive {
-                            HStack {
-                                Menu {
-                                    Toggle("Room surfaces", isOn: $showRoomSurfaces)
-                                    Toggle("Ceiling",isOn: $showCeiling)
-                                    Toggle("Photos", isOn: $showPhotos)
-                                    Picker("Display",selection: $appearance) {
-                                        Text("Scan").tag(Appearance.scan)
-                                        Text("MEP").tag(Appearance.mep)
-                                        Text("Both").tag(Appearance.both)
-                                    }
-                                } label: { Image(systemName: "slider.horizontal.3") }
-                                    .accessibilityLabel("3D display options")
+                        HStack {
+                            Menu {
+                                Toggle("Room surfaces",isOn:$showRoomSurfaces)
+                                Toggle("Ceiling",isOn:$showCeiling)
+                                Toggle("Photos",isOn:$showPhotos)
+                                Toggle("Voice notes",isOn:$showAudio)
+                                Picker("Display",selection:$appearance) {
+                                    Text("Scan").tag(Appearance.scan); Text("MEP").tag(Appearance.mep); Text("Both").tag(Appearance.both)
+                                }
+                            } label: { Image(systemName:"ellipsis") }.accessibilityLabel("3D display options")
+                            if immersive {
                                 Button { renderError = nil; resetID = UUID() } label: { Image(systemName: "scope") }
                                     .accessibilityLabel("Reset view")
                                 Button { closeImmersive?() } label: { Image(systemName: "xmark") }
                                     .accessibilityLabel("Close full-screen view")
-                            }.buttonStyle(.bordered).padding().background(.regularMaterial,in: Capsule()).padding()
-                        }
+                            }
+                        }.buttonStyle(.bordered).padding().background(.regularMaterial,in:Capsule()).padding()
                     }
                 if !immersive {
                 HStack {
@@ -106,6 +93,11 @@ struct TechnicalSavedScanView: View {
                 }
             } else {
                 ContentUnavailableView("No saved 3D mesh", systemImage: "cube.transparent", description: Text("Open Survey details to inspect the saved evidence and photos. A recovery map is only needed to resume aligned AR capture."))
+            }
+            if showAudio,!voiceNotes.isEmpty {
+                ScrollView(.horizontal) { HStack { ForEach(voiceNotes) { note in
+                    Button { selectedVoice = note } label: { Label(note.title ?? AppLanguage.text("Voice note"),systemImage:"mic.circle.fill") }.buttonStyle(.bordered)
+                } }.padding(8) }
             }
             if showPhotos {
                 ScrollView(.horizontal) {
@@ -140,6 +132,11 @@ struct TechnicalSavedScanView: View {
         .onChange(of: package.recognition) { _,_ in resetID = UUID() }
         .onChange(of: selectedSuggestion) { _,_ in resetID = UUID() }
         .onChange(of: appearance) { _,_ in resetID = UUID() }
+        .task(id:package.manifest.id) {
+            let reference = ProjectReference(kind:.technicalRoom,itemID:package.manifest.id,library:"local")
+            voiceNotes = (try? await Task.detached { try ScanVoiceNoteLibrary.notes(for:reference) }.value) ?? []
+        }
+        .sheet(item:$selectedVoice) { note in VoiceNotePlayerSheet(note:note) }
         .onChange(of: showPhotos) { _,_ in resetID = UUID() }
         .onChange(of: showRoomSurfaces) { _,_ in renderError = nil; resetID = UUID() }
         .onChange(of: showCeiling) { _,_ in renderError = nil; resetID = UUID() }
