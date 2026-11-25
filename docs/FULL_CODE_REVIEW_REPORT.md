@@ -101,3 +101,21 @@ Coverage inventory is not a claim that every file has been reviewed. Later phase
 documents and changes are intentionally deferred. No migration is proposed.
 
 Phase 0 is blocked as documented above. No subsequent phase has been started. Awaiting approval.
+
+## Phase 1 local implementation report
+
+Status: local fixes implemented; Apple verification BLOCKED/UNVERIFIED. The user authorized continued local phase work. No remote request, push, merge to main, schema change or dependency change occurred.
+
+| ID | Priority | Root cause / files | Fix / regression | Evidence status |
+|---|---|---|---|---|
+| P1-PRINT | P1 | PrintController.PDFPageView drew only page 1 | Per-page rectangles/range and ordered drawing; PrintPaginationTests covers one/three pages, invalid numbers and multi-storey PDF | UNVERIFIED; physical printing not tested |
+| P1-ZIP | P1 | ArchiveExporter removed destination before copying | Sibling staging, structural validation, manifest size/hash checks, recoverable replacement; failure/cancel/security regression fixtures | UNVERIFIED Swift tests; Mac unzip integrity check included but unrun |
+| P1-DXF | P1 | Lossy CP1252 encoding or empty fallback in three export paths | Shared non-lossy codepage encoder with UTF-16 Unicode escapes; German/non-Latin/supplementary-character tests | UNVERIFIED; no CAD reader was opened |
+| P1-MAC | P1 | Unsupported selections, swallowed deletion/subject errors, stale async loads | Eligibility checks, native Trash, visible errors, guarded publishing after cancellation/root changes, disabled export options while busy | UNVERIFIED native behaviour; selection regression extended |
+| P1-SILENT | P1 | Missing/current error audit, corrupt scan fallback | File/line CSV plus explicit triage; present corrupt scans and failed plan updates now propagate; RoomStore regression | Inventory generated; Swift tests UNVERIFIED |
+
+The current lexical inventory has 81 try? source matches, zero app try!, 73 force-unwrap candidates and zero fatalError/preconditionFailure/TODO/FIXME matches. This excludes tests and is not an AST proof. Remaining candidates are not claimed safe: the CSV records follow-up decisions, with storage/export/capture failures prioritized for later reliability review. In particular, optional photo/render fallbacks and Model I/O replacement remain open audit risks.
+
+Prior fixes 1–23 were rechecked against their changed APIs/test sources: their existing regression files remain present, the synchronous Studio API remains for compatibility, both task sources preserve data formats, and gesture grouping remains at endDrag. None is upgraded to runtime VERIFIED. Full Mac/iOS regression is still required; no assertions were weakened.
+
+Phase 1 commits: 529a6e2 (printing/export), 63f1f27 (Mac state), 27240df (corrupt reads), ec52233 (inventory). Exact files/line statistics are available with git show --stat for each commit. The local baseline runner is rerun after the phase documentation commit. No CI URL, application artifact, screenshot or physical-device evidence exists.

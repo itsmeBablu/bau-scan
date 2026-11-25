@@ -90,3 +90,12 @@ This manual verification checklist covers testing procedures for the **dWalkScan
   - Open `photos/index.csv` in Excel or Numbers.
   - Verify headers: `number,level,room,file,timestamp,pos_x,pos_y,pos_z,yaw,pitch,roll`.
   - Verify camera coordinates match scan coordinate space.
+
+## Full quality Phase 1 checks — UNVERIFIED
+
+- Print one and three PDF pages and a multi-storey house; check ordering and invalid page boundaries. Physical printing remains untested.
+- Existing ZIP destination must survive injected move failure and Cancel. Run unzip integrity/extraction, compare manifest bytes and SHA-256, and test traversal, symlinks and duplicate paths.
+- Open German and non-Latin DXF names in a reader supporting Unicode escapes; confirm declared ANSI_1252 and no missing text. Legacy R12 reader support is not guaranteed merely by producing escapes.
+- Export/Print must be disabled for technical/design selections in the main window. Test explicit technical survey picker; controls must stay disabled while exporting.
+- Delete via native Trash, restore in Finder, and test an inaccessible file. Errors must remain visible without silently clearing selection.
+- Switch libraries while opening a design; old async photos/designs must not replace the current window. In inspector text fields, Undo/Redo/Select All must affect text.

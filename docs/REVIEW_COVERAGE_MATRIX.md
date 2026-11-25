@@ -382,3 +382,7 @@ Paths only; no private local/untracked assets or credentials included.
 - `services/technical-google-ai/app.py`
 - `services/technical-google-ai/test_app.py`
 - `services/technical-google-ai/test_cache.py`
+
+## Phase 1 coverage
+
+Printing, ZIP publication/structural validation, manifest item validation, DXF encoding, Mac action eligibility/Trash/errors and async publication were changed and received regression coverage. All Swift tests and visual/native behaviours remain UNVERIFIED. Silent-failure inventory is source-level triage, not a claim of closed errors. Geometry/security/capture completeness remains pending its relevant phase.
