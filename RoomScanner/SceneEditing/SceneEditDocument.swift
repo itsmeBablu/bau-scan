@@ -528,6 +528,10 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     private(set) var document: SceneEditDocument
     private(set) var undoStack: [SceneEditDocument] = []
     private(set) var redoStack: [SceneEditDocument] = []
+    private var undoBytes: [Int] = []
+    private var redoBytes: [Int] = []
+    let historyByteLimit: Int
+    var estimatedHistoryBytes: Int { undoBytes.reduce(0,+)+redoBytes.reduce(0,+) }
     private(set) var saved: SceneEditDocument
     var selectedID: UUID?
     var selectedIDs: Set<UUID> = []
@@ -564,15 +568,27 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         try change { $0 = next }
     }
     var dirty: Bool { document != saved }
-    init(_ document: SceneEditDocument) { self.document = document; saved = document }
+    init(_ document: SceneEditDocument,historyByteLimit: Int = 64*1_048_576) {
+        self.document = document; saved = document; self.historyByteLimit = max(0,historyByteLimit)
+    }
+    /// Conservative serialized-size estimate, not a measurement of resident memory.
+    static func historyCost(_ document: SceneEditDocument) -> Int {
+        ((try? JSONEncoder().encode(document).count) ?? 12*1_048_576)*4
+    }
+    private func remember(_ value: SceneEditDocument,stack: inout [SceneEditDocument],bytes: inout [Int]) {
+        stack.append(value); bytes.append(Self.historyCost(value))
+        while stack.count > 40 || bytes.reduce(0,+) > historyByteLimit/2 {
+            stack.removeFirst(); bytes.removeFirst()
+        }
+    }
     func change(_ body: (inout SceneEditDocument) -> Void) throws {
         var next = document; body(&next)
         let ids = Set(next.engineeringElements.map(\.id))
         next.engineering?.records.removeAll { !ids.contains($0.id) }
         try next.validate()
         guard next != document else { return }
-        undoStack.append(document); if undoStack.count > 40 { undoStack.removeFirst() }
-        redoStack = []; document = next
+        remember(document,stack:&undoStack,bytes:&undoBytes)
+        redoStack = []; redoBytes = []; document = next
     }
     func update(_ item: SceneEditObject) throws {
         try change { doc in if let index = doc.objects.firstIndex(where: { $0.id == item.id }) { doc.objects[index] = item } }
@@ -586,8 +602,14 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         var record = data.record(placed.id); record.phase = .new; data.set(record); target.engineering = data
         try change { $0 = target }; selectedID = placed.id
     }
-    func undo() { guard let previous = undoStack.popLast() else { return }; redoStack.append(document); document = previous }
-    func redo() { guard let next = redoStack.popLast() else { return }; undoStack.append(document); document = next }
+    func undo() {
+        guard let previous = undoStack.popLast() else { return }; undoBytes.removeLast()
+        remember(document,stack:&redoStack,bytes:&redoBytes); document = previous
+    }
+    func redo() {
+        guard let next = redoStack.popLast() else { return }; redoBytes.removeLast()
+        remember(document,stack:&undoStack,bytes:&undoBytes); document = next
+    }
     func markSaved(_ committed: SceneEditDocument? = nil) { if let committed { document = committed }; saved = document }
 }
 
