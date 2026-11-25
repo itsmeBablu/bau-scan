@@ -102,7 +102,10 @@ struct StudioEditorView: View {
     var body: some View {
         editorLayout
         .disabled(busy).allowsHitTesting(!busy)
-        .navigationTitle(session.dirty ? "\(session.document.title) •" : session.document.title)
+        .navigationTitle(session.document.title)
+        #if os(macOS)
+        .background(StudioWindowGuard(dirty:{ session.dirty },save:{ try await persistDesign() }))
+        #endif
         .focusedSceneValue(\.studioSession, session)
         #if os(iOS)
         .toolbar {
@@ -765,15 +768,19 @@ struct StudioEditorView: View {
     }
 
     private func save(close: Bool = false) {
-        busy = true; let document = session.document
         Task { @MainActor in
-            defer { busy = false }
             do {
-                try await Task.detached { try SceneEditStore.write(document,to: storageURL) }.value
-                session.markSaved(); hasSaved = true; status = "Design saved separately from the scan."
+                try await persistDesign()
                 if close { dismiss() }
             } catch { self.error = error.localizedDescription }
         }
+    }
+    private func persistDesign() async throws {
+        guard !busy else { throw CocoaError(.fileWriteUnknown) }
+        busy = true; defer { busy = false }
+        let document = session.document
+        try await Task.detached { try SceneEditStore.write(document,to:storageURL) }.value
+        session.markSaved(); hasSaved = true; status = "Design saved separately from the scan."
     }
     private func image() {
         perform { exportFile = StudioFile(try controller.png()); exportType = .png; exportName = "Edited-design.png"; exporting = true }

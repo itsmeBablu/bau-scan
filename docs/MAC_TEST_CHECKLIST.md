@@ -45,9 +45,10 @@ This manual verification checklist covers testing procedures for the **dWalkScan
 - [ ] **Independent Windows**: Open multiple design designs simultaneously (`WindowGroup("Design Studio", for: UUID.self)`).
 - [ ] **Title & Unsaved Indicator**:
   - Clean state: Window title displays `<Design Name>`.
-  - Modified state: Window title displays `<Design Name> •` indicating unsaved edits.
+  - Modified state: Native window edited indicator is enabled; title has no appended bullet.
 - [ ] **Menu Focus Binding**: Focused window correctly routes `⌘Z`, `⇧⌘Z`, and `⌘S` via `focusedSceneValue(\.studioSession)` to the active window only.
 - [ ] **Dirty State Prompt on Close**: Closing a modified window prompts to **Save and close** or **Discard unsaved edits**.
+- [ ] Close button, Cmd-W and Cmd-Q: test Save / Discard / Cancel for two dirty windows. Failed save must keep the window open; cancelling quit must keep the application open. Device/Mac validation pending.
 
 ---
 

@@ -6,6 +6,7 @@ import SwiftUI
 struct RoomScannerApp: App {
     @AppStorage(AppLanguage.preferenceKey) private var language = AppLanguage.system.rawValue
     #if os(macOS)
+    @NSApplicationDelegateAdaptor(StudioTerminationDelegate.self) private var termination
     @State private var store = RoomStore(location: RootView.initialLocation(), allowsCloud: !RootView.hasForcedRoot)
     @State private var updater = UpdaterController()
     #endif
