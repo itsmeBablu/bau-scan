@@ -2,12 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>dWalkScan records voice notes only when you choose Record. Audio stays in your selected library and is not sent to AI services.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>dWalkScan</string>
+	<string>$(DWALK_IOS_DISPLAY_NAME)</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -72,6 +70,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>dWalkScan uses the camera and LiDAR to scan rooms.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>dWalkScan records voice notes only when you choose Record. Audio stays in your selected library and is not sent to AI services.</string>
 	<key>TechnicalGoogleAIServiceURL</key>
 	<string>$(DWALK_GOOGLE_AI_SERVICE_URL)</string>
 	<key>UIFileSharingEnabled</key>

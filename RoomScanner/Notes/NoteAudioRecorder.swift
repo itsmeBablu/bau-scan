@@ -15,8 +15,11 @@ import UIKit
     var error: String?
     var onClip: ((Clip) -> Void)?
     private var recorder: AVAudioRecorder?
-    private var timer: Task<Void,Never>?
-    private var observers: [NSObjectProtocol] = []
+    private let lifecycle = AudioRecorderLifecycle()
+    private var timer: Task<Void,Never>? {
+        get { lifecycle.timer }
+        set { lifecycle.timer = newValue }
+    }
     private var generation = 0
     private var previousCategory: AVAudioSession.Category?
     private var previousMode = AVAudioSession.Mode.default
@@ -27,12 +30,11 @@ import UIKit
         super.init()
         for name in [AVAudioSession.interruptionNotification,AVAudioSession.routeChangeNotification,
                      AVAudioSession.mediaServicesWereResetNotification,UIApplication.didEnterBackgroundNotification] {
-            observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] _ in
+            lifecycle.observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] _ in
                 Task { @MainActor in self?.stop(partial:true) }
             })
         }
     }
-    deinit { for observer in observers { NotificationCenter.default.removeObserver(observer) }; timer?.cancel() }
     func start() async {
         guard !recording,!preparing else { return }
         guard Self.owner == nil || Self.owner === self else { error = AppLanguage.text("Another voice note is recording. Stop it before starting a new one."); return }
@@ -48,7 +50,7 @@ import UIKit
             let url = root.appendingPathComponent("note-recording-"+UUID().uuidString).appendingPathExtension("m4a")
             let audio = AVAudioSession.sharedInstance()
             previousCategory = audio.category; previousMode = audio.mode; previousOptions = audio.categoryOptions
-            try audio.setCategory(.playAndRecord,mode:.default,options:[.mixWithOthers,.defaultToSpeaker,.allowBluetooth])
+            try audio.setCategory(.playAndRecord,mode:.default,options:[.mixWithOthers,.defaultToSpeaker,.allowBluetoothHFP])
             try audio.setActive(true)
             let recorder = try AVAudioRecorder(url:url,settings:[AVFormatIDKey:kAudioFormatMPEG4AAC,
                 AVSampleRateKey:22_050,AVNumberOfChannelsKey:1,AVEncoderBitRateKey:32_000])
@@ -116,6 +118,17 @@ import UIKit
     }
     nonisolated func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder,error: Error?) {
         Task { @MainActor in guard self.recorder === recorder else { return }; self.stop(partial:true) }
+    }
+}
+
+/// The non-actor owner tears down observer tokens and the task without accessing
+/// isolated recorder state from the recorder's nonisolated deinitializer.
+private final class AudioRecorderLifecycle {
+    var timer: Task<Void,Never>?
+    var observers: [NSObjectProtocol] = []
+    deinit {
+        timer?.cancel()
+        for observer in observers { NotificationCenter.default.removeObserver(observer) }
     }
 }
 #endif

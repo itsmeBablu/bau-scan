@@ -131,11 +131,10 @@ struct MacRootView: View {
                 return true
             } else if [FileLayout.packageExtension, FileLayout.housePackageExtension].contains(url.pathExtension) {
                 do {
-                    if let item = try store.importAny(from: url) {
-                        switch item {
-                        case .house(let h): appState.selected = .house(h)
-                        case .room(let r): appState.selected = .room(r)
-                        }
+                    let item = try store.importAny(from: url)
+                    switch item {
+                    case .house(let h): appState.selected = .house(h)
+                    case .room(let r): appState.selected = .room(r)
                     }
                     return true
                 } catch {
@@ -180,11 +179,10 @@ struct MacRootView: View {
             }
             guard [FileLayout.packageExtension, FileLayout.housePackageExtension].contains(url.pathExtension) else { return }
             do {
-                if let item = try store.importAny(from: url) {
-                    switch item {
-                    case .house(let h): appState.selected = .house(h)
-                    case .room(let r): appState.selected = .room(r)
-                    }
+                let item = try store.importAny(from: url)
+                switch item {
+                case .house(let h): appState.selected = .house(h)
+                case .room(let r): appState.selected = .room(r)
                 }
             } catch { errorMessage = error.localizedDescription }
         }
@@ -338,11 +336,10 @@ struct MacRootView: View {
                 }
             } else {
                 do {
-                    if let item = try store.importAny(from: url) {
-                        switch item {
-                        case .house(let h): appState.selected = .house(h)
-                        case .room(let r): appState.selected = .room(r)
-                        }
+                    let item = try store.importAny(from: url)
+                    switch item {
+                    case .house(let h): appState.selected = .house(h)
+                    case .room(let r): appState.selected = .room(r)
                     }
                 } catch { errorMessage = error.localizedDescription }
             }

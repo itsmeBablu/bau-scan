@@ -4,8 +4,9 @@ import SwiftUI
 
 final class StudioFocusedValuesTests: XCTestCase {
     @MainActor func testStudioFocusKeyIsAvailableToBothTargets() {
-        var values = FocusedValues()
-        XCTAssertNil(values.studioSession)
-        values.studioSession = nil
+        // SwiftUI constructs FocusedValues; its initializer is not public.
+        let scene: WritableKeyPath<FocusedValues,SceneEditSession?> = \.studioSession
+        let viewport: WritableKeyPath<FocusedValues,SceneEditSession?> = \.studioViewportSession
+        XCTAssertNotEqual(scene,viewport)
     }
 }

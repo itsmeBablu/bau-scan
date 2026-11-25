@@ -156,10 +156,10 @@ struct StudioEditorView: View {
                     get: { session.document.engineering?.view ?? .all },
                     set: { v in try? session.change { $0.engineering = ($0.engineering ?? .init()); $0.engineering?.view = v } }
                 )) {
-                    Text("All").tag(StudioEngineeringData.ViewMode.all)
-                    Text("Existing").tag(StudioEngineeringData.ViewMode.existing)
-                    Text("Demolition").tag(StudioEngineeringData.ViewMode.demolition)
-                    Text("Proposed").tag(StudioEngineeringData.ViewMode.proposed)
+                    Text("All").tag(StudioEngineering.ViewMode.all)
+                    Text("Existing").tag(StudioEngineering.ViewMode.existing)
+                    Text("Demolition").tag(StudioEngineering.ViewMode.demolition)
+                    Text("Proposed").tag(StudioEngineering.ViewMode.proposed)
                 }
                 .pickerStyle(.segmented)
                 .frame(maxWidth: 300)
@@ -180,52 +180,13 @@ struct StudioEditorView: View {
         }
         #endif
         .tint(.blue)
-        .toolbar {
-            ToolbarItem {
-                Menu("Selection",systemImage:"checkmark.circle") {
-                    Toggle("Select multiple",isOn:$multipleSelection)
-                    Button("Select all objects on this floor") {
-                        multipleSelection = true
-                        session.selectedID = nil
-                        session.selectedIDs = Set(session.document.presentationObjects.filter { $0.story == story }.map(\.id))
-                    }
-                    Button("Delete selected",role:.destructive) { perform { try session.deleteSelection() } }.disabled(session.selectedIDs.isEmpty)
-                    Button("Clear selection") { session.select(nil,multiple:false) }
-                }
-            }
-            ToolbarItem {
-                if !photos.isEmpty { Toggle("Photos",isOn:$showPhotos).toggleStyle(.button) }
-            }
-        }
+        .toolbar { selectionToolbar }
         .sheet(item:$selectedPhoto) { photo in
             SurveyPhotoGallery(photos:photos,initial:photo.id) { controller.flyToPhoto($0.photo) }
         }
         .onChange(of:showPhotos) { _,value in controller.setPhotos(value ? photos : []) }
         .onChange(of:photos) { _,value in controller.setPhotos(showPhotos ? value : []) }
-        .onAppear {
-            hasSaved = FileManager.default.fileExists(atPath: storageURL.path)
-            session.onSave = { save() }
-            session.selectAllOnFloor = {
-                multipleSelection = true
-                session.selectedIDs = Set(session.document.presentationObjects.filter { $0.story == story }.map(\.id))
-                session.selectedID = nil
-            }
-            controller.setPhotos(showPhotos ? photos : [])
-            controller.onPhoto = { id in selectedPhoto = photos.first { $0.id == id } }
-            controller.onSelect = { session.select($0,multiple:multipleSelection) }
-            controller.onRotate = { id,angle in
-                guard var item = session.document.objects.first(where: { $0.id == id }) else { return false }
-                item.yaw += angle
-                if snapping { item.yaw = (item.yaw/(Double.pi/12)).rounded()*(Double.pi/12) }
-                do { try update(item); return true } catch { self.error = error.localizedDescription; return false }
-            }
-            controller.onMove = { id,position in
-                guard var item = session.document.objects.first(where: { $0.id == id }) else { return false }
-                item.position = position
-                if snapping { item = StudioPlacement.snapped(item,in: session.document,axis: controller.movementAxis) }
-                do { try update(item); return true } catch { self.error = error.localizedDescription; return false }
-            }
-        }
+        .onAppear { configureInteraction() }
         .onDisappear { exportTask?.cancel(); controller.onSelect = nil; controller.onMove = nil; controller.onRotate = nil; controller.onPhoto = nil }
         .sheet(isPresented: Binding(get: { showEngineering && !inspectorPresentedModally },set: { showEngineering = $0 })) { StudioEngineeringView(session: session) }
         .onChange(of: story) { _,_ in session.select(nil,multiple:false) }
@@ -259,6 +220,49 @@ struct StudioEditorView: View {
             if case .failure(let failure) = result { error = failure.localizedDescription }
         }
         .fileImporter(isPresented: $importing,allowedContentTypes: [.json]) { result in importProject(result) }
+    }
+
+    @ToolbarContentBuilder private var selectionToolbar: some ToolbarContent {
+        ToolbarItem {
+            Menu {
+                Toggle("Select multiple",isOn: $multipleSelection)
+                Button("Select all objects on this floor") { selectAllObjects() }
+                Button("Delete selected",role: .destructive) { perform { try session.deleteSelection() } }
+                    .disabled(session.selectedIDs.isEmpty)
+                Button("Clear selection") { session.select(nil,multiple: false) }
+            } label: { Label("Selection",systemImage: "checkmark.circle") }
+        }
+        ToolbarItem {
+            if !photos.isEmpty { Toggle("Photos",isOn: $showPhotos).toggleStyle(.button) }
+        }
+    }
+    private func selectAllObjects() {
+        multipleSelection = true; session.selectedID = nil
+        session.selectedIDs = Set(session.document.presentationObjects.filter { $0.story == story }.map(\.id))
+    }
+    private func configureInteraction() {
+            hasSaved = FileManager.default.fileExists(atPath: storageURL.path)
+            session.onSave = { save() }
+            session.selectAllOnFloor = {
+                multipleSelection = true
+                session.selectedIDs = Set(session.document.presentationObjects.filter { $0.story == story }.map(\.id))
+                session.selectedID = nil
+            }
+            controller.setPhotos(showPhotos ? photos : [])
+            controller.onPhoto = { id in selectedPhoto = photos.first { $0.id == id } }
+            controller.onSelect = { session.select($0,multiple:multipleSelection) }
+            controller.onRotate = { id,angle in
+                guard var item = session.document.objects.first(where: { $0.id == id }) else { return false }
+                item.yaw += angle
+                if snapping { item.yaw = (item.yaw/(Double.pi/12)).rounded()*(Double.pi/12) }
+                do { try update(item); return true } catch { self.error = error.localizedDescription; return false }
+            }
+            controller.onMove = { id,position in
+                guard var item = session.document.objects.first(where: { $0.id == id }) else { return false }
+                item.position = position
+                if snapping { item = StudioPlacement.snapped(item,in: session.document,axis: controller.movementAxis) }
+                do { try update(item); return true } catch { self.error = error.localizedDescription; return false }
+            }
     }
 
     @ViewBuilder private var editorLayout: some View {

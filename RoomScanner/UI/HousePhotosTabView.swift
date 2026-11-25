@@ -61,7 +61,7 @@ struct SurveyPhotoThumbnailView: View {
 
     var body: some View {
         ZStack {
-            Color.quaternary
+            Rectangle().fill(.quaternary)
             if let image {
                 Image(decorative: image, scale: 1)
                     .resizable()

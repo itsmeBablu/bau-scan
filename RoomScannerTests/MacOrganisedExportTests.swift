@@ -121,16 +121,16 @@ final class MacOrganisedExportTests: XCTestCase {
         let service = ExportService(locale: Locale(identifier: "en_US"), unit: .meters)
 
         // PDF
-        let pdf = try service.data(for: plan, format: .pdf, title: "Test")
+        let pdf = try service.data(for: House(room: plan), format: .pdf, title: "Test")
         XCTAssertTrue(pdf.starts(with: [0x25, 0x50, 0x44, 0x46]), "PDF must start with %PDF header")
 
         // SVG
-        let svg = try service.data(for: plan, format: .svg, title: "Test")
+        let svg = try service.data(for: House(room: plan), format: .svg, title: "Test")
         let svgStr = String(decoding: svg, as: UTF8.self)
         XCTAssertTrue(svgStr.contains("<svg"), "SVG output must contain <svg element")
 
         // DXF
-        let dxf = try service.data(for: plan, format: .dxf, title: "Test")
+        let dxf = try service.data(for: House(room: plan), format: .dxf, title: "Test")
         let dxfStr = String(decoding: dxf, as: UTF8.self)
         XCTAssertTrue(dxfStr.contains("SECTION"), "DXF output must contain SECTION")
     }

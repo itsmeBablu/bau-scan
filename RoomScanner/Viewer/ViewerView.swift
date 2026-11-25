@@ -87,6 +87,16 @@ struct ViewerView: View {
     }
 
     private var virtualView: some View {
+        interactiveScene
+            .onChange(of: state.mode) { _, _ in modeChanged() }
+            .onChange(of: state.showDimensions) { _, _ in rebuildScene() }
+            .onChange(of: state.showObjects) { _, _ in rebuildScene() }
+            .onChange(of: house) { _, _ in rebuildScene(); resetView() }
+            .onChange(of: radiators) { _, _ in rebuildScene() }
+            .onChange(of: photos) { _, _ in rebuildScene() }
+            .onChange(of: showPhotos) { _, _ in rebuildScene() }
+    }
+    private var sceneContent: some View {
         RealityView { content in
             rebuildScene()
             content.add(sceneRoot)
@@ -103,17 +113,33 @@ struct ViewerView: View {
         }
         .realityViewCameraControls(state.mode == .threeD ? .orbit : .none)
         .gesture(state.mode == .twoD ? twoDGestures : nil)
-        .onChange(of: state.mode) { _, _ in modeChanged() }
-        .onChange(of: state.showDimensions) { _, _ in rebuildScene() }
-        .onChange(of: state.showObjects) { _, _ in rebuildScene() }
-        .onChange(of: house) { _, _ in rebuildScene(); resetView() }
-        .onChange(of: radiators) { _, _ in rebuildScene() }
-        .onChange(of: photos) { _,_ in rebuildScene() }
-        .onChange(of: showPhotos) { _,_ in rebuildScene() }
-        .simultaneousGesture(SpatialTapGesture().targetedToAnyEntity().onEnded { value in
+    }
+    private var sceneTap: some Gesture {
+        SpatialTapGesture().targetedToAnyEntity().onEnded { value in
             if state.isMeasuring {
-                let localPos = SIMD3<Float>(Float(value.location3D.x), Float(value.location3D.y), Float(value.location3D.z))
-                let worldPos = value.entity.convert(position: localPos, to: nil)
+                guard let point = value.unproject(\.location,to: .scene) else { return }
+                handleSceneTap(entity: value.entity,worldPosition: point)
+            } else {
+                handleSceneTap(entity: value.entity,worldPosition: nil)
+            }
+        }
+    }
+    private var interactiveScene: some View {
+        sceneContent.simultaneousGesture(sceneTap)
+        .onChange(of: state.isMeasuring) { _, active in
+            if !active {
+                measureStart = nil
+                lastMeasurementText = nil
+                measureRoot.children.removeAll()
+            }
+        }
+        .onChange(of: state.resetToken) { _, _ in resetView() }
+        .background(AppTheme.darkCharcoal)
+    }
+
+    private func handleSceneTap(entity: Entity,worldPosition: SIMD3<Float>?) {
+            if state.isMeasuring {
+                guard let worldPos = worldPosition else { return }
                 if let start = measureStart {
                     let dist = Double(simd_distance(start, worldPos))
                     let text = MeasurementFormat.length(dist, unit: unit, locale: AppLanguage.locale)
@@ -134,19 +160,9 @@ struct ViewerView: View {
                 }
                 return
             }
-            guard value.entity.name.hasPrefix(SurveyPhotoMarkers.prefix),
-                  let id = UUID(uuidString:String(value.entity.name.dropFirst(SurveyPhotoMarkers.prefix.count))) else { return }
+            guard entity.name.hasPrefix(SurveyPhotoMarkers.prefix),
+                  let id = UUID(uuidString:String(entity.name.dropFirst(SurveyPhotoMarkers.prefix.count))) else { return }
             selectedPhoto = photos.first { $0.id == id }
-        })
-        .onChange(of: state.isMeasuring) { _, active in
-            if !active {
-                measureStart = nil
-                lastMeasurementText = nil
-                measureRoot.children.removeAll()
-            }
-        }
-        .onChange(of: state.resetToken) { _, _ in resetView() }
-        .background(AppTheme.darkCharcoal)
     }
 
     private func makeLineEntity(from p1: SIMD3<Float>, to p2: SIMD3<Float>) -> Entity {

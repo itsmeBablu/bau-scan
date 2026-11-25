@@ -5,4 +5,7 @@ DWALK_GOOGLE_SERVER_CLIENT_ID = 568066067025-m8d0nb3u36g5aqpcu4kj9os3t3689cuh.ap
 DWALK_GOOGLE_REVERSED_CLIENT_ID =
 DWALK_GOOGLE_REVERSED_CLIENT_ID[sdk=iphone*] = com.googleusercontent.apps.568066067025-sgfu3cpic07epot1h1p5j97dsjv2qc2n
 DWALK_GOOGLE_AI_SERVICE_URL =
+DWALK_IOS_BUNDLE_IDENTIFIER = io.github.itsmebablu.dwalkscan.localtest
+DWALK_IOS_DISPLAY_NAME = dWalkScan
 #include? "GoogleAI.local.xcconfig"
+#include? "Signing.local.xcconfig"

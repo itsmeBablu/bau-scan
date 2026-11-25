@@ -90,20 +90,19 @@ targets:
       base:
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
         TARGETED_DEVICE_FAMILY: "1,2"
-        PRODUCT_BUNDLE_IDENTIFIER: io.github.itsmebablu.dwalkscan.localtest
+        PRODUCT_BUNDLE_IDENTIFIER: "$(DWALK_IOS_BUNDLE_IDENTIFIER)"
         CODE_SIGN_ENTITLEMENTS: ""
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) ROOMSCANNER_LOCAL_ONLY"
       configs:
         Release-Local:
-          PRODUCT_BUNDLE_IDENTIFIER: io.github.itsmebablu.dwalkscan.localtest
+          PRODUCT_BUNDLE_IDENTIFIER: "$(DWALK_IOS_BUNDLE_IDENTIFIER)"
           CODE_SIGN_ENTITLEMENTS: ""
-          DEVELOPMENT_TEAM: ""
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) ROOMSCANNER_LOCAL_ONLY"
     info:
       path: RoomScanner/Info-iOS.plist
       properties:
         CFBundleName: dWalkScan
-        CFBundleDisplayName: dWalkScan
+        CFBundleDisplayName: "$(DWALK_IOS_DISPLAY_NAME)"
         CFBundleIdentifier: "$(PRODUCT_BUNDLE_IDENTIFIER)"
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
@@ -124,6 +123,7 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         # RoomPlan requires camera and ARKit (LiDAR).
         NSCameraUsageDescription: "dWalkScan uses the camera and LiDAR to scan rooms."
+        NSMicrophoneUsageDescription: "dWalkScan records voice notes only when you choose Record. Audio stays in your selected library and is not sent to AI services."
         UIRequiredDeviceCapabilities:
           - arkit
         # Local fallback folder visible in Files app.

@@ -1,0 +1,6 @@
+// Copy to Signing.local.xcconfig. That file is ignored by Git.
+// Use a bundle identifier different from every app you want to keep installed.
+DWALK_IOS_BUNDLE_IDENTIFIER = io.github.itsmebablu.dwalkscan.test2
+DWALK_IOS_DISPLAY_NAME = dWalkScan Test
+// Set your Apple development team, or select it in Xcode after generation.
+// DEVELOPMENT_TEAM[sdk=iphone*] = YOUR_TEAM_ID
