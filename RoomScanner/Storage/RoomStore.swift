@@ -245,11 +245,12 @@ final class RoomStore {
             // `meta.json` area and names (schema 2: room union, compound
             // names). Recomputed once here so library displays accurate values.
             // rather than stale cached values.
+            var migrationError: Error?
             for record in houseRecords where record.schemaVersion < FloorPlan.schemaVersion && !migratedHouses.contains(record.id) {
-                migratedHouses.insert(record.id)
-                _ = try? house(for: record)
+                do { _ = try house(for:record); migratedHouses.insert(record.id) }
+                catch { migrationError = error }
             }
-            lastError = nil
+            lastError = migrationError.map { .storageFailed($0.localizedDescription) }
         } catch {
             lastError = .storageFailed(error.localizedDescription)
         }
@@ -357,7 +358,14 @@ final class RoomStore {
     func house(for record: HouseRecord) throws -> House {
         let url = packageURL(for: record)
         let stored = try HousePackage.readHouse(from: url)
-        guard let structure = try? HousePackage.readStructure(from: url) else { return stored }
+        guard let structure = try HousePackage.readStructure(from:url) else {
+            if record.schemaVersion < FloorPlan.schemaVersion {
+                let updated = HouseRecord(house:stored,createdAt:record.createdAt)
+                try HousePackage.update(record:updated,house:stored,in:url)
+                if let i = houseRecords.firstIndex(where:{ $0.id == record.id }) { houseRecords[i] = updated }
+            }
+            return stored
+        }
         var rebuilt = try HouseBuilder().build(from: structure, name: record.name)
         rebuilt.id = stored.id
         if record.schemaVersion >= FloorPlan.schemaVersion {
@@ -370,8 +378,8 @@ final class RoomStore {
         }
         let updated = HouseRecord(house: rebuilt, createdAt: record.createdAt)
         if rebuilt != stored || updated.areaM2 != record.areaM2 || updated.schemaVersion != record.schemaVersion {
-            try? HousePackage.update(record: updated, house: rebuilt, in: url)
-            if let png = PlanRenderer.thumbnailPNG(for: rebuilt) { try? HousePackage.writeThumbnail(png, in: url) }
+            try HousePackage.update(record:updated,house:rebuilt,in:url)
+            if let png = PlanRenderer.thumbnailPNG(for:rebuilt) { try HousePackage.writeThumbnail(png,in:url) }
             if let i = houseRecords.firstIndex(where: { $0.id == record.id }) { houseRecords[i] = updated }
         }
         return rebuilt
