@@ -1,13 +1,6 @@
 import Foundation
 import Observation
 
-struct PersistedRoom: Codable {
-    let scan: ScanInput
-    let raw: Data
-    let partial: Bool
-    var thumbnail: Data? = nil
-}
-
 /// Capture UI observes status only; file IO and encoding happen on workers.
 @MainActor @Observable final class CapturePersistence {
     let id: UUID
@@ -21,7 +14,7 @@ struct PersistedRoom: Codable {
     private(set) var completedRooms = 0
     init(id:UUID = UUID(),kind:ScanSession.Kind,projectID:UUID?,root:URL? = nil) {
         self.id = id; self.kind = kind; self.projectID = projectID
-        do { store = ScanSessionStore(root:try root ?? ScanSessionStore.applicationSupportRoot()) }
+        do { if let root { store = ScanSessionStore(root:root) } else { store = try ScanSessionStore.local() } }
         catch { store = nil; failure = error.localizedDescription }
     }
     func prepare() async throws {

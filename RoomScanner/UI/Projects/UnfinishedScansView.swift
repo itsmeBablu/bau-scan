@@ -39,7 +39,7 @@ struct UnfinishedScansView: View {
         #if os(iOS)
         .fullScreenCover(item:$probing) { session in if let disk { ScanRelocalizationProbe(session:session,store:disk) } }
         #endif
-        .task { do { disk = ScanSessionStore(root:try ScanSessionStore.applicationSupportRoot()); await reload() } catch { message = error.localizedDescription } }
+        .task { do { disk = try ScanSessionStore.local(); await reload() } catch { message = error.localizedDescription } }
         .onChange(of:phase) { _,value in if value == .active { Task { await reload() } } }
         .confirmationDialog("Discard unfinished scan?",isPresented:Binding(get:{ discard != nil },set:{ if !$0 { discard = nil } }),titleVisibility:.visible) {
             Button("Discard draft",role:.destructive) { if let discard { remove(discard) } }

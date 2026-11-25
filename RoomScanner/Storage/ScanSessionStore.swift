@@ -26,6 +26,11 @@ actor ScanSessionStore {
     }
     enum CrashPoint: CaseIterable { case afterPayload, afterIndex, afterManifest }
     typealias Fault = @Sendable (CrashPoint) throws -> Void
+    @MainActor private static var localStore: ScanSessionStore?
+    @MainActor static func local() throws -> ScanSessionStore {
+        if let localStore { return localStore }
+        let value = ScanSessionStore(root:try applicationSupportRoot()); localStore = value; return value
+    }
     let root: URL
     private let fault: Fault
     init(root:URL, fault:@escaping Fault = { _ in }) { self.root = root; self.fault = fault }
@@ -141,8 +146,13 @@ actor ScanSessionStore {
             return url.pathExtension == "json" ? name : nil
         })
         names = Set(names.filter { $0.hasPrefix(prefix) })
+        var totalBytes = 0
         return try names.sorted().map { name in
             let url = folder.appendingPathComponent(name); try check(url); try PackageReplacement.recover(url)
+            let size = try url.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? Int.max
+            guard size >= 0,size <= 90*1_048_576 else { throw CocoaError(.fileReadTooLarge) }
+            totalBytes += size
+            guard totalBytes <= 128*1_048_576 else { throw CocoaError(.fileReadTooLarge) }
             let bytes = try SafePackageRead.data(url,root:folder,maximum:90*1_048_576)
             let value = try JSONDecoder().decode(LatestValue.self,from:bytes)
             guard name == value.key+".json" else { throw CocoaError(.fileReadCorruptFile) }
@@ -150,8 +160,17 @@ actor ScanSessionStore {
         }
     }
     func payload(_ id:UUID,entry:Entry) throws -> Data {
-        guard try entries(id).contains(entry) else { throw CocoaError(.fileReadNoPermission) }
-        return try Data(contentsOf:directory(id).appendingPathComponent(entry.path))
+        _ = try read(id)
+        guard (1...100_000).contains(entry.sequence),entry.bytes >= 0,entry.bytes <= 64*1_048_576,
+              entry.path == "segments/"+entry.id.uuidString+".data" || entry.path == "media/"+entry.id.uuidString+".data" else { throw CocoaError(.fileReadNoPermission) }
+        let folder = directory(id),index = folder.appendingPathComponent(String(format:"index/%08d.json",entry.sequence))
+        try check(index)
+        let committed = try JSONDecoder().decode(Entry.self,from:SafePackageRead.data(index,root:folder,maximum:100_000))
+        guard committed == entry else { throw CocoaError(.fileReadNoPermission) }
+        let target = folder.appendingPathComponent(entry.path); try check(target)
+        let data = try SafePackageRead.data(target,root:folder,maximum:64*1_048_576)
+        guard data.count == entry.bytes else { throw CocoaError(.fileReadCorruptFile) }
+        return data
     }
     func unfinished() throws -> [ScanSession] {
         guard FileManager.default.fileExists(atPath:root.path) else { return [] }
@@ -165,6 +184,19 @@ actor ScanSessionStore {
     /// or segment. Retain committed versions, including previous audio clips.
     func removeOrphans(_ id:UUID) throws {
         let retained = Set(try entries(id).map(\.path))
+        let latest = directory(id).appendingPathComponent("latest")
+        if FileManager.default.fileExists(atPath:latest.path) {
+            for url in try FileManager.default.contentsOfDirectory(at:latest,includingPropertiesForKeys:nil) {
+                let name = url.lastPathComponent,suffix = ".package-backup"
+                if name.hasPrefix("."),name.hasSuffix(suffix) {
+                    let target = latest.appendingPathComponent(String(name.dropFirst().dropLast(suffix.count)))
+                    try check(target); try PackageReplacement.recover(target)
+                }
+            }
+            for url in try FileManager.default.contentsOfDirectory(at:latest,includingPropertiesForKeys:nil) where url.lastPathComponent.hasPrefix(".package-writing-") {
+                try check(url); try FileManager.default.removeItem(at:url)
+            }
+        }
         for name in ["segments","media","index"] {
             let folder = directory(id).appendingPathComponent(name)
             for url in try FileManager.default.contentsOfDirectory(at:folder,includingPropertiesForKeys:nil) {

@@ -24,6 +24,18 @@ launching the app is not equivalent to validating these scenarios.
   drafts, and remains correct after interruptions at every storage crash point.
 - [ ] Open existing roomscan, housescan and technicalroom packages, plus designs.
 
-The Step 1 store has local injected-failure tests. Capture integration, launch
-recovery UI, trigger counters and the checks above remain unimplemented/unrun
-until the Step 2 lifecycle-validation boundary is resolved.
+Local implementation is now present for the session store, capture checkpoints,
+media persistence, technical deltas, partial recovery and gated alignment probe.
+The first focused integration run passed 56 tests, including both localization
+checks. See SCAN_PERSISTENCE_RESULTS.md for final validation totals.
+
+The live microphone control uses a 180 ms hold threshold, 60-second maximum and
+100 ms recorder meter interval. There is no live waveform over the camera. Inspect
+`CaptureAudio` logs alongside AR FPS before attributing a freeze to audio-session
+changes. No physical camera fix or exact measurement accuracy is claimed.
+
+A resumed stored Technik survey is captured as a separate draft revision so a
+failed continuation cannot replace the original. Recovered House geometry is
+partial; adding newly scanned rooms to its old coordinate system is not enabled.
+The alignment experiment only displays tracking status and never authorizes a
+merge. It must be followed by independently checking a known point.

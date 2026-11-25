@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Full-screen scan view: guidance, Cancel / Done, processing,
 /// saving to `RoomStore` and returning to library.
-/// House mode: one uninterrupted capture until Finish House, then a `.housescan` package.
+/// House mode persists completed rooms in shared coordinates before final packaging.
 struct ScanView: View {
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -20,7 +20,6 @@ struct ScanView: View {
     private let workspace: RenovationWorkspace?
     @State private var persistence: CapturePersistence
     private var captureID: UUID { persistence.id }
-    @State private var showingVoiceNotes = false
     let voiceProjectID: UUID?
     let mode: ScanMode
     /// Created item (room or house) passed to caller to display.
@@ -51,19 +50,12 @@ struct ScanView: View {
                 overlay
             }
         }
-        .sheet(isPresented:$showingVoiceNotes) {
-            if let voiceProjectID,let workspace {
-                NavigationStack {
-                    ProjectVoiceNotesView(projectID:voiceProjectID,initialReference:captureReference,onClose:{ showingVoiceNotes = false }).environment(workspace)
-                }
-            }
-        }
         .onAppear { photoCapture.persistence = persistence }
         .onDisappear { radiatorScanner?.stop(); coordinator.stop() }
         .modifier(ScanPhotoFeedback(count:photoCapture.completed))
         .overlay(alignment:.bottomTrailing) {
             if ScanPhotoPolicy.buttonVisible(enabled:cameraPhotos,cameraRunning:cameraLive) {
-                ScanPhotoButton(busy:photoCapture.busy) { Task { await photoCapture.capture(session:coordinator.arSession,roomID:coordinator.liveRoomID) } }.padding(20)
+                ScanPhotoButton(busy:photoCapture.busy) { Task { await photoCapture.capture(session:coordinator.arSession,roomID:mode == .house ? coordinator.liveRoomID : captureID,level:coordinator.liveLevel) } }.padding(20)
             }
         }
         .alert("Survey photo",isPresented:Binding(get:{ photoCapture.error != nil },set:{ if !$0 { photoCapture.error = nil } })) {
@@ -141,7 +133,7 @@ struct ScanView: View {
             .padding()
             Spacer()
             if let failedSave { Button("Retry finishing") { Task { await saveState(failedSave) } }.buttonStyle(.borderedProminent) }
-            if case .failed = coordinator.state,mode == .house {
+            if case .failed = coordinator.state {
                 Button("Retry finishing") { coordinator.retryFinish() }.buttonStyle(.borderedProminent)
             }
             if let diagnostic = coordinator.cameraDiagnostic {
@@ -158,7 +150,7 @@ struct ScanView: View {
             }.padding(.bottom,8)
             HStack {
                 LiveScanNotes(reference:captureReference,persistence:persistence,workspace:workspace,projectID:voiceProjectID,
-                    position:{ coordinator.noteSurface() },pose:{ coordinator.notePose() },roomID:{ coordinator.liveRoomID })
+                    position:{ coordinator.noteSurface() },pose:{ coordinator.notePose() },roomID:{ mode == .house ? coordinator.liveRoomID : captureID },level:{ coordinator.liveLevel })
                     .disabled(coordinator.state != .scanning)
                 Spacer()
             }.padding(.horizontal,20).padding(.bottom,20)
@@ -229,12 +221,12 @@ struct ScanView: View {
         case .finished(let result):
             do {
                 let name = store.proposedName(for: result.scan.sectionLabels.first ?? .unidentified)
-                var plan = FloorPlanBuilder().build(from: result.scan, name: name)
-                plan.id = captureID
-                var package = RoomPackage(record: RoomRecord(plan: plan), plan: plan, scan: result.scan,
+                var scan = result.scan; scan.id = captureID
+                let plan = FloorPlanBuilder().build(from:scan,name:name)
+                var package = RoomPackage(record: RoomRecord(plan: plan), plan: plan, scan: scan,
                                           capturedRoomData: result.capturedRoomData, usdzData: result.usdzData, usdzMeshData: result.usdzMeshData,
                                           thumbnailPNG: PlanRenderer.thumbnailPNG(for: plan))
-                package.surveyPhotos = photoCapture.registered(house:House(room:plan),scans:[result.scan],alignSingleRoom:true)
+                package.surveyPhotos = photoCapture.registered(house:House(room:plan),scans:[scan],alignSingleRoom:true)
                 package.surveyPhotoAssets = try await photoCapture.assets()
                 let output = store.packageURL(for:package.record),finished = package
                 try await Task.detached(priority:.userInitiated) { try finished.write(to:output) }.value

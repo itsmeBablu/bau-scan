@@ -76,28 +76,44 @@ reporting at this boundary if that behavior cannot be tested. Uncommitted work
 from before this specification was archived under `/tmp/dwalk-pre-spec-wip.patch`
 and `/tmp/*Recovery*.pre-spec`; it is not part of this branch's implementation.
 
-## Local implementation status
+## Implemented continuation
 
-Step 0 is committed separately. Step 1's storage foundation adds `ScanSessionStore`
-with schema-1 manifests, explicit states, project links, segments/media folders,
-immutable indexed commit records and replacement-helper transactions. Reopening
-can recover an interrupted manifest replacement. Injected failures after payload,
-index and manifest commits exercise visibility and retry; tests also cover media
-replacement, orphan cleanup, symlink rejection, state transitions and isolated
-session discard. Old scan/package formats are unchanged. No new dependencies or
-user-facing strings were added.
+The subsequent user instruction “all finished -- implement all” authorized
+continuing beyond the earlier stop boundary. Steps 2–7 were implemented locally
+on this branch; device validation remains separate from implementation.
 
-Step 1 is not complete: launch Recover/Discard UI, geometry recovery/promotion,
-and capture wiring remain pending. Steps 2–7 are not implemented. In particular,
-this foundation does not yet save live photos, audio or geometry to ScanSessions.
-The first local simulator run passed storage tests and both localization checks;
-the final run passed all 7 tests, including manifest-backup recovery, the existing
-replacement-helper test, and both localization checks. These are process-level injected failures, not power-loss or LiDAR
-device tests. No app update from this branch has been installed or pushed.
+- House now persists a processed room and its thumbnail before Next room. The
+  application no longer keeps a growing CapturedRoom array during capture. One
+  ARSession remains shared; Finish reads saved native rooms for StructureBuilder.
+- Large-room live updates write one replacement partial per room. Conservative
+  triggers are 15 seconds, 12 added geometry items, 512 KiB growth, and a 3-second
+  minimum sampling interval. Lifecycle and memory-warning flushes bypass the normal
+  thresholds. Encoded bytes, write milliseconds, resident memory and thermal state
+  counters are exposed in capture state; tune them with a physical-device profile.
+- Technik writes hashed new/changed anchor patches, removals and journal deltas.
+  Sorted JSON makes hashes deterministic. Journal frame hashes handle timestamp
+  origins changing. Final save and recovery compact deltas into the existing package.
+- Photos and finalized voice notes are written to session media with capture
+  metadata. House retains photo metadata, not a growing JPEG dictionary. Audio
+  also uses the existing durable outbox before session publishing. Recording uses
+  the existing 60-second recorder, interruption handling and 100 ms meter interval.
+- Unfinished scans have Recover, Retry finishing and confirmed Discard actions.
+  Promotion is serialized and idempotent. Existing library packages win over older
+  drafts; failures retain the session. Recovered packages carry an additive partial
+  flag and do not imply full capture or verified alignment.
+- World-map candidates are stored locally. A read-only relocalization camera is
+  behind `scan.experimentalRelocalization` (off by default). It never merges new
+  geometry. A tracking candidate is not independently verified alignment.
+- Native USDZ/mesh generation is deferred to export and cached outside source
+  packages. Package writes run on workers. A separate wall-clipping fix avoids
+  decomposing disjoint polygons and joins outer L corners with miter footprints.
 
-The specification's stop rule applies before room-by-room capture integration:
-“Stop and report if a step needs more than about 300 lines or changes scanning
-behaviour in a way you cannot test.” RoomPlan lifecycle/relocalization cannot be
-validated by the simulator. Continuing implementation requires resolving that
-explicit validation boundary; installing an unfinished foundation would not
-satisfy the requested end-to-end checkpoint behavior.
+The earlier missing-environment crash is distinct from a possible finish-time OOM.
+The latter remains unproven without the larger-House termination report. No
+microphone/camera freeze cause has been reproduced on a physical LiDAR device;
+`CaptureAudio` logging records audio-category transitions without audio contents.
+
+A focused simulator run passed 56 tests after fixing deterministic mesh hashes,
+wall-corner footprints and the stale SVG floor-count assertion. The final test
+results, exact commits and limitations are recorded in SCAN_PERSISTENCE_RESULTS.md.
+Unrelated in-progress skill files were not changed. No new dependencies were added.

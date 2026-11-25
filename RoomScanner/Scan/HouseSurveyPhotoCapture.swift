@@ -9,7 +9,7 @@ import Observation
     private(set) var busy = false
     private(set) var completed = 0
     var error: String?
-    func capture(session: ARSession,roomID:UUID? = nil) async {
+    func capture(session: ARSession,roomID:UUID? = nil,level:Int? = nil) async {
         guard !busy else { return }
         guard let frame = session.currentFrame,frame.camera.trackingState == .normal else {
             error = "Wait for normal camera tracking before taking a photo."; return
@@ -29,7 +29,7 @@ import Observation
         let photo = SurveyPhoto(id:UUID(),roomID:roomID,number:photos.count+1,pose:pose,timestamp:time,capturedAt:Date())
         do {
             guard let persistence else { throw CocoaError(.fileWriteUnknown) }
-            try await persistence.write(ScanPhotoMedia(photo:photo,jpeg:encoded.data),key:"photo-"+photo.id.uuidString,latest:false,media:true)
+            try await persistence.write(ScanPhotoMedia(photo:photo,jpeg:encoded.data,level:level),key:"photo-"+photo.id.uuidString,latest:false,media:true)
             photos.append(photo); assetBytes += encoded.data.count; completed += 1
         } catch { self.error = error.localizedDescription }
     }

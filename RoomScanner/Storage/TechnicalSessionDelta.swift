@@ -18,26 +18,30 @@ struct TechnicalSessionState: Codable {
 /// a whole flush, so an interruption cannot publish half of a mesh delta.
 actor TechnicalSessionDeltaWriter {
     private var hashes: [UUID:Data] = [:]
-    private var lastFrame = -Double.infinity
+    private var frameKeys: Set<Data> = []
     private var eventKeys: Set<String> = []
     func append(snapshot:TechnicalMeshSnapshot,active:Set<UUID>,journal:TechnicalCaptureJournal,
                 store:ScanSessionStore,id:UUID) async throws -> Int {
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         var next = hashes,changed:[TechnicalMeshSnapshot.Patch] = []
-        for patch in snapshot.patches {
-            let bytes = try JSONEncoder().encode(patch),hash = Data(SHA256.hash(data:bytes))
+        for patch in snapshot.patches where active.contains(patch.anchorID) {
+            let bytes = try encoder.encode(patch),hash = Data(SHA256.hash(data:bytes))
             if hashes[patch.anchorID] != hash { changed.append(patch); next[patch.anchorID] = hash }
         }
         let removed = hashes.keys.filter { !active.contains($0) }
         for key in removed { next.removeValue(forKey:key) }
-        let frames = journal.frames.filter { $0.timestamp > lastFrame }
+        let encodedFrames = try journal.frames.map { ($0,Data(SHA256.hash(data:try encoder.encode($0)))) }
+        let frames = encodedFrames.filter { !frameKeys.contains($0.1) }.map(\.0)
         func key(_ event:TechnicalCaptureJournal.Event) -> String { "\(event.timestamp)-\(event.kind.rawValue)-\(event.message)" }
         let events = journal.events.filter { !eventKeys.contains(key($0)) }
         guard !changed.isEmpty || !removed.isEmpty || !frames.isEmpty || !events.isEmpty else { return 0 }
         let value = TechnicalSessionDelta(timestamp:snapshot.timestamp,changed:changed,removed:removed,frames:frames,events:events)
         let bytes = try JSONEncoder().encode(value)
         try await store.write(id,key:"mesh-delta",data:bytes)
-        hashes = next; lastFrame = frames.last?.timestamp ?? lastFrame
+        hashes = next; frameKeys.formUnion(encodedFrames.map(\.1))
+        if frameKeys.count > 7200 { frameKeys = Set(encodedFrames.map(\.1)) }
         eventKeys.formUnion(events.map(key))
+        if eventKeys.count > 4000 { eventKeys = Set(journal.events.map(key)) }
         return bytes.count
     }
     static func recover(store:ScanSessionStore,id:UUID) async throws -> TechnicalCaptureJournal {

@@ -8,6 +8,7 @@ struct TechnicalCaptureKeyframe: Codable, Equatable, Identifiable {
     var jpegWidth: Int
     var jpegHeight: Int
     var depth: TechnicalDepthSnapshot
+    var capturedAt: Date? = nil
     var userPhoto: Bool? = nil
     var googlePhotosURL: URL? = nil
 

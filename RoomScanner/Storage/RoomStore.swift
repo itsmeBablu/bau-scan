@@ -376,7 +376,8 @@ final class RoomStore {
                 }
             }
         }
-        let updated = HouseRecord(house: rebuilt, createdAt: record.createdAt)
+        var updated = HouseRecord(house: rebuilt, createdAt: record.createdAt)
+        updated.incomplete = record.incomplete
         if rebuilt != stored || updated.areaM2 != record.areaM2 || updated.schemaVersion != record.schemaVersion {
             try HousePackage.update(record:updated,house:rebuilt,in:url)
             if let png = PlanRenderer.thumbnailPNG(for:rebuilt) { try HousePackage.writeThumbnail(png,in:url) }

@@ -38,7 +38,7 @@ struct SVGExporter {
         for room in rooms {
             let t = room.transform
             let side = PlanRenderer.InteriorSide(polygon: room.floorPolygon, fallback: room.bounds.center)
-            if room.floorPolygon.count >= 3 { floors += poly(room.floorPolygon, t, "fill=\"#fef3c7\" stroke=\"none\"") }
+            if room.floorPolygon.count >= 3 { floors += poly(room.floorPolygon, t, "data-role=\"room-floor\" fill=\"#fef3c7\" stroke=\"none\"") }
             for wall in room.walls {
                 // Cote
                 let seg = wall.segment

@@ -9,6 +9,7 @@ actor ScanSessionRecovery {
         if try await store.read(session.id).state == .completed { return reference }
         try await store.setState(session.id,.finalizing)
         do {
+            try await store.removeOrphans(session.id)
             let entries = try await store.entries(session.id)
             if session.kind == .technical {
                 let target = documents.appendingPathComponent("TechnicalRooms/\(session.id.uuidString).technicalroom")
@@ -19,7 +20,8 @@ actor ScanSessionRecovery {
                     guard !journal.meshes.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
                     var evidence = TechnicalCaptureEvidence()
                     for entry in entries where entry.key.hasPrefix("technical-photo-") || entry.key.hasPrefix("keyframe-") {
-                        try evidence.append(JSONDecoder().decode(TechnicalCaptureKeyframe.self,from:await store.payload(session.id,entry:entry)))
+                        let frame = try JSONDecoder().decode(TechnicalCaptureKeyframe.self,from:await store.payload(session.id,entry:entry))
+                        if frame.userPhoto == true { try evidence.append(frame) } else { try? evidence.append(frame) }
                     }
                     let map = try await store.latestValues(session.id,prefix:"world-map").last.map { try JSONDecoder().decode(Data.self,from:$0.data) }
                     var manifest = TechnicalRoomManifest(id:session.id,name:AppLanguage.text("Recovered Technik Room"))
@@ -49,9 +51,10 @@ actor ScanSessionRecovery {
                         try package.write(to:target)
                     } else {
                         let room = rooms[0]
-                        var plan = FloorPlanBuilder().build(from:room.scan,name:AppLanguage.text("Recovered Room")); plan.id = session.id
+                        var scan = room.scan; scan.id = session.id
+                        let plan = FloorPlanBuilder().build(from:scan,name:AppLanguage.text("Recovered Room"))
                         var record = RoomRecord(plan:plan); record.incomplete = true
-                        var package = RoomPackage(record:record,plan:plan,scan:room.scan,capturedRoomData:room.raw,usdzData:nil,usdzMeshData:nil,thumbnailPNG:room.thumbnail)
+                        var package = RoomPackage(record:record,plan:plan,scan:scan,capturedRoomData:room.raw,usdzData:nil,usdzMeshData:nil,thumbnailPNG:room.thumbnail)
                         package.surveyPhotos = photos; package.surveyPhotoAssets = assets; try package.write(to:target)
                     }
                 }

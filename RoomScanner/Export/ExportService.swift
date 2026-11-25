@@ -40,7 +40,12 @@ struct ExportService {
     }
 
     static func availableFormats(for subject: ExportSubject) -> [ExportFormat] {
-        availableFormats(usdzURL: subject.usdzURL, usdzMeshURL: subject.usdzMeshURL)
+        var formats = availableFormats(usdzURL:subject.usdzURL,usdzMeshURL:subject.usdzMeshURL)
+        if DeferredCaptureExport.hasSource(subject.sourcePackageURL) {
+            if !formats.contains(.usdzParametric) { formats.insert(.usdzParametric,at:4) }
+            if subject.kind == .room,!formats.contains(.usdzMesh) { formats.insert(.usdzMesh,at:5) }
+        }
+        return formats
     }
 
     static func availableFormats(usdzURL: URL?, usdzMeshURL: URL?) -> [ExportFormat] {
@@ -171,10 +176,10 @@ struct ExportService {
             return dest
         }
         switch format {
-        case .usdzParametric: try copy(subject.usdzURL, missing: FileLayout.PackageFile.usdz, to: dest)
-        case .usdzMesh: try copy(subject.usdzMeshURL, missing: FileLayout.PackageFile.usdzMesh, to: dest)
+        case .usdzParametric: try copy(DeferredCaptureExport.url(subject,mesh:false), missing: FileLayout.PackageFile.usdz, to: dest)
+        case .usdzMesh: try copy(DeferredCaptureExport.url(subject,mesh:true), missing: FileLayout.PackageFile.usdzMesh, to: dest)
         case .obj where meshSource == .scan, .stl where meshSource == .scan, .ply where meshSource == .scan:
-            guard let src = subject.usdzMeshURL else { throw ExportError.missingSource(FileLayout.PackageFile.usdzMesh) }
+            guard let src = try DeferredCaptureExport.url(subject,mesh:true) else { throw ExportError.missingSource(FileLayout.PackageFile.usdzMesh) }
             try ModelIOConverter.convert(src, to: dest)
         case .pdf, .png, .svg, .dxf, .json, .obj, .stl, .ply:
             try data(for: subject.house, format: format, title: subject.name).write(to: dest, options: .atomic)

@@ -8,7 +8,7 @@ enum TechnicalRoomKeyframeCollector {
     /// Called on a worker; AR buffers are retained only for this bounded image encoding.
     static func capture(frame: ARFrame, depth: TechnicalDepthSnapshot, maximumDimension: CGFloat = 1280) -> TechnicalCaptureKeyframe? {
         guard let encoded = jpeg(frame:frame,maximumDimension:maximumDimension) else { return nil }
-        return .init(id: UUID(),jpegData:encoded.data,jpegWidth:encoded.width,jpegHeight:encoded.height,depth:depth)
+        return .init(id: UUID(),jpegData:encoded.data,jpegWidth:encoded.width,jpegHeight:encoded.height,depth:depth,capturedAt:Date())
     }
     static func jpeg(frame: ARFrame, maximumDimension: CGFloat = 1600) -> (data:Data,width:Int,height:Int)? {
         let source = CIImage(cvPixelBuffer: frame.capturedImage)

@@ -5,8 +5,8 @@ import ARKit
 import RoomPlan
 import AVFoundation
 
-/// Drives RoomPlan capture. House mode captures connected space continuously,
-/// then builds a structure after the user finishes once.
+/// RoomPlan rooms share one ARSession. Completed rooms are stored before
+/// continuing; the structure is built from disk when Finish is selected.
 @Observable
 @MainActor
 final class ScanCoordinator {
@@ -49,6 +49,7 @@ final class ScanCoordinator {
     let detectsRadiators: Bool
     /// Rooms captured in house mode (shared world coordinate space).
     var persistence: CapturePersistence?
+    private var pendingRoom: PersistedRoom?
     private var finishingHouse = false
     private var trackingStarted = false
     private let checkpointObserver = RoomCheckpointObserver()
@@ -78,7 +79,7 @@ final class ScanCoordinator {
         }
         captureView.delegate = delegateProxy
         checkpointObserver.onUpdate = { [weak self] room in Task { @MainActor in
-            self?.latestRoom = room; self?.flushCheckpoint(.update)
+            guard let self,self.state == .scanning else { return }; self.latestRoom = room; self.flushCheckpoint(.update)
         } }
     }
 
@@ -151,6 +152,7 @@ final class ScanCoordinator {
         if mode == .house { captureView.captureSession.stop(pauseARSession: false) } else { captureView.captureSession.stop() }
     }
 
+    var liveLevel: Int? { latestRoom?.story }
     var liveRoomID: UUID? { latestRoom?.identifier }
     func notePose() -> [Double]? {
         guard let frame = arSession.currentFrame else { return nil }
@@ -164,7 +166,7 @@ final class ScanCoordinator {
         guard trigger != .update || time-lastSnapshotAttempt >= checkpointPolicy.minimumSpacing else { return }
         lastSnapshotAttempt = time
         thermalState = ProcessInfo.processInfo.thermalState.rawValue
-        residentBytes = ProcessInfo.processInfo.physicalMemory // Replaced below by actual resident measurement on iOS.
+        residentBytes = 0
         #if os(iOS)
         residentBytes = CaptureMemory.residentBytes()
         #endif
@@ -182,7 +184,7 @@ final class ScanCoordinator {
         }
     }
     func flushAndPause(_ trigger:ScanCheckpointPolicy.Trigger) async {
-        flushCheckpoint(trigger); await checkpointTask?.value
+        await checkpointTask?.value; flushCheckpoint(trigger); await checkpointTask?.value
         await persistence?.state(.paused)
     }
 
@@ -205,7 +207,21 @@ final class ScanCoordinator {
         }
     }
     func nextRoom() { guard active,state == .roomSaved else { return }; run() }
-    func retryFinish() { guard mode == .house,active else { return }; finishingHouse = true; state = .processing; finishHouse() }
+    func retryFinish() {
+        guard active,let persistence else { return }
+        state = .processing; finishingHouse = true
+        Task { [weak self] in
+            do {
+                if let pending = self?.pendingRoom {
+                    try await persistence.room(pending); self?.pendingRoom = nil
+                    if self?.mode == .room {
+                        self?.state = .finished(.init(scan:pending.scan,capturedRoomData:pending.raw,usdzData:nil,usdzMeshData:nil)); return
+                    }
+                }
+                self?.finishHouse()
+            } catch { self?.state = .failed(.storageFailed(error.localizedDescription)) }
+        }
+    }
 
     private func finishHouse() {
         guard mode == .house,state == .processing,let persistence else { return }
@@ -228,6 +244,8 @@ final class ScanCoordinator {
     }
 
     func cancel() {
+        flushCheckpoint(.pause)
+        Task { await checkpointTask?.value; await persistence?.state(.paused) }
         active = false
         captureView.captureSession.stop()
         state = .failed(.scanCancelled)
@@ -250,7 +268,10 @@ final class ScanCoordinator {
     private func receive(room: CapturedRoom?, error: (any Error)?) {
         guard active else { return }
         if let error {
-            state = .failed(.scanFailed(Self.describe(error)))
+            Task { [weak self] in
+                await self?.flushAndPause(.interruption)
+                self?.state = .failed(.scanFailed(Self.describe(error)))
+            }
             return
         }
         guard state == .processing else { return }
@@ -265,9 +286,12 @@ final class ScanCoordinator {
                         return try PersistedRoom(scan:scan,raw:CapturedRoomAdapter.encode(room),partial:false,
                             thumbnail:PlanRenderer.thumbnailPNG(for:FloorPlanBuilder().build(from:scan,name:"")))
                     }.value
+                    self?.pendingRoom = value
                     try await persistence.room(value)
+                    self?.pendingRoom = nil
                     self?.saveWorldMapCandidate()
                     guard let self,self.active else { return }
+                    self.latestRoom = nil
                     if self.finishingHouse { self.finishHouse() } else { self.state = .roomSaved }
                 } catch { self?.state = .failed(.storageFailed(error.localizedDescription)) }
             }
@@ -280,7 +304,9 @@ final class ScanCoordinator {
                     let data = try CapturedRoomAdapter.encode(room),scan = CapturedRoomAdapter.scanInput(from:room)
                     return ScanResult(scan:scan,capturedRoomData:data,usdzData:nil,usdzMeshData:nil)
                 }.value
-                try await self?.persistence?.room(.init(scan:result.scan,raw:result.capturedRoomData,partial:false))
+                self?.pendingRoom = .init(scan:result.scan,raw:result.capturedRoomData,partial:false)
+                if let value = self?.pendingRoom { try await self?.persistence?.room(value) }
+                self?.pendingRoom = nil
                 self?.state = .finished(result)
             } catch { self?.state = .failed(.storageFailed(error.localizedDescription)) }
         }

@@ -16,12 +16,17 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     private let deltaWriter = TechnicalSessionDeltaWriter()
     private var persistenceTask: Task<Void,Never>?
     private var lastPersistence = -Double.infinity
+    private var persistencePolicy = ScanCheckpointPolicy()
     private var persistableSnapshot: TechnicalMeshSnapshot?
     var persistedDocument: TechnicalAnnotationDocument?
     func flushIncremental(force:Bool = false) {
-        guard persistenceTask == nil,let persistence,let snapshot = persistableSnapshot,
-              force || (lastTimestamp ?? 0)-lastPersistence >= 15 else { return }
-        let activeIDs = Set(session.currentFrame?.anchors.compactMap { ($0 as? ARMeshAnchor)?.identifier } ?? [])
+        guard persistenceTask == nil,let persistence,let snapshot = persistableSnapshot else { return }
+        let sample = ScanCheckpointPolicy.Sample(time:snapshot.timestamp,geometry:snapshot.patches.count,
+            bytes:snapshot.patches.reduce(0) { $0+$1.vertices.count*24+$1.triangleIndices.count*4 })
+        guard persistencePolicy.shouldSave(sample,trigger:force ? .background : .update) else { return }
+        saveRecoveryMap(allowUnverified:true)
+        let observedIDs = Set(session.currentFrame?.anchors.compactMap { ($0 as? ARMeshAnchor)?.identifier } ?? [])
+        let activeIDs = observedIDs.isEmpty ? Set(snapshot.patches.map(\.anchorID)) : observedIDs
         let journal = journal,alignment = alignment,document = persistedDocument
         persistenceTask = Task { @MainActor [weak self] in
             defer { self?.persistenceTask = nil }
@@ -32,6 +37,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
                 let bytes = try await self?.deltaWriter.append(snapshot:snapshot,active:activeIDs,journal:journal,store:store,id:persistence.id) ?? 0
                 if let document { try await persistence.write(TechnicalSessionState(document:document,alignment:alignment),key:"technical-state") }
                 self?.lastPersistence = snapshot.timestamp
+                self?.persistencePolicy.committed(sample)
                 persistence.recordSaved(bytes:bytes,milliseconds:Date().timeIntervalSince(start)*1000)
             } catch { persistence.recordFailure(error) }
         }
@@ -258,6 +264,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
             return false
         }
         meshSnapshot = snapshot
+        persistableSnapshot = snapshot
         errorMessage = nil
         return true
     }
@@ -291,6 +298,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
             do {
                 guard var photo = copied else { throw TechnicalCaptureJournal.JournalError.invalidEvidence }
                 photo.userPhoto = true
+                var preflight = self.evidence; try preflight.append(photo)
                 guard let persistence = self.persistence else { throw CocoaError(.fileWriteUnknown) }
                 try await persistence.write(photo,key:"technical-photo-"+photo.id.uuidString,latest:false,media:true)
                 try self.evidence.append(photo)
@@ -324,6 +332,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
                 self.evidenceMessage = "Low depth confidence. Try another angle on reflective surfaces."; return
             }
             do {
+                var preflight = self.evidence; try preflight.append(keyframe)
                 if let persistence = self.persistence { try await persistence.write(keyframe,key:"keyframe-"+keyframe.id.uuidString,latest:false,media:true) }
                 try self.evidence.append(keyframe)
                 self.lastEvidencePose = pose
@@ -332,13 +341,13 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
         }
     }
 
-    func saveRecoveryMap() {
-        guard active, state.canAnnotate else { return }
+    func saveRecoveryMap(allowUnverified:Bool = false) {
+        guard active, (allowUnverified || state.canAnnotate) else { return }
         let requestGeneration = generation
         session.getCurrentWorldMap { [weak self] map, error in
             Task { @MainActor in
                 guard let self, self.active, self.generation == requestGeneration else { return }
-                guard self.state.canAnnotate else { self.errorMessage = "Alignment changed while saving the map. Verify the checkpoint and save again."; return }
+                guard allowUnverified || self.state.canAnnotate else { self.errorMessage = "Alignment changed while saving the map. Verify the checkpoint and save again."; return }
                 guard let map else { self.errorMessage = error?.localizedDescription ?? "World map unavailable"; return }
                 do {
                     let data = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true)

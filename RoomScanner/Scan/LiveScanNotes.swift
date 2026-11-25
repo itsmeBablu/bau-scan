@@ -10,6 +10,7 @@ struct LiveScanNotes: View {
     var position: () -> TechnicalPoint3?
     var pose: () -> [Double]?
     var roomID: () -> UUID? = { nil }
+    var level: () -> Int? = { nil }
     @State private var recorder = NoteAudioRecorder()
     @State private var holding = false
     @State private var pin: TechnicalPoint3?
@@ -20,6 +21,7 @@ struct LiveScanNotes: View {
     @State private var pending: NoteAudioRecorder.Clip?
     @State private var capturedPose: [Double]?
     @State private var capturedRoom: UUID?
+    @State private var capturedLevel: Int?
     @State private var pendingMedia: ScanVoiceMedia?
     var body: some View {
         VStack(alignment:.leading,spacing:6) {
@@ -33,13 +35,13 @@ struct LiveScanNotes: View {
                         if !pressed { recorder.stop() }
                     }) {
                         guard !busy else { return }
-                        capturedPose = pose(); capturedRoom = roomID()
+                        capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level()
                         recorder.onClip = { clip in pending = clip; saveAudio(clip) }
                         Task { if holding { await recorder.start() }; if !holding { recorder.stop() } }
                     }
                     .accessibilityLabel("Hold to record voice note")
                     .accessibilityAction(named:Text("Start recording")) {
-                        capturedPose = pose(); capturedRoom = roomID()
+                        capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level()
                         recorder.onClip = { clip in pending = clip; saveAudio(clip) }
                         Task { await recorder.start() }
                     }
@@ -49,7 +51,7 @@ struct LiveScanNotes: View {
                 }
                 Button {
                     guard let point = position() else { message = AppLanguage.text("Aim at a tracked surface"); return }
-                    pin = point; capturedPose = pose(); capturedRoom = roomID(); editing = true
+                    pin = point; capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level(); editing = true
                 } label: { Image(systemName:pin == nil ? "mappin" : "mappin.circle.fill").frame(width:48,height:48) }
                     .background(.regularMaterial,in:Circle()).accessibilityLabel("Pin a note to this surface")
                 if pending != nil,!recorder.recording { Button("Retry saving") { if let pending { saveAudio(pending) } } }
@@ -71,7 +73,7 @@ struct LiveScanNotes: View {
         .onDisappear { recorder.stop(partial:true) }
     }
     private func note(owner:UUID) -> ARNote {
-        var note = ARNote(projectID:owner,reference:reference,number:1,level:nil,
+        var note = ARNote(projectID:owner,reference:reference,number:1,level:capturedLevel,
             roomID:capturedRoom,position:pin,planPosition:nil,language:Locale.current.identifier)
         note.text = text
         return note

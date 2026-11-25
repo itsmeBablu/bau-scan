@@ -77,8 +77,15 @@ struct TechnicalRoomScanView: View {
                 _threshold = State(initialValue: String(checkpoint.thresholdMm))
             }
         }
-        if package == nil { _history = State(initialValue:TechnicalAnnotationHistory(room:.capturedShell(id:scanner.captureID,notes:""))) }
-        let disk = CapturePersistence(id:scanner.captureID,kind:.technical,projectID:voiceProjectID)
+        let draftID = package == nil ? scanner.captureID : UUID()
+        if let package {
+            var document = package.document; document.room.id = draftID
+            _history = State(initialValue:TechnicalAnnotationHistory(document:document))
+        } else {
+            var room = TechnicalRoom.capturedShell(id:scanner.captureID,notes:""); room.id = draftID
+            _history = State(initialValue:TechnicalAnnotationHistory(room:room))
+        }
+        let disk = CapturePersistence(id:draftID,kind:.technical,projectID:voiceProjectID)
         scanner.persistence = disk
         _persistence = State(initialValue:disk)
         _scanner = State(initialValue: scanner)
@@ -135,7 +142,7 @@ struct TechnicalRoomScanView: View {
                             Image(systemName: "slider.horizontal.3").frame(width: 44,height: 44)
                         }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
                             .accessibilityLabel("Survey tools")
-                        LiveScanNotes(reference:.init(kind:.technicalRoom,itemID:scanner.captureID,library:"local"),
+                        LiveScanNotes(reference:.init(kind:.technicalRoom,itemID:persistence.id,library:"local"),
                             persistence:persistence,workspace:workspace,projectID:voiceProjectID,
                             position:{ CaptureSurfacePoint.center(session:scanner.session) },pose:{
                                 guard let m = scanner.session.currentFrame?.camera.transform else { return nil }
@@ -174,7 +181,7 @@ struct TechnicalRoomScanView: View {
         }
         .tint(.blue)
         .sheet(isPresented: $showingVoiceNotes) {
-            ScanVoiceNotesSheet(reference: .init(kind: .technicalRoom,itemID: scanner.captureID,library: "local"),location: .local(),preferredProjectID:voiceProjectID)
+            ScanVoiceNotesSheet(reference: .init(kind: .technicalRoom,itemID: persistence.id,library: "local"),location: .local(),preferredProjectID:voiceProjectID)
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { captureHeight = $0 }
         .onDisappear { scanner.stop() }
@@ -501,6 +508,7 @@ struct TechnicalRoomScanView: View {
             do {
                 try scanner.setReference(origin: origin, xCorner: hit)
                 var room = TechnicalRoom.capturedShell(id: scanner.captureID, notes: "")
+                room.id = persistence.id
                 if let reference = scanner.referenceFrame { room.shellToRoom.value = reference; room.shellToRoom.method = "twoFloorCornersAndGravity" }
                 history = TechnicalAnnotationHistory(room: room)
                 frameDefined = true
@@ -568,6 +576,7 @@ struct TechnicalRoomScanView: View {
     }
     private func persistSurvey(thumbnail: Data) {
         var manifest = previousManifest ?? TechnicalRoomManifest(id: history.room.id, name: "Technik Room")
+        manifest.id = history.room.id
         manifest.modifiedAt = Date(); manifest.checkpointAcceptedAtSave = frozenCheckpointAccepted
         let package = TechnicalRoomPackage(manifest: manifest, document: history.document, alignment: scanner.alignment,
             journal: scanner.journal, worldMapData: scanner.worldMapData, thumbnailPNG: thumbnail, evidence: scanner.evidence,
@@ -576,7 +585,13 @@ struct TechnicalRoomScanView: View {
             do {
                 await scanner.flushAndWait()
                 await persistence.state(.finalizing)
-                try await TechnicalRoomLibraryStore().save(package)
+                var finalPackage = package
+                if let store = persistence.store {
+                    var compacted = try await TechnicalSessionDeltaWriter.recover(store:store,id:persistence.id)
+                    for depth in package.journal.depths { guard compacted.append(depth) else { throw CocoaError(.fileWriteOutOfSpace) } }
+                    finalPackage.journal = compacted
+                }
+                try await TechnicalRoomLibraryStore().save(finalPackage)
                 await persistence.complete()
                 saving = false; onSaved(package.manifest.id); dismiss()
             } catch { saving = false; message = "Capture retained in memory; retry Save. \(error.localizedDescription)" }

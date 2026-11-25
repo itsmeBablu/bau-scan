@@ -94,7 +94,7 @@ final class HouseBuilderTests: XCTestCase {
         let house = try HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(), name: "Appartement")
         XCTAssertGreaterThan(PlanRenderer().pdfData(house).count, 1000)
         let svg = SVGExporter().svg(for: house)
-        XCTAssertEqual(svg.components(separatedBy: "<polygon ").count - 1, 2, "un sol par pièce")
+        XCTAssertEqual(svg.components(separatedBy: "data-role=\"room-floor\"").count - 1, 2, "One floor per room; wall polygons are separate geometry")
         let mesh = PlanMeshBuilder().build(house)
         let names = [RoomNaming.defaultBaseName(.livingRoom), RoomNaming.defaultBaseName(.kitchen)]
         XCTAssertEqual(mesh.groups.map(\.name), names.flatMap { name in ["walls", "doors", "floor"].map { "\(name)/\($0)" } })
