@@ -1,0 +1,81 @@
+name: Pull request tests
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  swift:
+    runs-on: macos-26
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        scheme: [RoomScanner, RoomScannerMac]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Generate project and log toolchain
+        run: |
+          set -euo pipefail
+          mkdir -p build-logs
+          {
+            xcodebuild -version
+            command -v xcodegen || brew install xcodegen
+            xcodegen generate
+          } 2>&1 | tee build-logs/generate.log
+      - name: Select installed iPhone simulator
+        if: matrix.scheme == 'RoomScanner'
+        run: |
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/devices.json"
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json, os
+          with open(os.environ['RUNNER_TEMP']+'/devices.json') as f:
+              devices = json.load(f)['devices']
+          phones = [d for runtime, group in devices.items() if '.iOS-' in runtime
+                    for d in group if d.get('isAvailable') and d['name'].startswith('iPhone')]
+          if not phones:
+              raise SystemExit('No available iPhone simulator on this runner')
+          print('TEST_DESTINATION=platform=iOS Simulator,id='+phones[0]['udid'])
+          PY
+      - name: Run full scheme
+        env:
+          SCHEME: ${{ matrix.scheme }}
+        run: |
+          set -euo pipefail
+          destination="${TEST_DESTINATION:-platform=macOS}"
+          xcodebuild -project RoomScanner.xcodeproj -scheme "$SCHEME" \
+            -destination "$destination" -derivedDataPath "$RUNNER_TEMP/derived-data" \
+            -resultBundlePath "$RUNNER_TEMP/TestResults.xcresult" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test \
+            2>&1 | tee build-logs/tests.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.scheme }}-test-logs
+          path: |
+            build-logs/
+            ${{ runner.temp }}/TestResults.xcresult
+          retention-days: 3
+  service-and-localization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/technical-google-ai/requirements*.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node Scripts/audit_localization.js --strict
+      - run: python -m pip install -r services/technical-google-ai/requirements-dev.txt
+      - run: python -m pytest services/technical-google-ai -q
