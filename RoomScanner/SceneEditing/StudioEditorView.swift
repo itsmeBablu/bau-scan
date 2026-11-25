@@ -91,6 +91,7 @@ struct StudioEditorView: View {
     @State private var importing = false
     @State private var equipmentEditor: SceneEditObject?
     @State private var confirmClose = false
+    @FocusState private var viewportFocused: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var textSize
     init(document: SceneEditDocument,storageURL: URL,photos: [SurveyPhotoImage] = []) {
@@ -164,28 +165,6 @@ struct StudioEditorView: View {
         .inspector(isPresented: $showInspector) {
             inspector
                 .frame(minWidth: 280, idealWidth: 320)
-        }
-        .background {
-            Group {
-                Button("") { nudgeSelected(dx: -0.01, dz: 0) }.keyboardShortcut(.leftArrow, modifiers: [])
-                Button("") { nudgeSelected(dx: 0.01, dz: 0) }.keyboardShortcut(.rightArrow, modifiers: [])
-                Button("") { nudgeSelected(dx: 0, dz: -0.01) }.keyboardShortcut(.upArrow, modifiers: [])
-                Button("") { nudgeSelected(dx: 0, dz: 0.01) }.keyboardShortcut(.downArrow, modifiers: [])
-                Button("") { nudgeSelected(dx: -0.10, dz: 0) }.keyboardShortcut(.leftArrow, modifiers: .shift)
-                Button("") { nudgeSelected(dx: 0.10, dz: 0) }.keyboardShortcut(.rightArrow, modifiers: .shift)
-                Button("") { nudgeSelected(dx: 0, dz: -0.10) }.keyboardShortcut(.upArrow, modifiers: .shift)
-                Button("") { nudgeSelected(dx: 0, dz: 0.10) }.keyboardShortcut(.downArrow, modifiers: .shift)
-                Button("") { try? session.deleteSelection() }.keyboardShortcut(.delete, modifiers: [])
-                Button("") { try? session.deleteSelection() }.keyboardShortcut(.deleteForward, modifiers: [])
-                Button("") {
-                    multipleSelection = true
-                    session.selectedIDs = Set(session.document.presentationObjects.filter { $0.story == story }.map(\.id))
-                    session.selectedID = nil
-                }.keyboardShortcut("a", modifiers: .command)
-                Button("") { save() }.keyboardShortcut("s", modifiers: .command)
-            }
-            .opacity(0)
-            .allowsHitTesting(false)
         }
         #endif
         .tint(.blue)
@@ -439,6 +418,19 @@ struct StudioEditorView: View {
         if showPlan { Plan2DView(house: House(id: session.document.shell.id,name: session.document.title,stories: session.document.plan.stories.filter { $0.index == story })) }
         else {
             StudioViewport(controller: controller,document: session.document,story: story,cutaway: cutaway,selected: session.selectedID,moving: moving && (session.document.engineering?.view == nil || session.document.engineering?.view == .all || session.document.engineering?.view == .proposed),reset: reset,showDimensions: showDimensions,rotating: rotating && (session.document.engineering?.view == nil || session.document.engineering?.view == .all || session.document.engineering?.view == .proposed))
+                #if os(macOS)
+                .focusable().focused($viewportFocused)
+                .focusedValue(\.studioViewportSession,viewportFocused ? session : nil)
+                .simultaneousGesture(TapGesture().onEnded { viewportFocused = true })
+                .onKeyPress(keys:[.leftArrow,.rightArrow,.upArrow,.downArrow],phases:[.down,.repeat]) { press in
+                    guard viewportFocused,press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
+                    let step = press.modifiers.contains(.shift) ? 0.10 : 0.01
+                    nudgeSelected(dx:press.key == .leftArrow ? -step : press.key == .rightArrow ? step : 0,
+                                  dz:press.key == .upArrow ? -step : press.key == .downArrow ? step : 0)
+                    return .handled
+                }
+                .onDeleteCommand { if viewportFocused { perform { try session.deleteSelection() } } }
+                #endif
                 .frame(maxWidth: .infinity,minHeight: 200,maxHeight: .infinity)
         }
     }
@@ -750,17 +742,7 @@ struct StudioEditorView: View {
         }
     }
     private func nudgeSelected(dx: Double, dz: Double) {
-        guard let id = session.selectedID ?? session.selectedIDs.first,
-              var item = session.document.objects.first(where: { $0.id == id }) else { return }
-        var pos = item.position
-        pos.x += dx
-        pos.z += dz
-        item.position = pos
-        do {
-            try update(item)
-        } catch {
-            self.error = error.localizedDescription
-        }
+        perform { try session.nudgeSelection(dx:dx,dz:dz,allowOverlap:allowOverlap) }
     }
 
     private func export3D(_ format: StudioExporter.Format) {

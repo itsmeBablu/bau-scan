@@ -539,6 +539,18 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         selectedIDs = []; selectedID = nil
     }
     var selected: SceneEditObject? { document.objects.first { $0.id == selectedID } }
+    func nudgeSelection(dx: Double,dz: Double,allowOverlap: Bool) throws {
+        let ids = selectedIDs.union(selectedID.map { [$0] } ?? [])
+        guard !ids.isEmpty else { return }
+        var next = document
+        for i in next.objects.indices where ids.contains(next.objects[i].id) {
+            next.objects[i].position.x += dx; next.objects[i].position.z += dz
+        }
+        if !allowOverlap {
+            for item in next.objects where ids.contains(item.id) { try StudioPlacement.check(item,in:next) }
+        }
+        try change { $0 = next }
+    }
     var dirty: Bool { document != saved }
     init(_ document: SceneEditDocument) { self.document = document; saved = document }
     func change(_ body: (inout SceneEditDocument) -> Void) throws {

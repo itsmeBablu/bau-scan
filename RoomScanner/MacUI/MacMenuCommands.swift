@@ -1,10 +1,12 @@
 import SwiftUI
+import AppKit
 
 /// macOS menus: File › Import... (⌘O), Export... (⌘E) format submenu,
 /// Print... (⌘P), Reveal in Finder (⇧⌘R), Open dWalkScan Folder.
 struct MacMenuCommands: Commands {
     @FocusedValue(\.macAppState) private var state
     @FocusedValue(\.studioSession) private var session
+    @FocusedValue(\.studioViewportSession) private var viewportSession
     let updater: UpdaterController
 
     var body: some Commands {
@@ -26,9 +28,11 @@ struct MacMenuCommands: Commands {
                 .disabled(session?.canRedo != true)
         }
         CommandGroup(after: .pasteboard) {
-            Button("studio.selectAllOnFloor") { session?.selectAllOnFloor?() }
+            Button("studio.selectAllOnFloor") {
+                if let viewportSession { viewportSession.selectAllOnFloor?() }
+                else { NSApp.sendAction(NSSelectorFromString("selectAll:"),to:nil,from:nil) }
+            }
                 .keyboardShortcut("a", modifiers: .command)
-                .disabled(session == nil)
         }
         CommandGroup(replacing: .newItem) {
             Button("mac.menu.import") { state?.request(.importPackage) }

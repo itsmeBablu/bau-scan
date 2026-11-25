@@ -47,6 +47,7 @@ This manual verification checklist covers testing procedures for the **dWalkScan
   - Clean state: Window title displays `<Design Name>`.
   - Modified state: Native window edited indicator is enabled; title has no appended bullet.
 - [ ] **Menu Focus Binding**: Focused window correctly routes `⌘Z`, `⇧⌘Z`, and `⌘S` via `focusedSceneValue(\.studioSession)` to the active window only.
+- [ ] In inspector text fields, Backspace deletes text, arrows move the caret, and Cmd-A selects text. In the viewport, Delete affects objects and arrows move the whole selection in one undo step. Cmd-S writes once. Mac validation pending.
 - [ ] **Dirty State Prompt on Close**: Closing a modified window prompts to **Save and close** or **Discard unsaved edits**.
 - [ ] Close button, Cmd-W and Cmd-Q: test Save / Discard / Cancel for two dirty windows. Failed save must keep the window open; cancelling quit must keep the application open. Device/Mac validation pending.
 
