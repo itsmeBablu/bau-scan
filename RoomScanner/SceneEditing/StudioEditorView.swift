@@ -88,6 +88,8 @@ struct StudioEditorView: View {
     @State private var exportType = UTType.data
     @State private var exportName = "Design"
     @State private var exporting = false
+    @State private var exportTask: Task<Void,Never>?
+    @State private var exportProgress = 0.0
     @State private var importing = false
     @State private var equipmentEditor: SceneEditObject?
     @State private var confirmClose = false
@@ -103,6 +105,14 @@ struct StudioEditorView: View {
     var body: some View {
         editorLayout
         .disabled(busy).allowsHitTesting(!busy)
+        .overlay {
+            if exportTask != nil {
+                VStack(spacing:12) {
+                    ProgressView("export.generating",value:exportProgress,total:1)
+                    Button("Cancel") { exportTask?.cancel() }
+                }.padding(24).frame(width:280).background(.regularMaterial,in:RoundedRectangle(cornerRadius:16))
+            }
+        }
         .navigationTitle(session.document.title)
         #if os(macOS)
         .background(StudioWindowGuard(dirty:{ session.dirty },save:{ try await persistDesign() }))
@@ -214,7 +224,7 @@ struct StudioEditorView: View {
                 do { try update(item); return true } catch { self.error = error.localizedDescription; return false }
             }
         }
-        .onDisappear { controller.onSelect = nil; controller.onMove = nil; controller.onRotate = nil; controller.onPhoto = nil }
+        .onDisappear { exportTask?.cancel(); controller.onSelect = nil; controller.onMove = nil; controller.onRotate = nil; controller.onPhoto = nil }
         .sheet(isPresented: Binding(get: { showEngineering && !inspectorPresentedModally },set: { showEngineering = $0 })) { StudioEngineeringView(session: session) }
         .onChange(of: story) { _,_ in session.select(nil,multiple:false) }
         .onChange(of: session.selectedIDs) { _,ids in
@@ -777,15 +787,19 @@ struct StudioEditorView: View {
         }
     }
     private func export(_ format: StudioExporter.Format) {
-        busy = true
-        Task { @MainActor in
-            defer { busy = false }
+        guard !busy,exportTask == nil else { return }
+        busy = true; exportProgress = 0
+        let document = session.document,floor = story
+        exportTask = Task { @MainActor in
+            defer { busy = false; exportTask = nil }
             do {
-                exportFile = StudioFile(try StudioExporter.data(session.document,format: format,story: story))
+                let data = try await StudioExporter.dataAsync(document,format:format,story:floor,progress:{ exportProgress = $0 })
+                try Task.checkCancellation(); exportFile = StudioFile(data)
                 let ext = format == .project ? "json" : format == .obj ? "zip" : format.rawValue
                 exportType = UTType(filenameExtension: ext) ?? .data
                 exportName = "Edited-design."+ext; exporting = true
-            } catch { self.error = error.localizedDescription }
+            } catch is CancellationError { /* Cancellation produces no export or error alert. */ }
+            catch { self.error = error.localizedDescription }
         }
     }
     private func importProject(_ result: Result<URL,Error>) {
