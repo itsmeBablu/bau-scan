@@ -19,6 +19,7 @@ final class RoomStore {
     private(set) var pendingDownloads = 0
     /// `true` during container resolution at launch.
     private(set) var isResolvingCloud = false
+    private var cloudGeneration = 0
     /// Forced root (`-RoomScannerStorageRoot`): no iCloud switching.
     let allowsCloud: Bool
 
@@ -41,23 +42,32 @@ final class RoomStore {
 
     /// At launch: resolves the selected container off main thread without moving local files.
     /// switches and starts monitoring. Without account or container, stays local.
-    func activateCloudIfAvailable() async {
+    func activateCloudIfAvailable(resolver: (@Sendable () async -> StorageLocation?)? = nil) async {
         guard allowsCloud, !isCloud, !isResolvingCloud else { return }
+        guard UserDefaults.standard.object(forKey:CloudAvailability.preferenceKey) == nil || CloudAvailability.isEnabledByUser else { return }
+        let generation = cloudGeneration
         isResolvingCloud = true
-        defer { isResolvingCloud = false }
-        let cloud = await Task.detached(priority: .utility) { () -> StorageLocation? in
+        defer { if generation == cloudGeneration { isResolvingCloud = false } }
+        let cloud: StorageLocation?
+        if let resolver { cloud = await resolver() }
+        else { cloud = await Task.detached(priority: .utility) { () -> StorageLocation? in
             guard let cloud = CloudAvailability.resolveLocation() else { return nil }
             // Project references retain their library identity. Opting into cloud does
             // not move or rewrite existing local packages.
             return cloud
-        }.value
-        guard let cloud else { return }
+        }.value }
+        guard generation == cloudGeneration,let cloud else { return }
+        if UserDefaults.standard.object(forKey:CloudAvailability.preferenceKey) == nil {
+            UserDefaults.standard.set(true,forKey:CloudAvailability.preferenceKey)
+        }
+        guard CloudAvailability.isEnabledByUser else { return }
         switchLocation(to: cloud)
     }
 
     /// Setting 'Use iCloud Drive': immediate toggle. Disabling reverts to local folder
     /// (iCloud files remain in iCloud Drive; nothing is moved or deleted).
     func setCloudEnabled(_ enabled: Bool) async {
+        cloudGeneration += 1; isResolvingCloud = false
         UserDefaults.standard.set(enabled, forKey: CloudAvailability.preferenceKey)
         if enabled { await activateCloudIfAvailable() }
         else if isCloud { switchLocation(to: .local()) }

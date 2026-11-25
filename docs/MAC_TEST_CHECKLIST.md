@@ -61,6 +61,7 @@ This manual verification checklist covers testing procedures for the **dWalkScan
 ---
 
 ## 5. iCloud vs. Local Library
+- [ ] Toggle iCloud on then off before container resolution finishes. The library must remain local; repeat during slow/offline container access. Mac/device validation pending.
 - [ ] Delete a project with a locked/unmovable second package. All previously moved packages and the catalogue must remain intact. A post-commit purge failure can leave `.privacy-trash-<transaction>-<original-name>` beside the package; keep it until deletion/recovery is verified.
 - [ ] Force a package save failure: the prior scan must reopen unchanged. Simulate a restart with only the sibling package backup remaining and check recovery.
 - [ ] **Local Documents**: Verify packages stored in `~/Documents` are discovered and displayed.

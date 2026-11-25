@@ -32,9 +32,8 @@ enum CloudAvailability {
             }
             // Preserve access to an existing cloud library; never migrate local files at launch.
             guard hasExisting else { return nil }
-            UserDefaults.standard.set(true,forKey:preferenceKey)
         }
-        guard isEnabledByUser else { return nil }
+        guard UserDefaults.standard.object(forKey:preferenceKey) == nil || isEnabledByUser else { return nil }
         return StorageLocation(kind: .iCloud, documentsURL: documentsURL(containerURL: container))
     }
 
