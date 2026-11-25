@@ -80,12 +80,14 @@ bytes remain. Test native backup restoration independently. Use synthetic photos
 
 ## Remaining work
 
-Phase 3 remains open: native export presets/content selection and counts, native
-backup/restore comparison, finer project/floor/annotation identity where available,
+Phase 3 remains open: granular content selection and counts, full native import/
+restore comparison, finer project/floor/annotation identity where available,
 standalone technical-package coverage, format-reader validation and synthetic ZIP
 artifacts. No remote CI was run under the local-only instruction. Existing IFC and
 native backup entry points remain; this increment does not include them in every
-organized ZIP. Audio is explicitly listed as absent; inspect the separate local
+organized ZIP. Presets, optional unchanged native snapshots and separate-frame IFC
+files have now been added; see EXPORT_PACKAGE_SPECIFICATION.md. Audio is explicitly
+listed as absent; inspect the separate local
 AR-notes branch before integration. English README scaffolding needs localization.
 Scanner lifecycle, house regression, iCloud, accessibility, restoration and
 engineering accuracy remain unverified on Apple hardware.

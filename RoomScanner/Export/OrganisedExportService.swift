@@ -10,6 +10,7 @@ enum OrganisedExportService {
         case technicalRoom = "Utility room"
         case photos = "Photos"
         case studio = "Design Studio"
+        case native = "Native packages"
 
         var id: String { rawValue }
     }
@@ -23,6 +24,9 @@ enum OrganisedExportService {
         var includePhotos = true
         var removePhotoMetadata = false
         var includeStudio = true
+        var includeNativePackages = false
+        var includeIFC = false
+        var includeArchitectureIFC = true
         var photosOnly = false
         var unit: MeasurementUnit = .both
         var locale: Locale = AppLanguage.locale
@@ -66,6 +70,7 @@ enum OrganisedExportService {
         progressHandler: ((Double, String) -> Void)? = nil,
         to destinationURL: URL
     ) async throws {
+        guard !options.includeNativePackages || !options.removePhotoMetadata else { throw CocoaError(.fileWriteInvalidFileName) }
         let stagingDir = FileManager.default.temporaryDirectory.appendingPathComponent("organised-export-" + UUID().uuidString, isDirectory: true)
         let archiveStem = ArchivePath.component(subject.name, fallback: "Export")
         let root = stagingDir.appendingPathComponent(archiveStem, isDirectory: true)
@@ -109,7 +114,47 @@ enum OrganisedExportService {
         var table: [TableRow] = []
 
         if !options.photosOnly {
-            if options.includePlans || options.includeModels {
+            if options.includeIFC {
+                if options.includeArchitectureIFC {
+                    table.append(TableRow(category:.models,relativeFolder:"bim",filename:"architecture.ifc") { target in
+                        var settings = RevitExportOptions(); settings.includeMEP = false
+                        let data = try RevitIFCExporter.export(house:subject.house,options:settings)
+                        try data.write(to:target); return Int64(data.count)
+                    })
+                }
+                for tech in technicalPackages {
+                    table.append(TableRow(category:.technicalRoom,relativeFolder:"bim",filename:tech.manifest.id.uuidString+".ifc") { target in
+                        var settings = RevitExportOptions(); settings.includeArchitecture = false
+                        let data = try RevitIFCExporter.export(house:nil,technicalRooms:[.init(name:tech.manifest.name,document:tech.document)],options:settings)
+                        try data.write(to:target); return Int64(data.count)
+                    })
+                }
+            }
+            if options.includeNativePackages {
+                var sources: [(URL,String)] = []
+                if let source = subject.sourcePackageURL {
+                    let storedID = subject.kind == .house ? try HousePackage.readRecord(from:source).id : try RoomPackage.readRecord(from:source).id
+                    guard storedID == subject.id else { throw CocoaError(.fileReadCorruptFile) }
+                    sources.append((source,subject.id.uuidString+(subject.kind == .house ? ".housescan" : ".roomscan")))
+                } else { throw CocoaError(.fileNoSuchFile) }
+                for id in selectedTechnicalIDs {
+                    sources.append((storageRoot.appendingPathComponent("TechnicalRooms/"+id.uuidString+".technicalroom"),id.uuidString+".technicalroom"))
+                }
+                let snapshots = stagingDir.appendingPathComponent("native-snapshots")
+                try FileManager.default.createDirectory(at:snapshots,withIntermediateDirectories:true)
+                for (source,name) in sources {
+                    let snapshot = snapshots.appendingPathComponent(name)
+                    try NativeExportSnapshot.copy(from:source,to:snapshot)
+                    for path in try NativeExportSnapshot.files(in:snapshot) {
+                        let relative = "native/"+name+"/"+path
+                        table.append(TableRow(category:.native,relativeFolder:(relative as NSString).deletingLastPathComponent,filename:(path as NSString).lastPathComponent) { target in
+                            try FileManager.default.copyItem(at:snapshot.appendingPathComponent(path),to:target)
+                            return Int64(try target.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0)
+                        })
+                    }
+                }
+            }
+            if options.includePlans || options.includeModels || options.includeIFC {
                 table.append(TableRow(category:.models,relativeFolder:"data",filename:"resolved-geometry.json") { target in
                     let data = try ResolvedGeometryExporter.data(for:subject.house,sourceID:subject.id)
                     try data.write(to:target); return Int64(data.count)
@@ -340,7 +385,8 @@ enum OrganisedExportService {
         manifest.omissions?.append(options.removePhotoMetadata ? "Export JPEG copies were re-encoded without source EXIF/GPS/IPTC metadata; image compression may change. Survey camera poses remain in the indexes." : "Original photo metadata is preserved and may contain private information. Survey indexes include camera poses.")
         if options.includeTechnicalRoom && !options.photosOnly && selectedTechnicalIDs.isEmpty { manifest.omissions?.append("No technical survey was explicitly selected.") }
         for tech in technicalPackages where tech.journal.meshes.isEmpty { manifest.omissions?.append("Technical survey \(tech.manifest.id): no captured mesh; OBJ and mesh DXF omitted.") }
-        manifest.omissions?.append("This export does not contain native backups or voice audio. Technical selections are handoff selections, not verified spatial registration to the house.")
+        if !options.includeNativePackages { manifest.omissions?.append("Native backups were not selected.") }
+        manifest.omissions?.append("Voice audio is not included. Technical selections are handoff selections, not verified spatial registration to the house. Technical IFC files use separate room frames; they are not a combined registered building.")
         let manifestData = try JSONEncoder().encode(manifest)
         try manifestData.write(to: root.appendingPathComponent("manifest.json"))
 
@@ -386,7 +432,8 @@ enum OrganisedExportService {
         if !options.photosOnly {
             if options.includePlans { size += 1_500_000 }
             if options.includeModels { size += 6_000_000 }
-            if options.includeTechnicalRoom { size += 3_500_000 }
+            size += Int64(selectedTechnicalRoomIDs(options:options).count)*3_500_000
+            if options.includeIFC { size += 1_000_000 }
             if options.includeStudio { size += 2_000_000 }
         }
         if options.includePhotos || options.photosOnly {

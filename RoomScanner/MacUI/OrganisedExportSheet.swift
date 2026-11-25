@@ -47,6 +47,12 @@ struct OrganisedExportSheet: View {
                 .padding(.horizontal)
             } else {
                 Form {
+                    Picker("Export preset",selection:Binding(get:{ OrganisedExportPreset.matching(options) },set:{ preset in
+                        preset.apply(to:&options)
+                        if options.includeNativePackages { options.removePhotoMetadata = false }
+                    })) {
+                        ForEach(OrganisedExportPreset.allCases) { preset in Text(LocalizedStringKey(preset.rawValue)).tag(preset) }
+                    }
                     Section("Include in ZIP Package") {
                         Toggle("Floor Plans (PDF, SVG, DXF)", isOn: $options.includePlans)
                         Toggle("3D Models (OBJ, STL, PLY, USDZ)", isOn: $options.includeModels)
@@ -67,6 +73,14 @@ struct OrganisedExportSheet: View {
                         }
                         Toggle("Survey Photos (optional)", isOn: $options.includePhotos)
                         Toggle("Design Studio Layout", isOn: $options.includeStudio)
+                        Toggle("IFC (Revit)",isOn:$options.includeIFC)
+                        if options.includeIFC {
+                            Toggle("Include house architecture in IFC",isOn:$options.includeArchitectureIFC)
+                            Text("Technical IFC files use independent room coordinates. No house registration is assumed.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Toggle("Include native scan packages",isOn:$options.includeNativePackages)
+                            .onChange(of:options.includeNativePackages) { _,enabled in if enabled { options.removePhotoMetadata = false } }
                     }
                 }
                 .formStyle(.grouped)
@@ -75,8 +89,12 @@ struct OrganisedExportSheet: View {
 
             if options.includePhotos || photosOnly {
                 Toggle("Remove photo metadata from export copies",isOn:$options.removePhotoMetadata)
-                    .padding(.horizontal).disabled(isExporting)
+                    .padding(.horizontal).disabled(isExporting || options.includeNativePackages)
                 Text("Re-encodes JPEG copies without EXIF/GPS metadata. Camera poses remain in the photo index.")
+                    .font(.caption).foregroundStyle(.secondary).padding(.horizontal)
+            }
+            if options.includeNativePackages {
+                Text("Native backups preserve original photo metadata and source assets.")
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal)
             }
 
@@ -120,7 +138,7 @@ struct OrganisedExportSheet: View {
                     startExport()
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(isExporting || (!photosOnly && !options.includePlans && !options.includeModels && !options.includeTechnicalRoom && !options.includePhotos && !options.includeStudio))
+                .disabled(isExporting || (!photosOnly && !options.includePlans && !options.includeModels && !options.includeTechnicalRoom && !options.includePhotos && !options.includeStudio && !options.includeNativePackages && !options.includeIFC))
             }
             .padding(.horizontal)
             .padding(.bottom)
