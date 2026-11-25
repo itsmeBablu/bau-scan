@@ -60,6 +60,7 @@ struct SettingsView: View {
                     Text("Deutsch").tag(AppLanguage.german.rawValue)
                 }
             }
+            Section { VoiceDiagnosticsView() }
             Section("Capture") {
                 Toggle("Experimental recovery alignment",isOn:$experimentalRelocalization)
                 Text("Read-only world-map test. Recovered and new rooms are never merged automatically.").font(.caption).foregroundStyle(.secondary)
