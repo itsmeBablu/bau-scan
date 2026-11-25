@@ -75,3 +75,29 @@ requires device validation; the specification explicitly requires stopping and
 reporting at this boundary if that behavior cannot be tested. Uncommitted work
 from before this specification was archived under `/tmp/dwalk-pre-spec-wip.patch`
 and `/tmp/*Recovery*.pre-spec`; it is not part of this branch's implementation.
+
+## Local implementation status
+
+Step 0 is committed separately. Step 1's storage foundation adds `ScanSessionStore`
+with schema-1 manifests, explicit states, project links, segments/media folders,
+immutable indexed commit records and replacement-helper transactions. Reopening
+can recover an interrupted manifest replacement. Injected failures after payload,
+index and manifest commits exercise visibility and retry; tests also cover media
+replacement, orphan cleanup, symlink rejection, state transitions and isolated
+session discard. Old scan/package formats are unchanged. No new dependencies or
+user-facing strings were added.
+
+Step 1 is not complete: launch Recover/Discard UI, geometry recovery/promotion,
+and capture wiring remain pending. Steps 2–7 are not implemented. In particular,
+this foundation does not yet save live photos, audio or geometry to ScanSessions.
+The first local simulator run passed storage tests and both localization checks;
+the final run passed all 7 tests, including manifest-backup recovery, the existing
+replacement-helper test, and both localization checks. These are process-level injected failures, not power-loss or LiDAR
+device tests. No app update from this branch has been installed or pushed.
+
+The specification's stop rule applies before room-by-room capture integration:
+“Stop and report if a step needs more than about 300 lines or changes scanning
+behaviour in a way you cannot test.” RoomPlan lifecycle/relocalization cannot be
+validated by the simulator. Continuing implementation requires resolving that
+explicit validation boundary; installing an unfinished foundation would not
+satisfy the requested end-to-end checkpoint behavior.
