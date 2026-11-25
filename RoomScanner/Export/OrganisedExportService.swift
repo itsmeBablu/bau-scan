@@ -94,6 +94,12 @@ enum OrganisedExportService {
         var table: [TableRow] = []
 
         if !options.photosOnly {
+            if options.includePlans || options.includeModels {
+                table.append(TableRow(category:.models,relativeFolder:"data",filename:"resolved-geometry.json") { target in
+                    let data = try ResolvedGeometryExporter.data(for:subject.house,sourceID:subject.id)
+                    try data.write(to:target); return Int64(data.count)
+                })
+            }
             // Plans
             if options.includePlans {
                 let house = subject.house

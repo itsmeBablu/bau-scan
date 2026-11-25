@@ -128,6 +128,10 @@ struct ExportService {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: staging) }
         var files: [(name: String, format: ExportFormat)] = []
+        let geometryFolder = folder.appendingPathComponent("Data",isDirectory:true)
+        try FileManager.default.createDirectory(at:geometryFolder,withIntermediateDirectories:true)
+        try ResolvedGeometryExporter.data(for:subject.house,sourceID:subject.id).write(to:geometryFolder.appendingPathComponent("resolved-geometry.json"))
+        files.append(("Data/resolved-geometry.json",.json))
         for format in Self.availableFormats(for: subject) where format != .zip {
             let category = format.group == .twoD ? "Plans" : format.group == .threeD ? "Models" : "Data"
             let url = try export(subject, format: format, to: folder.appendingPathComponent(category,isDirectory:true))

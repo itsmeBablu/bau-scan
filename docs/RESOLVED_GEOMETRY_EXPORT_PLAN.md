@@ -17,6 +17,11 @@ Derived IDs are deterministic from source wall IDs, story and resolved segment.
 Original source IDs remain references. Measured gap, entered thickness and fallback
 defaults remain distinguishable. Room net area/perimeter do not change with wall
 thickness. Volume estimates use net area times supplied ceiling-height range.
+`wallSolids` includes the same opening-cut footprint pieces and bottom/top heights
+used by mesh export. Stored overrides are labelled `storedOverrideUnverified`:
+the old thickness field does not prove an entered or manufacturer source. No
+acquisition provenance is invented. Ceiling min/max yields a volume range, not a
+measured integral beneath a sloping or irregular ceiling.
 
 Compatibility/backup: the companion is written into temporary export staging only.
 Native packages and existing JSON are not edited; final ZIP publication retains

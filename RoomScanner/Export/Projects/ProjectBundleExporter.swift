@@ -94,6 +94,11 @@ enum ProjectBundleExporter {
                         subject = ExportSubject(record:try RoomPackage.readRecord(from:entry.url),house:house,packageURL:entry.url)
                     }
                     subject.name = title
+                    let geometryPath = base+"/Data/resolved-geometry.json"
+                    attempt(reference,path:geometryPath) {
+                        try ResolvedGeometryExporter.data(for:house,sourceID:reference.itemID)
+                            .write(to:directory(base+"/Data").appendingPathComponent("resolved-geometry.json"))
+                    }
                     var service = ExportService(); service.locale = locale
                     for format in ExportService.availableFormats(for:subject) where format != .zip {
                         let category = format.group == .twoD ? "Plans" : format.group == .threeD ? "Models" : "Data"
