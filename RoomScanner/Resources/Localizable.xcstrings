@@ -1,6 +1,7 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "studio.floor.outside": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"The object footprint extends outside the active floor."}},"de":{"stringUnit":{"state":"translated","value":"Die Objektgrundfläche liegt außerhalb der aktiven Etage."}}}},
     "studio.conflict.saved": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"A newer design exists. Your edits were saved as a separate conflict copy."}},"de":{"stringUnit":{"state":"translated","value":"Ein neuerer Entwurf ist vorhanden. Deine Änderungen wurden als separate Konfliktkopie gespeichert."}}}},
     "library.problem.notDownloaded": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Not downloaded"}},"de":{"stringUnit":{"state":"translated","value":"Nicht heruntergeladen"}}}},
     "library.problem.corrupt": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Unreadable or corrupt package"}},"de":{"stringUnit":{"state":"translated","value":"Unlesbares oder beschädigtes Paket"}}}},
