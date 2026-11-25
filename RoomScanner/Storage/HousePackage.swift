@@ -26,8 +26,8 @@ struct HousePackage {
     /// Assembles full package from neutral structure: house is constructed by
     /// `HouseBuilder`, each room receives its `.roomscan` bundle (plan, scan, raw captures, thumbnail).
     static func assemble(structure: StructureInput, name: String, capturedStructureData: Data?, usdzData: Data?,
-                         roomExtras: [UUID: RoomExtras] = [:], createdAt: Date = Date()) -> HousePackage {
-        let house = HouseBuilder().build(from: structure, name: name)
+                         roomExtras: [UUID: RoomExtras] = [:], createdAt: Date = Date()) throws -> HousePackage {
+        let house = try HouseBuilder().build(from: structure, name: name)
         let rooms = house.allRooms.map { plan -> RoomPackage in
             let extras = roomExtras[plan.id]
             return RoomPackage(record: RoomRecord(plan: plan, createdAt: createdAt), plan: plan,

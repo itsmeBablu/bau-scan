@@ -20,7 +20,7 @@ final class HousePackageTests: XCTestCase {
     /// Two-level house built from synthetic structure, with room packages.
     private func housePackage(name: String = "Maison", createdAt: Date = Date()) -> HousePackage {
         let structure = SyntheticRooms.twoStoryHouse()
-        let house = HouseBuilder().build(from: structure, name: name)
+        let house = try! HouseBuilder().build(from: structure, name: name)
         let rooms = house.allRooms.map { plan in RoomPackage(record: RoomRecord(plan: plan, createdAt: createdAt), plan: plan, scan: structure.rooms.first { $0.id == plan.id }) }
         return HousePackage(record: HouseRecord(house: house, createdAt: createdAt), house: house, structure: structure, capturedStructureData: Data("apple".utf8),
                             rooms: rooms, usdzData: Data([0, 1, 2]), thumbnailPNG: PlanRenderer.thumbnailPNG(for: house))
@@ -198,7 +198,7 @@ final class HousePackageTests: XCTestCase {
         let structure = SyntheticRooms.twoRoomApartment()
         let firstID = structure.rooms[0].id
         let extras = [firstID: HousePackage.RoomExtras(capturedRoomData: Data("room".utf8), usdzData: Data([7]), usdzMeshData: nil)]
-        let pkg = HousePackage.assemble(structure: structure, name: "Appartement", capturedStructureData: Data("structure".utf8), usdzData: Data([1]), roomExtras: extras)
+        let pkg = try HousePackage.assemble(structure: structure, name: "Appartement", capturedStructureData: Data("structure".utf8), usdzData: Data([1]), roomExtras: extras)
         XCTAssertEqual(pkg.house.name, "Appartement")
         XCTAssertEqual(pkg.rooms.count, 2)
         XCTAssertEqual(pkg.rooms.map(\.plan), pkg.house.allRooms, "un .roomscan par plan, même ordre")

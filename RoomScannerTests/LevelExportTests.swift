@@ -2,9 +2,9 @@ import XCTest
 @testable import RoomScanner
 
 final class LevelExportTests: XCTestCase {
-    func testLevelsUseScanFloorHeightsAndDoNotInventMissingElevations() {
+    func testLevelsUseScanFloorHeightsAndDoNotInventMissingElevations() throws {
         let structure = SyntheticRooms.twoStoryHouse()
-        let house = HouseBuilder().build(from:structure,name:"Building")
+        let house = try HouseBuilder().build(from:structure,name:"Building")
         let heights = LevelExportService.elevations(house:house,scans:structure.rooms)
         XCTAssertEqual(heights[0] ?? -999,0.02,accuracy:0.001)
         XCTAssertEqual(heights[1] ?? -999,2.7,accuracy:0.001)

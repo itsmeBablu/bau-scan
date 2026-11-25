@@ -53,7 +53,7 @@ final class RevitIFCExportTests: XCTestCase {
     func testRealHouseSemanticGoldenAndMeasuredElevation() throws {
         let data = try resource("house.structure")
         let source = try RoomPackage.decoder.decode(StructureInput.self,from:data)
-        let house = HouseBuilder().build(from:source,name:"House")
+        let house = try HouseBuilder().build(from:source,name:"House")
         let options = try RevitScanEvidence.options(house:house,structureData:data)
         XCTAssertEqual(options.storeyElevations.count,1)
         XCTAssertEqual(options.shellPlacements.count,3)

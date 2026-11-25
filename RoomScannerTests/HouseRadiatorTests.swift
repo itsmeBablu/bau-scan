@@ -82,7 +82,7 @@ final class HouseRadiatorTests: XCTestCase {
         XCTAssertNil(RadiatorMountingPreset.none.gap)
     }
     func testHouseSidecarSurvivesRenameAndValidatesAssociation() throws {
-        let package = HousePackage.assemble(structure: SyntheticRooms.twoRoomApartment(),name: "House",capturedStructureData: nil,usdzData: nil)
+        let package = try HousePackage.assemble(structure: SyntheticRooms.twoRoomApartment(),name: "House",capturedStructureData: nil,usdzData: nil)
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("housescan")
         defer { try? FileManager.default.removeItem(at: root) }
         try package.write(to: root)
@@ -100,7 +100,7 @@ final class HouseRadiatorTests: XCTestCase {
 
     func testHouseRegistrationRejectsIndependentCameraCoordinates() throws {
         let structure = SyntheticRooms.twoRoomApartment()
-        let house = HouseBuilder().build(from: structure,name: "House")
+        let house = try HouseBuilder().build(from: structure,name: "House")
         var item = try geometry().result(roomID: UUID(),wallID: nil,samples: samples(),viewpoints: 2,preset: .none,photo: nil)
         XCTAssertThrowsError(try HouseRadiatorRegistration.associate([item],house: house,structure: structure))
         item.capturedInHouseCoordinates = true
@@ -114,7 +114,7 @@ final class HouseRadiatorTests: XCTestCase {
 
     @MainActor func testOnlyRegisteredRadiatorsRenderInHouseAndRespectObjectsToggle() throws {
         let structure = SyntheticRooms.twoRoomApartment()
-        let house = HouseBuilder().build(from: structure,name: "House")
+        let house = try HouseBuilder().build(from: structure,name: "House")
         var item = try geometry().result(roomID: XCTUnwrap(house.allRooms.first).id,wallID: nil,samples: samples(),viewpoints: 2,preset: .none,photo: nil)
         var builder = PlanSceneBuilder()
         builder.radiators = [item]

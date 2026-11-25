@@ -267,7 +267,7 @@ final class SceneStudioTests: XCTestCase {
         XCTAssertEqual(Double(node.simdPosition.x),item.position.x,accuracy: 0.0001)
     }
     private func seed() -> SceneEditDocument {
-        var house = HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(),name: "Studio test")
+        var house = try! HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(),name: "Studio test")
         let object = PlacedObject(id: UUID(),category: "sofa",center: .init(x: 1,y: -1),size: .init(width: 2,depth: 0.9),height: 0.85,angle: 0.3,confidence: .high)
         house.stories[0].rooms[0].objects = [object]
         return .seed(house: house,source: .house,id: house.id)
@@ -486,7 +486,7 @@ final class SceneStudioTests: XCTestCase {
     func testIndependentSaveDoesNotChangeHousePackageAndRoundTrips() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
-        let package = HousePackage.assemble(structure: SyntheticRooms.twoRoomApartment(),name: "Original",capturedStructureData: nil,usdzData: Data("original-usdz".utf8))
+        let package = try HousePackage.assemble(structure: SyntheticRooms.twoRoomApartment(),name: "Original",capturedStructureData: nil,usdzData: Data("original-usdz".utf8))
         let original = root.appendingPathComponent("original.housescan")
         try package.write(to: original)
         let beforeHouse = try Data(contentsOf: original.appendingPathComponent("house.json"))
@@ -668,9 +668,9 @@ final class SceneStudioTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("dwalk-studio-review-"+UUID().uuidString)
         try FileManager.default.createDirectory(at: root,withIntermediateDirectories: true)
         var structure = SyntheticRooms.twoRoomApartment()
-        let roomBounds = HouseBuilder().build(from: structure,name: "Fixture").allRooms[0].bounds
+        let roomBounds = try HouseBuilder().build(from: structure,name: "Fixture").allRooms[0].bounds
         structure.rooms[0].objects = [.init(category: "sofa",dimensions: SIMD3(2,0.85,0.9),transform: .roomPlacement(x: Float(roomBounds.center.x),y: 0.425,z: Float(-roomBounds.center.y)))]
-        let package = HousePackage.assemble(structure: structure,name: "Studio review fixture",capturedStructureData: nil,usdzData: nil)
+        let package = try HousePackage.assemble(structure: structure,name: "Studio review fixture",capturedStructureData: nil,usdzData: nil)
         let url = root.appendingPathComponent("Studio review.housescan")
         try package.write(to: url)
         let document = SceneEditDocument.seed(house: package.house,source: .house,id: package.house.id)

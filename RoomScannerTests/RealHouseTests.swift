@@ -35,12 +35,12 @@ final class RealHouseTests: XCTestCase {
     func testRoomCarryingTwoSectionsGetsACompositeName() throws {
         let structure = try loadStructure()
         XCTAssertEqual(structure.rooms[0].sectionLabels, [.diningRoom, .kitchen])
-        let house = builder.build(from: structure, name: "Maison")
+        let house = try builder.build(from: structure, name: "Maison")
         XCTAssertEqual(house.allRooms.map(\.name), ["diningRoom / kitchen", "unidentified", "unidentified 2"])
     }
 
     func testHouseAreaIsTheUnionOfTheRoomsNotTheirSum() throws {
-        let house = builder.build(from: try loadStructure(), name: "Maison")
+        let house = try builder.build(from: try loadStructure(), name: "Maison")
         XCTAssertEqual(house.stories.count, 1)
         let rooms = house.allRooms
         XCTAssertEqual(rooms.count, 3)
@@ -58,7 +58,7 @@ final class RealHouseTests: XCTestCase {
 
     /// Deux niveaux se superposent en plan : leurs surfaces s'additionnent, elles ne s'unissent pas.
     func testStoriesAreAddedNotUnioned() throws {
-        let house = builder.build(from: try loadStructure(), name: "Maison")
+        let house = try builder.build(from: try loadStructure(), name: "Maison")
         let ground = house.stories[0]
         var upstairs = ground
         upstairs.index = 1

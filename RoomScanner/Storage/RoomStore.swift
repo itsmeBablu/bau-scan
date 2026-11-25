@@ -358,7 +358,7 @@ final class RoomStore {
         let url = packageURL(for: record)
         let stored = try HousePackage.readHouse(from: url)
         guard let structure = try? HousePackage.readStructure(from: url) else { return stored }
-        var rebuilt = HouseBuilder().build(from: structure, name: record.name)
+        var rebuilt = try HouseBuilder().build(from: structure, name: record.name)
         rebuilt.id = stored.id
         if record.schemaVersion >= FloorPlan.schemaVersion {
             let storedNames = Dictionary(stored.allRooms.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
