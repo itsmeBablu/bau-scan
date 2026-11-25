@@ -771,6 +771,22 @@ final class SceneStudioTests: XCTestCase {
         try XCTUnwrap(image.pngData()).write(to: url)
         print("ORGANISED_TAB_LAYOUT="+url.path)
     }
+    @MainActor func testHouseCaptureCoverReceivesProjectContext() async throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene:scene)
+        window.frame = CGRect(x:0,y:0,width:393,height:852)
+        let store = RoomStore(location:.temporary(),allowsCloud:false)
+        let workspace = RenovationWorkspace()
+        // No inherited environment: the production presentation boundary must
+        // inject both dependencies itself, including on unsupported simulators.
+        let hosting = UIHostingController(rootView:Text("Project").fullScreenCover(isPresented:.constant(true)) {
+            ProjectCaptureView(mode:.house,projectID:UUID(),store:store,workspace:workspace,onSaved:{ _,_,_ in })
+        })
+        window.rootViewController = hosting; window.makeKeyAndVisible()
+        defer { hosting.dismiss(animated:false); window.isHidden = true; window.rootViewController = nil }
+        try await Task.sleep(for:.milliseconds(650))
+        XCTAssertNotNil(hosting.presentedViewController,"Scan a house must open its full-screen capture without a missing-environment crash")
+    }
     @MainActor func testProjectOwnsHouseTechnikAndStudioTabs() async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene:scene)

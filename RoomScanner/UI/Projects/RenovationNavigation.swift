@@ -22,7 +22,6 @@ struct RenovationNavigation: View {
 
     var body: some View {
         navigation { projects }
-        .environment(workspace)
         .task(id:refreshToken) { await workspace.reload(location:store.location); guide = !onboarded }
         .onChange(of:store.records) { _,_ in refresh() }
         .onChange(of:store.houseRecords) { _,_ in refresh() }
@@ -32,8 +31,7 @@ struct RenovationNavigation: View {
         .sheet(isPresented:$guide) { onboarding }
         .sheet(isPresented:$scan,onDismiss:{ if let requestedScan { self.requestedScan = nil; scanMode = requestedScan } }) { scanChoices.presentationDetents([.medium,.large]) }
         .fullScreenCover(item:$scanMode,onDismiss:refresh) { mode in
-            if mode == .technicalRoom { TechnicalRoomScanView(voiceProjectID:activeCaptureProject,onSaved:{ id in attach(.technicalRoom,id:id,library:"local") }) }
-            else { ScanView(mode:mode,voiceProjectID:activeCaptureProject,onSaved:{ item in attach(mode == .house ? .house : .room,id:item.id,library:store.isCloud ? "icloud" : "local") }).environment(store) }
+            ProjectCaptureView(mode:mode,projectID:activeCaptureProject,store:store,workspace:workspace,onSaved:attach)
         }
         .alert("New project",isPresented:$creating) {
             TextField("Project name",text:$projectName)
@@ -43,6 +41,7 @@ struct RenovationNavigation: View {
         .alert("Project library",isPresented:Binding(get:{ workspace.error != nil },set:{ if !$0 { workspace.error = nil } })) {
             Button("OK") { workspace.error = nil }
         } message: { Text(workspace.error ?? "") }
+        .environment(workspace)
     }
     private func refresh() { Task { await workspace.reload(location:store.location) } }
     private func attach(_ kind: ProjectReference.Kind,id: UUID,library: String) {
@@ -113,6 +112,28 @@ struct RenovationNavigation: View {
             }.padding(28).navigationTitle("Welcome")
                 .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Skip") { onboarded = true; guide = false } } }
         }.interactiveDismissDisabled()
+    }
+}
+
+
+/// A presentation owns an explicit context; environment modifiers on the
+/// presenting list do not supply dependencies to sibling full-screen covers.
+struct ProjectCaptureView: View {
+    let mode: ScanMode
+    let projectID: UUID?
+    let store: RoomStore
+    let workspace: RenovationWorkspace
+    let onSaved: (ProjectReference.Kind,UUID,String) -> Void
+    var body: some View {
+        Group {
+            if mode == .technicalRoom {
+                TechnicalRoomScanView(voiceProjectID:projectID,onSaved:{ onSaved(.technicalRoom,$0,"local") })
+            } else {
+                ScanView(mode:mode,voiceProjectID:projectID,workspace:workspace,onSaved:{ onSaved(mode == .house ? .house : .room,$0.id,store.isCloud ? "icloud" : "local") })
+            }
+        }
+        .environment(store)
+        .environment(workspace)
     }
 }
 

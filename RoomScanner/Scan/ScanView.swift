@@ -16,7 +16,7 @@ struct ScanView: View {
     @State private var cameraLive = false
     @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(RenovationWorkspace.self) private var workspace
+    private let workspace: RenovationWorkspace?
     @State private var captureID = UUID()
     @State private var showingVoiceNotes = false
     let voiceProjectID: UUID?
@@ -24,7 +24,8 @@ struct ScanView: View {
     /// Created item (room or house) passed to caller to display.
     var onSaved: (LibraryItem) -> Void
 
-    init(mode: ScanMode = .room, voiceProjectID: UUID? = nil, onSaved: @escaping (LibraryItem) -> Void = { _ in }) {
+    init(mode: ScanMode = .room, voiceProjectID: UUID? = nil, workspace: RenovationWorkspace? = nil, onSaved: @escaping (LibraryItem) -> Void = { _ in }) {
+        self.workspace = workspace
         self.voiceProjectID = voiceProjectID
         self.mode = mode
         self.onSaved = onSaved
@@ -46,9 +47,9 @@ struct ScanView: View {
             }
         }
         .sheet(isPresented:$showingVoiceNotes) {
-            if let voiceProjectID {
+            if let voiceProjectID,let workspace {
                 NavigationStack {
-                    ProjectVoiceNotesView(projectID:voiceProjectID,initialReference:captureReference,onClose:{ showingVoiceNotes = false })
+                    ProjectVoiceNotesView(projectID:voiceProjectID,initialReference:captureReference,onClose:{ showingVoiceNotes = false }).environment(workspace)
                 }
             }
         }
@@ -133,7 +134,7 @@ struct ScanView: View {
                 Text(diagnostic).font(.callout).padding().background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))
             }
             HStack {
-                if voiceProjectID != nil {
+                if voiceProjectID != nil,let workspace {
                     Button {
                         if let voiceProjectID { workspace.change { index in index.reconcile([captureReference]); try index.assign(captureReference,to:voiceProjectID) } }
                         guard workspace.error == nil else { return }
