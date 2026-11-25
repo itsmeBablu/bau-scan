@@ -37,12 +37,21 @@ enum ProjectPrivacyStore {
         for project in deleting { targets.insert(try checked(catalogueRoot.appendingPathComponent("Projects/\(project.id.uuidString)"),root:catalogueRoot)) }
         return targets.sorted { $0.path < $1.path }
     }
-    static func delete(index: ProjectIndex, roots: [String:URL], catalogueRoot: URL, projectID: UUID? = nil) throws -> ProjectIndex {
-        return try ProjectIndexStore.update(root:catalogueRoot) { current in
+    static func delete(index: ProjectIndex, roots: [String:URL], catalogueRoot: URL, projectID: UUID? = nil,
+                       move: ((URL,URL) throws -> Void)? = nil) throws -> ProjectIndex {
+        let fm = FileManager.default,transaction = UUID().uuidString
+        let rename = move ?? { try fm.moveItem(at:$0,to:$1) }
+        var moved: [(original:URL,trash:URL)] = []
+        do {
+        let result = try ProjectIndexStore.update(root:catalogueRoot) { current in
         guard current == index else { throw CocoaError(.fileWriteUnknown) }
         let targets = try deletionTargets(index:index,roots:roots,catalogueRoot:catalogueRoot,projectID:projectID)
-        for target in targets where FileManager.default.fileExists(atPath:target.path) {
-            try RoomPackage.coordinatedWrite(at:target,options:.forDeleting) { try FileManager.default.removeItem(at:$0) }
+        for target in targets where fm.fileExists(atPath:target.path) {
+            // Sibling trash is on the same volume. Its name retains the original name
+            // for recovery if the process exits before the catalogue commit.
+            let trash = target.deletingLastPathComponent().appendingPathComponent(".privacy-trash-"+transaction+"-"+target.lastPathComponent)
+            try RoomPackage.coordinatedWrite(at:target,options:.forMoving) { try rename($0,trash) }
+            moved.append((target,trash))
         }
         let ids = Set(index.projects.filter { projectID == nil || $0.id == projectID }.map(\.id))
         var updated = index
@@ -51,6 +60,17 @@ enum ProjectPrivacyStore {
         updated.pins?.removeAll { ids.contains($0.projectID) }; updated.distanceChecks?.removeAll { ids.contains($0.projectID) }
         updated.displayNames = updated.displayNames?.filter { key,_ in !refs.contains(where:{ $0.id == key }) }
         current = updated
+        }
+        // The index is committed. A failed purge leaves a recoverable trash item;
+        // it must not resurrect references to data already partially purged.
+        for item in moved { try? fm.removeItem(at:item.trash) }
+        return result
+        } catch {
+            let failure = error
+            for item in moved.reversed() {
+                try RoomPackage.coordinatedWrite(at:item.original,options:.forReplacing) { try fm.moveItem(at:item.trash,to:$0) }
+            }
+            throw failure
         }
     }
 }

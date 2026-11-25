@@ -2,6 +2,22 @@ import XCTest
 @testable import RoomScanner
 
 final class ProjectPrivacyTests: XCTestCase {
+    func testFailedSecondMoveRestoresFilesAndLeavesCatalogueUnchanged() throws {
+        let fm = FileManager.default,root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at:root) }
+        let refs = (0..<2).map { _ in ProjectReference(kind:.room,itemID:UUID(),library:"local") }
+        let project = RenovationProject(name:"Delete",references:refs),index = ProjectIndex(projects:[])
+        var saved = index; saved.projects = [project]; try ProjectIndexStore.write(saved,root:root)
+        let urls = refs.map { root.appendingPathComponent("Rooms/\($0.itemID.uuidString).roomscan") }
+        for url in urls { try fm.createDirectory(at:url,withIntermediateDirectories:true); try Data("keep".utf8).write(to:url.appendingPathComponent("data")) }
+        var calls = 0
+        XCTAssertThrowsError(try ProjectPrivacyStore.delete(index:saved,roots:["local":root],catalogueRoot:root,move:{ from,to in
+            calls += 1; if calls == 2 { throw CocoaError(.fileWriteNoPermission) }
+            try fm.moveItem(at:from,to:to)
+        }))
+        XCTAssertEqual(try ProjectIndexStore.read(root:root),saved)
+        for url in urls { XCTAssertEqual(try Data(contentsOf:url.appendingPathComponent("data")),Data("keep".utf8)) }
+    }
     func testDeletePreflightProtectsSourcesUsedByAnotherProjectAndRejectsOfflineCloud() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let scan = ProjectReference(kind:.house,itemID:UUID(),library:"local")
