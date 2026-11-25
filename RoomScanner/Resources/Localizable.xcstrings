@@ -1,6 +1,13 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "library.problem.notDownloaded": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Not downloaded"}},"de":{"stringUnit":{"state":"translated","value":"Nicht heruntergeladen"}}}},
+    "library.problem.corrupt": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Unreadable or corrupt package"}},"de":{"stringUnit":{"state":"translated","value":"Unlesbares oder beschädigtes Paket"}}}},
+    "library.problem.unsupportedSchema": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Unsupported schema version"}},"de":{"stringUnit":{"state":"translated","value":"Nicht unterstützte Schemaversion"}}}},
+    "library.problem.ioError": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Could not read package"}},"de":{"stringUnit":{"state":"translated","value":"Paket konnte nicht gelesen werden"}}}},
+    "Reveal": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Reveal"}},"de":{"stringUnit":{"state":"translated","value":"Anzeigen"}}}},
+    "Error": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Error"}},"de":{"stringUnit":{"state":"translated","value":"Fehler"}}}},
+    "Retry": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Retry"}},"de":{"stringUnit":{"state":"translated","value":"Erneut versuchen"}}}},
     "%@ · %@": {
       "localizations": {
         "en": {

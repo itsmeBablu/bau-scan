@@ -11,6 +11,7 @@ final class RoomStore {
     private(set) var records: [RoomRecord] = []
     /// Houses (`.housescan`, v2), from newest to oldest.
     private(set) var houseRecords: [HouseRecord] = []
+    private(set) var libraryProblems: [LibraryProblem] = []
     private(set) var lastError: AppError?
     /// iCloud status per package (empty in local storage).
     private(set) var cloudStatus: [UUID: CloudItemStatus] = [:]
@@ -205,11 +206,26 @@ final class RoomStore {
                 .filter { $0.pathExtension == FileLayout.packageExtension }
             // Undownloaded iCloud package has no readable `meta.json`: ignored
             // until notified by file monitor.
-            records = urls.compactMap { try? RoomPackage.readRecord(from: $0) }
+            libraryProblems = []
+            func read<T>(_ url: URL,_ load: () throws -> T,_ version: (T) -> Int) -> T? {
+                do {
+                    let record = try load()
+                    guard version(record) <= FloorPlan.schemaVersion else {
+                        libraryProblems.append(.init(url:url,reason:.unsupportedSchema,detail:String(version(record)))); return nil
+                    }
+                    return record
+                } catch {
+                    let info = try? url.resourceValues(forKeys:[.isUbiquitousItemKey,.ubiquitousItemDownloadingStatusKey])
+                    let downloaded = info?.isUbiquitousItem != true || info?.ubiquitousItemDownloadingStatus == .current
+                    libraryProblems.append(.init(url:url,reason:LibraryProblem.classify(error,downloaded:downloaded),detail:error.localizedDescription))
+                    return nil
+                }
+            }
+            records = urls.compactMap { url in read(url,{ try RoomPackage.readRecord(from:url) },{ $0.schemaVersion }) }
                 .sorted { $0.createdAt > $1.createdAt }
             let houseURLs = ((try? fm.contentsOfDirectory(at: location.housesURL, includingPropertiesForKeys: nil)) ?? [])
                 .filter { $0.pathExtension == FileLayout.housePackageExtension }
-            houseRecords = houseURLs.compactMap { try? HousePackage.readRecord(from: $0) }
+            houseRecords = houseURLs.compactMap { url in read(url,{ try HousePackage.readRecord(from:url) },{ $0.schemaVersion }) }
                 .sorted { $0.createdAt > $1.createdAt }
             // Schema upgrade: a house saved by an earlier version retains outdated
             // `meta.json` area and names (schema 2: room union, compound
@@ -226,6 +242,15 @@ final class RoomStore {
     }
 
     func packageURL(for record: RoomRecord) -> URL { location.packageURL(for: record.id) }
+    func retry(_ problem: LibraryProblem) {
+        if problem.reason == .notDownloaded { do { try FileManager.default.startDownloadingUbiquitousItem(at:problem.url) } catch { lastError = .storageFailed(error.localizedDescription) } }
+        reload()
+    }
+    func delete(_ problem: LibraryProblem) throws {
+        guard libraryProblems.contains(problem),[location.roomsURL,location.housesURL].contains(problem.url.deletingLastPathComponent()) else { throw CocoaError(.fileWriteNoPermission) }
+        try RoomPackage.coordinatedWrite(at:problem.url,options:.forDeleting) { try FileManager.default.removeItem(at:$0) }
+        reload()
+    }
 
     /// Suggested name for a new room, deduplicated against existing names.
     func proposedName(for label: RoomLabel) -> String {

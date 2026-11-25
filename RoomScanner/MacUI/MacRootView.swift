@@ -32,12 +32,13 @@ struct MacRootView: View {
     private var filteredDesigns: [SceneEditDocument] { designs.filter { matches($0.title) } }
 
     private var isEmpty: Bool {
-        store.records.isEmpty && store.houseRecords.isEmpty && technicalStore.records.isEmpty && designs.isEmpty
+        store.records.isEmpty && store.houseRecords.isEmpty && store.libraryProblems.isEmpty && technicalStore.records.isEmpty && designs.isEmpty
     }
 
     var body: some View {
         NavigationSplitView {
             List(selection: $appState.selected) {
+                LibraryProblemRows(reveal:{ NSWorkspace.shared.activateFileViewerSelecting([$0]) })
                 if !filteredHouses.isEmpty {
                     Section("library.houses") {
                         ForEach(filteredHouses) { record in
