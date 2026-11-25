@@ -18,6 +18,7 @@ enum OrganisedExportService {
         var includePlans = true
         var includeModels = true
         var includeTechnicalRoom = true
+        var technicalRoomID: UUID? = nil
         var includePhotos = true
         var includeStudio = true
         var photosOnly = false
@@ -66,17 +67,18 @@ enum OrganisedExportService {
         progressHandler?(0.05, "Building declarative layout…")
 
         // 1. Gather photo assets and determine structure
-        let packageURL = subject.packageURL
+        let packageURL = subject.sourcePackageURL
         var photosList: [SurveyPhotoImage] = []
         if let packageURL {
             photosList = (try? SurveyPhotoStore.images(from: packageURL, house: subject.house)) ?? []
         }
 
-        // 2. Locate matching technical room if any
+        // 2. Only an explicit user selection may include a technical survey.
         var technicalPackage: TechnicalRoomPackage? = nil
-        let techStore = TechnicalRoomLibraryStore()
-        if let match = (try? techStore.records)?.first(where: { $0.id == subject.id || $0.name == subject.name }) {
-            technicalPackage = try? await techStore.read(match.id)
+        if let url = technicalRoomURL(options:options,storageRoot:storageRoot),let id = options.technicalRoomID {
+            let package = try TechnicalRoomPackage.read(from:url)
+            guard package.manifest.id == id else { throw CocoaError(.fileReadCorruptFile) }
+            technicalPackage = package
         }
 
         // 3. Locate matching studio design if any
@@ -304,11 +306,15 @@ enum OrganisedExportService {
             if options.includeStudio { size += 2_000_000 }
         }
         if options.includePhotos || options.photosOnly {
-            if let packageURL = subject.packageURL {
+            if let packageURL = subject.sourcePackageURL {
                 let photos = (try? SurveyPhotoStore.images(from: packageURL, house: subject.house)) ?? []
                 size += Int64(photos.reduce(0) { $0 + $1.jpegData.count })
             }
         }
         return size
+    }
+    static func technicalRoomURL(options: Options,storageRoot: URL) -> URL? {
+        guard options.includeTechnicalRoom,!options.photosOnly,let id = options.technicalRoomID else { return nil }
+        return storageRoot.appendingPathComponent("TechnicalRooms").appendingPathComponent(id.uuidString).appendingPathExtension("technicalroom")
     }
 }

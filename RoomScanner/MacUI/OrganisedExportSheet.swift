@@ -16,6 +16,7 @@ struct OrganisedExportSheet: View {
     @State private var exportTask: Task<Void, Never>?
     @State private var completedURL: URL?
     @State private var errorMessage: String?
+    @State private var technicalRooms: [TechnicalRoomManifest] = []
 
     var body: some View {
         VStack(spacing: 18) {
@@ -50,6 +51,12 @@ struct OrganisedExportSheet: View {
                         Toggle("Floor Plans (PDF, SVG, DXF)", isOn: $options.includePlans)
                         Toggle("3D Models (OBJ, STL, PLY, USDZ)", isOn: $options.includeModels)
                         Toggle("Utility Room Survey (JSON, Mesh, DXF)", isOn: $options.includeTechnicalRoom)
+                        if options.includeTechnicalRoom {
+                            Picker("Include utility room",selection:$options.technicalRoomID) {
+                                Text("None").tag(Optional<UUID>.none)
+                                ForEach(technicalRooms) { room in Text(room.name).tag(Optional(room.id)) }
+                            }
+                        }
                         Toggle("Survey Photos (optional)", isOn: $options.includePhotos)
                         Toggle("Design Studio Layout", isOn: $options.includeStudio)
                     }
@@ -108,6 +115,11 @@ struct OrganisedExportSheet: View {
         .onAppear {
             options.photosOnly = photosOnly
             options.unit = unit
+        }
+        .task {
+            let library = TechnicalRoomLibraryStore(root:store.location.documentsURL.appendingPathComponent("TechnicalRooms"))
+            do { try library.reload(); technicalRooms = library.records }
+            catch { errorMessage = error.localizedDescription }
         }
         .alert("Export Successful", isPresented: Binding(get: { completedURL != nil }, set: { if !$0 { completedURL = nil } })) {
             Button("Reveal in Finder") {
