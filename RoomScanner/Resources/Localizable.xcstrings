@@ -1,6 +1,7 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Design not found.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Design not found."}},"de":{"stringUnit":{"state":"translated","value":"Entwurf nicht gefunden."}}}},
     "export.manifest.checksums": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"manifest.json records appName/appVersion from the app bundle. Optional sha256 values are lowercase SHA-256 hashes of each item’s exact bytes; older manifests may omit them."}},"de":{"stringUnit":{"state":"translated","value":"manifest.json enthält appName/appVersion aus dem App-Bundle. Optionale sha256-Werte sind SHA-256-Prüfsummen der exakten Dateibytes in Kleinbuchstaben; ältere Manifeste können sie auslassen."}}}},
     "Include utility room": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Include utility room"}},"de":{"stringUnit":{"state":"translated","value":"Technikraum einschließen"}}}},
     "studio.floor.outside": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"The object footprint extends outside the active floor."}},"de":{"stringUnit":{"state":"translated","value":"Die Objektgrundfläche liegt außerhalb der aktiven Etage."}}}},

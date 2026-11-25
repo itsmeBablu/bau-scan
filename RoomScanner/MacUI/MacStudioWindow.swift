@@ -8,7 +8,6 @@ struct MacStudioWindow: View {
     @State private var storageURL: URL?
     @State private var photos: [SurveyPhotoImage] = []
     @State private var error: String?
-    @State private var loading = true
 
     var body: some View {
         Group {
@@ -21,21 +20,19 @@ struct MacStudioWindow: View {
             }
         }
         .frame(minWidth: 900, minHeight: 650)
-        .task(id: designID) {
+        .task(id: designID.uuidString+store.location.documentsURL.path) {
+            document = nil; storageURL = nil; error = nil; photos = []
             await load()
         }
     }
 
     private func load() async {
-        loading = true
-        let roots = [
-            store.location.documentsURL,
-            FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        ]
-        for root in roots {
-            let dir = root.appendingPathComponent("SceneEdits", isDirectory: true)
+        let primary = store.location,local = StorageLocation.local()
+        let locations = store.allowsCloud && primary != local ? [primary,local] : [primary]
+        for location in locations {
+            let root = location.documentsURL
             for source in [SceneEditDocument.Source.house, .room, .technical] {
-                let url = dir.appendingPathComponent("\(source.rawValue)-\(designID.uuidString).json")
+                let url = SceneEditStore.url(root:root,source:source,id:designID)
                 if FileManager.default.fileExists(atPath: url.path) {
                     do {
                         if let doc = try SceneEditStore.read(url, source: source, id: designID) {
@@ -46,13 +43,12 @@ struct MacStudioWindow: View {
                                     let techURL = root.appendingPathComponent("TechnicalRooms").appendingPathComponent(designID.uuidString).appendingPathExtension("technicalroom")
                                     return SurveyPhotoStore.images(technical: try TechnicalRoomPackage.read(from: techURL), studio: true)
                                 }
-                                let loc = StorageLocation(kind: .local, documentsURL: root)
                                 let pkg = source == .house
-                                    ? loc.housesURL.appendingPathComponent(designID.uuidString).appendingPathExtension(FileLayout.housePackageExtension)
-                                    : loc.roomsURL.appendingPathComponent(designID.uuidString).appendingPathExtension(FileLayout.packageExtension)
+                                    ? location.housePackageURL(for:designID)
+                                    : location.packageURL(for:designID)
                                 return try SurveyPhotoStore.images(from: pkg, house: doc.shell)
                             }.value) ?? []
-                            loading = false
+                            guard !Task.isCancelled else { return }
                             return
                         }
                     } catch {
@@ -62,8 +58,7 @@ struct MacStudioWindow: View {
             }
         }
         if document == nil && error == nil {
-            error = "Design not found."
+            error = AppLanguage.text("Design not found.")
         }
-        loading = false
     }
 }
