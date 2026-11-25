@@ -8,8 +8,11 @@ enum VoiceNoteRecovery {
             .appendingPathComponent("VoiceNoteRecovery")
     }
     static func stage(_ note: ARNote,audio: Data,at root: URL) throws {
-        try ARNoteStore.update(root:root,projectID:note.projectID,audio:[note.id:audio]) { index in
-            guard !index.notes.contains(where:{ $0.id == note.id }) else { return }
+        try ARNoteStore.update(root:root,projectID:note.projectID,audio:[note.id:audio],replaceAudio:false) { index in
+            if let existing = index.notes.first(where:{ $0.id == note.id }) {
+                guard existing.reference == note.reference else { throw CocoaError(.fileWriteFileExists) }
+                return
+            }
             var copy = note; copy.number = try index.nextNumber(roomID:copy.roomID)
             copy.audioFileName = copy.stem+".m4a"; index.notes.append(copy)
         }
@@ -19,8 +22,11 @@ enum VoiceNoteRecovery {
         for original in library.index.notes where allowed.contains(original.reference) {
             try Task.checkCancellation()
             guard let audio = library.audio[original.id] else { throw CocoaError(.fileNoSuchFile) }
-            try ARNoteStore.update(root:destination,projectID:projectID,audio:[original.id:audio]) { index in
-                guard !index.notes.contains(where:{ $0.id == original.id }) else { return }
+            try ARNoteStore.update(root:destination,projectID:projectID,audio:[original.id:audio],replaceAudio:false) { index in
+                if let existing = index.notes.first(where:{ $0.id == original.id }) {
+                    guard existing.reference == original.reference else { throw CocoaError(.fileWriteFileExists) }
+                    return
+                }
                 var note = original; note.number = try index.nextNumber(roomID:note.roomID)
                 note.audioFileName = note.stem+".m4a"; index.notes.append(note)
             }

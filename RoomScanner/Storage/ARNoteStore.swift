@@ -37,6 +37,7 @@ enum ARNoteStore {
     /// Re-read/edit/replace in one coordinated operation to prevent lost updates.
     /// Audio is keyed by note ID; callers cannot supply an arbitrary file path.
     @discardableResult static func update(root: URL,projectID: UUID,audio: [UUID:Data] = [:],
+                                         replaceAudio: Bool = true,
                                          edit: (inout ARNoteIndex) throws -> Void) throws -> ARNoteIndex {
         try validateParents(root:root,projectID:projectID)
         let directory = url(root:root,projectID:projectID),fm = FileManager.default
@@ -53,6 +54,11 @@ enum ARNoteStore {
             try edit(&library.index); try library.index.validate()
             let audioIDs = Set(library.index.notes.filter { $0.audioFileName != nil }.map(\.id))
             guard Set(audio.keys).isSubset(of:audioIDs) else { throw CocoaError(.fileWriteInvalidFileName) }
+            if !replaceAudio {
+                for (id,bytes) in audio {
+                    if let existing = library.audio[id],existing != bytes { throw CocoaError(.fileWriteFileExists) }
+                }
+            }
             library.audio.merge(audio) { _,new in new }
             library.audio = library.audio.filter { audioIDs.contains($0.key) }
             try validateAudio(library)
