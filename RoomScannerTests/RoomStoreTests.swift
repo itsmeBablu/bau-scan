@@ -3,6 +3,12 @@ import XCTest
 
 @MainActor
 final class RoomStoreTests: XCTestCase {
+    func testCorruptPresentScanDoesNotSilentlyUseStoredPlan() throws {
+        let package = package(named:"Room")
+        let record = try store.save(package)
+        try Data("corrupt".utf8).write(to:store.packageURL(for:record).appendingPathComponent("scan.json"))
+        XCTAssertThrowsError(try store.plan(for:record))
+    }
     var location: StorageLocation!
     var store: RoomStore!
 

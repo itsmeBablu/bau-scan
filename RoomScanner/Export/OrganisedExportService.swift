@@ -87,7 +87,7 @@ enum OrganisedExportService {
         var studioDoc: SceneEditDocument? = nil
         let designURL = storageRoot.appendingPathComponent("SceneEdits/\(subject.kind == .house ? "house" : "room")-\(subject.id.uuidString).json")
         if FileManager.default.fileExists(atPath: designURL.path) {
-            studioDoc = try? SceneEditStore.read(designURL, source: subject.kind == .house ? .house : .room, id: subject.id)
+            studioDoc = try SceneEditStore.read(designURL,source:subject.kind == .house ? .house : .room,id:subject.id)
         }
 
         // 4. Construct declarative layout table

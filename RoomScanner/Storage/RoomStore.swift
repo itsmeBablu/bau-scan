@@ -237,7 +237,7 @@ final class RoomStore {
             }
             records = urls.compactMap { url in read(url,{ try RoomPackage.readRecord(from:url) },{ $0.schemaVersion }) }
                 .sorted { $0.createdAt > $1.createdAt }
-            let houseURLs = ((try? fm.contentsOfDirectory(at: location.housesURL, includingPropertiesForKeys: nil)) ?? [])
+            let houseURLs = try fm.contentsOfDirectory(at:location.housesURL,includingPropertiesForKeys:nil)
                 .filter { $0.pathExtension == FileLayout.housePackageExtension }
             houseRecords = houseURLs.compactMap { url in read(url,{ try HousePackage.readRecord(from:url) },{ $0.schemaVersion }) }
                 .sorted { $0.createdAt > $1.createdAt }
@@ -290,14 +290,14 @@ final class RoomStore {
     func plan(for record: RoomRecord) throws -> FloorPlan {
         let url = packageURL(for: record)
         let stored = try RoomPackage.readPlan(from: url)
-        guard let scan = (try? RoomPackage.readScan(from: url)) ?? nil else { return stored }
+        guard let scan = try RoomPackage.readScan(from:url) else { return stored }
         var rebuilt = FloorPlanBuilder().build(from: scan, name: record.name)
         rebuilt.id = stored.id; rebuilt.story = stored.story; rebuilt.transform = stored.transform
         if rebuilt != stored {
             var updated = record
             updated.areaM2 = RoomMeasurements(plan: rebuilt).floorArea
-            try? RoomPackage.update(record: updated, plan: rebuilt, in: url)
-            if let png = PlanRenderer.thumbnailPNG(for: rebuilt) { try? RoomPackage.writeThumbnail(png, in: url) }
+            try RoomPackage.update(record:updated,plan:rebuilt,in:url)
+            if let png = PlanRenderer.thumbnailPNG(for:rebuilt) { try RoomPackage.writeThumbnail(png,in:url) }
             if let i = records.firstIndex(where: { $0.id == record.id }) { records[i] = updated }
         }
         return rebuilt
