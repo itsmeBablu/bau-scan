@@ -53,8 +53,7 @@ struct RoomPackage {
     // MARK: Writing
 
     func write(to packageURL: URL, fileManager: FileManager = .default) throws {
-        let staging = fileManager.temporaryDirectory
-            .appendingPathComponent("roomscan-\(UUID().uuidString)", isDirectory: true)
+        let staging = try PackageReplacement.staging(for:packageURL,fm:fileManager)
         try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: staging) }
 
@@ -70,8 +69,7 @@ struct RoomPackage {
 
         try fileManager.createDirectory(at: packageURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Self.coordinatedWrite(at: packageURL, options: .forReplacing) { url in
-            if fileManager.fileExists(atPath: url.path) { try fileManager.removeItem(at: url) }
-            try fileManager.moveItem(at: staging, to: url)
+            try PackageReplacement.commit(staging,to:url,fm:fileManager)
         }
     }
 

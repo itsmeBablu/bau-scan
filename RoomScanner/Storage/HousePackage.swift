@@ -42,7 +42,7 @@ struct HousePackage {
 
     func write(to packageURL: URL, fileManager fm: FileManager = .default) throws {
         if let radiators { try radiators.validate(for: house) }
-        let staging = fm.temporaryDirectory.appendingPathComponent("housescan-\(UUID().uuidString)", isDirectory: true)
+        let staging = try PackageReplacement.staging(for:packageURL,fm:fm)
         try fm.createDirectory(at: staging.appendingPathComponent(F.rooms, isDirectory: true), withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: staging) }
         try RoomPackage.encoder.encode(record).write(to: staging.appendingPathComponent(F.meta))
@@ -62,8 +62,7 @@ struct HousePackage {
         }
         try fm.createDirectory(at: packageURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try RoomPackage.coordinatedWrite(at: packageURL, options: .forReplacing) { url in
-            if fm.fileExists(atPath: url.path) { try fm.removeItem(at: url) }
-            try fm.moveItem(at: staging, to: url)
+            try PackageReplacement.commit(staging,to:url,fm:fm)
         }
     }
 

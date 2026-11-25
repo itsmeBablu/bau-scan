@@ -209,6 +209,8 @@ final class RoomStore {
     func reload() {
         do {
             try location.prepare()
+            try PackageReplacement.recover(in:location.roomsURL)
+            try PackageReplacement.recover(in:location.housesURL)
             let fm = FileManager.default
             let urls = try fm.contentsOfDirectory(at: location.roomsURL, includingPropertiesForKeys: nil)
                 .filter { $0.pathExtension == FileLayout.packageExtension }
