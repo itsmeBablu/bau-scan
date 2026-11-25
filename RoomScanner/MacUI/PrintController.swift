@@ -5,14 +5,14 @@ import CoreGraphics
 /// via dedicated `NSView` and passed to `NSPrintOperation`.
 @MainActor
 enum PrintController {
-    static func printPlan(_ house: House, title: String, locale: Locale = AppLanguage.locale, window: NSWindow?) {
+    static func printPlan(_ house: House, title: String, locale: Locale = AppLanguage.locale, window: NSWindow?) throws {
         var renderer = PlanRenderer(); renderer.options.locale = locale
         renderer.options.unit = ExportService().unit
         let pageSize = CGSize(width: 842, height: 595)
         let data = renderer.pdfData(house, size: pageSize, title: title)
-        guard let provider = CGDataProvider(data: data as CFData), let pdf = CGPDFDocument(provider) else { return }
+        guard let provider = CGDataProvider(data:data as CFData),let pdf = CGPDFDocument(provider) else { throw CocoaError(.fileReadCorruptFile) }
         let view = PDFPageView(document: pdf, frame: NSRect(origin: .zero, size: pageSize))
-        let info = NSPrintInfo.shared.copy() as! NSPrintInfo
+        guard let info = NSPrintInfo.shared.copy() as? NSPrintInfo else { throw CocoaError(.fileReadUnknown) }
         info.orientation = .landscape
         info.paperSize = NSSize(width: 842, height: 595)
         info.horizontalPagination = .fit; info.verticalPagination = .fit
@@ -24,20 +24,33 @@ enum PrintController {
         if let window { op.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil) } else { op.run() }
     }
 
-    /// View of a PDF page at 1 pt = 1 pt scale.
+    /// Each PDF page occupies a separate printable rectangle in document order.
     final class PDFPageView: NSView {
         let document: CGPDFDocument
-        init(document: CGPDFDocument, frame: NSRect) { self.document = document; super.init(frame: frame) }
+        let pageRects: [NSRect]
+        init(document: CGPDFDocument, frame: NSRect) {
+            self.document = document
+            var y: CGFloat = 0,rects: [NSRect] = []
+            for number in 1...max(1,document.numberOfPages) {
+                guard let page = document.page(at:number) else { continue }
+                let size = page.getBoxRect(.mediaBox).size
+                rects.append(NSRect(x:0,y:y,width:size.width,height:size.height)); y += size.height
+            }
+            pageRects = rects
+            super.init(frame:NSRect(x:frame.minX,y:frame.minY,width:rects.map(\.width).max() ?? frame.width,height:y))
+        }
         required init?(coder: NSCoder) { nil }
         override var isFlipped: Bool { false }
         override func draw(_ dirtyRect: NSRect) {
-            guard let ctx = NSGraphicsContext.current?.cgContext, let page = document.page(at: 1) else { return }
-            ctx.saveGState()
-            ctx.concatenate(page.getDrawingTransform(.mediaBox, rect: bounds, rotate: 0, preserveAspectRatio: true))
-            ctx.drawPDFPage(page)
-            ctx.restoreGState()
+            guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+            for (index,rect) in pageRects.enumerated() where rect.intersects(dirtyRect) {
+                guard let page = document.page(at:index+1) else { continue }
+                ctx.saveGState(); ctx.clip(to:rect)
+                ctx.concatenate(page.getDrawingTransform(.mediaBox,rect:rect,rotate:0,preserveAspectRatio:true))
+                ctx.drawPDFPage(page); ctx.restoreGState()
+            }
         }
-        override func knowsPageRange(_ range: NSRangePointer) -> Bool { range.pointee = NSRange(location: 1, length: 1); return true }
-        override func rectForPage(_ page: Int) -> NSRect { bounds }
+        override func knowsPageRange(_ range: NSRangePointer) -> Bool { range.pointee = NSRange(location:1,length:pageRects.count); return true }
+        override func rectForPage(_ page: Int) -> NSRect { page > 0 && page <= pageRects.count ? pageRects[page-1] : .zero }
     }
 }

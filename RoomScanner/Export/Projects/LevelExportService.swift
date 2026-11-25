@@ -34,7 +34,7 @@ enum LevelExportService {
                     }
                 }
                 // R12 text is Windows-1252, matching the declared drawing code page.
-                data = records.joined(separator:"\n").data(using:.windowsCP1252,allowLossyConversion:true) ?? Data()
+                data = DXFTextEncoding.data(records.joined(separator:"\n"))
             case .svg: data = SVGExporter(locale:locale,unit:unit).data(for:level)
             default:
                 var mesh = PlanMeshBuilder().build(level)

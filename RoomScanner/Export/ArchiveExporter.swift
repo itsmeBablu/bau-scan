@@ -15,20 +15,29 @@ enum ArchiveExporter {
     }
 
     /// Compresses `directory` into `destination` (overwritten).
-    static func zip(directory: URL, to destination: URL) throws {
+    static func zip(directory: URL, to destination: URL,move: ((URL,URL) throws -> Void)? = nil) throws {
+        try Task.checkCancellation()
+        try SafePackageRead.validate(directory)
+        try ExportManifestValidation.validate(in:directory)
+        guard !destination.standardizedFileURL.resolvingSymlinksInPath().path.hasPrefix(directory.standardizedFileURL.resolvingSymlinksInPath().path+"/") else { throw CocoaError(.fileWriteInvalidFileName) }
+        let staging = try PackageReplacement.staging(for:destination)
+        defer { try? FileManager.default.removeItem(at:staging) }
         var coordinationError: NSError?
         var copyError: Error?
         var produced = false
         NSFileCoordinator().coordinate(readingItemAt: directory, options: .forUploading, error: &coordinationError) { zipURL in
             do {
-                try? FileManager.default.removeItem(at: destination)
-                try FileManager.default.copyItem(at: zipURL, to: destination)
+                try Task.checkCancellation()
+                try FileManager.default.copyItem(at:zipURL,to:staging)
+                try ZIPDirectoryValidator.validate(staging)
                 produced = true
             } catch { copyError = error }
         }
         if let coordinationError { throw ArchiveError.coordination(coordinationError) }
         if let copyError { throw ArchiveError.coordination(copyError) }
         guard produced else { throw ArchiveError.noArchive }
+        try Task.checkCancellation()
+        try RoomPackage.coordinatedWrite(at:destination,options:.forReplacing) { try PackageReplacement.commit(staging,to:$0,move:move) }
     }
 
     /// Archive README.txt: room, measurements, file inventory and intended usage.

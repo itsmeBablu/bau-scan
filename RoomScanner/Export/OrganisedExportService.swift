@@ -114,7 +114,7 @@ enum OrganisedExportService {
                         })
                         table.append(TableRow(category: .plans, relativeFolder: "plans", filename: "\(storyName).dxf") { target in
                             let dxf = DXFExporter(locale: options.locale, unit: options.unit).dxf(for: levelHouse)
-                            let data = dxf.data(using: .windowsCP1252, allowLossyConversion: true) ?? Data()
+                            let data = DXFTextEncoding.data(dxf)
                             try data.write(to: target)
                             return Int64(data.count)
                         })
@@ -134,7 +134,7 @@ enum OrganisedExportService {
                     })
                     table.append(TableRow(category: .plans, relativeFolder: "plans", filename: "plan.dxf") { target in
                         let dxf = DXFExporter(locale: options.locale, unit: options.unit).dxf(for: levelHouse)
-                        let data = dxf.data(using: .windowsCP1252, allowLossyConversion: true) ?? Data()
+                        let data = DXFTextEncoding.data(dxf)
                         try data.write(to: target)
                         return Int64(data.count)
                     })
@@ -241,7 +241,7 @@ enum OrganisedExportService {
 
                 // photos/index.csv
                 table.append(TableRow(category: .photos, relativeFolder: "photos", filename: "index.csv") { target in
-                    let csvData = photoRows.joined(separator: "\n").data(using: .utf8) ?? Data()
+                    let csvData = Data(photoRows.joined(separator:"\n").utf8)
                     try csvData.write(to: target)
                     return Int64(csvData.count)
                 })

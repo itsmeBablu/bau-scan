@@ -122,11 +122,9 @@ struct DXFExporter {
         return out
     }
 
-    /// File bytes: R12 does not support Unicode; declared as `$DWGCODEPAGE` ANSI_1252 and
-    /// encoded in CP1252.
+    /// ANSI_1252 with DXF Unicode escapes for names outside that codepage.
     func data(for house: House) -> Data {
-        let text = dxf(for: house)
-        return text.data(using: .windowsCP1252, allowLossyConversion: true) ?? Data(text.utf8)
+        DXFTextEncoding.data(dxf(for:house))
     }
 
     // MARK: sections
