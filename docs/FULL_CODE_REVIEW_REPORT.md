@@ -119,3 +119,26 @@ The current lexical inventory has 81 try? source matches, zero app try!, 73 forc
 Prior fixes 1–23 were rechecked against their changed APIs/test sources: their existing regression files remain present, the synchronous Studio API remains for compatibility, both task sources preserve data formats, and gesture grouping remains at endDrag. None is upgraded to runtime VERIFIED. Full Mac/iOS regression is still required; no assertions were weakened.
 
 Phase 1 commits: 529a6e2 (printing/export), 63f1f27 (Mac state), 27240df (corrupt reads), ec52233 (inventory). Exact files/line statistics are available with git show --stat for each commit. The local baseline runner is rerun after the phase documentation commit. No CI URL, application artifact, screenshot or physical-device evidence exists.
+
+## Phase 2 local report
+
+The user approved continued local phase work and the export-only geometry
+companion, while preserving native/legacy formats. Existing graph/union/junction
+work was recovered from the local geometry branch and integrated against current
+code. Storey isolation, stored wall/slab override preservation, volume/union oracle
+tests, cleaned IFC architecture and companion output were added. See
+GEOMETRY_VALIDATION_REPORT.md for defects, source branches, tests and limitations.
+
+Files include Domain/{PolygonUnion,HouseWallGraph,WallJunctions,HouseFloorGeometry,
+ResolvedWallGeometry,Geometry}, plan/DXF/SVG/mesh/viewer integrations, Revit resolved
+mapper/options/model helper, companion exporter plus three bundle integrations,
+geometry/mesh/viewer/IFC/companion tests and localized raw-USDZ labels. No legacy
+schema, source scan asset or capture lifecycle was changed. The original IFC
+golden still asserts the legacy path; new-path tests are additional.
+
+Verification: strict localization passes with 1,056 keys. The local baseline
+passes service, plist and diff checks. All Swift tests, actual real-house counts,
+rendering, engineering accuracy, generated sample deliverables and commercial
+reader compatibility remain UNVERIFIED. No actual geometry test pass is claimed.
+No remote CI or artifacts exist. Subsequent local phases proceed only under the
+user's instruction to keep doing the changes, not because Phase 0 became green.

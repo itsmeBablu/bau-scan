@@ -386,3 +386,12 @@ Paths only; no private local/untracked assets or credentials included.
 ## Phase 1 coverage
 
 Printing, ZIP publication/structural validation, manifest item validation, DXF encoding, Mac action eligibility/Trash/errors and async publication were changed and received regression coverage. All Swift tests and visual/native behaviours remain UNVERIFIED. Silent-failure inventory is source-level triage, not a claim of closed errors. Geometry/security/capture completeness remains pending its relevant phase.
+
+## Phase 2 coverage
+
+Recovered and statically reviewed: union, graph, junctions, per-story floors,
+resolved solids, plan/mesh/viewer adapters and IFC architecture. Added independent
+synthetic assertions and companion tests. Foundation import and format-diff checks
+performed; NO Swift geometry test executed. See GEOMETRY_VALIDATION_REPORT.md.
+Normal legacy JSON is preserved; approved companion is additive. Technical-room
+current models were inspected rather than replaced by the older branch.
