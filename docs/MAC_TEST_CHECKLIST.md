@@ -56,7 +56,10 @@ This manual verification checklist covers testing procedures for the **dWalkScan
 ## 4. Large Scans & Performance
 - [ ] **Large Multi-Story House**: Verify memory footprint when viewing a 3+ story building with 15+ rooms.
 - [ ] **Photo Streaming**: Verify that large photo batches (50+ photos) stream directly during export without causing high memory spikes.
-- [ ] Pending fixes 16/18: export 200 photos, cancel partway, check staging cleanup and measure memory. These fixes are not implemented at this checkpoint.
+- [ ] Fixes 16/18 device/Mac validation pending: export 200 photos, cancel partway, check staging cleanup and measure peak memory. Cancelling must not replace an existing destination ZIP. Native compression/serialization may finish the current operation before cancellation is observed.
+- [ ] Studio export: test JSON/PDF/SVG/DXF/CSV/OBJ/USDZ, progress and Cancel. Profile the StudioExport signpost interval; compare UI responsiveness and peak memory. Drag/rotate repeatedly and verify one undo per completed gesture and bounded history retention.
+- [ ] Utility-room picker: create two surveys with the same name, select one explicitly, and verify only that ID is exported. With None selected, no technical survey is included.
+- [ ] Verify manifest appName/appVersion against the app bundle. Recompute each optional sha256 from extracted file bytes; older manifests without hashes must remain readable.
 - [ ] **Mesh Simplification & Junctions**: Wall junctions render cleanly without visual tearing or FPS drops.
 
 ---
@@ -67,6 +70,7 @@ This manual verification checklist covers testing procedures for the **dWalkScan
 - [ ] Force a package save failure: the prior scan must reopen unchanged. Simulate a restart with only the sibling package backup remaining and check recovery.
 - [ ] **Local Documents**: Verify packages stored in `~/Documents` are discovered and displayed.
 - [ ] **iCloud Container**: Verify synchronization when iCloud Drive container is enabled:
+- [ ] Open the same Studio design in a new window from local/iCloud/forced storage roots. Switch active libraries and verify the displayed document/photos come from the selected root; no path is silently rebuilt under local Documents.
   - Adding a `.housescan` or `.roomscan` file on another device appears in the Mac sidebar.
   - Rename or delete on Mac reflects in iCloud without data loss.
 - [ ] **Drag & Drop**: Drag a `.housescan`, `.roomscan`, or `.technicalroom` package from Finder directly into the Mac app window to import.

@@ -3,30 +3,21 @@
 Branch: `codex/mac-review-fixes`, based on `feat/mac-studio-editor`.
 No push or merge was performed. AR Notes remains in its separate worktree.
 
-Fixes 1–15 were confirmed in the starting source and implemented in separate commits. None of findings 1–15 was already fixed. All Swift tests below are written but UNRUN; both Xcode scheme builds are NOT VERIFIED.
+Fixes 1–23 have code changes on this branch, with fix 16 split into three approved commits. The gesture-grouping claim in fix 16 was already handled at endDrag and was skipped. All Swift tests below are written but UNRUN; both Xcode scheme builds are NOT VERIFIED. Service pytest and localization validation actually ran; see current results below.
 
-## Current review boundary
+## Current status
 
-The user approved continuing at fix 13. Duplicate-ID error propagation through the
-capture save caller is now implemented. No AR session/lifecycle configuration changed.
+The user approved continuation through the capture error-propagation change (13)
+and the three smaller export/history steps (16a–16c). All numbered implementation
+items are now addressed; actual Apple builds, native behaviour checks and profiling
+remain required. No AR session/lifecycle configuration changed.
 
-Fix 16 has three remaining concerns: splitting Studio export between main-actor
-SceneKit work and worker preparation/file work; progress/cancellation; and estimated
-undo-memory budgets. The gesture-grouping finding is already handled by
-`StudioSceneController.endDrag`: only completion invokes onMove/onRotate.
-
-The remaining fix 16 implementation is estimated at 190–230 changed lines including
-UI, exporter integration and regression tests. The original request says **STOP and
-report if a fix needs more than about 150 lines**. No fix 16 code was changed.
-Suggested separately reviewable substeps:
-
-1. "16a": Foundation estimated undo-memory budget and its tests (about 40–60 lines).
-2. "16b": exporter preparation/file pipeline, retaining SceneKit-only work on main
-   (about 90–120 lines).
-3. "16c": progress, Cancel, cancellation cleanup and tests (about 60–80 lines).
-
-Mac profiling cannot be performed here. No responsiveness, memory or cancellation
-performance claim is made. Fixes 16–23 remain pending.
+Fix 16's continuous drag/rotation grouping was already implemented through
+`StudioSceneController.endDrag` and was not rewritten. The estimate of resident
+history memory is conservative serialized size times four; it is not measured RSS.
+Each undo/redo half has half the budget and still caps at 40 entries. Native
+SceneKit/Model I/O serialization and ZIP compression may finish their current
+operation before cancellation is observed. No performance/accuracy claim is made.
 
 ## Per-fix changes
 
@@ -198,9 +189,9 @@ Tests: StudioFloorPlacementTests: L/U concavity, different floor extents and rot
 - `git diff --check feat/mac-studio-editor..HEAD`: passed.
 - Python plistlib parsed both app Info plist files.
 - Added localization keys have English and German entries.
-- `node Scripts/audit_localization.js --strict`: FAILED, 20 existing unextracted labels; zero missing German translations among catalog entries. All 20 labels are absent from the base catalog too. Pending fix 21 must resolve these; LocalizationCoverage XCTest is unrun.
+- Earlier checkpoint: strict localization found 20 baseline gaps. Fix 21 resolves them; the latest audit PASSED (1,055 keys, zero missing German/unextracted literals), and a Python format-argument parity check passed. LocalizationCoverage XCTest remains UNRUN.
 - Python unittest discovery under Scripts: ZERO TESTS FOUND on this branch; no tests passed from this command.
-- `python -m pytest services/technical-google-ai -q`: could not run, pytest is not installed. No dependencies were installed.
+- Earlier checkpoint: pytest was unavailable. The requested development runner and existing pinned service requirements were subsequently installed in ignored `.worktrees/service-tests-env`. The latest service run PASSED: 13 distinct tests, one existing Starlette/httpx deprecation warning. No provider calls, credentials or real AI accuracy were tested.
 - `xcodegen generate` and both `xcodebuild ... test` commands: command not found on Windows. Neither app has been built here.
 - Fixes 1–12 did not edit capture sources. Fix 13 adds try to the capture save caller; no AR configuration/session code or Technical Room v1 schema/model changed. No new dependency was added.
 
@@ -210,7 +201,7 @@ Tests: StudioFloorPlacementTests: L/U concavity, different floor extents and rot
 - SceneEdit revision and modifiedAt are optional. Legacy files decode without them. A stale editor keeps the current file and writes a new independently identified conflict design with a suffixed title; raw source packages are untouched. Such a standalone copy retains its shell snapshot but does not gain a new physical scan package. Cloud house/design conflicts preserve the current version and copy unresolved versions rather than silently replacing current edits.
 - Duplicate import uses one UUID map for house/structure identity, room identities, photo IDs/paths and matching neutral JSON references (including radiator room/house links). Binary/unknown assets and opaque room.json/structure-apple.json captures remain byte-for-byte evidence with original Apple IDs; raw evidence is not rewritten.
 - Project deletion rolls back pre-commit moves on errors. Post-commit purge is best effort; sibling `.privacy-trash-<transaction>-<original-name>` items may remain for manual recovery. Process-crash transaction recovery still needs device/Mac validation.
-- The export performance/undo-memory work (16), explicit technical export links (17), streaming/cancel (18), manifest checksums (19), window paths (20), localization gaps (21), service cache concurrency (22), and PR CI (23) remain pending.
+- Fixes 16–23 are implemented in the continued commits below. CI has not run remotely: this branch is local and has not been pushed.
 
 ## Continued fixes 13–15
 
@@ -263,3 +254,136 @@ Tests: HouseMigrationRetryTests: corrupt structure remains visible with lastErro
 
 
 Continuation validation: diff whitespace checks, plist parsing and Foundation-only imports passed. The strict localization audit still reports the same 20 baseline gaps. XcodeGen and both scheme test commands were attempted again and were unavailable on Windows. All added Swift tests remain unrun. Safe package limits are 10,000 entries, 1 GiB per package tree, 256 MiB per ordinary file, 1 MiB for meta.json, and existing tighter technical/photo limits. Oversized or symlink-bearing packages are rejected rather than partially loaded.
+
+## Continued fixes 16–23
+
+### fix(studio): bound undo history by estimated memory (16a)
+
+Commit `a2f97e1`: **+52 / −5 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `RoomScanner/SceneEditing/SceneEditDocument.swift` | 27 | 5 |
+| `RoomScannerTests/StudioHistoryBudgetTests.swift` | 25 | 0 |
+
+Validation: StudioHistoryBudgetTests: estimated memory cap, count cap, undo/redo and branching. UNRUN.
+
+### fix(studio): prepare exports and write files off main (16b)
+
+Commit `caef5b1`: **+79 / −12 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `RoomScanner/SceneEditing/StudioExportPreparation.swift` | 22 | 0 |
+| `RoomScanner/SceneEditing/StudioExporter.swift` | 42 | 12 |
+| `RoomScannerTests/StudioExportPreparationTests.swift` | 15 | 0 |
+
+Validation: StudioExportPreparationTests: worker thread and JSON round-trip. UNRUN.
+
+### fix(studio): add export progress and cancellation (16c)
+
+Commit `9db8bb4`: **+50 / −9 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `RoomScanner/SceneEditing/StudioEditorView.swift` | 20 | 6 |
+| `RoomScanner/SceneEditing/StudioExportPreparation.swift` | 2 | 1 |
+| `RoomScanner/SceneEditing/StudioExporter.swift` | 13 | 2 |
+| `RoomScannerTests/StudioExportPreparationTests.swift` | 15 | 0 |
+
+Validation: StudioExportPreparationTests: pre-cancelled work and completion progress. UNRUN. Native file cleanup/cancellation remains manual.
+
+### fix(export): require an explicit technical survey selection (17)
+
+Commit `37ba55d`: **+42 / −6 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `RoomScanner/Export/OrganisedExportService.swift` | 12 | 6 |
+| `RoomScanner/MacUI/OrganisedExportSheet.swift` | 12 | 0 |
+| `RoomScanner/Resources/Localizable.xcstrings` | 1 | 0 |
+| `RoomScannerTests/TechnicalExportLinkTests.swift` | 17 | 0 |
+
+Validation: TechnicalExportLinkTests: same-name surveys cannot implicitly match. UNRUN.
+
+### fix(export): stream bounded photos and honour cancellation (18)
+
+Commit `ca2f1e1`: **+74 / −13 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `RoomScanner/Export/OrganisedExportService.swift` | 19 | 10 |
+| `RoomScanner/MacUI/OrganisedExportSheet.swift` | 3 | 3 |
+| `RoomScanner/Storage/SurveyPhotoExportSource.swift` | 36 | 0 |
+| `RoomScannerTests/SurveyPhotoExportSourceTests.swift` | 16 | 0 |
+
+Validation: SurveyPhotoExportSourceTests: metadata for 200 photos, bounded single-file copy. UNRUN.
+
+### fix(export): identify app version and hash manifest items (19)
+
+Commit `4e13685`: **+37 / −4 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `RoomScanner/Export/ExportChecksum.swift` | 16 | 0 |
+| `RoomScanner/Export/OrganisedExportService.swift` | 7 | 4 |
+| `RoomScanner/Resources/Localizable.xcstrings` | 1 | 0 |
+| `RoomScannerTests/ExportChecksumTests.swift` | 13 | 0 |
+
+Validation: ExportChecksumTests: empty/abc known SHA-256 vectors. UNRUN.
+
+### fix(mac): resolve studio windows through active storage (20)
+
+Commit `53db762`: **+12 / −16 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `RoomScanner/MacUI/MacStudioWindow.swift` | 11 | 16 |
+| `RoomScanner/Resources/Localizable.xcstrings` | 1 | 0 |
+
+Validation: MacStudioWindow uses SceneEditStore and actual storage locations. Manual iCloud/local/forced-root reopening UNRUN. The existing opening/failure labels already had German entries; only the missing-design message required a new entry.
+
+### fix(localization): complete German Mac studio export labels (21)
+
+Commit `070e029`: **+34 / −5 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `RoomScanner/Export/OrganisedExportService.swift` | 4 | 4 |
+| `RoomScanner/MacUI/OrganisedExportSheet.swift` | 1 | 1 |
+| `RoomScanner/Resources/Localizable.xcstrings` | 29 | 0 |
+
+Validation: Strict localization audit PASSED, 1,055 keys; format argument parity PASSED. LocalizationCoverage XCTest UNRUN.
+
+### fix(ai): share inflight requests and expire cache entries (22)
+
+Commit `ae47471`: **+115 / −8 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `docs/GOOGLE_AI_SETUP.md` | 9 | 0 |
+| `services/technical-google-ai/app.py` | 40 | 8 |
+| `services/technical-google-ai/requirements-dev.txt` | 1 | 0 |
+| `services/technical-google-ai/test_cache.py` | 65 | 0 |
+
+Validation: Service pytest PASSED: 13 distinct tests, including concurrent success/failure sharing, oldest-first eviction, expiry and recognition-version invalidation. One Starlette TestClient/httpx deprecation warning.
+
+### ci: test both Apple schemes and service on pull requests (23)
+
+Commit `b77ab60`: **+81 / −0 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `.github/workflows/tests.yml` | 81 | 0 |
+
+Validation: PR workflow added for both full Apple schemes, localization and service. NOT executed on GitHub; manual IPA workflow unchanged.
+
+## Remaining validation and limits
+
+- XcodeGen and both xcodebuild test commands were attempted again: commands unavailable on Windows. Neither scheme has been built here; all Swift tests are unrun.
+- The service tests use mocked provider results only. No Google sign-in, deployed service or device-recognition success is claimed. Run a single service instance/worker until shared rate limits exist.
+- Manifest checksums use Apple CryptoKit (system framework, no third-party library). pytest is a development-only runner explicitly required by the task; production requirements are unchanged.
+- Organised ZIP photos are metadata plus paths until a bounded image read (at most 4 MiB) is copied. Existing photo-folder names/numbering are retained. Large photo memory/performance and cancelled-archive cleanup still require Mac measurements.
+- Studio synchronous export API remains for existing callers/tests; Studio UI uses dataAsync. SceneKit build/write/Model I/O bridge remain main-actor operations. A newly created MDLAsset has a single worker owner during OBJ export. Validate this on the supported SDK.
+- "StudioExport" signposts in the StudioExport category allow Instruments timing of the complete pipeline. No measurements have been recorded here.
+- CI uses the default toolchain on macos-26, selects an available iPhone simulator from simctl JSON, runs both schemes separately and retains logs/results for three days. Runner reference: https://github.com/actions/runner-images/blob/main/images/macos/macos-26-Readme.md .
