@@ -458,11 +458,20 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         if house.stories.isEmpty { house.stories = [.init(index: 0,rooms: [])] }
         for si in house.stories.indices {
             let story = house.stories[si].index
-            let overlay = FloorPlan(id: sourceID,name: "Edited objects",label: .unidentified,story: story,transform: .identity,walls: [],openings: [],
+            let overlay = FloorPlan(id: overlayID(story:story),name: "Edited objects",label: .unidentified,story: story,transform: .identity,walls: [],openings: [],
                 objects: presentationObjects.filter { $0.story == story }.map(\.planObject),floorPolygon: [],ceilingHeight: 0...0)
             house.stories[si].rooms.append(overlay)
         }
         return house
+    }
+    func overlayID(story: Int) -> UUID {
+        var uuid = sourceID.uuid
+        var bytes = withUnsafeBytes(of:&uuid) { Array($0) }
+        // Namespace the overlay and inject all 64 story bits in a fixed byte order.
+        bytes[0] ^= 0xA5
+        let level = UInt64(bitPattern:Int64(story))
+        for i in 0..<8 { bytes[8+i] ^= UInt8(truncatingIfNeeded:level >> (i*8)) }
+        return UUID(uuid:(bytes[0],bytes[1],bytes[2],bytes[3],bytes[4],bytes[5],bytes[6],bytes[7],bytes[8],bytes[9],bytes[10],bytes[11],bytes[12],bytes[13],bytes[14],bytes[15]))
     }
     static func seed(house: House,source: Source,id: UUID,scans: [ScanInput] = []) -> Self {
         var shell = house
