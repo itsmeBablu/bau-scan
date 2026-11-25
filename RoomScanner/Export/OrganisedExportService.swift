@@ -27,8 +27,8 @@ enum OrganisedExportService {
     }
 
     struct Manifest: Codable {
-        let appName = "dWalkScan"
-        let appVersion = "1.0.0"
+        var appName = Bundle.main.object(forInfoDictionaryKey:"CFBundleDisplayName") as? String ?? Bundle.main.object(forInfoDictionaryKey:"CFBundleName") as? String ?? "dWalkScan"
+        var appVersion = Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown"
         let schemaVersion = 1
         let createdAt: Date
         let subjectName: String
@@ -41,6 +41,7 @@ enum OrganisedExportService {
         let format: String
         let category: String
         let bytes: Int64
+        var sha256: String? = nil
     }
 
     private struct TableRow {
@@ -262,7 +263,8 @@ enum OrganisedExportService {
                 path: "\(row.relativeFolder)/\(row.filename)",
                 format: fileURL.pathExtension.uppercased(),
                 category: row.category.rawValue,
-                bytes: bytes
+                bytes: bytes,
+                sha256: try ExportChecksum.sha256(fileURL)
             ))
         }
 
@@ -291,12 +293,13 @@ enum OrganisedExportService {
 
     private static func buildReadme(subject: ExportSubject, options: Options, manifest: Manifest) -> String {
         let df = DateFormatter(); df.locale = options.locale; df.dateStyle = .medium; df.timeStyle = .short
-        var s = "dWalkScan — Organised Project Export\n"
+        var s = "\(manifest.appName) \(manifest.appVersion) — Organised Project Export\n"
         s += "====================================\n\n"
         s += "Project: \(subject.name)\n"
         s += "Created: \(df.string(from: Date()))\n"
         s += "Units: \(options.unit.shortLabel)\n"
         s += "Accuracy: Device validation pending. All coordinates are scan relative, no GPS.\n\n"
+        s += AppLanguage.text("export.manifest.checksums",locale:options.locale)+"\n\n"
         s += "CONTENTS:\n"
         for item in manifest.items {
             s += "  - \(item.path) [\(item.format)] (\(item.bytes / 1024) KB)\n"
