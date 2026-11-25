@@ -42,4 +42,22 @@ final class PhaseOneExportSafetyTests: XCTestCase {
             else { XCTAssertThrowsError(try ExportManifestValidation.validate(in:root)) }
         }
     }
+    func testManifestRejectsMalformedInventoryAndNonIntegerSizes() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        defer { try? FileManager.default.removeItem(at:root) }
+        try Data("x".utf8).write(to:root.appendingPathComponent("a"))
+        let bad: [[String:Any]] = [
+            ["items":"invalid"],
+            ["items":[["path":"a","bytes":true]]],
+            ["items":[["path":"a","bytes":1.5]]],
+            ["items":[["path":"a//b","bytes":1]]],
+            ["items":[["path":"a","bytes":1,"sha256":42]]],
+            ["items":[["path":"a","bytes":1],["path":"a","bytes":1]]]
+        ]
+        for manifest in bad {
+            try JSONSerialization.data(withJSONObject:manifest).write(to:root.appendingPathComponent("manifest.json"))
+            XCTAssertThrowsError(try ExportManifestValidation.validate(in:root))
+        }
+    }
 }

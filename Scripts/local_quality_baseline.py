@@ -29,6 +29,7 @@ def main():
                                    "exitCode": result.returncode, "output": result.stdout + result.stderr})
 
     run("localization", ["node", "Scripts/audit_localization.js", "--strict"])
+    run("json-key-regressions", ["node", "--test", "Scripts/test_json_unique_keys.js"])
     run("service", [sys.executable, "-m", "pytest", "services/technical-google-ai", "-q"])
     files = list((root / "RoomScanner").rglob("*.plist")) + list((root / "RoomScanner").rglob("*.entitlements")) + list((root / "RoomScanner").rglob("*.xcprivacy"))
     try:

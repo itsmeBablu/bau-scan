@@ -1,8 +1,9 @@
 // No packages required: node Scripts/audit_localization.js [--strict]
 // Static literal audit supplements Xcode extraction; runtime-generated labels need review.
 const fs = require('fs'), path = require('path');
+const { parseUniqueKeys } = require('./json_unique_keys');
 const root = path.resolve(__dirname, '..');
-const catalog = JSON.parse(fs.readFileSync(path.join(root,'RoomScanner/Resources/Localizable.xcstrings'),'utf8'));
+const catalog = parseUniqueKeys(fs.readFileSync(path.join(root,'RoomScanner/Resources/Localizable.xcstrings'),'utf8'));
 const missing = Object.entries(catalog.strings).filter(([,value]) => !value.localizations?.de?.stringUnit?.value);
 const gaps = new Map();
 for (const file of fs.readdirSync(path.join(root,'RoomScanner'),{recursive:true}).filter(x=>x.endsWith('.swift'))) {
