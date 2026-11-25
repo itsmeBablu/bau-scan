@@ -127,7 +127,7 @@ struct ProjectCaptureView: View {
     var body: some View {
         Group {
             if mode == .technicalRoom {
-                TechnicalRoomScanView(voiceProjectID:projectID,onSaved:{ onSaved(.technicalRoom,$0,"local") })
+                TechnicalRoomScanView(voiceProjectID:projectID,workspace:workspace,onSaved:{ onSaved(.technicalRoom,$0,"local") })
             } else {
                 ScanView(mode:mode,voiceProjectID:projectID,workspace:workspace,onSaved:{ onSaved(mode == .house ? .house : .room,$0.id,store.isCloud ? "icloud" : "local") })
             }

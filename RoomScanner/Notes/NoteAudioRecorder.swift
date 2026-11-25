@@ -2,6 +2,7 @@
 import AVFoundation
 import Observation
 import UIKit
+import OSLog
 
 /// Owns audio only. Has no ARKit imports and never configures camera capture.
 @MainActor @Observable final class NoteAudioRecorder: NSObject, AVAudioRecorderDelegate {
@@ -25,6 +26,7 @@ import UIKit
     private var previousMode = AVAudioSession.Mode.default
     private var previousOptions = AVAudioSession.CategoryOptions()
     private var ownedURL: URL?
+    private static let log = Logger(subsystem:Bundle.main.bundleIdentifier ?? "dWalkScan",category:"CaptureAudio")
     private static weak var owner: NoteAudioRecorder?
     override init() {
         super.init()
@@ -50,6 +52,7 @@ import UIKit
             let url = root.appendingPathComponent("note-recording-"+UUID().uuidString).appendingPathExtension("m4a")
             let audio = AVAudioSession.sharedInstance()
             previousCategory = audio.category; previousMode = audio.mode; previousOptions = audio.categoryOptions
+            Self.log.info("Voice note: switching audio category from \(audio.category.rawValue,privacy:.public) to playAndRecord; meter interval 100 ms")
             try audio.setCategory(.playAndRecord,mode:.default,options:[.mixWithOthers,.defaultToSpeaker,.allowBluetoothHFP])
             try audio.setActive(true)
             let recorder = try AVAudioRecorder(url:url,settings:[AVFormatIDKey:kAudioFormatMPEG4AAC,
@@ -101,6 +104,7 @@ import UIKit
             let audio = AVAudioSession.sharedInstance()
             do {
                 try audio.setActive(false,options:.notifyOthersOnDeactivation)
+                Self.log.info("Voice note: restoring audio category \(previousCategory.rawValue,privacy:.public)")
                 try audio.setCategory(previousCategory,mode:previousMode,options:previousOptions)
             } catch { self.error = error.localizedDescription }
         }

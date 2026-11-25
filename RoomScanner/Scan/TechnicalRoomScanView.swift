@@ -56,12 +56,13 @@ struct TechnicalRoomScanView: View {
     @State private var confirmingClose = false
     @State private var saveThumbnail: Data?
     @State private var frozenCheckpointAccepted = false
+    private let workspace: RenovationWorkspace?
     let voiceProjectID: UUID?
     let onSaved: (UUID) -> Void
     private let previousManifest: TechnicalRoomManifest?
     private let previousRecognition: TechnicalMEPReview
 
-    init(restoring package: TechnicalRoomPackage? = nil, voiceProjectID: UUID? = nil, onSaved: @escaping (UUID) -> Void) {
+    init(restoring package: TechnicalRoomPackage? = nil, voiceProjectID: UUID? = nil, workspace: RenovationWorkspace? = nil, onSaved: @escaping (UUID) -> Void) {
         let scanner = TechnicalRoomScanCoordinator()
         if let package {
             do { try scanner.restoreSurvey(package) }
@@ -83,6 +84,7 @@ struct TechnicalRoomScanView: View {
         _scanner = State(initialValue: scanner)
         previousManifest = package?.manifest
         previousRecognition = package?.recognition ?? .init()
+        self.workspace = workspace
         self.voiceProjectID = voiceProjectID
         self.onSaved = onSaved
     }
@@ -133,8 +135,12 @@ struct TechnicalRoomScanView: View {
                             Image(systemName: "slider.horizontal.3").frame(width: 44,height: 44)
                         }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
                             .accessibilityLabel("Survey tools")
-                        Button { showingVoiceNotes = true } label: { Image(systemName:"mic.fill").frame(width:44,height:44) }
-                            .background(.regularMaterial,in:Circle()).disabled(saving || !scanner.hasLiveFrames)
+                        LiveScanNotes(reference:.init(kind:.technicalRoom,itemID:scanner.captureID,library:"local"),
+                            persistence:persistence,workspace:workspace,projectID:voiceProjectID,
+                            position:{ CaptureSurfacePoint.center(session:scanner.session) },pose:{
+                                guard let m = scanner.session.currentFrame?.camera.transform else { return nil }
+                                return (0..<4).flatMap { c in (0..<4).map { Double(m[c][$0]) } }
+                            }).frame(width:112).disabled(saving || !scanner.hasLiveFrames)
                         Button { showMesh.toggle() } label: {
                             Image(systemName: showMesh ? "cube.fill" : "cube").frame(width: 44,height: 44)
                         }.buttonStyle(.plain).background(.regularMaterial,in: Circle())

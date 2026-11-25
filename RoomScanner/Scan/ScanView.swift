@@ -9,6 +9,7 @@ struct ScanView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var coordinator: ScanCoordinator
     @State private var saveError: AppError?
+    @State private var failedSave: ScanCoordinator.State?
     @State private var radiatorScanner: HouseRadiatorScanCoordinator?
     @State private var radiators: [HouseRadiator] = []
     @State private var radiatorBusy = false
@@ -57,11 +58,12 @@ struct ScanView: View {
                 }
             }
         }
+        .onAppear { photoCapture.persistence = persistence }
         .onDisappear { radiatorScanner?.stop(); coordinator.stop() }
         .modifier(ScanPhotoFeedback(count:photoCapture.completed))
         .overlay(alignment:.bottomTrailing) {
             if ScanPhotoPolicy.buttonVisible(enabled:cameraPhotos,cameraRunning:cameraLive) {
-                ScanPhotoButton(busy:photoCapture.busy) { Task { await photoCapture.capture(session:coordinator.arSession) } }.padding(20)
+                ScanPhotoButton(busy:photoCapture.busy) { Task { await photoCapture.capture(session:coordinator.arSession,roomID:coordinator.liveRoomID) } }.padding(20)
             }
         }
         .alert("Survey photo",isPresented:Binding(get:{ photoCapture.error != nil },set:{ if !$0 { photoCapture.error = nil } })) {
@@ -138,6 +140,7 @@ struct ScanView: View {
             }
             .padding()
             Spacer()
+            if let failedSave { Button("Retry finishing") { Task { await saveState(failedSave) } }.buttonStyle(.borderedProminent) }
             if case .failed = coordinator.state,mode == .house {
                 Button("Retry finishing") { coordinator.retryFinish() }.buttonStyle(.borderedProminent)
             }
@@ -154,15 +157,9 @@ struct ScanView: View {
                 }
             }.padding(.bottom,8)
             HStack {
-                if voiceProjectID != nil,let workspace {
-                    Button {
-                        if let voiceProjectID { workspace.change { index in index.reconcile([captureReference]); try index.assign(captureReference,to:voiceProjectID) } }
-                        guard workspace.error == nil else { return }
-                        showingVoiceNotes = true
-                    } label: { Label("Voice note",systemImage:"mic.fill").padding(12) }
-                        .background(.regularMaterial,in:Capsule())
-                        .disabled(coordinator.state != .scanning)
-                }
+                LiveScanNotes(reference:captureReference,persistence:persistence,workspace:workspace,projectID:voiceProjectID,
+                    position:{ coordinator.noteSurface() },pose:{ coordinator.notePose() },roomID:{ coordinator.liveRoomID })
+                    .disabled(coordinator.state != .scanning)
                 Spacer()
             }.padding(.horizontal,20).padding(.bottom,20)
 
@@ -221,9 +218,14 @@ struct ScanView: View {
     }
 
     private func handle(_ state: ScanCoordinator.State) {
+        Task { await saveState(state) }
+    }
+    private func saveState(_ state: ScanCoordinator.State) async {
         switch state {
         case .scanning:
-            startAutomaticRadiators()
+            if let radiatorScanner { radiatorScanner.resume() } else { startAutomaticRadiators() }
+        case .roomSaved:
+            radiatorScanner?.pause()
         case .finished(let result):
             do {
                 let name = store.proposedName(for: result.scan.sectionLabels.first ?? .unidentified)
@@ -233,19 +235,25 @@ struct ScanView: View {
                                           capturedRoomData: result.capturedRoomData, usdzData: result.usdzData, usdzMeshData: result.usdzMeshData,
                                           thumbnailPNG: PlanRenderer.thumbnailPNG(for: plan))
                 package.surveyPhotos = photoCapture.registered(house:House(room:plan),scans:[result.scan],alignSingleRoom:true)
-                package.surveyPhotoAssets = photoCapture.assets
-                let record = try store.save(package)
-                Task { await persistence.complete() }
+                package.surveyPhotoAssets = try await photoCapture.assets()
+                let output = store.packageURL(for:package.record),finished = package
+                try await Task.detached(priority:.userInitiated) { try finished.write(to:output) }.value
+                let record = package.record; store.reload()
+                failedSave = nil; await persistence.complete()
                 onSaved(.room(record))
                 dismiss()
             } catch {
+                failedSave = state
+                await persistence.state(.failed)
                 saveError = .storageFailed(error.localizedDescription)
             }
         case .finishedHouse(let result):
             do {
                 let extras = result.rooms.mapValues { HousePackage.RoomExtras(capturedRoomData: $0.capturedRoomData, usdzData: $0.usdzData, usdzMeshData: $0.usdzMeshData) }
-                var package = try HousePackage.assemble(structure: result.structure, name: store.proposedHouseName(),
-                                                    capturedStructureData: result.capturedStructureData, usdzData: result.usdzData, roomExtras: extras)
+                let name = store.proposedHouseName()
+                var package = try await Task.detached(priority:.userInitiated) {
+                    try HousePackage.assemble(structure:result.structure,name:name,capturedStructureData:result.capturedStructureData,usdzData:result.usdzData,roomExtras:extras)
+                }.value
                 package.house.id = captureID
                 package.record.id = captureID
                 package.structure?.id = captureID
@@ -253,12 +261,16 @@ struct ScanView: View {
                     package.radiators = try HouseRadiatorRegistration.associate(radiators,house: package.house,structure: result.structure)
                 }
                 package.surveyPhotos = photoCapture.registered(house:package.house,scans:result.structure.rooms,alignSingleRoom:false)
-                package.surveyPhotoAssets = photoCapture.assets
-                let record = try store.saveHouse(package)
-                Task { await persistence.complete() }
+                package.surveyPhotoAssets = try await photoCapture.assets()
+                let output = store.packageURL(for:package.record),finished = package
+                try await Task.detached(priority:.userInitiated) { try finished.write(to:output) }.value
+                let record = package.record; store.reload()
+                failedSave = nil; await persistence.complete()
                 onSaved(.house(record))
                 dismiss()
             } catch {
+                failedSave = state
+                await persistence.state(.failed)
                 saveError = .storageFailed(error.localizedDescription)
             }
         case .failed(let error) where error != .scanCancelled && error != .cameraDenied && error != .unsupportedDevice:

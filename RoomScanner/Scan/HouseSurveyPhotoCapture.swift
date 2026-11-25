@@ -4,11 +4,12 @@ import Observation
 
 @MainActor @Observable final class HouseSurveyPhotoCapture {
     private(set) var photos: [SurveyPhoto] = []
-    private(set) var assets: [UUID:Data] = [:]
+    var persistence: CapturePersistence?
+    private var assetBytes = 0
     private(set) var busy = false
     private(set) var completed = 0
     var error: String?
-    func capture(session: ARSession) async {
+    func capture(session: ARSession,roomID:UUID? = nil) async {
         guard !busy else { return }
         guard let frame = session.currentFrame,frame.camera.trackingState == .normal else {
             error = "Wait for normal camera tracking before taking a photo."; return
@@ -22,12 +23,24 @@ import Observation
         let encoded = await Task.detached(priority:.userInitiated) {
             TechnicalRoomKeyframeCollector.jpeg(frame:frame)
         }.value
-        guard let encoded,assets.values.reduce(0,{ $0+$1.count })+encoded.data.count <= SurveyPhotoStore.maximumBytes else {
+        guard let encoded,assetBytes+encoded.data.count <= SurveyPhotoStore.maximumBytes else {
             error = "Photo budget reached or image encoding failed. Save this scan."; return
         }
-        let photo = SurveyPhoto(id:UUID(),number:photos.count+1,pose:pose,timestamp:time,capturedAt:Date())
-        photos.append(photo); assets[photo.id] = encoded.data
-        completed += 1
+        let photo = SurveyPhoto(id:UUID(),roomID:roomID,number:photos.count+1,pose:pose,timestamp:time,capturedAt:Date())
+        do {
+            guard let persistence else { throw CocoaError(.fileWriteUnknown) }
+            try await persistence.write(ScanPhotoMedia(photo:photo,jpeg:encoded.data),key:"photo-"+photo.id.uuidString,latest:false,media:true)
+            photos.append(photo); assetBytes += encoded.data.count; completed += 1
+        } catch { self.error = error.localizedDescription }
+    }
+    func assets() async throws -> [UUID:Data] {
+        guard let persistence,let store = persistence.store else { return [:] }
+        var result:[UUID:Data] = [:]
+        for entry in try await store.entries(persistence.id).filter({ $0.key.hasPrefix("photo-") }) {
+            let value = try JSONDecoder().decode(ScanPhotoMedia.self,from:await store.payload(persistence.id,entry:entry))
+            result[value.photo.id] = value.jpeg
+        }
+        return result
     }
     func registered(house: House, scans: [ScanInput], alignSingleRoom: Bool) -> [SurveyPhoto] {
         let placed = photos.map { original -> SurveyPhoto in

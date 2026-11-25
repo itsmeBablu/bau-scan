@@ -151,6 +151,12 @@ final class ScanCoordinator {
         if mode == .house { captureView.captureSession.stop(pauseARSession: false) } else { captureView.captureSession.stop() }
     }
 
+    var liveRoomID: UUID? { latestRoom?.identifier }
+    func notePose() -> [Double]? {
+        guard let frame = arSession.currentFrame else { return nil }
+        return (0..<4).flatMap { c in (0..<4).map { Double(frame.camera.transform[c][$0]) } }
+    }
+    func noteSurface() -> TechnicalPoint3? { CaptureSurfacePoint.center(session:arSession) }
     func flushCheckpoint(_ trigger:ScanCheckpointPolicy.Trigger) {
         guard active,state == .scanning,checkpointTask == nil,let room = latestRoom,let persistence else { return }
         let time = Date().timeIntervalSinceReferenceDate
@@ -185,6 +191,18 @@ final class ScanCoordinator {
         latestRoom = nil
         finishingHouse = false; state = .processing
         captureView.captureSession.stop(pauseARSession:false)
+    }
+    private func saveWorldMapCandidate() {
+        guard let persistence else { return }
+        arSession.getCurrentWorldMap { map,_ in
+            guard let map else { return }
+            Task {
+                do {
+                    let data = try await Task.detached(priority:.utility) { try NSKeyedArchiver.archivedData(withRootObject:map,requiringSecureCoding:true) }.value
+                    try await persistence.write(data,key:"world-map")
+                } catch { await persistence.recordFailure(error) }
+            }
+        }
     }
     func nextRoom() { guard active,state == .roomSaved else { return }; run() }
     func retryFinish() { guard mode == .house,active else { return }; finishingHouse = true; state = .processing; finishHouse() }
@@ -248,6 +266,7 @@ final class ScanCoordinator {
                             thumbnail:PlanRenderer.thumbnailPNG(for:FloorPlanBuilder().build(from:scan,name:"")))
                     }.value
                     try await persistence.room(value)
+                    self?.saveWorldMapCandidate()
                     guard let self,self.active else { return }
                     if self.finishingHouse { self.finishHouse() } else { self.state = .roomSaved }
                 } catch { self?.state = .failed(.storageFailed(error.localizedDescription)) }
