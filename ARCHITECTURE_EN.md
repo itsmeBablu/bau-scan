@@ -4,6 +4,14 @@
 
 _Mirror: `ARCHITECTURE.md` (French). Edit both in the same change._
 
+Build audit correction (Phase 0): `project.yml` currently defines GoogleSignIn on
+both targets and Sparkle on macOS, rather than the single dependency described in
+the historical overview above. Swift language mode is 5.9. The baseline CI uses
+the default toolchain on macos-26; minimum deployment targets remain iOS 18/macOS
+15. Newer UI APIs also have compiler/platform guards; old-toolchain compatibility
+has not been established by this audit.
+Apple builds for the quality-review branch are UNVERIFIED on this Windows host.
+
 ## Overview
 
 ```

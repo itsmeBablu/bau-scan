@@ -4,6 +4,14 @@
 
 _Source de vérité : `ARCHITECTURE_EN.md`. Éditer les deux dans le même tour._
 
+Correction de l’audit de compilation (phase 0) : `project.yml` définit actuellement
+GoogleSignIn pour les deux cibles et Sparkle pour macOS, contrairement à l’ancien
+résumé ci-dessus. Le mode du langage Swift est 5.9. La CI de référence utilise
+la chaîne par défaut de macos-26 ; les versions minimales restent iOS 18 et macOS
+15. Les nouvelles API sont protégées par des conditions de compilation et de
+plateforme ; les anciennes chaînes restent non vérifiées. Les compilations Apple
+sont NON VÉRIFIÉES sur cet hôte Windows.
+
 ## Vue d'ensemble
 
 ```

@@ -132,7 +132,7 @@ dWalkScan features a tactile, blur-backed **Liquid Glass** user interface tailor
 
 * **iOS:** iPhone **Pro** model with LiDAR (iPhone 12 Pro through 17 Pro) or iPad Pro with LiDAR, running **iOS 18.0+**.
 * **macOS:** Mac with Apple Silicon or Intel running **macOS 15.0+**.
-* **Development:** Xcode 16+ or 27 with `xcodegen` (`brew install xcodegen`).
+* **Development:** The quality-review CI uses the default Xcode toolchain on `macos-26` with `xcodegen` (`brew install xcodegen`). Older toolchain compatibility remains unverified; deployment remains iOS 18 / macOS 15.
 * **Sync:** Apple Account signed in for iCloud Drive (local storage functions completely offline).
 
 ---
