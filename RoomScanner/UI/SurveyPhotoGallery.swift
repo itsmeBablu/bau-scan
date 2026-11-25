@@ -99,8 +99,10 @@ struct SurveyPhotoCanvas: View {
             GeometryReader { geometry in
                 ScrollView([.horizontal,.vertical]) {
                     if let image {
+                        let fit = min(geometry.size.width / CGFloat(image.width),geometry.size.height / CGFloat(image.height))
                         Image(decorative:image,scale:1).resizable().scaledToFit()
-                            .frame(width:geometry.size.width*zoom)
+                            .frame(width:CGFloat(image.width)*fit*zoom,height:CGFloat(image.height)*fit*zoom)
+                            .frame(minWidth:geometry.size.width,minHeight:geometry.size.height)
                     } else if failed { ContentUnavailableView("Photo unavailable",systemImage:"photo.badge.exclamationmark") }
                     else { ProgressView("Loading photo…") }
                 }

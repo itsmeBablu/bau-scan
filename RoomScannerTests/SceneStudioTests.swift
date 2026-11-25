@@ -727,7 +727,7 @@ final class SceneStudioTests: XCTestCase {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         for size in [DynamicTypeSize.large,.accessibility3] {
             let state = ViewerState(); state.mode = .ar
-            let controls = ViewerControls(state: state,usdzURL: URL(fileURLWithPath: "/tmp/layout-preview.usdz")).tint(.blue).environment(\.dynamicTypeSize,size).environment(\.locale,Locale(identifier: "en"))
+            let controls = ViewerControls(state: state,usdzURL: URL(fileURLWithPath: "/tmp/layout-preview.usdz"),onVoiceNote: {}).tint(.blue).environment(\.dynamicTypeSize,size).environment(\.locale,Locale(identifier: "en"))
             let hosting = UIHostingController(rootView: controls)
             let fitting = hosting.sizeThatFits(in: CGSize(width: 320,height: 1000))
             XCTAssertLessThanOrEqual(fitting.width,320)
@@ -741,12 +741,16 @@ final class SceneStudioTests: XCTestCase {
             window.isHidden = true; window.rootViewController = nil
         }
     }
-    @MainActor func testRootProvidesFiveNativeNavigationTabs() async throws {
+    @MainActor func testRootStartsWithProjectsWithoutCompetingGlobalTabs() async throws {
         let defaults = UserDefaults.standard
         let previous = defaults.object(forKey: "RoomScannerStorageRoot")
+        let previousOnboarding = defaults.object(forKey: "renovation.onboarded")
+        defaults.set(true,forKey: "renovation.onboarded")
         let location = StorageLocation.temporary()
         defaults.set(location.documentsURL.path,forKey: "RoomScannerStorageRoot")
         defer {
+            if let previousOnboarding { defaults.set(previousOnboarding,forKey: "renovation.onboarded") }
+            else { defaults.removeObject(forKey: "renovation.onboarded") }
             if let previous { defaults.set(previous,forKey: "RoomScannerStorageRoot") }
             else { defaults.removeObject(forKey: "RoomScannerStorageRoot") }
         }
@@ -761,12 +765,27 @@ final class SceneStudioTests: XCTestCase {
         func tabControllers(_ controller: UIViewController) -> [UITabBarController] {
             (controller as? UITabBarController).map { [$0] } ?? controller.children.flatMap(tabControllers)
         }
-        let tabs = try XCTUnwrap(tabControllers(hosting).first)
-        XCTAssertEqual(tabs.tabBar.items?.compactMap(\.title),["House","Technik","Capture","Studio","Profile"])
+        XCTAssertTrue(tabControllers(hosting).isEmpty,"Working tabs belong inside a project, not above the project list")
         let image = UIGraphicsImageRenderer(bounds: hosting.view.bounds).image { _ in hosting.view.drawHierarchy(in: hosting.view.bounds,afterScreenUpdates: true) }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dwalk-five-tabs-"+UUID().uuidString+".png")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dwalk-organised-tabs-"+UUID().uuidString+".png")
         try XCTUnwrap(image.pngData()).write(to: url)
-        print("FIVE_TAB_LAYOUT="+url.path)
+        print("ORGANISED_TAB_LAYOUT="+url.path)
+    }
+    @MainActor func testProjectOwnsHouseTechnikAndStudioTabs() async throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene:scene)
+        window.frame = CGRect(x:0,y:0,width:393,height:852)
+        let workspace = RenovationWorkspace()
+        let hosting = UIHostingController(rootView:NavigationStack {
+            ProjectChatWorkspace(projectID:UUID(),onScan:{},onCapture:{ _ in })
+        }.environment(workspace).environment(RoomStore(location:.temporary(),allowsCloud:false)))
+        window.rootViewController = hosting; window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        try await Task.sleep(for:.milliseconds(300))
+        func tabs(_ controller:UIViewController) -> [UITabBarController] {
+            (controller as? UITabBarController).map { [$0] } ?? controller.children.flatMap(tabs)
+        }
+        XCTAssertEqual(try XCTUnwrap(tabs(hosting).first).tabBar.items?.compactMap(\.title),["House","Technik","Studio"])
     }
     @MainActor func testPhoneStudioKeepsCanvasFullHeightWithInspectorClosed() async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)

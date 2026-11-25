@@ -30,6 +30,15 @@ struct ProjectIndex: Codable, Equatable {
     var pins: [ProjectPin]? = nil
     var distanceChecks: [ProjectDistanceCheck]? = nil
     static let unsortedID = UUID(uuidString: "95B5DAB3-9B80-49D7-945B-C9B6B4B18791")!
+    mutating func voiceNotesProject(for reference: ProjectReference,preferredProjectID: UUID? = nil) throws -> UUID {
+        guard [.house,.room,.technicalRoom].contains(reference.kind),["local","icloud"].contains(reference.library) else { throw CocoaError(.fileReadCorruptFile) }
+        if !projects.contains(where: { $0.references.contains(reference) }),let preferredProjectID {
+            try assign(reference,to:preferredProjectID)
+        }
+        reconcile([reference])
+        guard let owner = projects.first(where: { $0.references.contains(reference) }) else { throw CocoaError(.fileNoSuchFile) }
+        return owner.id
+    }
 
     /// Idempotent discovery preserves missing references for offline/cloud recovery.
     mutating func reconcile(_ discovered: [ProjectReference], now: Date = Date()) {

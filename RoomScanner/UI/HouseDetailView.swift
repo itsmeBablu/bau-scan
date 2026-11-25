@@ -15,6 +15,7 @@ struct HouseDetailView: View {
     @State private var exporting = false
     @State private var showingRadiators = false
     @State private var showingStudio = false
+    @State private var showingVoiceNotes = false
     @State private var radiators: [HouseRadiator] = []
     @State private var newName = ""
     @State private var roomToRename: FloorPlan?
@@ -62,6 +63,9 @@ struct HouseDetailView: View {
                     Button { newName = currentRecord.name; renaming = true } label: { Label("detail.rename", systemImage: "pencil") }
                 } label: { Label("Options", systemImage: "ellipsis.circle") }
             }
+        }
+        .sheet(isPresented: $showingVoiceNotes) {
+            ScanVoiceNotesSheet(reference: .init(kind: .house,itemID: record.id,library: store.isCloud ? "icloud" : "local"),location: store.location)
         }
         .sheet(isPresented: $exporting) {
             if let house { ExportSheet(subject: ExportSubject(record: currentRecord, house: house, packageURL: store.packageURL(for: currentRecord))).environment(store) }
@@ -139,7 +143,7 @@ struct HouseDetailView: View {
             case .viewer:
                 VStack(spacing: 0) {
                     ViewerView(house: shown(house), state: viewerState, radiators: radiators,photoPackageURL:store.packageURL(for:currentRecord))
-                    ViewerControls(state: viewerState, usdzURL: HousePackage.usdzURL(in: store.packageURL(for: currentRecord)))
+                    ViewerControls(state: viewerState, usdzURL: HousePackage.usdzURL(in: store.packageURL(for: currentRecord)),onVoiceNote: { showingVoiceNotes = true })
                 }
             case .measures: HouseMeasuresView(house: shown(house),onRename: { room in
                 newRoomName = room.name; roomToRename = room

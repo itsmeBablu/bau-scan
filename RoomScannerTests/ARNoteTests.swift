@@ -2,6 +2,27 @@ import XCTest
 @testable import RoomScanner
 
 final class ARNoteTests: XCTestCase {
+    func testDirectScanNotesKeepExistingProjectAndLibraryIdentity() throws {
+        let id = UUID(),local = ProjectReference(kind: .house,itemID: id,library: "local")
+        let cloud = ProjectReference(kind: .house,itemID: id,library: "icloud")
+        let existing = RenovationProject(name: "Flat",references: [local])
+        var index = ProjectIndex(projects: [existing])
+        XCTAssertEqual(try index.voiceNotesProject(for: local),existing.id)
+        XCTAssertEqual(index.projects.count,1)
+        XCTAssertEqual(try index.voiceNotesProject(for: cloud),ProjectIndex.unsortedID)
+        XCTAssertEqual(index.projects.first?.references,[local])
+        XCTAssertEqual(try index.voiceNotesProject(for: cloud),ProjectIndex.unsortedID)
+        XCTAssertEqual(index.projects.count,2)
+        XCTAssertThrowsError(try index.voiceNotesProject(for: .init(kind: .designHouse,itemID: id,library: "local")))
+    }
+    func testLiveCaptureNotesUseSelectedProjectWithoutMovingExistingScans() throws {
+        let a = RenovationProject(name:"A"),b = RenovationProject(name:"B")
+        var index = ProjectIndex(projects:[a,b])
+        let reference = ProjectReference(kind:.technicalRoom,itemID:UUID(),library:"local")
+        XCTAssertEqual(try index.voiceNotesProject(for:reference,preferredProjectID:a.id),a.id)
+        XCTAssertEqual(try index.voiceNotesProject(for:reference,preferredProjectID:b.id),a.id)
+        XCTAssertTrue(index.projects[1].references.isEmpty)
+    }
     private func note(projectID: UUID,roomID: UUID? = nil) -> ARNote {
         .init(projectID:projectID,reference:.init(kind:.room,itemID:UUID(),library:"local"),number:1,
               level:0,roomID:roomID,position:.init(x:1,y:2,z:3),planPosition:nil,language:"de-DE")

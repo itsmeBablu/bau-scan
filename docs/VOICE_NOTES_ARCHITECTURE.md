@@ -103,3 +103,36 @@ could not be staged. If both stores reject writes, only in-memory retry remains;
 never claim crash recovery for that condition or for an unfinished clip killed by
 the OS.
 No phase-completion, full backup or microphone behavior is claimed.
+
+## Direct AR entry and simpler controls
+
+Saved House and Room viewers expose Voice note alongside Reset and Options in 3D,
+2D and AR. Options groups object/dimension visibility, virtual-view measuring,
+Quick Look and AR scale; virtual point measuring is not offered in camera AR.
+The direct notes sheet preselects the scan and reuses its existing project owner.
+Unassigned scans use Unsorted without moving references from another project.
+Library identity remains part of the association, so local/iCloud items with the
+same UUID are not conflated. Recording uses one explicit Record action, system microphone
+permission, pause/stop, durable recovery and local-only storage. A repeated
+confirmation dialog is no longer inserted before every recording. These are
+scan-linked audio notes, not spatial AR pins or automatic transcription.
+
+Utility-room capture has a microphone beside its mesh/tools controls. Its notes
+use the capture's eventual scan UUID. Save that scan to retain the geometry
+association; cancelling capture does not delete already saved audio. Detailed
+capture counters are inside the tools area. Opening notes does not configure or
+replace an ARSession.
+
+The app's permanent project/scan accessory above the tab bar is removed. Project
+selection belongs to New Scan. The launch screen is a project list; each project
+contains House, Technik and Studio tabs. Capture starts in that project. Existing
+standalone room scans remain readable, but new capture offers House and Technik
+only. House capture notes use a stable UUID assigned to the saved house package.
+Cancelled capture retains already saved audio and its reference.
+
+Studio uses an edge-to-edge viewport with floating controls. Selecting a survey
+photo opens an in-canvas panel (side panel in landscape, lower panel in portrait),
+so the photo and 3D scene remain visible together. Photos fit both viewport axes.
+
+Package destinations explicitly reload their RoomStore before resolving records;
+an unloaded catalogue must not be treated as a missing package.

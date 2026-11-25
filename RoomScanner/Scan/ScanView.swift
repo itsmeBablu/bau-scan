@@ -16,11 +16,16 @@ struct ScanView: View {
     @State private var cameraLive = false
     @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(RenovationWorkspace.self) private var workspace
+    @State private var captureID = UUID()
+    @State private var showingVoiceNotes = false
+    let voiceProjectID: UUID?
     let mode: ScanMode
     /// Created item (room or house) passed to caller to display.
     var onSaved: (LibraryItem) -> Void
 
-    init(mode: ScanMode = .room, onSaved: @escaping (LibraryItem) -> Void = { _ in }) {
+    init(mode: ScanMode = .room, voiceProjectID: UUID? = nil, onSaved: @escaping (LibraryItem) -> Void = { _ in }) {
+        self.voiceProjectID = voiceProjectID
         self.mode = mode
         self.onSaved = onSaved
         _coordinator = State(initialValue: ScanCoordinator(mode: mode))
@@ -38,6 +43,13 @@ struct ScanView: View {
                     .ignoresSafeArea()
 
                 overlay
+            }
+        }
+        .sheet(isPresented:$showingVoiceNotes) {
+            if let voiceProjectID {
+                NavigationStack {
+                    ProjectVoiceNotesView(projectID:voiceProjectID,initialReference:captureReference,onClose:{ showingVoiceNotes = false })
+                }
             }
         }
         .onDisappear { radiatorScanner?.stop(); coordinator.stop() }
@@ -120,13 +132,19 @@ struct ScanView: View {
             if let diagnostic = coordinator.cameraDiagnostic {
                 Text(diagnostic).font(.callout).padding().background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))
             }
-            if coordinator.detectsRadiators, radiatorScanner != nil, coordinator.state == .scanning {
-                VStack(spacing: 4) {
-                    Label("Radiator candidates · \(radiators.count)",systemImage: "heater.vertical.fill").font(.subheadline.bold())
-                    Text(radiatorScanner?.depthAvailable == false ? "Waiting for LiDAR depth" : radiatorScanner?.geometry != nil ? "Candidate outlined · move around its sides to collect dimensions" : "Looking automatically · include the whole heater and adjacent wall")
-                        .font(.caption).foregroundStyle(.secondary)
-                }.padding(12).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 16)).padding(.horizontal)
-            }
+            HStack {
+                if voiceProjectID != nil {
+                    Button {
+                        if let voiceProjectID { workspace.change { index in index.reconcile([captureReference]); try index.assign(captureReference,to:voiceProjectID) } }
+                        guard workspace.error == nil else { return }
+                        showingVoiceNotes = true
+                    } label: { Label("Voice note",systemImage:"mic.fill").padding(12) }
+                        .background(.regularMaterial,in:Capsule())
+                        .disabled(coordinator.state != .scanning)
+                }
+                Spacer()
+            }.padding(.horizontal,20).padding(.bottom,20)
+
         }
         switch coordinator.state {
         case .processing, .merging:
@@ -139,6 +157,10 @@ struct ScanView: View {
         default:
             EmptyView()
         }
+    }
+
+    private var captureReference: ProjectReference {
+        .init(kind:mode == .house ? .house : .room,itemID:captureID,library:store.isCloud ? "icloud" : "local")
     }
 
     private func finishScan() async {
@@ -201,6 +223,8 @@ struct ScanView: View {
                 let extras = result.rooms.mapValues { HousePackage.RoomExtras(capturedRoomData: $0.capturedRoomData, usdzData: $0.usdzData, usdzMeshData: $0.usdzMeshData) }
                 var package = try HousePackage.assemble(structure: result.structure, name: store.proposedHouseName(),
                                                     capturedStructureData: result.capturedStructureData, usdzData: result.usdzData, roomExtras: extras)
+                package.house.id = captureID
+                package.record.id = captureID
                 if !radiators.isEmpty {
                     package.radiators = try HouseRadiatorRegistration.associate(radiators,house: package.house,structure: result.structure)
                 }

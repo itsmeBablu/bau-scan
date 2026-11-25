@@ -4,6 +4,7 @@ import SwiftUI
 struct ViewerControls: View {
     @Bindable var state: ViewerState
     var usdzURL: URL?
+    var onVoiceNote: (() -> Void)? = nil
     @State private var showQuickLook = false
     @Environment(\.dynamicTypeSize) private var textSize
 
@@ -14,16 +15,9 @@ struct ViewerControls: View {
             } else {
                 modePicker.pickerStyle(.segmented)
             }
-            if state.mode == .ar {
-                Picker("viewer.arScale", selection: $state.arScale) {
-                    ForEach(ARScale.allCases) { s in Text(s.label).tag(s) }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityLabel("AR model scale")
-            }
             Group {
                 if textSize.isAccessibilitySize {
-                    LazyVGrid(columns: [GridItem(.flexible()),GridItem(.flexible())],spacing: 8) { tools }
+                    VStack(spacing: 8) { tools }
                 } else {
                     HStack(spacing: 8) { tools }
                 }
@@ -38,21 +32,26 @@ struct ViewerControls: View {
         .padding(.horizontal)
         .padding(.vertical, 6)
         .fixedSize(horizontal: false, vertical: true)
+        .onChange(of: state.mode) { _,mode in if mode == .ar { state.isMeasuring = false } }
     }
     @ViewBuilder private var tools: some View {
-        Toggle(isOn: $state.showDimensions) { controlLabel("viewer.dimensions",icon: "ruler") }
-            .toggleStyle(.button).help(Text("viewer.dimensions"))
-        Toggle(isOn: $state.isMeasuring) { controlLabel("viewer.measure",icon: "ruler.fill") }
-            .toggleStyle(.button).help(Text("viewer.measure"))
-        Toggle(isOn: $state.showObjects) { controlLabel("viewer.objects",icon: "chair.lounge") }
-            .toggleStyle(.button).help(Text("viewer.objects"))
+        if let onVoiceNote {
+            Button(action: onVoiceNote) { Label("Voice note",systemImage: "mic.fill").font(.subheadline.weight(.semibold)).frame(minHeight: 32) }
+                .accessibilityIdentifier("viewer.addVoiceNote")
+        }
         Button { state.resetToken += 1 } label: { controlLabel("viewer.recenter",icon: "scope") }
             .help(Text("viewer.recenter"))
-        if let usdzURL {
-            Button { showQuickLook = true } label: { controlLabel("viewer.quicklook",icon: "arkit") }
-                .help(Text("viewer.quicklook"))
-                .quickLookPreview(usdzURL, isPresented: $showQuickLook)
-        }
+        Menu {
+            if state.mode == .ar {
+                Picker("viewer.arScale",selection: $state.arScale) { ForEach(ARScale.allCases) { Text($0.label).tag($0) } }
+            }
+            Toggle("viewer.dimensions",isOn: $state.showDimensions)
+            Toggle("viewer.objects",isOn: $state.showObjects)
+            if state.mode != .ar { Toggle("viewer.measure",isOn: $state.isMeasuring) }
+            if usdzURL != nil { Button("viewer.quicklook") { showQuickLook = true } }
+        } label: { controlLabel("Options",icon: "ellipsis.circle") }
+            .accessibilityLabel("Viewer options")
+            .background { if let usdzURL { Color.clear.quickLookPreview(usdzURL,isPresented: $showQuickLook) } }
     }
     private var modePicker: some View {
         Picker("viewer.mode",selection: $state.mode) {

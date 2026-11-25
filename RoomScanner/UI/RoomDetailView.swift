@@ -14,6 +14,7 @@ struct RoomDetailView: View {
     @State private var renaming = false
     @State private var exporting = false
     @State private var showingStudio = false
+    @State private var showingVoiceNotes = false
     @State private var newName = ""
     @State private var viewerState: ViewerState = {
         let s = ViewerState()
@@ -55,6 +56,9 @@ struct RoomDetailView: View {
                 } label: { Label("Options",systemImage: "ellipsis.circle") }
             }
         }
+        .sheet(isPresented: $showingVoiceNotes) {
+            ScanVoiceNotesSheet(reference: .init(kind: .room,itemID: record.id,library: store.isCloud ? "icloud" : "local"),location: store.location)
+        }
         .sheet(isPresented: $exporting) {
             if let plan { ExportSheet(record: currentRecord, plan: plan, packageURL: store.packageURL(for: currentRecord)).environment(store) }
         }
@@ -95,7 +99,7 @@ struct RoomDetailView: View {
             case .viewer:
                 VStack(spacing: 0) {
                     ViewerView(house: House(room: plan), state: viewerState,photoPackageURL:store.packageURL(for:currentRecord))
-                    ViewerControls(state: viewerState, usdzURL: RoomPackage.usdzURL(in: store.packageURL(for: currentRecord)))
+                    ViewerControls(state: viewerState, usdzURL: RoomPackage.usdzURL(in: store.packageURL(for: currentRecord)),onVoiceNote: { showingVoiceNotes = true })
                 }
             case .measures: MeasuresView(plan: plan,onRename: { newName = currentRecord.name; renaming = true })
             case .photos:

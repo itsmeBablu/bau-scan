@@ -121,11 +121,8 @@ struct StudioEditorView: View {
         #endif
         .focusedSceneValue(\.studioSession, session)
         #if os(iOS)
-        .toolbar {
-            ToolbarItem(placement:.cancellationAction) { closeButton }
-            ToolbarItem(placement:.primaryAction) { Menu("Design actions",systemImage:"ellipsis.circle") { designActions } }
-            ToolbarItem(placement:.confirmationAction) { saveButton }
-        }
+        .toolbar(.hidden,for:.navigationBar)
+        .toolbar(.hidden,for:.tabBar)
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size in landscape = size.width > size.height; canvasWidth = size.width }
         .sheet(isPresented: Binding(get: { showInspector && !landscape },set: { if !landscape { showInspector = $0 } })) {
             NavigationStack {
@@ -181,9 +178,11 @@ struct StudioEditorView: View {
         #endif
         .tint(.blue)
         .toolbar { selectionToolbar }
+        #if os(macOS)
         .sheet(item:$selectedPhoto) { photo in
             SurveyPhotoGallery(photos:photos,initial:photo.id) { controller.flyToPhoto($0.photo) }
         }
+        #endif
         .onChange(of:showPhotos) { _,value in controller.setPhotos(value ? photos : []) }
         .onChange(of:photos) { _,value in controller.setPhotos(showPhotos ? value : []) }
         .onAppear { configureInteraction() }
@@ -249,7 +248,7 @@ struct StudioEditorView: View {
                 session.selectedID = nil
             }
             controller.setPhotos(showPhotos ? photos : [])
-            controller.onPhoto = { id in selectedPhoto = photos.first { $0.id == id } }
+            controller.onPhoto = { id in showInspector = false; selectedPhoto = photos.first { $0.id == id } }
             controller.onSelect = { session.select($0,multiple:multipleSelection) }
             controller.onRotate = { id,angle in
                 guard var item = session.document.objects.first(where: { $0.id == id }) else { return false }
@@ -267,27 +266,43 @@ struct StudioEditorView: View {
 
     @ViewBuilder private var editorLayout: some View {
         #if os(iOS)
-        VStack(spacing:0) {
-            Picker("Interaction",selection:interaction) { Text("Orbit").tag("orbit"); Text("Move").tag("move"); Text("Rotate").tag("rotate") }
-                .pickerStyle(.segmented).padding(.horizontal)
-            if session.document.shell.stories.count > 1 {
-                Picker("Level",selection:$story) { ForEach(session.document.shell.stories,id: \.index) { Text(StoryNaming.localizedName(for:$0.index)).tag($0.index) } }
-            }
-            HStack(spacing:0) {
-                ZStack {
-                    viewport
-                    if session.document.source == .technical && session.document.objects.isEmpty { technikEmptyState }
+        ZStack {
+            viewport.ignoresSafeArea()
+            if session.document.source == .technical && session.document.objects.isEmpty { technikEmptyState }
+            VStack(spacing:10) {
+                phoneHeader
+                if session.document.shell.stories.count > 1 {
+                    Picker("Level",selection:$story) { ForEach(session.document.shell.stories,id: \.index) { Text(StoryNaming.localizedName(for:$0.index)).tag($0.index) } }
+                        .padding(8).background(.regularMaterial,in:Capsule())
                 }
-                if showInspector && landscape { inspector.frame(width:min(340,canvasWidth*0.4)) }
+                Spacer(minLength:0)
+                if session.selected != nil || multipleSelection { selectionHUD }
+                if !status.isEmpty { Text(status).font(.caption).padding(8).background(.regularMaterial,in:Capsule()) }
+                phoneDock
+            }.padding(.horizontal,12).padding(.top,8).padding(.bottom,4)
+            if let photo = selectedPhoto {
+                VStack {
+                    if !landscape { Spacer() }
+                    HStack {
+                        if landscape { Spacer() }
+                        VStack(spacing:8) {
+                            HStack {
+                                Text(photo.title).font(.headline).lineLimit(1)
+                                Spacer()
+                                Button { controller.flyToPhoto(photo.photo) } label: { Image(systemName:"viewfinder") }.accessibilityLabel("Go to photo camera position")
+                                Button { selectedPhoto = nil } label: { Image(systemName:"xmark.circle.fill") }.accessibilityLabel("Close photo")
+                            }.buttonStyle(.bordered)
+                            SurveyPhotoCanvas(data:photo.jpegData)
+                        }.padding(12)
+                            .frame(width:landscape ? min(380,canvasWidth*0.42) : nil,height:landscape ? 220 : 310)
+                            .background(.regularMaterial,in:RoundedRectangle(cornerRadius:20))
+                    }
+                    if landscape { Spacer() }
+                }.padding(.horizontal,12).padding(.top,70).padding(.bottom,70)
             }
-            selectionHUD
-            HStack {
-                Button("Objects",systemImage:"slider.horizontal.3") { showInspector.toggle() }
-                Button(showPlan ? "3D" : "Floor plan",systemImage:"square") { showPlan.toggle() }
-                Button("Reset camera",systemImage:"scope") { reset += 1 }
-            }.buttonStyle(.bordered).padding(8)
-            if busy { ProgressView("Working…") }
-            else if !status.isEmpty { Text(status).font(.caption).padding(.horizontal) }
+            if showInspector && landscape {
+                HStack { Spacer(); inspector.frame(width:min(340,canvasWidth*0.4)).background(.regularMaterial) }.padding(.top,70).padding(.bottom,70)
+            }
         }
         #else
         VStack(spacing: 0) {
@@ -360,7 +375,7 @@ struct StudioEditorView: View {
     private var phoneHeader: some View {
         VStack(alignment: .leading,spacing: 8) {
             if textSize.isAccessibilitySize {
-                Text(session.document.source == .technical ? "Design" : "Design")
+                Text(session.document.source == .technical ? "Technik Studio" : "House Studio")
                     .font(.headline).padding(.horizontal,12).padding(.vertical,8)
                     .background(.regularMaterial,in: Capsule())
             }
@@ -369,7 +384,7 @@ struct StudioEditorView: View {
                     .accessibilityLabel("Close Studio").background(.regularMaterial,in: Circle())
                 if !textSize.isAccessibilitySize {
                     VStack(alignment: .leading,spacing: 2) {
-                        Text(session.document.source == .technical ? "Design" : "Design").font(.headline)
+                        Text(session.document.source == .technical ? "Technik Studio" : "House Studio").font(.headline)
                         Text(session.dirty || !hasSaved ? "Unsaved design" : "Design saved").font(.caption).foregroundStyle(.secondary)
                     }.lineLimit(1).padding(.horizontal,14).padding(.vertical,8).background(.regularMaterial,in: Capsule())
                 }
@@ -422,7 +437,7 @@ struct StudioEditorView: View {
             }
         } label: { dockLabel(rotating ? "Rotate" : moving ? "Move" : "Orbit",icon: rotating ? "arrow.triangle.2.circlepath" : moving ? "arrow.up.and.down.and.arrow.left.and.right" : "rotate.3d",active: !showPlan) }
             .accessibilityLabel("Interaction mode").accessibilityValue(rotating ? "Rotate" : moving ? "Move" : "Orbit").disabled(showPlan)
-        Button { showInspector.toggle() } label: { dockLabel("Edit",icon: "slider.horizontal.3",active: showInspector) }
+        Button { selectedPhoto = nil; showInspector.toggle() } label: { dockLabel("Edit",icon: "slider.horizontal.3",active: showInspector) }
         Button { showAppearance = true } label: { dockLabel("Style",icon: "paintpalette",active: showAppearance) }
         Button { showDimensions.toggle() } label: { dockLabel("Sizes",icon: "ruler",active: showDimensions) }.accessibilityLabel("3D dimensions").accessibilityValue(showDimensions ? "On" : "Off")
         Menu { designActions } label: { dockLabel("More",icon: "ellipsis",active: showPlan || showEngineering) }

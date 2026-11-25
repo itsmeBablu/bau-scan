@@ -3,6 +3,8 @@ import SwiftUI
 /// Independent project evidence; never configures an ARSession or rewrites a scan.
 struct ProjectVoiceNotesView: View {
     let projectID: UUID
+    var initialReference: ProjectReference? = nil
+    var onClose: (() -> Void)? = nil
     @Environment(RenovationWorkspace.self) private var workspace
     @State private var notes: [ARNote] = []
     @State private var referenceID = ""
@@ -17,7 +19,6 @@ struct ProjectVoiceNotesView: View {
     @State private var recoveryCount = 0
     #if os(iOS)
     @State private var recorder = NoteAudioRecorder()
-    @State private var consent = false
     @State private var failedClip: NoteAudioRecorder.Clip?
     @State private var clipReference: ProjectReference?
     @State private var clipRoot: URL?
@@ -32,12 +33,15 @@ struct ProjectVoiceNotesView: View {
             Section {
                 Text("Voice notes stay in the selected library. No audio is sent to AI services.")
                     .font(.callout).foregroundStyle(.secondary)
-                Picker("Associated scan",selection:$referenceID) {
+                if let initialReference {
+                    Label(workspace.entry(initialReference).map { workspace.title($0) } ?? "Current scan",systemImage: "link")
+                    Text("Linked to this scan. No spatial pin is added.").font(.caption).foregroundStyle(.secondary)
+                } else { Picker("Associated scan",selection:$referenceID) {
                     Text("None").tag("")
                     ForEach(references) { reference in
                         Text(workspace.entry(reference).map { workspace.title($0) } ?? reference.itemID.uuidString).tag(reference.id)
                     }
-                }.disabled(busy || audioActive)
+                }.disabled(busy || audioActive) }
                 #if os(iOS)
                 if recorder.recording {
                     Text(Duration.seconds(recorder.elapsed).formatted(.time(pattern:.minuteSecond)))
@@ -51,7 +55,9 @@ struct ProjectVoiceNotesView: View {
                 } else if failedClip != nil {
                     Button("Retry saving recording") { if let failedClip { saveClip(failedClip) } }.disabled(busy)
                 } else {
-                    Button("Record voice note",systemImage:"mic.fill") { consent = true }
+                    Button(action: startRecording) {
+                        Label("Record voice note",systemImage: "mic.fill").frame(maxWidth: .infinity,minHeight: 36)
+                    }.buttonStyle(.borderedProminent).tint(.red)
                         .disabled(busy || recorder.preparing || !references.contains { $0.id == referenceID })
                 }
                 #endif
@@ -92,7 +98,18 @@ struct ProjectVoiceNotesView: View {
             }
         }
         .navigationTitle("Voice notes")
-        .task(id:projectID.uuidString+workspace.notesRoot.absoluteString) { visible = true; await reload() }
+        .task(id:projectID.uuidString+workspace.notesRoot.absoluteString) {
+            visible = true
+            if let initialReference { referenceID = initialReference.id }
+            await reload()
+        }
+        .toolbar {
+            if let onClose {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done",action: onClose).disabled(busy || audioActive || hasUnstagedClip)
+                }
+            }
+        }
         .sheet(item:$editing) { note in VoiceNoteEditor(note:note) { updated in saveEdit(updated) } }
         .alert("Delete voice note?",isPresented:Binding(get:{ deleting != nil },set:{ if !$0 { deleting = nil } })) {
             Button("Delete",role:.destructive) { if let deleting { remove(deleting) }; deleting = nil }
@@ -104,10 +121,6 @@ struct ProjectVoiceNotesView: View {
         #if os(iOS)
         .navigationBarBackButtonHidden(audioActive || busy || (failedClip != nil && !staged))
         .interactiveDismissDisabled(audioActive || busy || (failedClip != nil && !staged))
-        .confirmationDialog("Record a local voice note?",isPresented:$consent,titleVisibility:.visible) {
-            Button("Record voice note") { startRecording() }
-            Button("Cancel",role:.cancel) {}
-        } message: { Text("Microphone access is requested only for recording. No transcription or external upload is enabled.") }
         .onChange(of:recorder.error) { _,message in if let message { error = message; recorder.error = nil } }
         #endif
         .onDisappear {
@@ -121,6 +134,13 @@ struct ProjectVoiceNotesView: View {
     private var audioActive: Bool {
         #if os(iOS)
         recorder.recording || recorder.preparing
+        #else
+        false
+        #endif
+    }
+    private var hasUnstagedClip: Bool {
+        #if os(iOS)
+        failedClip != nil && !staged
         #else
         false
         #endif
@@ -192,7 +212,7 @@ struct ProjectVoiceNotesView: View {
         playback.stop(); clipReference = reference; clipRoot = workspace.notesRoot
         pendingID = nil; staged = false
         recorder.onClip = { clip in saveClip(clip) }
-        Task { await recorder.start() }
+        Task { guard visible else { return }; await recorder.start() }
     }
     private func saveClip(_ clip: NoteAudioRecorder.Clip) {
         guard !busy,let reference = clipReference,let root = clipRoot else { failedClip = clip; return }
@@ -213,6 +233,41 @@ struct ProjectVoiceNotesView: View {
         }
     }
     #endif
+}
+
+/// Opens the existing local recording/recovery flow directly for a saved or
+/// in-progress scan. Owns catalogue context so legacy entry points also work.
+struct ScanVoiceNotesSheet: View {
+    let reference: ProjectReference
+    let location: StorageLocation
+    var preferredProjectID: UUID? = nil
+    @Environment(\.dismiss) private var dismiss
+    @State private var workspace = RenovationWorkspace()
+    @State private var projectID: UUID?
+    @State private var error: String?
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let projectID {
+                    ProjectVoiceNotesView(projectID: projectID,initialReference: reference,onClose: { dismiss() })
+                } else if let error {
+                    ContentUnavailableView("Could not open voice notes",systemImage: "mic.slash",description: Text(error))
+                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+                } else { ProgressView("Opening voice notes…") }
+            }
+        }
+        .environment(workspace)
+        .task(id: reference.id) {
+            await workspace.reload(location: location)
+            guard !Task.isCancelled else { return }
+            guard workspace.error == nil else { error = workspace.error; return }
+            var owner: UUID?
+            workspace.change { owner = try $0.voiceNotesProject(for: reference,preferredProjectID:preferredProjectID) }
+            guard workspace.error == nil else { error = workspace.error; return }
+            projectID = owner
+            if projectID == nil { error = "The scan could not be associated with a project." }
+        }
+    }
 }
 
 private struct VoiceNoteEditor: View {

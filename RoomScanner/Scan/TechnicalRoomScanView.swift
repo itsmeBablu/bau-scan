@@ -16,6 +16,7 @@ struct TechnicalRoomScanView: View {
     @State private var showMesh = true
     @AppStorage("technical.showCeiling") private var showCeiling = false
     @State private var showingControls = false
+    @State private var showingVoiceNotes = false
     @State private var captureHeight: CGFloat = 852
     @State private var origin: TechnicalPoint3?
     @State private var frameDefined = false
@@ -54,11 +55,12 @@ struct TechnicalRoomScanView: View {
     @State private var confirmingClose = false
     @State private var saveThumbnail: Data?
     @State private var frozenCheckpointAccepted = false
+    let voiceProjectID: UUID?
     let onSaved: (UUID) -> Void
     private let previousManifest: TechnicalRoomManifest?
     private let previousRecognition: TechnicalMEPReview
 
-    init(restoring package: TechnicalRoomPackage? = nil, onSaved: @escaping (UUID) -> Void) {
+    init(restoring package: TechnicalRoomPackage? = nil, voiceProjectID: UUID? = nil, onSaved: @escaping (UUID) -> Void) {
         let scanner = TechnicalRoomScanCoordinator()
         if let package {
             do { try scanner.restoreSurvey(package) }
@@ -76,6 +78,7 @@ struct TechnicalRoomScanView: View {
         _scanner = State(initialValue: scanner)
         previousManifest = package?.manifest
         previousRecognition = package?.recognition ?? .init()
+        self.voiceProjectID = voiceProjectID
         self.onSaved = onSaved
     }
 
@@ -106,7 +109,7 @@ struct TechnicalRoomScanView: View {
                         }.padding(12).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 14))
                     }
                     if showingControls { surveyControls.frame(maxHeight: max(80,min(340,captureHeight-300))).clipShape(RoundedRectangle(cornerRadius: 24)) }
-                    ScrollView(.horizontal) {
+                    if showingControls { ScrollView(.horizontal) {
                         HStack(spacing: 12) {
                             Label("\(scanner.liveMeshSnapshot?.capturedFaceCount ?? 0) preview faces",systemImage: "cube.transparent")
                             if scanner.liveMeshSnapshot?.hasCapturedWall == true { Label("Walls",systemImage: "square.split.2x2") }
@@ -118,18 +121,23 @@ struct TechnicalRoomScanView: View {
                             Toggle("Ceiling",isOn: $showCeiling).toggleStyle(.button)
                         }.font(.caption.weight(.medium)).padding(10)
                     }.scrollIndicators(.hidden).fixedSize(horizontal: false,vertical: true)
-                        .background(.regularMaterial,in: Capsule())
-                    HStack(spacing: 28) {
+                        .background(.regularMaterial,in: Capsule()) }
+                    HStack(spacing: 12) {
                         Button { showingControls.toggle() } label: {
-                            Image(systemName: "slider.horizontal.3").frame(width: 52,height: 52)
-                        }.buttonStyle(.bordered).background(.regularMaterial,in: Circle())
+                            Image(systemName: "slider.horizontal.3").frame(width: 44,height: 44)
+                        }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
                             .accessibilityLabel("Survey tools")
+                        Button { showingVoiceNotes = true } label: {
+                            Image(systemName: "mic.fill").frame(width: 44,height: 44)
+                        }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
+                            .accessibilityLabel("Add voice note").accessibilityIdentifier("technical.addVoiceNote")
+                            .disabled(saving || !scanner.hasLiveFrames)
                         Button { showMesh.toggle() } label: {
-                            Image(systemName: showMesh ? "cube.fill" : "cube").frame(width: 52,height: 52)
-                        }.buttonStyle(.bordered).background(.regularMaterial,in: Circle())
+                            Image(systemName: showMesh ? "cube.fill" : "cube").frame(width: 44,height: 44)
+                        }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
                             .accessibilityLabel(showMesh ? "Hide captured mesh" : "Show captured mesh")
-                        Spacer(minLength:70)
-                    }.padding(.bottom, 12)
+                        Spacer(minLength:80)
+                    }.padding(.bottom, 26)
                 }.padding(.horizontal)
 
             }
@@ -156,6 +164,9 @@ struct TechnicalRoomScanView: View {
             }
         }
         .tint(.blue)
+        .sheet(isPresented: $showingVoiceNotes) {
+            ScanVoiceNotesSheet(reference: .init(kind: .technicalRoom,itemID: scanner.captureID,library: "local"),location: .local(),preferredProjectID:voiceProjectID)
+        }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { captureHeight = $0 }
         .onDisappear { scanner.stop() }
         .interactiveDismissDisabled(saving || !scanner.journal.frames.isEmpty)
