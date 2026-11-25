@@ -51,6 +51,14 @@ final class ScanCoordinator {
     var persistence: CapturePersistence?
     private var finishingHouse = false
     private var trackingStarted = false
+    private let checkpointObserver = RoomCheckpointObserver()
+    private var latestRoom: CapturedRoom?
+    private var checkpointPolicy = ScanCheckpointPolicy()
+    private var checkpointTask: Task<Void,Never>?
+    private var checkpointTicker: Task<Void,Never>?
+    private var lastSnapshotAttempt = -Double.infinity
+    private(set) var thermalState = ProcessInfo.processInfo.thermalState.rawValue
+    private(set) var residentBytes: UInt64 = 0
     let arSession: ARSession
     let captureView: RoomCaptureView
     /// `RoomCaptureViewDelegate` requires `NSCoding`: carried by dedicated helper object.
@@ -69,6 +77,9 @@ final class ScanCoordinator {
             Task { @MainActor in self?.receive(room: room, error: error) }
         }
         captureView.delegate = delegateProxy
+        checkpointObserver.onUpdate = { [weak self] room in Task { @MainActor in
+            self?.latestRoom = room; self?.flushCheckpoint(.update)
+        } }
     }
 
     /// Starts scan (requests camera permission if needed).
@@ -108,7 +119,18 @@ final class ScanCoordinator {
         var config = RoomCaptureSession.Configuration()
         config.isCoachingEnabled = true
         state = .scanning
+        if captureView.captureSession.delegate !== checkpointObserver {
+            checkpointObserver.forward = captureView.captureSession.delegate
+            captureView.captureSession.delegate = checkpointObserver
+        }
         captureView.captureSession.run(configuration: config)
+        checkpointTicker?.cancel()
+        checkpointTicker = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for:.seconds(1))
+                guard !Task.isCancelled else { return }; self?.flushCheckpoint(.update)
+            }
+        }
         cameraWatchdog?.cancel()
         cameraWatchdog = Task { @MainActor [weak self] in
             try? await Task.sleep(for:.seconds(8))
@@ -124,12 +146,43 @@ final class ScanCoordinator {
         guard state == .scanning || state == .roomSaved else { return }
         finishingHouse = true
         if state == .roomSaved { state = .processing; finishHouse(); return }
+        latestRoom = nil
         state = .processing
         if mode == .house { captureView.captureSession.stop(pauseARSession: false) } else { captureView.captureSession.stop() }
     }
 
+    func flushCheckpoint(_ trigger:ScanCheckpointPolicy.Trigger) {
+        guard active,state == .scanning,checkpointTask == nil,let room = latestRoom,let persistence else { return }
+        let time = Date().timeIntervalSinceReferenceDate
+        let sample = ScanCheckpointPolicy.Sample(time:time,geometry:room.walls.count+room.objects.count,bytes:persistence.snapshotBytes)
+        guard trigger != .update || time-lastSnapshotAttempt >= checkpointPolicy.minimumSpacing else { return }
+        lastSnapshotAttempt = time
+        thermalState = ProcessInfo.processInfo.thermalState.rawValue
+        residentBytes = ProcessInfo.processInfo.physicalMemory // Replaced below by actual resident measurement on iOS.
+        #if os(iOS)
+        residentBytes = CaptureMemory.residentBytes()
+        #endif
+        checkpointTask = Task { @MainActor [weak self] in
+            defer { self?.checkpointTask = nil }
+            do {
+                let value = try await Task.detached(priority:.utility) {
+                    try PersistedRoom(scan:CapturedRoomAdapter.scanInput(from:room),raw:CapturedRoomAdapter.encode(room),partial:true)
+                }.value
+                let actual = ScanCheckpointPolicy.Sample(time:time,geometry:sample.geometry,bytes:value.raw.count)
+                guard self?.checkpointPolicy.shouldSave(actual,trigger:trigger) == true else { return }
+                try await persistence.room(value)
+                self?.checkpointPolicy.committed(.init(time:time,geometry:sample.geometry,bytes:value.raw.count))
+            } catch { /* CapturePersistence exposes the failed write; never discard the draft. */ }
+        }
+    }
+    func flushAndPause(_ trigger:ScanCheckpointPolicy.Trigger) async {
+        flushCheckpoint(trigger); await checkpointTask?.value
+        await persistence?.state(.paused)
+    }
+
     func roomDone() {
         guard mode == .house,state == .scanning else { return }
+        latestRoom = nil
         finishingHouse = false; state = .processing
         captureView.captureSession.stop(pauseARSession:false)
     }
@@ -163,6 +216,7 @@ final class ScanCoordinator {
     }
 
     func stop() {
+        checkpointTicker?.cancel(); checkpointTicker = nil
         cameraWatchdog?.cancel(); cameraWatchdog = nil
         active = false
         if state == .scanning {
@@ -186,6 +240,7 @@ final class ScanCoordinator {
         if mode == .house {
             guard let persistence else { state = .failed(.storageFailed("Missing scan session")); return }
             Task { [weak self] in
+                await self?.checkpointTask?.value
                 do {
                     let value = try await Task.detached(priority:.utility) {
                         let scan = CapturedRoomAdapter.scanInput(from:room)
@@ -199,14 +254,16 @@ final class ScanCoordinator {
             }
             return
         }
-        do {
-            let data = try CapturedRoomAdapter.encode(room)
-            let usdz = try? CapturedRoomAdapter.usdzData(for: room)
-            let usdzMesh = try? CapturedRoomAdapter.usdzData(for: room, options: .mesh)
-            let scan = CapturedRoomAdapter.scanInput(from: room)
-            state = .finished(ScanResult(scan: scan, capturedRoomData: data, usdzData: usdz, usdzMeshData: usdzMesh))
-        } catch {
-            state = .failed(.scanFailed(error.localizedDescription))
+        Task { [weak self] in
+            await self?.checkpointTask?.value
+            do {
+                let result = try await Task.detached(priority:.utility) {
+                    let data = try CapturedRoomAdapter.encode(room),scan = CapturedRoomAdapter.scanInput(from:room)
+                    return ScanResult(scan:scan,capturedRoomData:data,usdzData:nil,usdzMeshData:nil)
+                }.value
+                try await self?.persistence?.room(.init(scan:result.scan,raw:result.capturedRoomData,partial:false))
+                self?.state = .finished(result)
+            } catch { self?.state = .failed(.storageFailed(error.localizedDescription)) }
         }
     }
 

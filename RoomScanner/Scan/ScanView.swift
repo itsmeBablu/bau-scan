@@ -71,7 +71,10 @@ struct ScanView: View {
             if phase == .active {
                 if coordinator.state == .failed(.cameraDenied) { coordinator.start() }
                 radiatorScanner?.resume()
-            } else { radiatorScanner?.pause() }
+            } else {
+                radiatorScanner?.pause()
+                Task { await CaptureBackgroundFlush.run { await coordinator.flushAndPause(.background) } }
+            }
         }
         .task(id:coordinator.state == .scanning) {
             cameraLive = false
@@ -90,6 +93,7 @@ struct ScanView: View {
                 try? await Task.sleep(for: .milliseconds(100))
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for:UIApplication.didReceiveMemoryWarningNotification)) { _ in coordinator.flushCheckpoint(.memoryWarning) }
         .onChange(of: coordinator.state) { _, state in handle(state) }
         .alert(item: $saveError) { error in
             Alert(title: Text("scan.error.title"), message: Text(error.localizedDescription),
@@ -223,7 +227,8 @@ struct ScanView: View {
         case .finished(let result):
             do {
                 let name = store.proposedName(for: result.scan.sectionLabels.first ?? .unidentified)
-                let plan = FloorPlanBuilder().build(from: result.scan, name: name)
+                var plan = FloorPlanBuilder().build(from: result.scan, name: name)
+                plan.id = captureID
                 var package = RoomPackage(record: RoomRecord(plan: plan), plan: plan, scan: result.scan,
                                           capturedRoomData: result.capturedRoomData, usdzData: result.usdzData, usdzMeshData: result.usdzMeshData,
                                           thumbnailPNG: PlanRenderer.thumbnailPNG(for: plan))
