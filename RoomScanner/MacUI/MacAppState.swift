@@ -37,6 +37,9 @@ final class MacAppState {
     var availableFormats: [ExportFormat] = []
     var pendingAction: Action?
     var hasSelection: Bool { selected != nil }
+    var canExportOrPrint: Bool {
+        switch selected { case .room,.house: true; default: false }
+    }
     func request(_ action: Action) { pendingAction = action }
 }
 

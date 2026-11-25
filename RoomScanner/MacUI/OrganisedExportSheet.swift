@@ -62,7 +62,7 @@ struct OrganisedExportSheet: View {
                     }
                 }
                 .formStyle(.grouped)
-                .frame(height: 220)
+                .frame(minHeight:220).disabled(isExporting)
             }
 
             HStack {
@@ -110,7 +110,7 @@ struct OrganisedExportSheet: View {
             .padding(.horizontal)
             .padding(.bottom)
         }
-        .frame(width: 480)
+        .frame(minWidth:420,idealWidth:480,maxWidth:720)
         .onAppear {
             options.photosOnly = photosOnly
             options.unit = unit

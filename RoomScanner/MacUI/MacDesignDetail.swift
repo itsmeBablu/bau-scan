@@ -10,14 +10,16 @@ struct MacDesignDetail: View {
             if let document { StudioProjectView(seed:document,storageRoot:root) }
             else if let error { ContentUnavailableView("Could not open design",systemImage:"exclamationmark.triangle",description:Text(error)) }
             else { ProgressView("Opening Studio…") }
-        }.task(id:reference.id) {
+        }.task(id:reference.id+root.path) {
+            document = nil; error = nil
             do {
                 let source = reference.source,id = reference.sourceID,root = root
-                document = try await Task.detached {
+                let loaded = try await Task.detached {
                     guard let document = try SceneEditStore.read(SceneEditStore.url(root:root,source:source,id:id),source:source,id:id) else { throw CocoaError(.fileNoSuchFile) }
                     return document
                 }.value
-            } catch { self.error = error.localizedDescription }
+                guard !Task.isCancelled else { return }; document = loaded
+            } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
         }
     }
 }

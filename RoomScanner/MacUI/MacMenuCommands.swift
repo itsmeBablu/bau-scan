@@ -20,12 +20,18 @@ struct MacMenuCommands: Commands {
                 .disabled(session == nil || !session!.dirty)
         }
         CommandGroup(replacing: .undoRedo) {
-            Button("common.undo") { session?.undo() }
+            Button("common.undo") {
+                if NSApp.keyWindow?.firstResponder is NSTextView { NSApp.sendAction(NSSelectorFromString("undo:"),to:nil,from:nil) }
+                else { session?.undo() }
+            }
                 .keyboardShortcut("z", modifiers: .command)
-                .disabled(session?.canUndo != true)
-            Button("common.redo") { session?.redo() }
+                .disabled(viewportSession != nil && session?.canUndo != true)
+            Button("common.redo") {
+                if NSApp.keyWindow?.firstResponder is NSTextView { NSApp.sendAction(NSSelectorFromString("redo:"),to:nil,from:nil) }
+                else { session?.redo() }
+            }
                 .keyboardShortcut("z", modifiers: [.command, .shift])
-                .disabled(session?.canRedo != true)
+                .disabled(viewportSession != nil && session?.canRedo != true)
         }
         CommandGroup(after: .pasteboard) {
             Button("studio.selectAllOnFloor") {
@@ -42,7 +48,7 @@ struct MacMenuCommands: Commands {
         CommandGroup(replacing: .importExport) {
             Button("mac.menu.export") { state?.request(.export(nil)) }
                 .keyboardShortcut("e", modifiers: .command)
-                .disabled(state?.hasSelection != true)
+                .disabled(state?.canExportOrPrint != true)
             Menu("mac.menu.exportAs") {
                 ForEach(ExportFormat.Group.allCases) { group in
                     Section(LocalizedStringKey(group.titleKey)) {
@@ -55,7 +61,7 @@ struct MacMenuCommands: Commands {
                 Button("mac.menu.exportOrganised") { state?.request(.exportOrganised(false)) }
                 Button("mac.menu.exportPhotosOnly") { state?.request(.exportOrganised(true)) }
             }
-            .disabled(state?.hasSelection != true)
+            .disabled(state?.canExportOrPrint != true)
             Divider()
             Button("mac.menu.revealInFinder") { state?.request(.revealInFinder) }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
@@ -66,7 +72,7 @@ struct MacMenuCommands: Commands {
         CommandGroup(replacing: .printItem) {
             Button("mac.menu.print") { state?.request(.print) }
                 .keyboardShortcut("p", modifiers: .command)
-                .disabled(state?.hasSelection != true)
+                .disabled(state?.canExportOrPrint != true)
         }
     }
 }

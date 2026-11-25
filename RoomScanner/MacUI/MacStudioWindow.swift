@@ -36,9 +36,7 @@ struct MacStudioWindow: View {
                 if FileManager.default.fileExists(atPath: url.path) {
                     do {
                         if let doc = try SceneEditStore.read(url, source: source, id: designID) {
-                            storageURL = url
-                            document = doc
-                            photos = (try? await Task.detached {
+                            let loadedPhotos = (try? await Task.detached {
                                 if source == .technical {
                                     let techURL = root.appendingPathComponent("TechnicalRooms").appendingPathComponent(designID.uuidString).appendingPathExtension("technicalroom")
                                     return SurveyPhotoStore.images(technical: try TechnicalRoomPackage.read(from: techURL), studio: true)
@@ -48,11 +46,12 @@ struct MacStudioWindow: View {
                                     : location.packageURL(for:designID)
                                 return try SurveyPhotoStore.images(from: pkg, house: doc.shell)
                             }.value) ?? []
-                            guard !Task.isCancelled else { return }
+                            guard !Task.isCancelled,primary == store.location else { return }
+                            storageURL = url; document = doc; photos = loadedPhotos
                             return
                         }
                     } catch {
-                        self.error = error.localizedDescription
+                        if !Task.isCancelled { self.error = error.localizedDescription }
                     }
                 }
             }

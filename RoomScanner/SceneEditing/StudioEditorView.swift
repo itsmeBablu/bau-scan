@@ -21,7 +21,8 @@ struct StudioProjectView: View {
             else if let error { ContentUnavailableView("Could not open design",systemImage: "exclamationmark.triangle",description: Text(error)) }
             else { ProgressView("Opening Studio…") }
         }
-        .task {
+        .task(id:storageRoot.path+seed.source.rawValue+seed.sourceID.uuidString) {
+            loaded = nil; error = nil; photos = []
             let source = seed.source, id = seed.sourceID, house = seed.shell, root = storageRoot
             photos = (try? await Task.detached { () throws -> [SurveyPhotoImage] in
                 if source == .technical {
@@ -33,6 +34,7 @@ struct StudioProjectView: View {
                     location.roomsURL.appendingPathComponent(id.uuidString).appendingPathExtension(FileLayout.packageExtension)
                 return try SurveyPhotoStore.images(from:url,house:house)
             }.value) ?? []
+            guard !Task.isCancelled else { return }
             do {
                 let url = SceneEditStore.url(root: storageRoot,source: seed.source,id: seed.sourceID)
                 let document = try await Task.detached { () throws -> SceneEditDocument in
@@ -49,8 +51,8 @@ struct StudioProjectView: View {
                     }
                     return value
                 }.value
-                try document.validate(); loaded = document
-            } catch { self.error = error.localizedDescription }
+                try document.validate(); guard !Task.isCancelled else { return }; loaded = document
+            } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
         }
     }
 }

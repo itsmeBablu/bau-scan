@@ -34,10 +34,14 @@ final class MacUITests: XCTestCase {
     func testMenuActionsRequireSelection() {
         let state = MacAppState()
         XCTAssertFalse(state.hasSelection)
+        XCTAssertFalse(state.canExportOrPrint)
         state.request(.print)
         XCTAssertEqual(state.pendingAction, .print)
         state.selected = .room(RoomRecord(plan: plan))
         XCTAssertTrue(state.hasSelection)
+        XCTAssertTrue(state.canExportOrPrint)
+        state.selected = .technicalRoom(.init(id:UUID(),name:"Technical"))
+        XCTAssertFalse(state.canExportOrPrint)
     }
 
     @MainActor

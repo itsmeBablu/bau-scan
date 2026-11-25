@@ -77,7 +77,10 @@ struct MacRootView: View {
             .toolbar {
                 ToolbarItem(placement: .automatic) { CloudStatusBadge() }
             }
-            .overlay { if isEmpty { Text("list.empty.title").foregroundStyle(.secondary).font(.callout) } }
+            .overlay {
+                if isEmpty { Text("list.empty.title").foregroundStyle(.secondary).font(.callout) }
+                else if !search.isEmpty && filteredHouses.isEmpty && filteredRooms.isEmpty && filteredTechnical.isEmpty && filteredDesigns.isEmpty { ContentUnavailableView.search(text:search) }
+            }
         } detail: {
             switch appState.selected {
             case .house(let record) where store.houseRecords.contains(record):
@@ -96,15 +99,18 @@ struct MacRootView: View {
         .confirmationDialog("list.delete.confirm \(pendingDeletion?.name ?? "")", isPresented: Binding(get: { pendingDeletion != nil }, set: { if !$0 { pendingDeletion = nil } }), titleVisibility: .visible) {
             Button("common.delete", role: .destructive) {
                 if let item = pendingDeletion {
-                    switch item {
-                    case .house(let h): try? store.delete(.house(h))
-                    case .room(let r): try? store.delete(.room(r))
-                    case .technicalRoom(let t): try? technicalStore.delete(t.id)
-                    case .design(let d):
-                        let url = designURL(for: d)
-                        try? FileManager.default.removeItem(at: url)
-                        Task { try? await loadDesigns() }
-                    }
+                    do {
+                        let url: URL
+                        switch item {
+                        case .house(let h): url = store.packageURL(for:h)
+                        case .room(let r): url = store.packageURL(for:r)
+                        case .technicalRoom(let t): url = technicalStore.url(for:t.id)
+                        case .design(let d): url = designURL(for:d)
+                        }
+                        try FileManager.default.trashItem(at:url,resultingItemURL:nil)
+                        store.reload(); try technicalStore.reload()
+                        Task { do { try await loadDesigns() } catch { errorMessage = error.localizedDescription } }
+                    } catch { errorMessage = error.localizedDescription; return }
                     if appState.selected?.id == item.id { appState.selected = nil }
                 }
                 pendingDeletion = nil
@@ -141,10 +147,14 @@ struct MacRootView: View {
         }
         .task {
             await store.activateCloudIfAvailable()
-            try? technicalStore.reload()
-            try? await loadDesigns()
+            do { try technicalStore.reload(); try await loadDesigns() } catch { errorMessage = error.localizedDescription }
             autoSelect()
         }
+        .task(id:store.location.documentsURL) {
+            technicalStore = TechnicalRoomLibraryStore(root:store.location.documentsURL.appendingPathComponent("TechnicalRooms"))
+            do { try technicalStore.reload(); try await loadDesigns(); refreshSelection() } catch { errorMessage = error.localizedDescription }
+        }
+        .onChange(of:technicalStore.records) { _,_ in refreshSelection() }
         .onChange(of: store.records) { _, _ in refreshSelection() }
         .onChange(of: store.houseRecords) { _, _ in refreshSelection() }
         .onChange(of: appState.selected, initial: true) { _, item in
@@ -247,7 +257,7 @@ struct MacRootView: View {
                 if fresh != t { appState.selected = .technicalRoom(fresh) }
             } else { appState.selected = nil }
         case .design(let d):
-            if !designs.contains(where: { $0.sourceID == d.sourceID }) { appState.selected = nil }
+            if !designs.contains(where: { $0.sourceID == d.sourceID && $0.source == d.source }) { appState.selected = nil }
         case nil: break
         }
     }
@@ -261,10 +271,10 @@ struct MacRootView: View {
     }
 
     /// Export subject for selected item (reloaded from package).
-    private func subject(for item: MacItem) -> ExportSubject? {
+    private func subject(for item: MacItem) throws -> ExportSubject? {
         switch item {
-        case .room(let r): (try? store.plan(for: r)).map { ExportSubject(record: r, plan: $0, packageURL: store.packageURL(for: r)) }
-        case .house(let h): (try? store.house(for: h)).map { ExportSubject(record: h, house: $0, packageURL: store.packageURL(for: h)) }
+        case .room(let r): ExportSubject(record:r,plan:try store.plan(for:r),packageURL:store.packageURL(for:r))
+        case .house(let h): ExportSubject(record:h,house:try store.house(for:h),packageURL:store.packageURL(for:h))
         case .technicalRoom, .design: nil
         }
     }
@@ -280,16 +290,17 @@ struct MacRootView: View {
     }
 
     private func perform(_ action: MacAppState.Action) {
+        do {
         switch action {
         case .export(let format):
-            guard let item = appState.selected, let subject = subject(for: item) else { return }
+            guard let item = appState.selected, let subject = try subject(for: item) else { return }
             exportSheet = ExportRequest(subject: subject, format: format)
         case .exportOrganised(let photosOnly):
-            guard let item = appState.selected, let subject = subject(for: item) else { return }
+            guard let item = appState.selected, let subject = try subject(for: item) else { return }
             organisedRequest = OrganisedRequest(subject: subject, photosOnly: photosOnly)
         case .print:
-            guard let item = appState.selected, let subject = subject(for: item) else { return }
-            PrintController.printPlan(subject.house, title: subject.name, window: NSApp.keyWindow)
+            guard let item = appState.selected, let subject = try subject(for: item) else { return }
+            try PrintController.printPlan(subject.house,title:subject.name,window:NSApp.keyWindow)
         case .revealInFinder:
             guard let item = appState.selected else { return }
             let url: URL
@@ -301,11 +312,12 @@ struct MacRootView: View {
             }
             NSWorkspace.shared.activateFileViewerSelecting([url])
         case .openLibraryFolder:
-            try? store.location.prepare()
+            try store.location.prepare()
             NSWorkspace.shared.open(store.location.documentsURL)
         case .importPackage:
             importPackage()
         }
+        } catch { errorMessage = error.localizedDescription }
     }
 
     private func importPackage() {
@@ -346,7 +358,7 @@ struct MacRootView: View {
             for documents in roots {
                 let root = documents.appendingPathComponent("SceneEdits", isDirectory: true)
                 guard FileManager.default.fileExists(atPath: root.path) else { continue }
-                let files = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil))?.filter { $0.pathExtension == "json" }.prefix(200) ?? []
+                let files = try FileManager.default.contentsOfDirectory(at:root,includingPropertiesForKeys:nil).filter { $0.pathExtension == "json" }.prefix(200)
                 for file in files {
                     let name = file.deletingPathExtension().lastPathComponent
                     guard let separator = name.firstIndex(of: "-"),
@@ -360,6 +372,7 @@ struct MacRootView: View {
             }
             return results.sorted { $0.0.title.localizedStandardCompare($1.0.title) == .orderedAscending }
         }.value
+        guard !Task.isCancelled,primary == store.location.documentsURL else { return }
         designs = loaded.map { $0.0 }
         designRoots = Dictionary(loaded.map { ($0.0.sourceID, $0.1) }, uniquingKeysWith: { first, _ in first })
     }
