@@ -13,6 +13,7 @@ enum PolygonUnion {
     }
 
     static func area(_ polygons: [[Point2D]]) -> Double {
+        guard polygons.flatMap({ $0 }).allSatisfy({ $0.x.isFinite && $0.y.isFinite }) else { return .nan }
         let polygons = polygons.filter { $0.count >= 3 }
         let edges = polygons.map { polygon in
             polygon.indices.map { Edge(a: polygon[$0], b: polygon[($0 + 1) % polygon.count]) }

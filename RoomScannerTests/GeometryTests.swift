@@ -15,6 +15,9 @@ final class GeometryTests: XCTestCase {
             XCTAssertEqual(Polygon2D.unionArea(polygons),Double(occupied.count),accuracy:0.000001)
         }
     }
+    func testUnionDoesNotReportFiniteAreaForNonFiniteCoordinates() {
+        XCTAssertTrue(Polygon2D.unionArea([[.init(x:0,y:0),.init(x:.nan,y:1),.init(x:1,y:0)]]).isNaN)
+    }
     let square = [Point2D(x: 0, y: 0), Point2D(x: 4, y: 0), Point2D(x: 4, y: 3), Point2D(x: 0, y: 3)]
 
     func testShoelaceArea() {
