@@ -4,6 +4,8 @@ struct RevitExportOptions {
     enum Schema: String, CaseIterable { case ifc4 = "IFC4", ifc2x3 = "IFC2X3" }
     var schema = Schema.ifc4
     var includeArchitecture = true
+    /// Legacy path remains available for reproducible comparison of older deliveries.
+    var useResolvedArchitecture = true
     var includeMEP = true
     /// Absolute elevations supplied from scan floor evidence, in metres.
     var storeyElevations: [Int: Double] = [:]

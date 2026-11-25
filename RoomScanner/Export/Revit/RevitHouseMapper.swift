@@ -2,6 +2,7 @@ import Foundation
 
 enum RevitHouseMapper {
     static func map(_ house: House, model: IFCModel, options: RevitExportOptions) throws {
+        if options.useResolvedArchitecture { try RevitResolvedHouseMapper.map(house,model:model,options:options); return }
         let stories = house.stories.sorted { $0.index < $1.index }
         guard Set(stories.map(\.index)).count == stories.count else { throw RevitIFCExporter.Failure.invalid("Duplicate storey index") }
         var derivedElevation = 0.0

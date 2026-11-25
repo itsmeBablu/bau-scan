@@ -50,11 +50,12 @@ final class RevitIFCExportTests: XCTestCase {
         XCTAssertEqual(IFCWriter.text("ü"),"'\\X2\\00FC\\X0\\'")
         XCTAssertEqual(IFCWriter.guid("fixed"),IFCWriter.guid("fixed"))
     }
-    func testRealHouseSemanticGoldenAndMeasuredElevation() throws {
+    func testLegacyRealHouseSemanticGoldenAndMeasuredElevation() throws {
         let data = try resource("house.structure")
         let source = try RoomPackage.decoder.decode(StructureInput.self,from:data)
         let house = try HouseBuilder().build(from:source,name:"House")
-        let options = try RevitScanEvidence.options(house:house,structureData:data)
+        var options = try RevitScanEvidence.options(house:house,structureData:data)
+        options.useResolvedArchitecture = false // Retain the exact earlier delivery oracle.
         XCTAssertEqual(options.storeyElevations.count,1)
         XCTAssertEqual(options.shellPlacements.count,3)
         let output = try RevitIFCExporter.export(house:house,options:options)
@@ -64,6 +65,35 @@ final class RevitIFCExportTests: XCTestCase {
             XCTAssertEqual(count(entity,in:text(output)),expected)
         }
         XCTAssertTrue(text(output).contains(IFCWriter.number(try XCTUnwrap(options.storeyElevations[0]))))
+    }
+    func testResolvedTwoRoomArchitectureHasOnePartyWallAndSeparateStoreys() throws {
+        let scans = [SyntheticRooms.rectangularRoom(origin:.zero,width:4,depth:3),
+                     SyntheticRooms.rectangularRoom(origin:.init(x:4.12,y:0),width:4,depth:3)]
+        let house = try HouseBuilder().build(from:.init(rooms:scans),name:"Shared wall")
+        let graph = HouseWallGraph(house:house)
+        XCTAssertEqual(graph.walls.count,7)
+        var options = RevitExportOptions(); options.storeyElevations = [0:3.5]
+        let output = try RevitIFCExporter.export(house:house,options:options)
+        XCTAssertEqual(count("IFCWALL",in:text(output)),7)
+        XCTAssertEqual(count("IFCSLAB",in:text(output)),2)
+        XCTAssertEqual(count("IFCSPACE",in:text(output)),2)
+        XCTAssertEqual(output,try RevitIFCExporter.export(house:house,options:options))
+        XCTAssertTrue(text(output).contains("measured scan gap"))
+        let floors = try HouseBuilder().build(from:SyntheticRooms.twoStoryHouse(),name:"Storeys")
+        let stacked = try RevitIFCExporter.export(house:floors)
+        XCTAssertEqual(count("IFCBUILDINGSTOREY",in:text(stacked)),2)
+        XCTAssertEqual(count("IFCWALL",in:text(stacked)),HouseWallGraph(house:floors).walls.filter { !$0.footprints.isEmpty }.count)
+    }
+    func testResolvedRealHouseDiagnosticPreservesNetSpaceQuantities() throws {
+        let data = try resource("house.structure"),source = try RoomPackage.decoder.decode(StructureInput.self,from:data)
+        let house = try HouseBuilder().build(from:source,name:"Real house"),options = try RevitScanEvidence.options(house:house,structureData:data)
+        let graph = HouseWallGraph(house:house),output = try RevitIFCExporter.export(house:house,options:options)
+        let actual = count("IFCWALL",in:text(output))
+        print("Resolved real-house IFC walls=\(actual); legacy oracle=52; Apple merged reference=48")
+        XCTAssertEqual(actual,graph.walls.filter { !$0.footprints.isEmpty }.count)
+        XCTAssertEqual(count("IFCSPACE",in:text(output)),house.allRooms.count)
+        XCTAssertEqual(output,try RevitIFCExporter.export(house:house,options:options))
+        for room in house.allRooms { XCTAssertTrue(text(output).contains(IFCWriter.number(RoomMeasurements(plan:room).floorArea))) }
     }
     func testSeparateStoreysAndCombinedRegistration() throws {
         let technical = try room("small-boiler-room")
