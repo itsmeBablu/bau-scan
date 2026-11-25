@@ -85,7 +85,7 @@ struct ProjectPinsView: View {
             if let phase,let id = pin.elementID,var doc = design,let entry = workspace.entry(pin.reference) {
                 var data = doc.engineering ?? .init(); var record = data.record(id)
                 record.phase = phase; data.set(record); doc.engineering = data
-                try SceneEditStore.write(doc,to:SceneEditStore.url(root:entry.root,source:doc.source,id:doc.sourceID)); design = doc
+                design = try SceneEditStore.write(doc,to:SceneEditStore.url(root:entry.root,source:doc.source,id:doc.sourceID))
             }
             workspace.change { if $0.pins == nil { $0.pins = [] }; $0.pins?.removeAll { $0.id == pin.id }; $0.pins?.append(pin) }
             draft = nil

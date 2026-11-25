@@ -761,8 +761,8 @@ struct StudioEditorView: View {
         guard !busy else { throw CocoaError(.fileWriteUnknown) }
         busy = true; defer { busy = false }
         let document = session.document
-        try await Task.detached { try SceneEditStore.write(document,to:storageURL) }.value
-        session.markSaved(); hasSaved = true; status = "Design saved separately from the scan."
+        let committed = try await Task.detached { try SceneEditStore.write(document,to:storageURL) }.value
+        session.markSaved(committed); hasSaved = true; status = "Design saved separately from the scan."
     }
     private func image() {
         perform { exportFile = StudioFile(try controller.png()); exportType = .png; exportName = "Edited-design.png"; exporting = true }

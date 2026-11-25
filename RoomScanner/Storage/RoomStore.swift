@@ -85,7 +85,8 @@ final class RoomStore {
         cloudStatus = status
         pendingDownloads = items.filter { !$0.isAvailableLocally }.count
         reload()
-        let conflicts = items.filter { $0.hasUnresolvedConflicts && $0.isAvailableLocally && $0.url.pathExtension == FileLayout.packageExtension && !failedConflictResolutions.contains($0.url) }.map(\.url)
+        let conflicts = items.filter { $0.hasUnresolvedConflicts && $0.isAvailableLocally && !failedConflictResolutions.contains($0.url) &&
+            ([FileLayout.packageExtension,FileLayout.housePackageExtension].contains($0.url.pathExtension) || $0.url.deletingLastPathComponent().lastPathComponent == "SceneEdits") }.map(\.url)
         if !conflicts.isEmpty { resolveConflicts(at: conflicts) }
     }
 
@@ -98,7 +99,10 @@ final class RoomStore {
             let failures = await Task.detached(priority: .utility) { () -> [(URL, Error)] in
                 var failed: [(URL, Error)] = []
                 for url in urls {
-                    do { try ConflictResolver.resolve(packageAt: url, suffix: suffix) } catch { failed.append((url, error)) }
+                    do {
+                        if url.pathExtension == FileLayout.packageExtension { try ConflictResolver.resolve(packageAt:url,suffix:suffix) }
+                        else { try ConflictResolver.resolveAdditional(at:url,suffix:suffix) }
+                    } catch { failed.append((url, error)) }
                 }
                 return failed
             }.value

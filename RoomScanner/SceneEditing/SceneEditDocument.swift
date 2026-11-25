@@ -179,6 +179,8 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     var sourceID: UUID
     var id: UUID { sourceID }
     var title: String
+    var revision: Int? = nil
+    var modifiedAt: Date? = nil
     /// Immutable shell snapshot: furniture edits never write to original scan packages.
     var shell: House
     var objects: [SceneEditObject]
@@ -397,7 +399,8 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         }
     }
     func validate() throws {
-        guard schemaVersion == 1,!title.isEmpty,title.count <= 240,objects.count <= 500,
+        guard (revision ?? 0) >= 0,modifiedAt?.timeIntervalSince1970.isFinite ?? true,
+              schemaVersion == 1,!title.isEmpty,title.count <= 240,objects.count <= 500,
               Set(objects.map(\.id)).count == objects.count,shell.allRooms.count <= 100,
               shell.allRooms.reduce(0,{ $0+$1.walls.count+$1.openings.count+$1.floorPolygon.count }) <= 20_000,
               [wallColor.x,wallColor.y,wallColor.z,floorColor.x,floorColor.y,floorColor.z].allSatisfy({ $0.isFinite && (0...1).contains($0) }) else { throw Failure.invalid }
@@ -576,10 +579,14 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
     }
     func undo() { guard let previous = undoStack.popLast() else { return }; redoStack.append(document); document = previous }
     func redo() { guard let next = redoStack.popLast() else { return }; undoStack.append(document); document = next }
-    func markSaved() { saved = document }
+    func markSaved(_ committed: SceneEditDocument? = nil) { if let committed { document = committed }; saved = document }
 }
 
 enum SceneEditStore {
+    struct Conflict: LocalizedError {
+        let copy: URL
+        var errorDescription: String? { AppLanguage.text("studio.conflict.saved")+"\n"+copy.path }
+    }
     static func url(root: URL,source: SceneEditDocument.Source,id: UUID) -> URL {
         root.appendingPathComponent("SceneEdits",isDirectory: true).appendingPathComponent(source.rawValue+"-"+id.uuidString+".json")
     }
@@ -593,15 +600,33 @@ enum SceneEditStore {
             try document.validate(); return document
         }
     }
-    static func write(_ document: SceneEditDocument,to url: URL) throws {
+    @discardableResult static func write(_ document: SceneEditDocument,to url: URL) throws -> SceneEditDocument {
         try document.validate()
+        var committed = document
+        guard (document.revision ?? 0) >= 0,(document.revision ?? 0) < Int.max else { throw SceneEditDocument.Failure.invalid }
+        committed.revision = (document.revision ?? 0)+1; committed.modifiedAt = Date()
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted,.sortedKeys]
-        let data = try encoder.encode(document)
+        let data = try encoder.encode(committed)
         guard data.count <= 12*1_048_576 else { throw SceneEditDocument.Failure.oversized }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),withIntermediateDirectories: true)
         try RoomPackage.coordinatedWrite(at: url,options: .forReplacing) { file in
             guard (try? file.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true else { throw SceneEditDocument.Failure.invalid }
+            var latest: SceneEditDocument?
+            if FileManager.default.fileExists(atPath:file.path) {
+                let info = try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey])
+                guard info.isRegularFile == true,(info.fileSize ?? Int.max) <= 12*1_048_576 else { throw SceneEditDocument.Failure.oversized }
+                latest = try JSONDecoder().decode(SceneEditDocument.self,from:Data(contentsOf:file))
+                try latest?.validate()
+            }
+            if (latest?.revision ?? 0) != (document.revision ?? 0) || latest?.modifiedAt != document.modifiedAt {
+                var copy = document; copy.sourceID = UUID(); copy.revision = nil; copy.modifiedAt = nil
+                copy.title = String(document.title.prefix(200))+" "+AppLanguage.text("cloud.conflictSuffix")
+                let destination = Self.url(root:file.deletingLastPathComponent().deletingLastPathComponent(),source:copy.source,id:copy.sourceID)
+                try encoder.encode(copy).write(to:destination,options:.atomic)
+                throw Conflict(copy:destination)
+            }
             try data.write(to: file,options: .atomic)
         }
+        return committed
     }
 }

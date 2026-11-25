@@ -9,6 +9,6 @@ struct DesignRef: Hashable, Identifiable {
     var id: String { source.rawValue+"-"+sourceID.uuidString }
     init(_ document: SceneEditDocument, modifiedAt: Date? = nil) {
         source = document.source; sourceID = document.sourceID
-        title = document.title; self.modifiedAt = modifiedAt
+        title = document.title; self.modifiedAt = document.modifiedAt ?? modifiedAt
     }
 }
