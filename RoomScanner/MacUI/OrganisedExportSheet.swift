@@ -169,7 +169,7 @@ struct OrganisedExportSheet: View {
 
         isExporting = true
         progress = 0.05
-        progressStatus = "Preparing…"
+        progressStatus = AppLanguage.text("Preparing…")
 
         exportTask = Task { @MainActor in
             defer { isExporting = false; exportTask = nil }

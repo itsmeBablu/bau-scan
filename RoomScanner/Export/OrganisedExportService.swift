@@ -66,7 +66,7 @@ enum OrganisedExportService {
         try Task.checkCancellation()
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
 
-        progressHandler?(0.05, "Building declarative layout…")
+        progressHandler?(0.05, AppLanguage.text("Building declarative layout…",locale:options.locale))
 
         // 1. Gather photo assets and determine structure
         let packageURL = subject.sourcePackageURL
@@ -254,7 +254,7 @@ enum OrganisedExportService {
         for (i, row) in table.enumerated() {
             try Task.checkCancellation()
             let progress = 0.1 + (Double(i) / max(total, 1)) * 0.75
-            progressHandler?(progress, "Exporting \(row.filename)…")
+            progressHandler?(progress, AppLanguage.format("Exporting %@…",[row.filename],locale:options.locale))
             let folderURL = root.appendingPathComponent(row.relativeFolder, isDirectory: true)
             try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
             let fileURL = folderURL.appendingPathComponent(row.filename)
@@ -278,7 +278,7 @@ enum OrganisedExportService {
         try readmeText.data(using: .utf8)?.write(to: root.appendingPathComponent("README.txt"))
 
         // 8. ZIP compression
-        progressHandler?(0.90, "Compressing ZIP archive…")
+        progressHandler?(0.90, AppLanguage.text("Compressing ZIP archive…",locale:options.locale))
         let archive = stagingDir.appendingPathComponent("completed.zip")
         try Task.checkCancellation()
         try ArchiveExporter.zip(directory:root,to:archive)
@@ -288,7 +288,7 @@ enum OrganisedExportService {
         try FileManager.default.copyItem(at:archive,to:staged)
         try Task.checkCancellation()
         try RoomPackage.coordinatedWrite(at:destinationURL,options:.forReplacing) { try PackageReplacement.commit(staged,to:$0) }
-        progressHandler?(1.0, "Export completed.")
+        progressHandler?(1.0, AppLanguage.text("Export completed.",locale:options.locale))
     }
 
     private static func buildReadme(subject: ExportSubject, options: Options, manifest: Manifest) -> String {
