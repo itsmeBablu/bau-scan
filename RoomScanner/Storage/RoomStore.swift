@@ -158,20 +158,9 @@ final class RoomStore {
         var record = try HousePackage.readRecord(from: url)
         let dest = location.housePackageURL(for: record.id)
         if FileManager.default.fileExists(atPath: dest.path) {
-            var house = try HousePackage.readHouse(from: url)
-            record.id = UUID(); record.name += " " + AppLanguage.text("cloud.importedSuffix"); house.id = record.id; house.name = record.name
-            let rooms = try HousePackage.roomPackageURLs(in: url).map { try RoomPackage.read(from: $0) }
-            var package = HousePackage(record: record, house: house, structure: try HousePackage.readStructure(from: url), capturedStructureData: nil,
-                                       rooms: rooms, usdzData: HousePackage.usdzURL(in: url).flatMap { try? Data(contentsOf: $0) },
-                                       thumbnailPNG: HousePackage.thumbnailURL(in: url).flatMap { try? Data(contentsOf: $0) })
-            if var radiators = try HousePackage.readRadiators(from: url) {
-                radiators.houseID = record.id
-                package.radiators = radiators
-            }
-            let photos = try SurveyPhotoStore.readCoordinated(from:url)
-            package.surveyPhotos = photos.photos
-            package.surveyPhotoAssets = photos.assets
-            try package.write(to: location.housePackageURL(for: record.id))
+            let newID = UUID()
+            record = try HouseImportCopy.write(from:url,to:location.housePackageURL(for:newID),
+                name:record.name+" "+AppLanguage.text("cloud.importedSuffix"))
         } else {
             try RoomPackage.coordinatedWrite(at: dest, options: .forReplacing) { target in
                 try FileManager.default.copyItem(at: url, to: target)
