@@ -1,0 +1,83 @@
+name: Build unsigned Mac application
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-unsigned-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Generate project and log toolchain
+        run: |
+          set -euo pipefail
+          mkdir -p build-logs
+          {
+            git rev-parse HEAD
+            sw_vers
+            xcodebuild -version
+            swift --version
+            command -v xcodegen || brew install xcodegen
+            xcodegen --version
+            xcodegen generate
+          } 2>&1 | tee build-logs/generate.log
+      - name: Build universal unsigned Release application
+        run: |
+          set -euo pipefail
+          xcodebuild -project RoomScanner.xcodeproj -scheme RoomScannerMac \
+            -configuration Release -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/derived-data" \
+            ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build \
+            2>&1 | tee build-logs/build.log
+      - name: Package ZIP and DMG with build evidence
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/derived-data/Build/Products/Release/dWalkScan.app"
+          dist="$RUNNER_TEMP/mac-distribution"
+          mkdir -p "$dist"
+          {
+            test -x "$app/Contents/MacOS/dWalkScan"
+            architectures="$(xcrun lipo -archs "$app/Contents/MacOS/dWalkScan")"
+            printf '%s\n' "$architectures" | grep -q arm64
+            printf '%s\n' "$architectures" | grep -q x86_64
+            version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
+            printf 'Commit: %s\nVersion: %s\nConfiguration: Release\nArchitectures: %s\nSigning: unsigned, not notarized\n' \
+              "$(git rev-parse HEAD)" "$version" "$architectures" > "$dist/build-info.txt"
+            printf '%s\n' 'Unsigned developer test build. Signing, notarization, Gatekeeper, updates and installation are unverified. Do not replace your only library backup. No engineering accuracy or standards compliance is claimed.' > "$dist/INSTALLATION.txt"
+            ditto "$app" "$dist/dWalkScan.app"
+            ditto -c -k --keepParent "$dist/dWalkScan.app" "$RUNNER_TEMP/dWalkScan-macOS-unsigned.zip"
+            unzip -tq "$RUNNER_TEMP/dWalkScan-macOS-unsigned.zip"
+            hdiutil create -volname 'dWalkScan unsigned' -srcfolder "$dist" -ov -format UDZO "$RUNNER_TEMP/dWalkScan-macOS-unsigned.dmg"
+            hdiutil verify "$RUNNER_TEMP/dWalkScan-macOS-unsigned.dmg"
+            cp "$dist/build-info.txt" "$dist/INSTALLATION.txt" build-logs/
+            (cd "$RUNNER_TEMP" && shasum -a 256 dWalkScan-macOS-unsigned.zip dWalkScan-macOS-unsigned.dmg) > build-logs/SHA256SUMS.txt
+          } 2>&1 | tee build-logs/package.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dWalkScan-macOS-unsigned-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/dWalkScan-macOS-unsigned.zip
+            ${{ runner.temp }}/dWalkScan-macOS-unsigned.dmg
+            build-logs/build-info.txt
+            build-logs/INSTALLATION.txt
+            build-logs/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dWalkScan-macOS-build-logs-${{ github.sha }}
+          path: build-logs/
+          retention-days: 3

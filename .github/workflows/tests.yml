@@ -83,5 +83,6 @@ jobs:
         with:
           node-version: '22'
       - run: node Scripts/audit_localization.js --strict
+      - run: node --test Scripts/test_json_unique_keys.js
       - run: python -m pip install -r services/technical-google-ai/requirements-dev.txt
       - run: python -m pytest services/technical-google-ai -q
