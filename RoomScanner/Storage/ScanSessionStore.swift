@@ -119,6 +119,40 @@ actor ScanSessionStore {
         guard let entry = try entries(id).last(where:{ $0.key == key }) else { return nil }
         return try Data(contentsOf:directory(id).appendingPathComponent(entry.path))
     }
+    struct LatestValue: Codable { let key:String; let data:Data; let metadata:[String:String] }
+    func writeLatest(_ id:UUID,key:String,data:Data,metadata:[String:String] = [:]) throws {
+        var session = try read(id)
+        guard session.state != .completed,key.count <= 100,!key.isEmpty,
+              key.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }),
+              data.count <= 64*1_048_576 else { throw CocoaError(.fileWriteNoPermission) }
+        let folder = directory(id).appendingPathComponent("latest")
+        try check(folder); try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        try atomic(JSONEncoder().encode(LatestValue(key:key,data:data,metadata:metadata)),to:folder.appendingPathComponent(key+".json"))
+        session.updated = Date(); try manifest(session)
+    }
+    func latestValues(_ id:UUID,prefix:String) throws -> [LatestValue] {
+        _ = try read(id)
+        let folder = directory(id).appendingPathComponent("latest")
+        guard FileManager.default.fileExists(atPath:folder.path) else { return [] }
+        try check(folder)
+        var names = Set(try FileManager.default.contentsOfDirectory(at:folder,includingPropertiesForKeys:nil).compactMap { url -> String? in
+            let name = url.lastPathComponent
+            if name.hasPrefix("."),name.hasSuffix(".package-backup") { return String(name.dropFirst().dropLast(".package-backup".count)) }
+            return url.pathExtension == "json" ? name : nil
+        })
+        names = Set(names.filter { $0.hasPrefix(prefix) })
+        return try names.sorted().map { name in
+            let url = folder.appendingPathComponent(name); try check(url); try PackageReplacement.recover(url)
+            let bytes = try SafePackageRead.data(url,root:folder,maximum:90*1_048_576)
+            let value = try JSONDecoder().decode(LatestValue.self,from:bytes)
+            guard name == value.key+".json" else { throw CocoaError(.fileReadCorruptFile) }
+            return value
+        }
+    }
+    func payload(_ id:UUID,entry:Entry) throws -> Data {
+        guard try entries(id).contains(entry) else { throw CocoaError(.fileReadNoPermission) }
+        return try Data(contentsOf:directory(id).appendingPathComponent(entry.path))
+    }
     func unfinished() throws -> [ScanSession] {
         guard FileManager.default.fileExists(atPath:root.path) else { return [] }
         return try FileManager.default.contentsOfDirectory(at:root,includingPropertiesForKeys:nil,options:.skipsHiddenFiles).compactMap { url in

@@ -9,6 +9,7 @@ struct HouseRecord: Codable, Equatable, Identifiable, Hashable {
     var roomCount: Int
     var storyCount: Int
     var areaM2: Double
+    var incomplete: Bool? = nil
     var schemaVersion: Int
 
     init(id: UUID, name: String, createdAt: Date = Date(), roomCount: Int, storyCount: Int, areaM2: Double, schemaVersion: Int = FloorPlan.schemaVersion) {

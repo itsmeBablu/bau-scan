@@ -11,7 +11,7 @@ import AVFoundation
 @MainActor
 final class ScanCoordinator {
     enum State: Equatable {
-        case idle, scanning, processing
+        case idle, scanning, processing, roomSaved
         case finished(ScanResult)
         /// House mode: alignment in progress.
         case merging
@@ -48,7 +48,9 @@ final class ScanCoordinator {
     static let radiatorPreferenceKey = "houseScan.detectRadiators"
     let detectsRadiators: Bool
     /// Rooms captured in house mode (shared world coordinate space).
-    private(set) var capturedRooms: [CapturedRoom] = []
+    var persistence: CapturePersistence?
+    private var finishingHouse = false
+    private var trackingStarted = false
     let arSession: ARSession
     let captureView: RoomCaptureView
     /// `RoomCaptureViewDelegate` requires `NSCoding`: carried by dedicated helper object.
@@ -93,7 +95,8 @@ final class ScanCoordinator {
     private func run() {
         cameraDiagnostic = nil
         guard active else { return }
-        if mode == .house {
+        if mode == .house && !trackingStarted {
+            trackingStarted = true
             // Configure the shared session before RoomPlan starts. Never rerun it
             // from the passive radiator observer while RoomPlan is capturing.
             let tracking = ARWorldTrackingConfiguration()
@@ -118,22 +121,36 @@ final class ScanCoordinator {
     /// User completes room: RoomPlan post-processes and calls `didPresent`.
     /// In house mode, `ARSession` remains active for next room.
     func finish() {
-        guard state == .scanning else { return }
+        guard state == .scanning || state == .roomSaved else { return }
+        finishingHouse = true
+        if state == .roomSaved { state = .processing; finishHouse(); return }
         state = .processing
         if mode == .house { captureView.captureSession.stop(pauseARSession: false) } else { captureView.captureSession.stop() }
     }
 
-    /// House mode: merges captured rooms (`StructureBuilder`) and prepares result.
+    func roomDone() {
+        guard mode == .house,state == .scanning else { return }
+        finishingHouse = false; state = .processing
+        captureView.captureSession.stop(pauseARSession:false)
+    }
+    func nextRoom() { guard active,state == .roomSaved else { return }; run() }
+    func retryFinish() { guard mode == .house,active else { return }; finishingHouse = true; state = .processing; finishHouse() }
+
     private func finishHouse() {
-        guard mode == .house, state == .processing, !capturedRooms.isEmpty else { return }
+        guard mode == .house,state == .processing,let persistence else { return }
         state = .merging
-        captureView.captureSession.stop()
-        let rooms = capturedRooms
         Task { [weak self] in
             do {
-                let structure = try await StructureBuilder(options: [.beautifyObjects]).capturedStructure(from: rooms)
-                self?.receive(structure: structure)
+                await persistence.state(.finalizing)
+                let saved = try await persistence.rooms().filter { !$0.partial }
+                guard !saved.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
+                let rooms = try await Task.detached(priority:.userInitiated) {
+                    try saved.map { try JSONDecoder().decode(CapturedRoom.self,from:$0.raw) }
+                }.value
+                let structure = try await StructureBuilder(options:[.beautifyObjects]).capturedStructure(from:rooms)
+                self?.receive(structure:structure)
             } catch {
+                await persistence.state(.failed)
                 if self?.active == true { self?.state = .failed(.scanFailed(Self.describe(error))) }
             }
         }
@@ -167,10 +184,19 @@ final class ScanCoordinator {
         guard state == .processing else { return }
         guard let room else { state = .failed(.scanFailed("no result")); return }
         if mode == .house {
-            capturedRooms.append(room)
-            // The user walks through the connected space in one capture and finishes once.
-            // Keep the existing StructureBuilder/package pipeline, without an intermediate prompt.
-            finishHouse()
+            guard let persistence else { state = .failed(.storageFailed("Missing scan session")); return }
+            Task { [weak self] in
+                do {
+                    let value = try await Task.detached(priority:.utility) {
+                        let scan = CapturedRoomAdapter.scanInput(from:room)
+                        return try PersistedRoom(scan:scan,raw:CapturedRoomAdapter.encode(room),partial:false,
+                            thumbnail:PlanRenderer.thumbnailPNG(for:FloorPlanBuilder().build(from:scan,name:"")))
+                    }.value
+                    try await persistence.room(value)
+                    guard let self,self.active else { return }
+                    if self.finishingHouse { self.finishHouse() } else { self.state = .roomSaved }
+                } catch { self?.state = .failed(.storageFailed(error.localizedDescription)) }
+            }
             return
         }
         do {
@@ -188,12 +214,11 @@ final class ScanCoordinator {
         guard active else { return }
         do {
             let data = try CapturedStructureAdapter.encode(structure)
-            let usdz = try? CapturedStructureAdapter.usdzData(for: structure)
+            let usdz: Data? = nil // Optional exports are generated from saved geometry on demand.
             var rooms: [UUID: HouseScanResult.RoomCapture] = [:]
             for room in structure.rooms {
                 rooms[room.identifier] = HouseScanResult.RoomCapture(capturedRoomData: try CapturedRoomAdapter.encode(room),
-                                                                     usdzData: try? CapturedRoomAdapter.usdzData(for: room),
-                                                                     usdzMeshData: try? CapturedRoomAdapter.usdzData(for: room, options: .mesh))
+                                                                     usdzData: nil, usdzMeshData: nil)
             }
             let input = CapturedStructureAdapter.structureInput(from: structure)
             state = .finishedHouse(HouseScanResult(structure: input, capturedStructureData: data, usdzData: usdz, rooms: rooms))
