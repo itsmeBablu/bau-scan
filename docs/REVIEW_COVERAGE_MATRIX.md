@@ -2,6 +2,11 @@
 
 Inventory is not equivalent to a complete code review. Phase 0 reviews build/configuration and automated test execution; later phases are NOT STARTED.
 
+Current evidence: service 13 tests PASSED locally, strict localization PASSED,
+six plist-family files parsed. Both Apple targets and all feature-level validation
+remain UNVERIFIED/BLOCKED after the user requested local-only work. Table statuses
+below describe inventory/review scope, not passing Swift tests.
+
 | Component | Tracked files | Phase 0 review | Functional verification |
 |---|---:|---|---|
 | `(root)` | 7 | Build/configuration inspected | UNVERIFIED pending exact-commit CI |
