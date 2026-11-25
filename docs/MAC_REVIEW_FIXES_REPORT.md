@@ -3,11 +3,30 @@
 Branch: `codex/mac-review-fixes`, based on `feat/mac-studio-editor`.
 No push or merge was performed. AR Notes remains in its separate worktree.
 
-Fixes 1–12 were confirmed in the starting source and implemented in separate commits. None of these twelve findings was already fixed. All Swift tests below are written but UNRUN; both Xcode scheme builds are NOT VERIFIED.
+Fixes 1–15 were confirmed in the starting source and implemented in separate commits. None of findings 1–15 was already fixed. All Swift tests below are written but UNRUN; both Xcode scheme builds are NOT VERIFIED.
 
-## Stop condition
+## Current review boundary
 
-Fix 13 is confirmed at `RoomScanner/Domain/HouseBuilder.swift:14`. Changing `build` to throw requires propagating that error through `HousePackage.assemble` and its capture caller in `RoomScanner/Scan/ScanView.swift:202`. The request explicitly says to STOP if a fix touches scanning code. No scanning code or HouseBuilder changes were made. Fixes 13–23 remain pending and have not been represented as completed.
+The user approved continuing at fix 13. Duplicate-ID error propagation through the
+capture save caller is now implemented. No AR session/lifecycle configuration changed.
+
+Fix 16 has three remaining concerns: splitting Studio export between main-actor
+SceneKit work and worker preparation/file work; progress/cancellation; and estimated
+undo-memory budgets. The gesture-grouping finding is already handled by
+`StudioSceneController.endDrag`: only completion invokes onMove/onRotate.
+
+The remaining fix 16 implementation is estimated at 190–230 changed lines including
+UI, exporter integration and regression tests. The original request says **STOP and
+report if a fix needs more than about 150 lines**. No fix 16 code was changed.
+Suggested separately reviewable substeps:
+
+1. "16a": Foundation estimated undo-memory budget and its tests (about 40–60 lines).
+2. "16b": exporter preparation/file pipeline, retaining SceneKit-only work on main
+   (about 90–120 lines).
+3. "16c": progress, Cancel, cancellation cleanup and tests (about 60–80 lines).
+
+Mac profiling cannot be performed here. No responsiveness, memory or cancellation
+performance claim is made. Fixes 16–23 remain pending.
 
 ## Per-fix changes
 
@@ -183,7 +202,7 @@ Tests: StudioFloorPlacementTests: L/U concavity, different floor extents and rot
 - Python unittest discovery under Scripts: ZERO TESTS FOUND on this branch; no tests passed from this command.
 - `python -m pytest services/technical-google-ai -q`: could not run, pytest is not installed. No dependencies were installed.
 - `xcodegen generate` and both `xcodebuild ... test` commands: command not found on Windows. Neither app has been built here.
-- Diff checks confirmed no capture-source or Technical Room v1 schema/model edits. No new dependency was added.
+- Fixes 1–12 did not edit capture sources. Fix 13 adds try to the capture save caller; no AR configuration/session code or Technical Room v1 schema/model changed. No new dependency was added.
 
 ## Limitations and review notes
 
@@ -191,4 +210,56 @@ Tests: StudioFloorPlacementTests: L/U concavity, different floor extents and rot
 - SceneEdit revision and modifiedAt are optional. Legacy files decode without them. A stale editor keeps the current file and writes a new independently identified conflict design with a suffixed title; raw source packages are untouched. Such a standalone copy retains its shell snapshot but does not gain a new physical scan package. Cloud house/design conflicts preserve the current version and copy unresolved versions rather than silently replacing current edits.
 - Duplicate import uses one UUID map for house/structure identity, room identities, photo IDs/paths and matching neutral JSON references (including radiator room/house links). Binary/unknown assets and opaque room.json/structure-apple.json captures remain byte-for-byte evidence with original Apple IDs; raw evidence is not rewritten.
 - Project deletion rolls back pre-commit moves on errors. Post-commit purge is best effort; sibling `.privacy-trash-<transaction>-<original-name>` items may remain for manual recovery. Process-crash transaction recovery still needs device/Mac validation.
-- The safe-read hardening (14), migration retry (15), export performance/undo grouping (16), explicit technical export links (17), streaming/cancel (18), manifest checksums (19), window paths (20), localization gaps (21), service cache concurrency (22), and PR CI (23) remain pending.
+- The export performance/undo-memory work (16), explicit technical export links (17), streaming/cancel (18), manifest checksums (19), window paths (20), localization gaps (21), service cache concurrency (22), and PR CI (23) remain pending.
+
+## Continued fixes 13–15
+
+### 13. fix(house): reject duplicate room identities with a typed error
+
+Commit `582bf5e`: **+42 / −31 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `RoomScanner/Domain/HouseBuilder.swift` | 7 | 2 |
+| `RoomScanner/Scan/ScanView.swift` | 1 | 1 |
+| `RoomScanner/Storage/HousePackage.swift` | 2 | 2 |
+| `RoomScanner/Storage/RoomStore.swift` | 1 | 1 |
+| `RoomScannerTests/HouseBuilderTests.swift` | 15 | 9 |
+| `RoomScannerTests/HousePackageTests.swift` | 2 | 2 |
+| `RoomScannerTests/HouseRadiatorTests.swift` | 3 | 3 |
+| `RoomScannerTests/LevelExportTests.swift` | 2 | 2 |
+| `RoomScannerTests/ProjectReportTests.swift` | 1 | 1 |
+| `RoomScannerTests/RealHouseTests.swift` | 3 | 3 |
+| `RoomScannerTests/RevitIFCExportTests.swift` | 1 | 1 |
+| `RoomScannerTests/SceneStudioTests.swift` | 4 | 4 |
+
+Tests: HouseBuilderTests duplicate IDs produce BuildError; existing fixtures/callers updated. Two nonthrowing fixture factories use try! for known-valid synthetic inputs only. No duplicate-key dictionary initializer remains in app sources. **UNRUN on Mac/iOS.**
+
+### 14. fix(storage): bound package reads and reject symlinks
+
+Commit `faa793c`: **+72 / −28 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `RoomScanner/Storage/HousePackage.swift` | 5 | 5 |
+| `RoomScanner/Storage/RoomPackage.swift` | 10 | 10 |
+| `RoomScanner/Storage/SafePackageRead.swift` | 35 | 0 |
+| `RoomScanner/Storage/SurveyPhotoStore.swift` | 2 | 6 |
+| `RoomScanner/Storage/TechnicalRoomPackage.swift` | 1 | 7 |
+| `RoomScannerTests/SafePackageReadTests.swift` | 19 | 0 |
+
+Tests: SafePackageReadTests: per-file size, entry/total budgets and internal symlinks. **UNRUN on Mac/iOS.**
+
+### 15. fix(storage): retry house migrations after failed writes
+
+Commit `12b1f7e`: **+37 / −6 lines**.
+
+| File | Added | Removed |
+|---|---:|---:|
+| `RoomScanner/Storage/RoomStore.swift` | 14 | 6 |
+| `RoomScannerTests/HouseMigrationRetryTests.swift` | 23 | 0 |
+
+Tests: HouseMigrationRetryTests: corrupt structure remains visible with lastError and retries after repair. Existing snapshot-only legacy houses update metadata after a successful write. **UNRUN on Mac/iOS.**
+
+
+Continuation validation: diff whitespace checks, plist parsing and Foundation-only imports passed. The strict localization audit still reports the same 20 baseline gaps. XcodeGen and both scheme test commands were attempted again and were unavailable on Windows. All added Swift tests remain unrun. Safe package limits are 10,000 entries, 1 GiB per package tree, 256 MiB per ordinary file, 1 MiB for meta.json, and existing tighter technical/photo limits. Oversized or symlink-bearing packages are rejected rather than partially loaded.
