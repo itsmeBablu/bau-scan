@@ -9,6 +9,7 @@ struct TechnicalRoomScanView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var scanner: TechnicalRoomScanCoordinator
+    @State private var persistence: CapturePersistence
     @AppStorage("technical.googleAI.enabled") private var googleAIEnabled = false
     @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
     @AppStorage("renovation.proDetails") private var proDetails = false
@@ -75,6 +76,10 @@ struct TechnicalRoomScanView: View {
                 _threshold = State(initialValue: String(checkpoint.thresholdMm))
             }
         }
+        if package == nil { _history = State(initialValue:TechnicalAnnotationHistory(room:.capturedShell(id:scanner.captureID,notes:""))) }
+        let disk = CapturePersistence(id:scanner.captureID,kind:.technical,projectID:voiceProjectID)
+        scanner.persistence = disk
+        _persistence = State(initialValue:disk)
         _scanner = State(initialValue: scanner)
         previousManifest = package?.manifest
         previousRecognition = package?.recognition ?? .init()
@@ -122,16 +127,14 @@ struct TechnicalRoomScanView: View {
                         }.font(.caption.weight(.medium)).padding(10)
                     }.scrollIndicators(.hidden).fixedSize(horizontal: false,vertical: true)
                         .background(.regularMaterial,in: Capsule()) }
+                    ScanSaveStatus(persistence:persistence)
                     HStack(spacing: 12) {
                         Button { showingControls.toggle() } label: {
                             Image(systemName: "slider.horizontal.3").frame(width: 44,height: 44)
                         }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
                             .accessibilityLabel("Survey tools")
-                        Button { showingVoiceNotes = true } label: {
-                            Image(systemName: "mic.fill").frame(width: 44,height: 44)
-                        }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
-                            .accessibilityLabel("Add voice note").accessibilityIdentifier("technical.addVoiceNote")
-                            .disabled(saving || !scanner.hasLiveFrames)
+                        Button { showingVoiceNotes = true } label: { Image(systemName:"mic.fill").frame(width:44,height:44) }
+                            .background(.regularMaterial,in:Circle()).disabled(saving || !scanner.hasLiveFrames)
                         Button { showMesh.toggle() } label: {
                             Image(systemName: showMesh ? "cube.fill" : "cube").frame(width: 44,height: 44)
                         }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
@@ -176,7 +179,8 @@ struct TechnicalRoomScanView: View {
         } message: { Text("Capture evidence and annotations are only retained after saving a .technicalroom package.") }
         .sheet(isPresented: $showingPipeTool) { pipeTool.presentationDetents([.medium, .large]).presentationBackgroundInteraction(.enabled(upThrough: .medium)) }
         .sheet(isPresented: $showingPipeReview) { pipeReview }
-        .onAppear { scanner.aiEvidenceEnabled = googleAIEnabled }
+        .onAppear { scanner.aiEvidenceEnabled = googleAIEnabled; scanner.persistedDocument = history.document }
+        .onReceive(NotificationCenter.default.publisher(for:UIApplication.didReceiveMemoryWarningNotification)) { _ in scanner.flushIncremental(force:true) }
         .onChange(of: googleAIEnabled) { _, enabled in
             scanner.aiEvidenceEnabled = enabled
         }
@@ -186,10 +190,14 @@ struct TechnicalRoomScanView: View {
                 .presentationDetents([.medium, .large]).presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .onChange(of: history.document) { _, document in
+            scanner.persistedDocument = document
             if let viewport { scanner.syncAnnotations(document, in: viewport) }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { scanner.interrupt() }
+            if phase != .active {
+                Task { await CaptureBackgroundFlush.run { await scanner.flushAndWait(); await persistence.state(.paused) } }
+                scanner.interrupt()
+            }
             else if !saving { scanner.resumeCameraAfterInterruption() }
         }
         .onChange(of: scanner.state.canAnnotate) { _, verified in
@@ -560,7 +568,10 @@ struct TechnicalRoomScanView: View {
             recognition: previousRecognition)
         Task { @MainActor in
             do {
+                await scanner.flushAndWait()
+                await persistence.state(.finalizing)
                 try await TechnicalRoomLibraryStore().save(package)
+                await persistence.complete()
                 saving = false; onSaved(package.manifest.id); dismiss()
             } catch { saving = false; message = "Capture retained in memory; retry Save. \(error.localizedDescription)" }
         }

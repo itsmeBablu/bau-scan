@@ -53,5 +53,7 @@ struct PersistedRoom: Codable {
         do { try await prepare(); try await store?.setState(id,value) }
         catch { failure = error.localizedDescription }
     }
+    func recordFailure(_ error:Error) { failure = error.localizedDescription }
+    func recordSaved(bytes:Int,milliseconds:Double) { savedAt = Date(); failure = nil; snapshotBytes = bytes; snapshotMilliseconds = milliseconds }
     func complete() async { await state(.finalizing); await state(.completed) }
 }

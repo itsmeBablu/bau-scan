@@ -12,6 +12,32 @@ import UIKit
 @MainActor
 final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDelegate {
     private(set) var captureID = UUID()
+    var persistence: CapturePersistence?
+    private let deltaWriter = TechnicalSessionDeltaWriter()
+    private var persistenceTask: Task<Void,Never>?
+    private var lastPersistence = -Double.infinity
+    private var persistableSnapshot: TechnicalMeshSnapshot?
+    var persistedDocument: TechnicalAnnotationDocument?
+    func flushIncremental(force:Bool = false) {
+        guard persistenceTask == nil,let persistence,let snapshot = persistableSnapshot,
+              force || (lastTimestamp ?? 0)-lastPersistence >= 15 else { return }
+        let activeIDs = Set(session.currentFrame?.anchors.compactMap { ($0 as? ARMeshAnchor)?.identifier } ?? [])
+        let journal = journal,alignment = alignment,document = persistedDocument
+        persistenceTask = Task { @MainActor [weak self] in
+            defer { self?.persistenceTask = nil }
+            do {
+                try await persistence.prepare()
+                guard let store = persistence.store else { throw CocoaError(.fileWriteUnknown) }
+                let start = Date()
+                let bytes = try await self?.deltaWriter.append(snapshot:snapshot,active:activeIDs,journal:journal,store:store,id:persistence.id) ?? 0
+                if let document { try await persistence.write(TechnicalSessionState(document:document,alignment:alignment),key:"technical-state") }
+                self?.lastPersistence = snapshot.timestamp
+                persistence.recordSaved(bytes:bytes,milliseconds:Date().timeIntervalSince(start)*1000)
+            } catch { persistence.recordFailure(error) }
+        }
+    }
+    func flushAndWait() async { await persistenceTask?.value; flushIncremental(force:true); await persistenceTask?.value }
+
     let session = ARSession()
     private(set) var state = TechnicalCaptureState()
     private(set) var errorMessage: String?
@@ -265,6 +291,8 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
             do {
                 guard var photo = copied else { throw TechnicalCaptureJournal.JournalError.invalidEvidence }
                 photo.userPhoto = true
+                guard let persistence = self.persistence else { throw CocoaError(.fileWriteUnknown) }
+                try await persistence.write(photo,key:"technical-photo-"+photo.id.uuidString,latest:false,media:true)
                 try self.evidence.append(photo)
                 self.photoCompleted += 1
                 self.evidenceMessage = "Photo saved locally at this camera position. Save the survey to keep it."
@@ -296,6 +324,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
                 self.evidenceMessage = "Low depth confidence. Try another angle on reflective surfaces."; return
             }
             do {
+                if let persistence = self.persistence { try await persistence.write(keyframe,key:"keyframe-"+keyframe.id.uuidString,latest:false,media:true) }
                 try self.evidence.append(keyframe)
                 self.lastEvidencePose = pose
                 self.evidenceMessage = "\(self.evidence.keyframes.count) colour/depth viewpoints retained. Include the sides and backs of visible equipment."
@@ -315,6 +344,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
                     let data = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true)
                     guard data.count <= 64 * 1_048_576 else { self.errorMessage = "Recovery map exceeds the 64 MiB retention limit."; return }
                     self.worldMapData = data
+                    if let persistence = self.persistence { Task { try? await persistence.write(data,key:"world-map") } }
                     self.recoveryAvailable = true
                     self.record(.recoverySaved, "Secure world map archived")
                 } catch { self.errorMessage = error.localizedDescription }
@@ -530,15 +560,15 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
                 let preview = TechnicalRoomMeshCollector.snapshot(frame:frame,alignmentVerified:false,
                     maximumVertices:mode.previewVertices,includeColors:false,maximumTriangles:mode.previewTriangles)
                 var colors = colors,meshes = meshes
-                if colorsDue {
-                    _ = meshes.merge(colors.merge(TechnicalRoomMeshCollector.snapshot(frame:frame,alignmentVerified:verified)))
-                }
-                return (preview,colors,meshes,Date().timeIntervalSince(start)*1000)
+                let persisted = colorsDue ? meshes.merge(colors.merge(TechnicalRoomMeshCollector.snapshot(frame:frame,alignmentVerified:verified))) : nil
+                return (preview,colors,meshes,Date().timeIntervalSince(start)*1000,persisted)
             }.value
             guard let self else { return }
             defer { self.meshTask = nil }
             guard self.generation == requestGeneration,self.active else { return }
             self.liveMeshSnapshot = result.0
+            if let snapshot = result.4 { self.persistableSnapshot = snapshot }
+            self.flushIncremental()
             self.previewVertexCount = result.0.patches.reduce(0){ $0+$1.vertices.count }
             self.sceneColors = result.1; self.sceneMesh = result.2
             self.meshProcessingMs = result.3
@@ -546,7 +576,7 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     }
 
     func sessionWasInterrupted(_ session: ARSession) {
-        guard active else { return }; invalidateAlignment(); record(.interrupted, "AR session interruption")
+        guard active else { return }; flushIncremental(force:true); invalidateAlignment(); record(.interrupted, "AR session interruption")
     }
     func sessionInterruptionEnded(_ session: ARSession) {
         guard active else { return }; invalidateAlignment(); record(.interrupted, "Interruption ended; restore map and verify checkpoint")
