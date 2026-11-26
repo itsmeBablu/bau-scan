@@ -43,7 +43,7 @@ struct TechnicalRoomLibraryView: View {
                     NavigationLink(value: record.id) {
                         HStack(spacing: 14) {
                             Image(systemName: "cube.transparent").font(.title2).foregroundStyle(.tint)
-                                .frame(width: 64,height: 64).background(.quaternary,in: RoundedRectangle(cornerRadius: 10))
+                                .frame(width: 64,height: 64).background(.quaternary,in: RoundedRectangle(cornerRadius: DS.Radius.thumbnail))
                             VStack(alignment: .leading,spacing: 4) {
                                 Text(record.name).font(.headline)
                                 Text(record.modifiedAt, format: .dateTime.day().month().year()).font(.subheadline).foregroundStyle(.secondary)
@@ -269,7 +269,7 @@ struct TechnicalStoredRoomView: View {
                     if current.evidence.droppedKeyframes > 0 { Text("\(current.evidence.droppedKeyframes) earlier viewpoints replaced within the image budget.").font(.caption) }
                     Text("\(current.alignment.checkpoints.count) checkpoint observations")
                     Text(current.worldMapData == nil ? "No saved world map" : "Recovery map retained")
-                    if current.journal.retentionLimited { Text("Some older capture records exceeded retention limits.").foregroundStyle(.orange) }
+                    if current.journal.retentionLimited { Text("Some older capture records exceeded retention limits.").foregroundStyle(DS.ColorToken.warning.color) }
                 }
                 }
                 Section("Pipes — manual dimensions") {
@@ -294,7 +294,7 @@ struct TechnicalStoredRoomView: View {
                 Section("Annotations") {
                     Text("\(current.document.ducts.count) duct routes · \(current.document.room.fittings.count) fittings · \(current.document.connections.count) connections")
                     ForEach(current.document.measurements) { measurement in Text("\(measurement.name): \(current.document.correctedLength(measurement.length), specifier: "%.3f") m") }
-                    ForEach(current.document.connectionWarnings, id: \.self) { Text($0).font(.caption).foregroundStyle(.orange) }
+                    ForEach(current.document.connectionWarnings, id: \.self) { Text($0).font(.caption).foregroundStyle(DS.ColorToken.warning.color) }
                 }
                 Section("Notes and photos") {
                     ForEach(Array(current.document.room.notes.enumerated()), id: \.offset) { _, note in Text(note.value) }

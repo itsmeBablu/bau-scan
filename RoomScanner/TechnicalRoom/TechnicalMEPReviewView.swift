@@ -209,7 +209,7 @@ private struct TechnicalMEPEditor: View {
                     TextField("End Y",value: $item.end.y,format: .number)
                     TextField("End Z",value: $item.end.z,format: .number)
                 }
-                if let error { Text(error).foregroundStyle(.red) }
+                if let error { Text(error).foregroundStyle(DS.ColorToken.error.color) }
             }
             .navigationTitle("Review MEP element")
             .toolbar {

@@ -43,7 +43,7 @@ struct TechnicalSurveyPhotoView: View {
                         }.disabled(busy)
                     }
                     if busy { ProgressView("Saving Google Photos copy…") }
-                    if let error { Text(error).font(.caption).foregroundStyle(.red) }
+                    if let error { Text(error).font(.caption).foregroundStyle(DS.ColorToken.error.color) }
                 }.padding()
             }
             .navigationTitle(number.map { "Photo \($0)" } ?? "Scan photo")

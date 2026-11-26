@@ -73,7 +73,7 @@ struct TechnicalSavedScanView: View {
                                 Button { closeImmersive?() } label: { Image(systemName: "xmark") }
                                     .accessibilityLabel("Close full-screen view")
                             }
-                        }.buttonStyle(.bordered).padding().background(.regularMaterial,in:Capsule()).padding()
+                        }.buttonStyle(.bordered).padding().dsMaterial(in:Capsule()).padding()
                     }
                 if !immersive {
                 HStack {
@@ -86,7 +86,7 @@ struct TechnicalSavedScanView: View {
                         .accessibilityLabel("Full-screen 3D scan").buttonStyle(.bordered)
                     Button { renderError = nil; resetID = UUID() } label: { Label("Reset view", systemImage: "scope") }
                         .labelStyle(.iconOnly).buttonStyle(.bordered)
-                }.padding(12).background(.regularMaterial)
+                }.padding(12).dsMaterial()
                 Text(snapshot.patches.contains(where: { $0.colors?.contains(where: { $0 != nil }) == true }) ? "Camera-sampled colours; unseen surfaces are grey. Device validation pending." : "No camera colours saved; showing grey geometry. Device validation pending.")
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal).padding(.vertical, 6)
                 if snapshot.truncated { Text("Partial mesh: capture limit reached.").font(.caption).foregroundStyle(.secondary) }

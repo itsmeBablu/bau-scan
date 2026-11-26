@@ -43,8 +43,8 @@ struct TechnicalAnnotationEditor: View {
             Form {
                 Text("Manual survey annotations · accuracy unknown · not yet saved")
                     .font(.caption).foregroundStyle(.secondary)
-                if !scanner.state.canAnnotate { Text("Alignment verification required before editing.").foregroundStyle(.orange) }
-                if let error { Text(error).foregroundStyle(.red) }
+                if !scanner.state.canAnnotate { Text("Alignment verification required before editing.").foregroundStyle(DS.ColorToken.warning.color) }
+                if let error { Text(error).foregroundStyle(DS.ColorToken.error.color) }
                 HStack {
                     Button("Undo") { history.undo() }.disabled(!history.canUndo)
                     Button("Redo") { history.redo() }.disabled(!history.canRedo)
@@ -353,8 +353,8 @@ private struct TechnicalPointHandle: View {
     let dropped: (CGPoint) -> Void
     @GestureState private var translation: CGSize = .zero
     var body: some View {
-        Text("\(index + 1)").font(.caption.bold()).foregroundStyle(.white)
-            .frame(width: 36, height: 36).background(.blue, in: Circle())
+        Text("\(index + 1)").font(.caption.bold()).foregroundStyle(DS.ColorToken.onAccent.color)
+            .frame(width: 36, height: 36).background(DS.ColorToken.info.color, in: Circle())
             .position(screen).offset(translation)
             .accessibilityLabel("Control point \(index + 1)")
             .gesture(DragGesture(coordinateSpace: .named("technicalCapture"))
