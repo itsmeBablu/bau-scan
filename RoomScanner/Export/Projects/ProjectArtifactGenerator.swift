@@ -5,17 +5,17 @@ enum ProjectArtifactGenerator {
     struct SourceChanged:LocalizedError {
         var errorDescription:String? { AppLanguage.text("Project sources changed while exporting. No new artifact was saved. Review the project and generate again.") }
     }
-    static func generate(kind:ProjectExportKind,project:RenovationProject,index:ProjectIndex,entries:[ProjectLibraryEntry],locale:Locale,unit:MeasurementUnit,includeDetails:Bool,wastePercent:Double,root:URL) async throws -> Result {
+    static func generate(kind:ProjectExportKind,project:RenovationProject,index:ProjectIndex,entries:[ProjectLibraryEntry],locale:Locale,unit:MeasurementUnit,includeDetails:Bool,wastePercent:Double,root:URL,includePhotos:Bool = true) async throws -> Result {
         let interval = PerformanceTrace.begin("ProjectExportGeneration")
         defer { interval.end() }
-        let request = try await ProjectExportRequest.make(project:project,index:index,entries:entries,kind:kind,locale:locale,unit:unit,includeDetails:includeDetails,wastePercent:wastePercent)
+        let request = try await ProjectExportRequest.make(project:project,index:index,entries:entries,kind:kind,locale:locale,unit:unit,includeDetails:includeDetails,wastePercent:wastePercent,includePhotos:includePhotos)
         try checkMetadata(request,root:root)
         if let existing = try ProjectArtifactIndex.lookup(request,root:root) { return Result(url:existing,reused:true) }
         let scratch = try ExportService.scratchDirectory(),file = scratch.appendingPathComponent(kind.fileStem+"."+kind.suffix)
         defer { try? FileManager.default.removeItem(at:scratch) }
         switch kind {
         case .report,.quantities:
-            let report = try ProjectReportLoader.load(project:project,entries:entries,locale:locale,pins:index.pins ?? [],checks:index.distanceChecks ?? [],wastePercent:wastePercent)
+            let report = try ProjectReportLoader.load(project:project,entries:entries,locale:locale,pins:index.pins ?? [],checks:index.distanceChecks ?? [],wastePercent:wastePercent,includePhotos:kind == .report && includePhotos)
             let data:Data
             if kind == .quantities { data = ProjectQuantitiesCSV.data(report,locale:locale) }
             else { data = try ProjectReportRenderer.pdf(report,locale:locale,unit:unit) }
@@ -23,10 +23,10 @@ enum ProjectArtifactGenerator {
         case .photos:
             try SurveyPhotoArchiveWriter.archive(project:project,entries:entries,locale:locale,to:file,organization:index.scanOrganization ?? [:])
         case .complete:
-            try await ProjectBundleExporter.write(project:project,index:index,entries:entries,locale:locale,to:file,includeDetails:includeDetails,unit:unit,wastePercent:wastePercent)
+            try await ProjectBundleExporter.write(project:project,index:index,entries:entries,locale:locale,to:file,includeDetails:includeDetails,unit:unit,wastePercent:wastePercent,includePhotos:includePhotos)
         }
         try Task.checkCancellation(); try checkMetadata(request,root:root)
-        let latest = try await ProjectExportRequest.make(project:project,index:index,entries:entries,kind:kind,locale:locale,unit:unit,includeDetails:includeDetails,wastePercent:wastePercent)
+        let latest = try await ProjectExportRequest.make(project:project,index:index,entries:entries,kind:kind,locale:locale,unit:unit,includeDetails:includeDetails,wastePercent:wastePercent,includePhotos:includePhotos)
         guard latest == request else { throw SourceChanged() }
         try checkMetadata(request,root:root)
         let sourceNames = project.references.filter { !$0.kind.rawValue.hasPrefix("design") }.compactMap { reference in entries.first { $0.reference == reference }?.title }

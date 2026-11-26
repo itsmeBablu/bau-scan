@@ -7,6 +7,7 @@ struct ExportSheet: View {
     @Environment(\.projectPreferences) private var projectPreferences
     @Environment(\.locale) private var locale
     @AppStorage("renovation.proDetails") private var proDetails = false
+    @AppStorage(PDFPhotoPolicy.preferenceKey) private var pdfPhotos = PDFPhotoPolicy.defaultValue
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     let subject: ExportSubject
@@ -61,6 +62,11 @@ struct ExportSheet: View {
                                 }
                             }
                         }
+                    }
+                    if !photoOnly && (selected == .pdf || selected == .zip) {
+                        Toggle("Include photos in PDF reports",isOn:$pdfPhotos)
+                            .disabled(working)
+                            .onChange(of:pdfPhotos) { _,_ in select(selected) }
                     }
                 }
                 .formStyle(.grouped)
@@ -157,6 +163,7 @@ struct ExportSheet: View {
         let subject = self.subject
         var service = ExportService(); service.meshSource = meshSource
         service.locale = locale
+        service.includePDFPhotos = pdfPhotos
         service.unit = ProjectPreferenceResolution.unit(projectPreferences,appDefault:service.unit)
         let configuredService = service
         runExport { try configuredService.export(subject,format:format) }

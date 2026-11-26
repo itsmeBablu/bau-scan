@@ -10,6 +10,7 @@ struct ExportService {
     var unit: MeasurementUnit = MeasurementUnit(rawValue: UserDefaults.standard.string(forKey: "measurementUnit") ?? "") ?? .both
     var pageSize = CGSize(width: 842, height: 595)  // A4 paysage, points
     var pngPixelScale: CGFloat = 3
+    var includePDFPhotos = UserDefaults.standard.object(forKey: PDFPhotoPolicy.preferenceKey) as? Bool ?? PDFPhotoPolicy.defaultValue
 
     enum ExportError: LocalizedError {
         case notAvailable(ExportFormat)
@@ -181,7 +182,11 @@ struct ExportService {
         case .obj where meshSource == .scan, .stl where meshSource == .scan, .ply where meshSource == .scan:
             guard let src = try DeferredCaptureExport.url(subject,mesh:true) else { throw ExportError.missingSource(FileLayout.PackageFile.usdzMesh) }
             try ModelIOConverter.convert(src, to: dest)
-        case .pdf, .png, .svg, .dxf, .json, .obj, .stl, .ply:
+        case .pdf:
+            let plan = try data(for: subject.house, format: .pdf, title: subject.name)
+            let sources = includePDFPhotos ? try subject.sourcePackageURL.map { try SurveyPhotoExportSource.list(from:$0,house:subject.house) } ?? [] : []
+            try PDFPhotoAppendix.append(to:plan,sources:sources,locale:locale).write(to:dest,options:.atomic)
+        case .png, .svg, .dxf, .json, .obj, .stl, .ply:
             try data(for: subject.house, format: format, title: subject.name).write(to: dest, options: .atomic)
         case .zip:
             try archive(subject, to: dest)

@@ -169,3 +169,14 @@ secrets before sharing; do not include the virtual environment or DerivedData.
 No Apple build, simulator test, physical-device validation, or performance
 measurement was performed on Windows for this handoff. This file is a plan,
 not evidence that any of those checks passed.
+
+## Latest local additions to verify
+
+The approved local pass also added height min/max columns to quantities CSV;
+host-centred window symbols in PDF/PNG/SVG/DXF; the PDF photo preference and
+appendix; and six Studio tile presets plus wall-aligned wood. Execute
+`ProjectReportTests`, `PDFPhotoAppendixTests`, `PlanOpeningPlacementTests`,
+`FloorPatternDirectionTests` and all existing exporter/Studio tests in both schemes.
+Check that the capture-persistence lifecycle test is iOS-only. See the dated
+`docs/QA_VALIDATION_REPORT.md` entries for exact limits and outstanding work.
+Do not overwrite unrelated branding/icon changes if the Mac checkout includes them.

@@ -300,11 +300,16 @@ enum StudioFloorSlab {
         }
         return path.normalized(using: .winding)
     }
-    @MainActor static func node(rooms: [FloorPlan],regions: [SceneEditDocument.FloorRegion],material: SCNMaterial,textureScale: Double) -> SCNNode? {
+    @MainActor static func node(rooms: [FloorPlan],regions: [SceneEditDocument.FloorRegion],material: SCNMaterial,textureScale: Double,patternAngle: Double = 0) -> SCNNode? {
         let root = SCNNode(); root.name = "shell:floor"
+        // Rotate the temporary path into wall-aligned texture space, then rotate
+        // its node back. The world-space floor outline remains exactly unchanged.
+        root.simdOrientation = simd_quatf(angle: Float(patternAngle), axis: SIMD3<Float>(0,1,0))
         var previousDepth = 0.0
         for depth in Set(rooms.map(\.displayFloorSlabThickness)).sorted() {
-            let path = outline(rooms: rooms,regions: regions,minimumDepth: depth)
+            let original = outline(rooms: rooms,regions: regions,minimumDepth: depth)
+            var alignment = CGAffineTransform(rotationAngle: -patternAngle)
+            guard let path = original.copy(using: &alignment) else { continue }
             guard !path.isEmpty else { continue }
             #if os(iOS)
             let bezier = UIBezierPath(cgPath: path); bezier.usesEvenOddFillRule = true

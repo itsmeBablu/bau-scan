@@ -23,6 +23,7 @@ final class CoreLifecycleTests: XCTestCase {
         XCTAssertNil(technicalReference)
     }
 
+    #if os(iOS)
     @MainActor func testCapturePersistenceReleasesAfterCheckpointWorkCompletes() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -33,6 +34,7 @@ final class CoreLifecycleTests: XCTestCase {
         persistence = nil
         XCTAssertNil(reference, "Completed checkpoint work must not retain its UI owner")
     }
+    #endif
 
     func testSessionActorReleasesAfterDurableWrite() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

@@ -863,3 +863,41 @@ regressions, style, Python service tests, plist syntax and whitespace passed;
 Apple schemes were explicitly BLOCKED. The runner's overall exit code was 1 for
 that missing Apple verification, not an all-green result. Final clean-commit local
 evidence is recorded separately below. No remote workflow was dispatched.
+
+## Requested deliverables and Studio follow-up — 2026-11-26
+
+Implemented locally after the stabilization parts:
+
+| Request | Changed code | Verification |
+| --- | --- | --- |
+| Room height in CSV/Excel data | `RenovationQuantities`, `ProjectQuantitiesCSV`: explicit min/max ceiling height in metres; numeric EN/DE cells and existing Excel UTF-8 BOM | One regression added; UNRUN. This is Excel-readable CSV, not a new XLSX writer |
+| Wall-aligned 2D windows | `PlanOpeningPlacement`, PlanRenderer/SVG/DXF: project window display onto resolved host centreline; preserve raw opening, width, sill and room dimensions; PDF/PNG also draw end jambs | Two geometry regressions added; UNRUN. Compared local Nov 23 commit `bda846a`; push time was not established from local history |
+| Optional PDF images | `PDFPhotoPolicy`, Settings, ExportSheet, ProjectDeliverablesView, ExportService, report loader/renderer/bundle/generator: explicit option, default on, separate photo ZIPs retained | Four PDF/identity regressions added; UNRUN. Room/house PDF appendix reads one JPEG at a time, caps 100 pages with a visible limit notice, preserves original plan media boxes |
+| More Studio tiles | Six color/size presets, deterministic tonal grain, existing undo/edit fields | Preset identifiers covered in floor tests; actual appearance UNVERIFIED |
+| Wood wall direction | `FloorPatternDirection`, StudioFloorSlab/SceneBuilder: per-floor longest-wall direction; rotate temporary texture-space path and restore world transform | Two floor/preset regressions added; UNRUN, including actual tessellated world bounds |
+
+No new persisted floor-finish enum cases or native scan fields were introduced.
+Presets populate existing floor color/finish/repeat values. Export request JSON keys
+and schemaVersion remain unchanged; generatorRevision advances to 2 and accepts
+legacy revision 1. The PDF-photo render option participates in the existing hashed
+request source/options fingerprint, preventing reuse across opposite photo choices.
+New CSV/window/PDF output is not silently treated as revision-1 output. Legacy saved
+exports remain untouched; no golden snapshots were regenerated.
+
+Ordinary report loading skips JPEG bytes when PDF photos are off, retaining photo
+metadata for task-pin references. Technical reports still use the existing complete
+package reader; no claim is made that every technical image buffer is avoided.
+The capture-persistence lifecycle test is now correctly iOS-conditional because
+macOS excludes `Scan/**`. This was a source-review correction, not a successful build.
+
+Production Swift +227/-31; tests +158/-0 for this checkpoint, excluding separate
+branding/AppTheme edits already present in the working tree. EN/DE localization
+(1380 keys), style, ten Node regressions and whitespace passed locally. Both Apple
+schemes, XcodeGen, all new Swift tests, PDF visual review, Studio textures and device
+capture remain UNVERIFIED / device validation pending. No pull/push performed.
+
+Remaining consolidation acceptance: execute both full schemes; capture performance
+baselines; run sanitizer/coverage/warning jobs; reviewed export goldens; comprehensive
+failure-injection and concurrency audit; live recorder/capture policies; common item
+actions/detail views; measured incremental Studio work; only then evidence-based
+optimization and verified unused-code cleanup. These are not reported finished.

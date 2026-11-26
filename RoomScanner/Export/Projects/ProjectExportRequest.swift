@@ -9,7 +9,7 @@ enum ProjectExportKind:String,Codable,CaseIterable,Identifiable {
 
 struct ProjectExportRequest:Codable,Equatable {
     var schemaVersion = 1
-    var generatorRevision = 1
+    var generatorRevision = 2
     let projectID:UUID
     let kind:ProjectExportKind
     let metadataDigest:String
@@ -23,13 +23,16 @@ struct ProjectExportRequest:Codable,Equatable {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]; return try encoder.encode(value)
     }
     func validate() throws {
-        guard schemaVersion == 1,generatorRevision == 1,locale.count <= 100,!locale.isEmpty,
+        guard schemaVersion == 1,(1...2).contains(generatorRevision),locale.count <= 100,!locale.isEmpty,
               wastePercent.isFinite,(0...100).contains(wastePercent),
               [metadataDigest,sourceRevision].allSatisfy({ $0.count == 64 && $0.allSatisfy(\.isHexDigit) }) else { throw CocoaError(.fileReadCorruptFile) }
     }
-    static func make(project:RenovationProject,index:ProjectIndex,entries:[ProjectLibraryEntry],kind:ProjectExportKind,locale:Locale,unit:MeasurementUnit,includeDetails:Bool,wastePercent:Double) async throws -> Self {
+    static func make(project:RenovationProject,index:ProjectIndex,entries:[ProjectLibraryEntry],kind:ProjectExportKind,locale:Locale,unit:MeasurementUnit,includeDetails:Bool,wastePercent:Double,includePhotos:Bool = true) async throws -> Self {
         let metadata = try metadata(project:project,index:index)
         var sources:[String:String] = [:]
+        // Render options participate in reuse identity without changing stored
+        // request keys or native package schemas. Legacy revision 1 still decodes.
+        if kind == .report || kind == .complete { sources["$render/pdfPhotos"] = includePhotos ? "included" : "excluded" }
         for reference in project.references.sorted(by:{ $0.id < $1.id }) {
             try Task.checkCancellation()
             guard let entry = entries.first(where:{ $0.reference == reference }),FileManager.default.fileExists(atPath:entry.url.path) else { sources[reference.id] = "unavailable"; continue }

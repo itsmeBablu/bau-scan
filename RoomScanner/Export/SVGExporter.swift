@@ -56,7 +56,7 @@ struct SVGExporter {
                 texts += "  <text x=\"\(mm(q.x - b.minX))\" y=\"\(mm(b.maxY - q.y))\" font-size=\"120\" fill=\"#272000\" text-anchor=\"middle\" dominant-baseline=\"middle\" transform=\"rotate(\(fmt(angle)) \(mm(q.x - b.minX)) \(mm(b.maxY - q.y)))\">\(esc(label))</text>\n"
             }
             for (index, o) in room.openings.enumerated() where !(hiddenDoors[room.id]?.contains(index) ?? false) {
-                let seg = o.segment
+                let seg = PlanOpeningPlacement.window(o,in:room,graph:graph).segment
                 let inward = side.inward(of: seg)
                 let outward = inward * -1
                 var angle = -(seg.angle + t.rotation) * 180 / .pi

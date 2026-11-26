@@ -10,15 +10,15 @@ enum ProjectBundleExporter {
         var records: [Record]
         var photos: [SurveyPhotoArchiveWriter.Entry]
     }
-    static func write(project: RenovationProject, index: ProjectIndex, entries: [ProjectLibraryEntry], locale: Locale, to destination: URL,includeDetails:Bool = false,unit:MeasurementUnit? = nil,wastePercent:Double? = nil) async throws {
+    static func write(project: RenovationProject, index: ProjectIndex, entries: [ProjectLibraryEntry], locale: Locale, to destination: URL,includeDetails:Bool = false,unit:MeasurementUnit? = nil,wastePercent:Double? = nil,includePhotos:Bool = true) async throws {
         let staging = FileManager.default.temporaryDirectory.appendingPathComponent("project-bundle-"+UUID().uuidString,isDirectory:true)
         let root = staging.appendingPathComponent(ArchivePath.component(project.name,fallback:"Project"),isDirectory:true)
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         defer { try? FileManager.default.removeItem(at:staging) }
-        try await files(project:project,index:index,entries:entries,locale:locale,in:root,includeDetails:includeDetails,unit:unit,wastePercent:wastePercent)
+        try await files(project:project,index:index,entries:entries,locale:locale,in:root,includeDetails:includeDetails,unit:unit,wastePercent:wastePercent,includePhotos:includePhotos)
         try ArchiveExporter.zip(directory:root,to:destination)
     }
-    static func files(project: RenovationProject, index: ProjectIndex, entries: [ProjectLibraryEntry], locale: Locale, in root: URL,includeDetails:Bool = false,unit:MeasurementUnit? = nil,wastePercent:Double? = nil) async throws {
+    static func files(project: RenovationProject, index: ProjectIndex, entries: [ProjectLibraryEntry], locale: Locale, in root: URL,includeDetails:Bool = false,unit:MeasurementUnit? = nil,wastePercent:Double? = nil,includePhotos:Bool = true) async throws {
         try index.validate()
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         if includeDetails,let details = project.details { try JSONEncoder().encode(details).write(to:root.appendingPathComponent("project-details.json"),options:.atomic) }
@@ -47,7 +47,7 @@ enum ProjectBundleExporter {
                     let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted,.sortedKeys]
                     try encoder.encode(document).write(to:folder.appendingPathComponent("editable-design.json"))
                     try document.engineeringCSV().write(to:folder.appendingPathComponent("engineering-register.csv"))
-                    var service = ExportService(); service.locale = locale; if let unit { service.unit = unit }
+                    var service = ExportService(); service.locale = locale; service.includePDFPhotos = includePhotos; if let unit { service.unit = unit }
                     try service.data(for:document.plan,format:.pdf,title:document.title).write(to:folder.appendingPathComponent("floor-plans.pdf"))
                     manifest.records.append(.init(sourceID:reference.id,path:base,status:"exported",detail:nil))
                     for story in document.shell.stories {
@@ -100,7 +100,7 @@ enum ProjectBundleExporter {
                         try ResolvedGeometryExporter.data(for:house,sourceID:reference.itemID)
                             .write(to:directory(base+"/Data").appendingPathComponent("resolved-geometry.json"))
                     }
-                    var service = ExportService(); service.locale = locale; if let unit { service.unit = unit }
+                    var service = ExportService(); service.locale = locale; service.includePDFPhotos = includePhotos; if let unit { service.unit = unit }
                     for format in ExportService.availableFormats(for:subject) where format != .zip {
                         let category = format.group == .twoD ? "Plans" : format.group == .threeD ? "Models" : "Data"
                         let path = base+"/"+category+"/"+ExportService.fileName(for:subject,format:format)
@@ -111,7 +111,7 @@ enum ProjectBundleExporter {
             }
         }
         let resolvedWaste = wastePercent ?? (UserDefaults.standard.object(forKey:"renovation.wastePercent") as? Double ?? 10)
-        let report = try ProjectReportLoader.load(project:project,entries:entries,locale:locale,pins:index.pins ?? [],checks:index.distanceChecks ?? [],wastePercent:resolvedWaste)
+        let report = try ProjectReportLoader.load(project:project,entries:entries,locale:locale,pins:index.pins ?? [],checks:index.distanceChecks ?? [],wastePercent:resolvedWaste,includePhotos:includePhotos)
         attempt(nil,path:"Reports/project-report.pdf") { try ProjectReportRenderer.pdf(report,locale:locale,unit:unit ?? .both).write(to:directory("Reports").appendingPathComponent("project-report.pdf")) }
         attempt(nil,path:"Quantities/quantities.csv") { try ProjectQuantitiesCSV.data(report,locale:locale).write(to:directory("Quantities").appendingPathComponent("quantities.csv")) }
         try project.notes.write(to:directory("Notes").appendingPathComponent("project-notes.txt"),atomically:true,encoding:.utf8)

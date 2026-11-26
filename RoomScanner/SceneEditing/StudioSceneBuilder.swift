@@ -26,7 +26,9 @@ import simd
         let wallMaterial = material(document.wallColor)
         var surfaces = StudioSurfaceDeduplicator()
         for level in Set(rooms.map(\.story)).sorted() {
-            if let floor = StudioFloorSlab.node(rooms: rooms.filter { $0.story == level },regions: document.floorRegions ?? [],material: floorMaterial,textureScale: repeatMetres) { scene.rootNode.addChildNode(floor) }
+            let levelRooms = rooms.filter { $0.story == level }
+            let angle = document.source != .technical && finish == .wood ? FloorPatternDirection.angle(rooms: levelRooms) : 0
+            if let floor = StudioFloorSlab.node(rooms: levelRooms,regions: document.floorRegions ?? [],material: floorMaterial,textureScale: repeatMetres,patternAngle: angle) { scene.rootNode.addChildNode(floor) }
         }
         var allVisibleWalls = Set<UUID>()
         var openings = StudioOpeningDeduplicator()
@@ -94,6 +96,13 @@ import simd
         guard let context = CGContext(data: nil,width: 512,height: 512,bitsPerComponent: 8,bytesPerRow: 2048,space: CGColorSpaceCreateDeviceRGB(),bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         if tile {
             context.setFillColor(CGColor(red: base.x,green: base.y,blue: base.z,alpha: 1)); context.fill(CGRect(x: 0,y: 0,width: 512,height: 512))
+            // Deterministic tonal grain, presentation only; no bitmap assets or
+            // randomness that would make exported scenes vary between renders.
+            for index in 0..<512 {
+                let x = (index * 137) % 512, y = (index * 293) % 512
+                context.setFillColor(CGColor(gray: index.isMultiple(of: 2) ? 1 : 0,alpha: 0.025))
+                context.fill(CGRect(x: x,y: y,width: 3,height: 3))
+            }
             context.setStrokeColor(CGColor(gray: 0.35,alpha: 0.3)); context.setLineWidth(5); context.stroke(CGRect(x: 0,y: 0,width: 512,height: 512))
             return context.makeImage()
         }

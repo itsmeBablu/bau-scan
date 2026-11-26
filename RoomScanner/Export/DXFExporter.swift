@@ -59,7 +59,7 @@ struct DXFExporter {
                 e.text(MeasurementFormat.length(wall.length, unit: unit, locale: locale), at: pos, angle: readable(seg.angle + t.rotation), height: textHeight, layer: .dimensions)
             }
             for (index, o) in room.openings.enumerated() where !(hiddenDoors[room.id]?.contains(index) ?? false) {
-                let seg = o.segment
+                let seg = PlanOpeningPlacement.window(o,in:room,graph:graph).segment
                 let inward = side.inward(of: seg)
                 let outward = inward * -1
                 let ang = readable(seg.angle + t.rotation)

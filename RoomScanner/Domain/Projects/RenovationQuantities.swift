@@ -8,6 +8,8 @@ struct RenovationQuantities: Equatable {
     var wallAreaGross: Double
     var wallAreaNet: Double
     var perimeter: Double
+    var heightMin: Double
+    var heightMax: Double
     var volumeMin: Double
     var volumeMax: Double
     var doors: Int
@@ -20,6 +22,8 @@ struct RenovationQuantities: Equatable {
         floorArea = Polygon2D.area(room.floorPolygon)
         ceilingProjectedArea = floorArea // horizontal projection; not sloping/actual ceiling surface
         perimeter = room.walls.reduce(0) { $0+$1.length }
+        heightMin = room.ceilingHeight.lowerBound
+        heightMax = room.ceilingHeight.upperBound
         volumeMin = floorArea*room.ceilingHeight.lowerBound
         volumeMax = floorArea*room.ceilingHeight.upperBound
         wallAreaGross = room.walls.reduce(0) { $0+$1.length*$1.height }

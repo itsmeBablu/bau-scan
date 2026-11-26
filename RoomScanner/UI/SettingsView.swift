@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Settings: iCloud Drive, 'dWalkScan' folder, measurements (mm / m), updates (Mac), about.
 struct SettingsView: View {
+    @AppStorage(PDFPhotoPolicy.preferenceKey) private var pdfPhotos = PDFPhotoPolicy.defaultValue
     var embedded = false
     var includesProfile = false
     @AppStorage(AppLanguage.preferenceKey) private var language = AppLanguage.system.rawValue
@@ -67,6 +68,10 @@ struct SettingsView: View {
                     Text("English").tag(AppLanguage.english.rawValue)
                     Text("Deutsch").tag(AppLanguage.german.rawValue)
                 }
+            }
+            Section("PDF reports") {
+                Toggle("Include photos in PDF reports", isOn: $pdfPhotos)
+                Text("Photo ZIP folders are exported separately, even when PDF photos are disabled.").font(.caption).foregroundStyle(.secondary)
             }
             Section { DisclosureGroup("Advanced") {
                 VoiceDiagnosticsView()

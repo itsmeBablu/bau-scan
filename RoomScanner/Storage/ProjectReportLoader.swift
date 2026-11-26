@@ -2,7 +2,7 @@ import Foundation
 
 enum ProjectReportLoader {
     /// Runs on a worker. Every referenced source remains read-only.
-    static func load(project: RenovationProject, entries: [ProjectLibraryEntry], locale: Locale, generatedAt: Date = Date(), pins: [ProjectPin] = [], checks: [ProjectDistanceCheck] = [], wastePercent: Double = 0) throws -> ProjectReport {
+    static func load(project: RenovationProject, entries: [ProjectLibraryEntry], locale: Locale, generatedAt: Date = Date(), pins: [ProjectPin] = [], checks: [ProjectDistanceCheck] = [], wastePercent: Double = 0, includePhotos: Bool = true) throws -> ProjectReport {
         var report = ProjectReport(name:project.name,generatedAt:generatedAt,notes:project.notes,scans:[],photos:[],unresolved:[])
         report.wastePercent = wastePercent.isFinite ? min(100,max(0,wastePercent)) : 0
         var photoIDs = Set<UUID>(), photoBytes = 0
@@ -36,17 +36,21 @@ enum ProjectReportLoader {
                         return AppLanguage.text("Duct",locale:locale)+" · "+MeasurementFormat.meters(package.document.correctedLength(length),locale:locale)
                     }
                     report.scans.append(.init(title:entry.title,house:nil,detailLines:lines))
-                    appendPhotos(SurveyPhotoStore.images(technical:package))
+                    if includePhotos { appendPhotos(SurveyPhotoStore.images(technical:package)) }
                 } else {
                     let house: House
                     if reference.kind == .house { house = try HousePackage.readHouse(from:entry.url) }
                     else { house = House(room:try RoomPackage.readPlan(from:entry.url)) }
                     let quantities = house.allRooms.flatMap { ProjectQuantitiesCSV.lines(RenovationQuantities($0),locale:locale,wastePercent:report.wastePercent) }
                     let sourcePins = pins.filter { $0.projectID == project.id && $0.reference == reference }
-                    let sourcePhotos = try SurveyPhotoStore.images(from:entry.url,house:house)
+                    let sourcePhotos = includePhotos ? try SurveyPhotoStore.images(from:entry.url,house:house) : []
+                    let photoMetadata = includePhotos ? [] : try SurveyPhotoExportSource.list(from:entry.url,roomNames:Dictionary(grouping:house.allRooms,by:\.id).mapValues { $0.first?.name ?? "" })
                     let pinNotes = sourcePins.map { pin in
                         let photo = sourcePhotos.first { $0.id == pin.photoID }
-                        return pin.text+" · "+AppLanguage.text(pin.status.rawValue,locale:locale)+(photo.map { " → "+$0.roomName+" · "+AppLanguage.text("Photo",locale:locale)+" \($0.photo.number)" } ?? "")
+                        let metadata = photoMetadata.first { $0.photo.id == pin.photoID }
+                        let reference = photo.map { " → "+$0.roomName+" · "+AppLanguage.text("Photo",locale:locale)+" \($0.photo.number)" }
+                            ?? metadata.map { " → "+$0.roomName+" · "+AppLanguage.text("Photo",locale:locale)+" \($0.photo.number)" } ?? ""
+                        return pin.text+" · "+AppLanguage.text(pin.status.rawValue,locale:locale)+reference
                     }
                     report.scans.append(.init(title:entry.title,house:house,detailLines:quantities+pinNotes,pins:sourcePins))
                     appendPhotos(sourcePhotos)

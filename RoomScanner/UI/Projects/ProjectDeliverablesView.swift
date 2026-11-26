@@ -11,6 +11,7 @@ struct ProjectDeliverablesView: View {
     @State private var records:[ProjectArtifactIndex.Record] = []
     @State private var busy = false
     @State private var includeDetails = false
+    @AppStorage(PDFPhotoPolicy.preferenceKey) private var pdfPhotos = PDFPhotoPolicy.defaultValue
     @State private var error: String?
     @State private var category = ProjectArtifactCategory.all
     @State private var output = ProjectExportKind.report
@@ -32,6 +33,7 @@ struct ProjectDeliverablesView: View {
             Section("Create a report") {
                 Picker("Output", selection: $output) { ForEach(ProjectExportKind.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) } }.disabled(busy)
                 if output == .complete { Toggle("Include project details in ZIP", isOn: $includeDetails).disabled(busy) }
+                if output == .report || output == .complete { Toggle("Include photos in PDF reports", isOn: $pdfPhotos).disabled(busy) }
                 Button("Generate or reuse", systemImage: "arrow.down.doc") { generate(output) }.disabled(busy)
                 if let generationMessage { Text(generationMessage).font(.caption).foregroundStyle(.secondary) }
                 if let generatedURL { ShareLink(item:generatedURL) { Label("Open or share export",systemImage:"square.and.arrow.up") } }
@@ -140,13 +142,13 @@ struct ProjectDeliverablesView: View {
     private func generate(_ kind:ProjectExportKind) {
         guard let project = workspace.project(projectID) else { return }
         let entries = workspace.entries.map { workspace.localizedEntry($0,locale:self.locale) }
-        let root = root,locale = locale,index = workspace.index,details = includeDetails
+        let root = root,locale = locale,index = workspace.index,details = includeDetails,photos = pdfPhotos
         let appUnit = MeasurementUnit(rawValue:UserDefaults.standard.string(forKey:"measurementUnit") ?? "") ?? .both
         let unit = ProjectPreferenceResolution.unit(projectPreferences,appDefault:appUnit)
         let rawWaste = UserDefaults.standard.object(forKey:"renovation.wastePercent") as? Double ?? 10
         let waste = rawWaste.isFinite ? min(100,max(0,rawWaste)) : 10
         runGeneration {
-            try await ProjectArtifactGenerator.generate(kind:kind,project:project,index:index,entries:entries,locale:locale,unit:unit,includeDetails:details,wastePercent:waste,root:root)
+            try await ProjectArtifactGenerator.generate(kind:kind,project:project,index:index,entries:entries,locale:locale,unit:unit,includeDetails:details,wastePercent:waste,root:root,includePhotos:photos)
         }
     }
 }

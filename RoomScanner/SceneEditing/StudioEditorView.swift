@@ -772,6 +772,18 @@ struct StudioEditorView: View {
                         Picker("Floor finish",selection: Binding(get: { session.document.floorFinish ?? .wood },set: { value in perform { try session.change { $0.floorFinish = value; $0.floorPatternSize = nil } } })) {
                             ForEach(SceneEditDocument.FloorFinish.allCases,id: \.self) { Text(AppLanguage.text($0.rawValue)).tag($0) }
                         }
+                        Menu("Tile presets") {
+                            ForEach(StudioFloorPresets.tiles) { tile in
+                                Button(AppLanguage.text(tile.name)) {
+                                    perform { try session.change {
+                                        $0.floorFinish = .tile; $0.floorColor = tile.color; $0.floorPatternSize = tile.repeatMetres
+                                    } }
+                                }
+                            }
+                        }
+                        if (session.document.floorFinish ?? .wood) == .wood {
+                            Text("Wood follows the longest wall on each floor.").font(.caption).foregroundStyle(.secondary)
+                        }
                         if session.document.floorFinish != .plain {
                             Stepper("Pattern repeat: \((session.document.floorPatternSize ?? (session.document.floorFinish == .tile ? 0.3 : 0.72)).formatted()) m",value: Binding(get: { session.document.floorPatternSize ?? (session.document.floorFinish == .tile ? 0.3 : 0.72) },set: { value in perform { try session.change { $0.floorPatternSize = value } } }),in: 0.1...2,step: 0.05)
                             Text("Presentation pattern only; not a measured tile or board size.").font(.caption).foregroundStyle(.secondary)

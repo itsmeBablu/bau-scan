@@ -277,7 +277,10 @@ struct PlanRenderer {
             for o in room.objects { drawObject(o, mapper: mapper, in: ctx) }
         }
         // Doors / windows / openings
-        for (index,o) in room.openings.enumerated() where !hiddenDoors.contains(index) { drawOpening(o,side:side,mapper:mapper,thickness:graph.hostThickness(roomID:room.id,openingID:o.id),in:ctx) }
+        for (index,o) in room.openings.enumerated() where !hiddenDoors.contains(index) {
+            drawOpening(PlanOpeningPlacement.window(o,in:room,graph:graph),side:side,mapper:mapper,
+                        thickness:graph.hostThickness(roomID:room.id,openingID:o.id),in:ctx)
+        }
         // Dimensions
         if options.showDimensions {
             for wall in room.walls { drawDimension(wall, side: side, mapper: mapper, in: ctx) }
@@ -361,6 +364,11 @@ struct PlanRenderer {
             let off = n * (thickness * 0.3)
             for d in [off, off * -1] {
                 ctx.move(to: mapper.point(seg.start + d)); ctx.addLine(to: mapper.point(seg.end + d))
+            }
+            // End jambs tie the glazing symbol to the resolved wall band.
+            for end in [seg.start, seg.end] {
+                ctx.move(to: mapper.point(end + n * (thickness / 2)))
+                ctx.addLine(to: mapper.point(end - n * (thickness / 2)))
             }
             ctx.strokePath()
         case .opening:
