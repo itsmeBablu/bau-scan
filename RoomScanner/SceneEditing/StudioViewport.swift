@@ -49,15 +49,30 @@ enum StudioCameraFraming {
             if let level = note.level,level != previousStory { continue }
             guard let p = note.viewingPosition else { continue }
             let node = iconNode(symbol:note.audioFileName == nil ? "mappin" : "mic.fill",name:"note:"+note.id.uuidString)
-            node.position = SCNVector3(p.x,p.y,p.z); noteRoot.addChildNode(node)
+            let height = note.audioFileName == nil ? 0.12 : 0.28
+            node.position = SCNVector3(p.x,p.y+height,p.z); noteRoot.addChildNode(node)
+            if let stem = annotationLine(from:p,to:.init(x:p.x,y:p.y+height,z:p.z)) { noteRoot.addChildNode(stem) }
+            if let camera = note.viewingCameraPosition,let ray = annotationLine(from:camera,to:p) { noteRoot.addChildNode(ray) }
         }
         view?.scene?.rootNode.addChildNode(noteRoot)
     }
     private func iconNode(symbol:String,name:String) -> SCNNode {
         let material = SCNMaterial(); material.lightingModel = .constant; material.isDoubleSided = true
+        material.readsFromDepthBuffer = false; material.writesToDepthBuffer = false
         material.diffuse.contents = AnnotationIcon.image(symbol)
         let node = SCNNode(geometry:SCNPlane(width:0.16,height:0.16)); node.name = name
+        node.renderingOrder = 1000
         node.geometry?.materials = [material]; node.constraints = [SCNBillboardConstraint()]; return node
+    }
+    private func annotationLine(from a:TechnicalPoint3,to b:TechnicalPoint3) -> SCNNode? {
+        let start = SIMD3<Float>(Float(a.x),Float(a.y),Float(a.z)),end = SIMD3<Float>(Float(b.x),Float(b.y),Float(b.z))
+        let delta = end-start,length = simd_length(delta)
+        guard length.isFinite,length > 0.001 else { return nil }
+        let material = SCNMaterial(); material.lightingModel = .constant
+        material.diffuse.contents = platformColor(CGColor(red:0.45,green:0.4,blue:0.95,alpha:1))
+        let node = SCNNode(geometry:SCNCylinder(radius:0.002,height:CGFloat(length)))
+        node.geometry?.materials = [material]; node.simdPosition = (start+end)/2
+        node.simdOrientation = simd_quatf(from:SIMD3(0,1,0),to:delta/length); return node
     }
     var onPhoto: ((UUID) -> Void)?
     private var photos: [SurveyPhotoImage] = []
@@ -81,6 +96,11 @@ enum StudioCameraFraming {
                 SIMD4(Float(m[8]),Float(m[9]),Float(m[10]),0),SIMD4(Float(m[12]),Float(m[13]),Float(m[14]),1)))
             let body = iconNode(symbol:"camera.fill",name:node.name ?? "")
             node.addChildNode(body)
+            let corners:[TechnicalPoint3] = [.init(x:-0.25,y:-0.17,z:-0.45),.init(x:0.25,y:-0.17,z:-0.45),.init(x:0.25,y:0.17,z:-0.45),.init(x:-0.25,y:0.17,z:-0.45)]
+            for i in corners.indices {
+                if let ray = annotationLine(from:.init(x:0,y:0,z:0),to:corners[i]) { node.addChildNode(ray) }
+                if let edge = annotationLine(from:corners[i],to:corners[(i+1)%4]) { node.addChildNode(edge) }
+            }
             photoRoot.addChildNode(node)
         }
         view?.scene?.rootNode.addChildNode(photoRoot)

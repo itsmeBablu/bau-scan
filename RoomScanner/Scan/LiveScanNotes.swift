@@ -13,6 +13,8 @@ struct LiveScanNotes: View {
     var pose: () -> [Double]?
     var roomID: () -> UUID? = { nil }
     var level: () -> Int? = { nil }
+    var borrowCaptureAudioSession = false
+    var nearbyPin:(TechnicalPoint3)->ARNote? = { _ in nil }
     var selectedPin: ARNote? = nil
     var onPin: (ARNote)->Void = { _ in }
     @State private var recorder = NoteAudioRecorder()
@@ -22,6 +24,7 @@ struct LiveScanNotes: View {
     @State private var message: String?
     @State private var busy = false
     @State private var pending: NoteAudioRecorder.Clip?
+    @State private var recordingPosition:TechnicalPoint3?
     @State private var recordingPin: ARNote?
     @State private var capturedPose: [Double]?
     @State private var capturedRoom: UUID?
@@ -33,16 +36,18 @@ struct LiveScanNotes: View {
             HStack(spacing:12) {
                 HoldMicrophoneControl(recording:recorder.recording,start:{
                     guard !busy,pending == nil else { return }
-                    recordingPin = selectedPin
+                    let surface = position()
+                    recordingPin = selectedPin ?? surface.flatMap(nearbyPin)
+                    recordingPosition = recordingPin?.position ?? surface
                     holding = true; capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level()
                     recorder.onClip = { clip in pending = clip; saveAudio(clip) }
-                    Task { if holding { await recorder.start() }; if !holding { recorder.stop() } }
+                    Task { if holding { await recorder.start(preserveAudioSession:borrowCaptureAudioSession) }; if !holding { recorder.stop() } }
                 },finish:{ cancel in holding = false; recorder.stop(cancel:cancel,reason:cancel ? "Recording discarded" : "User stopped recording") })
                     .frame(width:48,height:48)
                 Button {
                     guard let point = position() else { message = AppLanguage.text("Aim at a tracked surface"); return }
                     pin = point; capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level(); text = ""
-                    do { let owner = try owner(); var value = ARNote(projectID:owner,reference:reference,number:1,level:capturedLevel,roomID:capturedRoom,position:point,planPosition:nil,language:Locale.current.identifier); value.title = AppLanguage.text("Pinned note"); pendingText = value; onPin(value); saveText() } catch { message = error.localizedDescription }
+                    do { let owner = try owner(); var value = ARNote(projectID:owner,reference:reference,number:1,level:capturedLevel,roomID:capturedRoom,position:point,planPosition:nil,language:Locale.current.identifier); value.cameraPosition = cameraPoint(); value.title = AppLanguage.text("Pinned note"); pendingText = value; onPin(value); saveText() } catch { message = error.localizedDescription }
                 } label: { Image(systemName:pin == nil ? "mappin" : "mappin.circle.fill").frame(width:48,height:48) }
                     .background(.regularMaterial,in:Circle()).accessibilityLabel("Pin a note to this surface")
                     .disabled(holding || recorder.recording || recorder.preparing || pending != nil)
@@ -76,13 +81,21 @@ struct LiveScanNotes: View {
         .onDisappear { recorder.stop(partial:true) }
     }
     private func note(owner:UUID) -> ARNote {
-        var note = recordingPin ?? ARNote(projectID:owner,reference:reference,number:1,level:capturedLevel,
-            roomID:capturedRoom,position:capturedPose.flatMap { $0.count == 16 ? TechnicalPoint3(x:$0[12],y:$0[13],z:$0[14]) : nil },planPosition:nil,language:Locale.current.identifier)
+        var note = ARNote(projectID:owner,reference:reference,number:1,level:recordingPin?.level ?? capturedLevel,
+            roomID:recordingPin?.roomID ?? capturedRoom,position:recordingPosition ?? cameraPoint(),planPosition:nil,language:Locale.current.identifier)
+        note.anchorPinID = recordingPin?.id; note.cameraPosition = cameraPoint()
         note.text = text; note.modifiedAt = Date()
         return note
     }
+    private func cameraPoint() -> TechnicalPoint3? {
+        capturedPose.flatMap { $0.count == 16 ? .init(x:$0[12],y:$0[13],z:$0[14]) : nil }
+    }
     private func owner() throws -> UUID {
-        guard let workspace else { return projectID ?? ProjectIndex.unsortedID }
+        guard let workspace else {
+            var owner:UUID?
+            _ = try ProjectIndexStore.update(root:ScanVoiceNoteLibrary.root) { owner = try $0.voiceNotesProject(for:reference,preferredProjectID:projectID) }
+            guard let owner else { throw CocoaError(.fileWriteUnknown) }; return owner
+        }
         var result: UUID?
         workspace.change { result = try $0.voiceNotesProject(for:reference,preferredProjectID:projectID) }
         guard let result else { throw CocoaError(.fileWriteUnknown) }; return result
@@ -94,6 +107,10 @@ struct LiveScanNotes: View {
             do {
                 let owner = try owner()
                 if pendingMedia == nil {
+                    // A recording can start before the first tracked frame.
+                    // Use an observed stop position if the start had none.
+                    if recordingPosition == nil { recordingPosition = position() }
+                    if capturedPose == nil { capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level() }
                     var value = note(owner:owner)
                     value.audioModifiedAt = value.modifiedAt
                     value.audioFileName = value.stem+".m4a"; value.audioDuration = clip.duration; value.partial = clip.partial
@@ -101,7 +118,7 @@ struct LiveScanNotes: View {
                 }
                 guard let media = pendingMedia else { return }
                 let value = media.note
-                let root = workspace?.notesRoot ?? StorageLocation.local().documentsURL
+                let root = workspace?.notesRoot ?? ScanVoiceNoteLibrary.root
                 let outbox = try VoiceNoteRecovery.root()
                 let saved = try await Task.detached(priority:.utility) { try VoiceNoteRecovery.publishRevision(value,audio:clip.data,to:root,outbox:outbox) }.value
                 onPin(saved)
@@ -119,7 +136,7 @@ struct LiveScanNotes: View {
             do {
                 let owner = try owner()
                 var value = pendingText ?? note(owner:owner); value.text = text; value.modifiedAt = Date()
-                let root = workspace?.notesRoot ?? StorageLocation.local().documentsURL
+                let root = workspace?.notesRoot ?? ScanVoiceNoteLibrary.root
                 let saved = try await Task.detached(priority:.utility) {
                     try ARNoteStore.upsertText(value,root:root)
                 }.value

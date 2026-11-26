@@ -6,3 +6,4 @@
 
 Architecture source: `/Users/babureddy/.codex/attachments/baa96658-6b66-4e44-8286-6583f89ebeae/Pasted text.txt`.
 Current branch: `codex/camera-performance-and-markers`.
+4. Final naming/list actions requested afterward: before starting House or Technik capture, ask for its saved name. Saved items expose Rename and Delete in their hold/context menu. Preserve UUID-based storage paths and durable deletion/recovery semantics.

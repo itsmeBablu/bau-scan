@@ -27,3 +27,19 @@
 Install/launch status is recorded after the signed build. Compilation, unit tests and launching the app do not verify a held microphone gesture, world-locked AR interaction, long-session memory or recovery after a real process interruption. Check those on the iPhone before treating the architecture plan's device gate as complete. No remote CI run or performance improvement is claimed here.
 
 The final WhatsApp-style one-row voice control is separately queued after architecture phases 0–10.
+
+## Physical follow-up
+
+The user reported that House capture still froze/shook and showed scan failure when recording after the first installation. Technik recording was then confirmed working. The architecture/device gate is therefore **not passed**.
+
+The next iteration configures a recording-capable audio route before RoomPlan starts, borrows that route while recording (no mid-capture activation/deactivation), and defers native House camera construction until the retained view resource is first used. A signed iPhone build, nine focused lifetime/recorder/recovery tests and the full 416-test iOS simulator suite passed. That iteration is installed for retesting; its physical result is pending. Full-suite numbers above describe the preceding commit, not this follow-up iteration.
+
+## Linked marker update
+
+- Notes use the local project catalogue even for iCloud scan packages. Legacy direct-capture notes in Unsorted remain discoverable; local/cloud twins stay distinct.
+- 2D, virtual 3D, saved AR and Studio show note icons. Icons have explicit tap volumes and remain visible as annotations over model surfaces.
+- Photo camera-direction frustums are restored in House/Studio. These legacy photo guides are illustrative, not calibrated viewing-volume measurements.
+- Pins retain the capture camera position, with leaders to the observed mesh/wall point. Voice clips float above their anchor. Explicit selection takes priority; otherwise a text pin within 0.35 m can be associated. Clips have separate IDs and do not replace previous recordings.
+- Full Mac suite: 423 passed. Final iOS result is recorded below when complete.
+- Signed build passed; the updated Test app installed and launched successfully on the iPhone. Physical verification of the final marker appearance remains pending; launch is not an AR interaction test.
+- Architecture phases 0–10 and the final WhatsApp-style voice row/name/context-menu additions remain queued, not implemented in this update.

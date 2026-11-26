@@ -7,7 +7,8 @@ import SwiftUI
 struct ScanView: View {
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @State private var coordinator: ScanCoordinator
+    @State private var cameraResource:LazyCaptureResource<ScanCoordinator>
+    private var coordinator:ScanCoordinator { cameraResource.value }
     @State private var saveError: AppError?
     @State private var failedSave: ScanCoordinator.State?
     @State private var radiatorScanner: HouseRadiatorScanCoordinator?
@@ -33,8 +34,12 @@ struct ScanView: View {
         self.onSaved = onSaved
         let disk = CapturePersistence(kind:mode == .house ? .house : .room,projectID:voiceProjectID)
         _persistence = State(initialValue:disk)
-        let scanner = ScanCoordinator(mode:mode); scanner.persistence = disk
-        _coordinator = State(initialValue:scanner)
+        let voiceEnabled = voiceProjectID.flatMap { workspace?.project($0)?.details?.preferences?.voice } != false
+        _cameraResource = State(initialValue:LazyCaptureResource {
+            let scanner = ScanCoordinator(mode:mode); scanner.persistence = disk
+            scanner.prepareVoiceRecording = voiceEnabled
+            return scanner
+        })
     }
 
     var body: some View {
@@ -137,7 +142,7 @@ struct ScanView: View {
             if persistence.failure != nil { Label("Saving failed · draft retained",systemImage:"exclamationmark.triangle").font(.caption).padding(8).background(.regularMaterial,in:Capsule()) }
             HStack {
                 if workspace?.project(voiceProjectID ?? UUID())?.details?.preferences?.voice != false { VoiceNoteHUD(reference:captureReference,persistence:persistence,workspace:workspace,projectID:voiceProjectID,
-                    position:{ coordinator.noteSurface() },pose:{ coordinator.notePose() },roomID:{ mode == .house ? coordinator.liveRoomID : captureID },level:{ coordinator.liveLevel },selectedPin:pins.selection,onPin:{ pins.put($0) })
+                    position:{ coordinator.noteSurface() },pose:{ coordinator.notePose() },roomID:{ mode == .house ? coordinator.liveRoomID : captureID },level:{ coordinator.liveLevel },borrowCaptureAudioSession:true,nearbyPin:{ pins.nearest(to:$0) },selectedPin:pins.selection,onPin:{ pins.put($0) })
                     .disabled(coordinator.state != .scanning) }
                 Spacer()
             }.padding(.horizontal,20).padding(.bottom,20)

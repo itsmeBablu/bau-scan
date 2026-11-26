@@ -39,7 +39,7 @@ import OSLog
             })
         }
     }
-    func start() async {
+    func start(preserveAudioSession:Bool = false) async {
         guard !recording,!preparing else { return }
         guard Self.owner == nil || Self.owner === self else { error = AppLanguage.text("Another voice note is recording. Stop it before starting a new one."); return }
         Self.owner = self
@@ -60,6 +60,14 @@ import OSLog
             if let available = values.volumeAvailableCapacityForImportantUsage,available < 20*1_048_576 { throw CocoaError(.fileWriteOutOfSpace) }
             let url = root.appendingPathComponent("note-recording-"+UUID().uuidString).appendingPathExtension("m4a")
             let audio = AVAudioSession.sharedInstance()
+            if preserveAudioSession {
+                guard CaptureAudioSession.active,[AVAudioSession.Category.playAndRecord,.record,.multiRoute].contains(audio.category) else {
+                    throw NSError(domain:"dWalkScan.Voice",code:1,userInfo:[NSLocalizedDescriptionKey:AppLanguage.text("Voice recording is unavailable in this scan. Close and reopen capture.")])
+                }
+                // RoomPlan keeps its route/clock unchanged until capture closes.
+                previousCategory = nil
+                Self.log.info("Voice note: borrowing capture audio session")
+            } else {
             previousCategory = audio.category; previousMode = audio.mode; previousOptions = audio.categoryOptions
             Self.log.info("Voice note: switching audio category from \(audio.category.rawValue,privacy:.public) to playAndRecord; meter interval 100 ms")
             activatedAt = Date()
@@ -67,6 +75,7 @@ import OSLog
                 try audio.setCategory(.playAndRecord,mode:.default,options:[.mixWithOthers,.defaultToSpeaker,.allowBluetoothHFP])
             }
             try audio.setActive(true)
+            }
             activatedAt = Date()
             let recorder = try AVAudioRecorder(url:url,settings:[AVFormatIDKey:kAudioFormatMPEG4AAC,
                 AVSampleRateKey:22_050,AVNumberOfChannelsKey:1,AVEncoderBitRateKey:32_000])

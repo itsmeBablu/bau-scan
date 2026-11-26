@@ -6,6 +6,8 @@ import UIKit
 import AppKit
 #endif
 
+struct AnnotationTarget:Component {}
+
 /// Two shared textures, independent of mesh size and annotation count.
 @MainActor enum AnnotationIcon {
     private static var images:[String:CGImage] = [:]
@@ -32,7 +34,30 @@ import AppKit
         if let texture = textures[symbol] { material.color.texture = .init(texture) }
         material.blending = .transparent(opacity:.init(floatLiteral:1))
         let model = ModelEntity(mesh:.generatePlane(width:0.16,height:0.16),materials:[material])
-        model.name = name; model.components.set(BillboardComponent()); model.components.set(InputTargetComponent()); model.generateCollisionShapes(recursive:false)
+        model.components.set(AnnotationTarget()); model.components.set(ModelSortGroupComponent(group:.planarUIAlwaysInFront,order:0))
+        model.name = name; model.components.set(BillboardComponent()); model.components.set(InputTargetComponent()); model.components.set(CollisionComponent(shapes:[.generateBox(size:SIMD3(0.16,0.16,0.02))]))
         return model
     }
+    static func line(from a:TechnicalPoint3,to b:TechnicalPoint3) -> Entity? {
+        let start = SIMD3<Float>(Float(a.x),Float(a.y),Float(a.z)),end = SIMD3<Float>(Float(b.x),Float(b.y),Float(b.z))
+        let delta = end-start,length = simd_length(delta)
+        guard length.isFinite,length > 0.001 else { return nil }
+        let model = ModelEntity(mesh:.generateCylinder(height:length,radius:0.002),materials:[UnlitMaterial(color:.systemIndigo)])
+        model.position = (start+end)/2; model.orientation = simd_quatf(from:SIMD3(0,1,0),to:delta/length)
+        return model
+    }
+    static func noteEntity(_ note:ARNote,position:TechnicalPoint3? = nil,camera:TechnicalPoint3? = nil,name:String? = nil) -> Entity {
+        let root = Entity()
+        guard let p = position ?? note.viewingPosition else { return root }
+        root.position = SIMD3(Float(p.x),Float(p.y),Float(p.z))
+        let point = ModelEntity(mesh:.generateSphere(radius:0.012),materials:[UnlitMaterial(color:.systemIndigo)])
+        root.addChild(point)
+        let height = note.audioFileName == nil ? 0.12 : 0.28
+        let icon = entity(symbol:note.audioFileName == nil ? "mappin" : "mic.fill",name:name ?? "scan-note:"+note.id.uuidString)
+        icon.position.y = Float(height); root.addChild(icon)
+        if let stem = line(from:.init(x:0,y:0,z:0),to:.init(x:0,y:height,z:0)) { stem.name = "pin-label-leader"; root.addChild(stem) }
+        if let c = camera ?? note.viewingCameraPosition,let beam = line(from:.init(x:c.x-p.x,y:c.y-p.y,z:c.z-p.z),to:.init(x:0,y:0,z:0)) { beam.name = "capture-to-pin"; root.addChild(beam) }
+        return root
+    }
+
 }

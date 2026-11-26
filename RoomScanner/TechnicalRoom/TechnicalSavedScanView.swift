@@ -184,8 +184,12 @@ struct TechnicalSavedScanView: View {
                             for note in voiceNotes.suffix(256) {
                                 guard let point = note.viewingPosition else { continue }
                                 let p = note.displayPosition == nil ? package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:point) } ?? point : point
-                                let marker = AnnotationIcon.entity(symbol:note.audioFileName == nil ? "mappin" : "mic.fill",name:"technicalNote:"+note.id.uuidString)
-                                marker.position = SIMD3(Float(p.x-geometry.center.x),Float(p.y-geometry.center.y),Float(p.z-geometry.center.z)); content.add(marker)
+                                let origin = TechnicalPoint3(x:p.x-geometry.center.x,y:p.y-geometry.center.y,z:p.z-geometry.center.z)
+                                let camera = note.viewingCameraPosition.map { point -> TechnicalPoint3 in
+                                    let c = note.displayCameraPosition == nil ? package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:point) } ?? point : point
+                                    return .init(x:c.x-geometry.center.x,y:c.y-geometry.center.y,z:c.z-geometry.center.z)
+                                }
+                                content.add(AnnotationIcon.noteEntity(note,position:origin,camera:camera,name:"technicalNote:"+note.id.uuidString))
                             }
                         }
                         if showPhotos {
@@ -248,7 +252,7 @@ struct TechnicalSavedScanView: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Saved 3D survey")
                 .accessibilityHint("Drag to rotate. Use Reset view or the numbered photo buttons below.")
-                .gesture(TapGesture().targetedToAnyEntity().onEnded { value in
+                .gesture(TapGesture().targetedToEntity(where:.has(AnnotationTarget.self)).onEnded { value in
                     if value.entity.name.hasPrefix("technicalNote:"),let id = UUID(uuidString:String(value.entity.name.dropFirst(14))) { selectedVoice = voiceNotes.first { $0.id == id }; return }
                     let prefix = "technicalPhoto:"
                     guard value.entity.name.hasPrefix(prefix),let id = UUID(uuidString: String(value.entity.name.dropFirst(prefix.count))) else { return }

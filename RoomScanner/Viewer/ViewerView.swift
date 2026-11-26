@@ -15,6 +15,8 @@ struct ViewerView: View {
     @Bindable var state: ViewerState
     var radiators: [HouseRadiator] = []
     var photoPackageURL: URL? = nil
+    @State private var showNotes = true
+    @State private var noteError:String?
     @State private var notes:[ARNote] = []
     @State private var selectedNote:ARNote?
     @State private var noteRoot:URL?
@@ -38,7 +40,7 @@ struct ViewerView: View {
         Group {
         #if os(iOS)
         if state.mode == .ar {
-            CameraARView(house: house, state: state, radiators: radiators)
+            CameraARView(house:house,state:state,radiators:radiators,notes:showNotes ? notes : [],photos:showPhotos ? photos.map(\.photo) : [],onNote:selectNote,onPhoto:selectPhoto)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             virtualView
@@ -49,24 +51,18 @@ struct ViewerView: View {
         }
         .task(id:photoPackageURL) {
             guard let url = photoPackageURL else { return }
-            noteRoot = url.deletingLastPathComponent().deletingLastPathComponent()
-            notes = (try? await Task.detached { () throws -> [ARNote] in
-                let kind:ProjectReference.Kind = url.pathExtension == FileLayout.housePackageExtension ? .house : .room
-                guard let id = UUID(uuidString:url.deletingPathExtension().lastPathComponent) else { return [] }
-                let values = try ScanVoiceNoteLibrary.notes(itemID:id,kind:kind,root:url.deletingLastPathComponent().deletingLastPathComponent())
-                guard !values.isEmpty else { return [] }
-                let scans:[ScanInput]
-                if kind == .house { scans = try HousePackage.readStructure(from:url)?.rooms ?? [] }
-                else { scans = try RoomPackage.readScan(from:url).map { [$0] } ?? [] }
-                return ScanNoteRegistration.registered(values,house:house,scans:scans,singleRoom:kind == .room)
-            }.value) ?? []
+            noteRoot = ScanVoiceNoteLibrary.root
+            do { notes = try await Task.detached { try ScanVoiceNoteLibrary.registeredNotes(packageURL:url,house:house) }.value; noteError = nil }
+            catch { notes = []; noteError = AppLanguage.text("Could not open voice notes")+": "+error.localizedDescription }
             do { photos = try await Task.detached { try SurveyPhotoStore.images(from:url,house:house) }.value }
             catch { photos = []; photoError = "Survey photos could not be loaded: "+error.localizedDescription }
         }
         .overlay(alignment:.topLeading) {
-            if !photos.isEmpty || photoError != nil {
+            if !photos.isEmpty || !notes.isEmpty || photoError != nil || noteError != nil {
             VStack {
                 if !photos.isEmpty { Toggle("Photos",isOn:$showPhotos).toggleStyle(.button) }
+                if !notes.isEmpty { Toggle("Voice notes",isOn:$showNotes).toggleStyle(.button) }
+                if let noteError { Text(noteError).font(.caption).foregroundStyle(.red) }
                 if let photoError { Text(photoError).font(.caption).foregroundStyle(.red) }
             }.padding().background(.regularMaterial,in:Capsule())
             }
@@ -111,6 +107,7 @@ struct ViewerView: View {
             .onChange(of: state.showObjects) { _, _ in rebuildScene() }
             .onChange(of: house) { _, _ in rebuildScene(); resetView() }
             .onChange(of: radiators) { _, _ in rebuildScene() }
+            .onChange(of: showNotes) { _,_ in updateMarkers() }
             .onChange(of: notes) { _, _ in updateMarkers() }
             .onChange(of: photos) { _, _ in updateMarkers() }
             .onChange(of: showPhotos) { _, _ in updateMarkers() }
@@ -144,7 +141,11 @@ struct ViewerView: View {
         }
     }
     private var interactiveScene: some View {
-        sceneContent.simultaneousGesture(sceneTap)
+        sceneContent.simultaneousGesture(sceneTap).simultaneousGesture(
+            TapGesture().targetedToEntity(where:.has(AnnotationTarget.self)).onEnded { value in
+                guard !state.isMeasuring else { return }; handleSceneTap(entity:value.entity,worldPosition:nil)
+            }
+        )
         .onChange(of: state.isMeasuring) { _, active in
             if !active {
                 measureStart = nil
@@ -229,13 +230,14 @@ struct ViewerView: View {
         sceneRoot.position = b.isEmpty ? .zero : SIMD3(Float(-b.center.x), 0, Float(b.center.y))
     }
 
+    private func selectNote(_ id:UUID) { selectedNote = notes.first { $0.id == id } }
+    private func selectPhoto(_ id:UUID) { selectedPhoto = photos.first { $0.id == id } }
     private func updateMarkers() {
         markerRoot.children.removeAll()
         if showPhotos { for photo in photos.suffix(200) { markerRoot.addChild(SurveyPhotoMarkers.entity(photo.photo)) } }
-        for note in notes.suffix(256) {
+        for note in notes.suffix(256) where showNotes {
             guard let p = note.viewingPosition else { continue }
-            let marker = AnnotationIcon.entity(symbol:note.audioFileName == nil ? "mappin" : "mic.fill",name:"scan-note:"+note.id.uuidString)
-            marker.position = SIMD3(Float(p.x),Float(p.y),Float(p.z)); markerRoot.addChild(marker)
+            markerRoot.addChild(AnnotationIcon.noteEntity(note,position:p))
         }
         sceneRoot.addChild(markerRoot)
     }
@@ -308,6 +310,10 @@ private struct CameraARView: View {
     let house: House
     @Bindable var state: ViewerState
     let radiators: [HouseRadiator]
+    let notes:[ARNote]
+    let photos:[SurveyPhoto]
+    var onNote:(UUID)->Void
+    var onPhoto:(UUID)->Void
     @Environment(\.scenePhase) private var scenePhase
     @State private var authorized = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
     @State private var requested = false
@@ -320,7 +326,7 @@ private struct CameraARView: View {
             if !ARWorldTrackingConfiguration.isSupported {
                 ContentUnavailableView("AR is unavailable", systemImage: "arkit", description: Text("Use a supported iPhone or iPad to view your scan in AR."))
             } else if authorized {
-                NativeARView(house: house, radiators: radiators, dimensions: state.showDimensions, objects: state.showObjects,
+                NativeARView(house: house, radiators: radiators, notes:notes,photos:photos,onNote:onNote,onPhoto:onPhoto,dimensions: state.showDimensions, objects: state.showObjects,
                              scale: state.arScale, resetToken: state.resetToken, active: scenePhase == .active && visible,
                              status: $cameraStatus, failed: $cameraFailed)
                     .id(state.resetToken)
@@ -369,6 +375,10 @@ private struct CameraARView: View {
 private struct NativeARView: UIViewRepresentable {
     let house: House
     let radiators: [HouseRadiator]
+    let notes:[ARNote]
+    let photos:[SurveyPhoto]
+    var onNote:(UUID)->Void
+    var onPhoto:(UUID)->Void
     let dimensions: Bool
     let objects: Bool
     let scale: ARScale
@@ -384,6 +394,7 @@ private struct NativeARView: UIViewRepresentable {
         view.environment.background = .cameraFeed()
         view.session.delegate = context.coordinator
         let coordinator = context.coordinator
+        view.addGestureRecognizer(UITapGestureRecognizer(target:coordinator,action:#selector(Coordinator.tapped(_:))))
         view.onWindowChanged = { [weak coordinator, weak view] in
             guard let view else { return }
             coordinator?.updateSession(view)
@@ -397,11 +408,13 @@ private struct NativeARView: UIViewRepresentable {
     }
 
     private func configure(_ view: CameraBackedARView, coordinator: Coordinator) {
+        coordinator.onNote = onNote; coordinator.onPhoto = onPhoto
         coordinator.report = { message, failure in
             status = message; failed = failure
         }
         coordinator.update(view, house: house, radiators: radiators, dimensions: dimensions, objects: objects,
                            scale: scale, resetToken: resetToken, active: active)
+        coordinator.updateAnnotations(notes:notes,photos:photos)
     }
 
     static func dismantleUIView(_ view: CameraBackedARView, coordinator: Coordinator) {
@@ -413,6 +426,34 @@ private struct NativeARView: UIViewRepresentable {
     }
 
     @MainActor final class Coordinator: NSObject, ARSessionDelegate {
+        private weak var displayedModel:Entity?
+        private let annotationRoot = Entity()
+        private var previousNotes:[ARNote] = []
+        private var previousPhotos:[SurveyPhoto] = []
+        var onNote:((UUID)->Void)?
+        var onPhoto:((UUID)->Void)?
+        func updateAnnotations(notes:[ARNote],photos:[SurveyPhoto]) {
+            guard let model = displayedModel else { return }
+            guard notes != previousNotes || photos != previousPhotos || annotationRoot.parent !== model else { return }
+            annotationRoot.children.removeAll()
+            for note in notes.suffix(256) {
+                guard let p = note.viewingPosition else { continue }
+                annotationRoot.addChild(AnnotationIcon.noteEntity(note,position:p))
+            }
+            for photo in photos.suffix(200) { annotationRoot.addChild(SurveyPhotoMarkers.entity(photo)) }
+            model.addChild(annotationRoot); previousNotes = notes; previousPhotos = photos
+        }
+        @objc func tapped(_ gesture:UITapGestureRecognizer) {
+            guard let view = cameraView else { return }
+            for hit in view.hitTest(gesture.location(in:view),query:.all,mask:.all) {
+            var entity:Entity? = hit.entity
+            while let current = entity {
+                if current.name.hasPrefix("scan-note:"),let id = UUID(uuidString:String(current.name.dropFirst(10))) { onNote?(id); return }
+                if current.name.hasPrefix(SurveyPhotoMarkers.prefix),let id = UUID(uuidString:String(current.name.dropFirst(SurveyPhotoMarkers.prefix.count))) { onPhoto?(id); return }
+                entity = current.parent
+            }
+            }
+        }
         private var previousHouse: House?
         private var previousRadiators: [HouseRadiator] = []
         private var dimensions = false
@@ -434,7 +475,7 @@ private struct NativeARView: UIViewRepresentable {
             active = false
             running = false
             watchdog?.cancel()
-            report = nil
+            report = nil; onNote = nil; onPhoto = nil
         }
 
         func updateSession(_ view: ARView) {
@@ -475,6 +516,7 @@ private struct NativeARView: UIViewRepresentable {
             builder.options.showDimensions = dimensions
             builder.options.showObjects = objects
             let model = builder.makeScene(for: house)
+            displayedModel = model
             let bounds = house.bounds
             model.position = bounds.isEmpty ? .zero : SIMD3(Float(-bounds.center.x), 0, Float(bounds.center.y))
             let container = Entity()

@@ -150,7 +150,7 @@ struct TechnicalRoomScanView: View {
                             position:{ CaptureSurfacePoint.center(session:scanner.session) },pose:{
                                 guard let m = scanner.session.currentFrame?.camera.transform else { return nil }
                                 return (0..<4).flatMap { c in (0..<4).map { Double(m[c][$0]) } }
-                            },selectedPin:pins.selection,onPin:{ pins.put($0) }).frame(width:112).disabled(saving || !scanner.hasLiveFrames) }
+                            },nearbyPin:{ pins.nearest(to:$0) },selectedPin:pins.selection,onPin:{ pins.put($0) }).frame(width:112).disabled(saving || !scanner.hasLiveFrames) }
                         Button { showMesh.toggle() } label: {
                             Image(systemName: showMesh ? "cube.fill" : "cube").frame(width: 44,height: 44)
                         }.buttonStyle(.plain).background(.regularMaterial,in: Circle())

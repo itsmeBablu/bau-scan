@@ -67,6 +67,9 @@ final class ScanCoordinator {
 
     static var isSupported: Bool { RoomCaptureSession.isSupported }
 
+    var prepareVoiceRecording = true
+    private let audioOwner = UUID()
+
     init(mode: ScanMode = .room, arSession: ARSession = ARSession()) {
         self.mode = mode
         detectsRadiators = mode == .house &&
@@ -96,11 +99,24 @@ final class ScanCoordinator {
             AVCaptureDevice.requestAccess(for: .video) { granted in
                 Task { @MainActor in
                     guard self.active else { return }
-                    if granted { self.run() } else { self.active = false; self.state = .failed(.cameraDenied) }
+                    if granted { self.prepareAudioThenRun() } else { self.active = false; self.state = .failed(.cameraDenied) }
                 }
             }
         default:
-            run()
+            prepareAudioThenRun()
+        }
+    }
+
+    private func prepareAudioThenRun() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let allowed = self.prepareVoiceRecording ? await AVAudioApplication.requestRecordPermission() : false
+            guard self.active else { return }
+            if allowed {
+                do { try CaptureAudioSession.acquire(self.audioOwner) }
+                catch { UserDefaults.standard.set((error as NSError).code,forKey:"voice.captureAudioPrepareError") }
+            }
+            self.run()
         }
     }
 
@@ -261,6 +277,7 @@ final class ScanCoordinator {
         }
         // House capture keeps tracking alive between rooms; always release the camera on dismissal.
         arSession.pause()
+        CaptureAudioSession.release(audioOwner)
     }
 
     // MARK: - RoomPlan Result
@@ -268,6 +285,8 @@ final class ScanCoordinator {
     private func receive(room: CapturedRoom?, error: (any Error)?) {
         guard active else { return }
         if let error {
+            UserDefaults.standard.set((error as NSError).domain,forKey:"scan.lastFailureDomain")
+            UserDefaults.standard.set((error as NSError).code,forKey:"scan.lastFailureCode")
             Task { [weak self] in
                 await self?.flushAndPause(.interruption)
                 self?.state = .failed(.scanFailed(Self.describe(error)))

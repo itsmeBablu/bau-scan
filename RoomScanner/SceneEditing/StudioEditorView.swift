@@ -18,7 +18,7 @@ struct StudioProjectView: View {
     @State private var error: String?
     var body: some View {
         Group {
-            if let loaded { StudioEditorView(document: loaded,storageURL: SceneEditStore.url(root: storageRoot,source: seed.source,id: seed.sourceID),photos:photos,notes:notes,notesRoot:storageRoot) }
+            if let loaded { StudioEditorView(document: loaded,storageURL: SceneEditStore.url(root: storageRoot,source: seed.source,id: seed.sourceID),photos:photos,notes:notes,notesRoot:ScanVoiceNoteLibrary.root) }
             else if let error { ContentUnavailableView("Could not open design",systemImage: "exclamationmark.triangle",description: Text(error)) }
             else { ProgressView("Opening Studio…") }
         }
@@ -37,7 +37,8 @@ struct StudioProjectView: View {
             }.value) ?? []
             notes = (try? await Task.detached { () throws -> [ARNote] in
                 let kind:ProjectReference.Kind = source == .house ? .house : source == .room ? .room : .technicalRoom
-                let values = try ScanVoiceNoteLibrary.notes(itemID:id,kind:kind,root:root)
+                let reference = ScanVoiceNoteLibrary.reference(itemID:id,kind:kind,storageRoot:root)
+                let values = try ScanVoiceNoteLibrary.notes(for:reference)
                 guard !values.isEmpty else { return [] }
                 if source == .technical {
                     let package = try TechnicalRoomPackage.read(from:root.appendingPathComponent("TechnicalRooms/"+id.uuidString+".technicalroom"))
@@ -47,6 +48,10 @@ struct StudioProjectView: View {
                         if note.displayPosition == nil,let point = note.position {
                             var p = package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:point) } ?? point
                             p.y -= floor; note.displayPosition = p
+                            if let camera = note.cameraPosition {
+                                var c = package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:camera) } ?? camera
+                                c.y -= floor; note.displayCameraPosition = c
+                            }
                         }; return note
                     }
                 }

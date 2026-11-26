@@ -21,6 +21,10 @@ struct Plan2DView: View {
     @State private var measureStart: CGPoint?
     @State private var measureEnd: CGPoint?
     @State private var lastMeasurementText: String?
+    @State private var notes:[ARNote] = []
+    @State private var selectedNote:ARNote?
+    @State private var showNotes = true
+    @State private var noteError:String?
     @State private var photos: [SurveyPhotoImage] = []
     @State private var showPhotos = true
     @State private var selectedPhoto: SurveyPhotoImage?
@@ -57,6 +61,22 @@ struct Plan2DView: View {
                         }
                         .buttonStyle(.plain)
                         .position(pos)
+                    }
+                }
+
+                if showNotes {
+                    ForEach(notes.suffix(256)) { note in
+                        if let point = note.viewingPosition {
+                            let anchor = viewPoint(from:.init(x:point.x,y:-point.z),size:size)
+                            let label = CGPoint(x:anchor.x,y:anchor.y-(note.anchorPinID == nil ? 0 : 34))
+                            if note.anchorPinID != nil { Path { path in path.move(to:anchor); path.addLine(to:label) }.stroke(.indigo,lineWidth:1).allowsHitTesting(false) }
+                            Button { selectedNote = note } label: {
+                                Image(systemName:note.audioFileName == nil ? "mappin" : "mic.fill")
+                                    .font(.system(size:12,weight:.semibold)).foregroundStyle(.white)
+                                    .frame(width:28,height:28).background(.indigo,in:Circle()).frame(width:44,height:44).contentShape(Rectangle())
+                            }.buttonStyle(.plain).accessibilityLabel(note.title ?? AppLanguage.text("Voice note"))
+                                .position(label)
+                        }
                     }
                 }
 
@@ -107,8 +127,14 @@ struct Plan2DView: View {
         .accessibilityLabel(Text("plan.accessibility"))
         .task(id: packageURL) {
             guard let url = packageURL else { return }
+            do { notes = try await Task.detached { try ScanVoiceNoteLibrary.registeredNotes(packageURL:url,house:house) }.value; noteError = nil }
+            catch { noteError = error.localizedDescription }
             photos = (try? await Task.detached { try SurveyPhotoStore.images(from: url, house: house) }.value) ?? []
         }
+        .overlay(alignment:.topLeading) { if let noteError { Text(noteError).font(.caption).padding().background(.regularMaterial,in:Capsule()) } }
+        .sheet(item:$selectedNote) { note in VoiceNotePlayerSheet(note:note) { saved in
+            if let i = notes.firstIndex(where:{ $0.id == saved.id }) { var value = saved; value.displayPosition = notes[i].displayPosition; notes[i] = value }
+        } }
         .sheet(item: $selectedPhoto) { photo in
             SurveyPhotoGallery(photos: photos, initial: photo.id)
         }
@@ -169,6 +195,7 @@ struct Plan2DView: View {
                         Toggle("Room labels", isOn: $showLabels)
                         Toggle("Furniture and objects", isOn: $showObjects)
                         Toggle("Photos", isOn: $showPhotos)
+                        Toggle("Voice notes",isOn:$showNotes)
                         Toggle("Drafting grid", isOn: $showGrid)
                     }
                     Section {

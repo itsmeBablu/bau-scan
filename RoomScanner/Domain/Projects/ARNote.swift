@@ -10,6 +10,9 @@ struct ARNote: Codable, Equatable, Identifiable {
     var level: Int?
     var roomID: UUID?
     var position: TechnicalPoint3?
+    var cameraPosition:TechnicalPoint3? = nil
+    var displayCameraPosition:TechnicalPoint3? = nil
+    var anchorPinID:UUID? = nil
     var planPosition: Point2D?
     var text = ""
     var title: String? = nil
@@ -27,6 +30,7 @@ struct ARNote: Codable, Equatable, Identifiable {
     var displayPosition: TechnicalPoint3? = nil
     var retainAudio: Bool? = nil
     var transcript: String? = nil
+    var viewingCameraPosition:TechnicalPoint3? { displayCameraPosition ?? cameraPosition }
     var viewingPosition: TechnicalPoint3? { displayPosition ?? position }
     var positionSource: String { "scan-derived" }
     var accuracyMm: Double? { nil }
@@ -39,7 +43,7 @@ struct ARNote: Codable, Equatable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id,projectID,reference,number,level,roomID,position,planPosition,text,status,createdAt
         case audioFileName,audioDuration,partial,transcriptState,language,elementID,displayPosition,retainAudio,transcript
-        case title,modifiedAt,audioRevision,audioModifiedAt
+        case title,modifiedAt,audioRevision,audioModifiedAt,cameraPosition,displayCameraPosition,anchorPinID
     }
     private enum ProvenanceKeys: String, CodingKey { case positionSource,accuracyMm,deviceValidationPending }
     func encode(to encoder: Encoder) throws {
@@ -49,6 +53,7 @@ struct ARNote: Codable, Equatable, Identifiable {
         try c.encode(number,forKey:.number); try c.encodeIfPresent(level,forKey:.level); try c.encodeIfPresent(roomID,forKey:.roomID)
         try c.encodeIfPresent(position,forKey:.position); try c.encodeIfPresent(planPosition,forKey:.planPosition)
         try c.encode(text,forKey:.text); try c.encode(status,forKey:.status); try c.encode(createdAt,forKey:.createdAt)
+        try c.encodeIfPresent(cameraPosition,forKey:.cameraPosition); try c.encodeIfPresent(displayCameraPosition,forKey:.displayCameraPosition); try c.encodeIfPresent(anchorPinID,forKey:.anchorPinID)
         try c.encodeIfPresent(audioModifiedAt,forKey:.audioModifiedAt)
         try c.encodeIfPresent(audioRevision,forKey:.audioRevision)
         try c.encodeIfPresent(title,forKey:.title); try c.encodeIfPresent(modifiedAt,forKey:.modifiedAt)
@@ -68,6 +73,8 @@ struct ARNote: Codable, Equatable, Identifiable {
         guard [.house,.room,.technicalRoom].contains(reference.kind),["local","icloud"].contains(reference.library),
               (1...10_000).contains(number),level.map({ (-1000...1000).contains($0) }) ?? true,
               position.map({ finite([$0.x,$0.y,$0.z]) }) ?? true,
+              cameraPosition.map({ finite([$0.x,$0.y,$0.z]) }) ?? true,
+              displayCameraPosition.map({ finite([$0.x,$0.y,$0.z]) }) ?? true,
               displayPosition.map({ finite([$0.x,$0.y,$0.z]) }) ?? true,
               planPosition.map({ finite([$0.x,$0.y]) }) ?? true,
               text.count <= 16_000,(title?.count ?? 0) <= 200,(transcript?.count ?? 0) <= 16_000,createdAt.timeIntervalSince1970.isFinite,
