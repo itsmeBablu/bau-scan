@@ -11,6 +11,8 @@ enum TechnicalRoomKeyframeCollector {
         return .init(id: UUID(),jpegData:encoded.data,jpegWidth:encoded.width,jpegHeight:encoded.height,depth:depth,capturedAt:Date())
     }
     static func jpeg(frame: ARFrame, maximumDimension: CGFloat = 1600) -> (data:Data,width:Int,height:Int)? {
+        let interval = PerformanceTrace.begin("CapturePhotoEncoding")
+        defer { interval.end() }
         let source = CIImage(cvPixelBuffer: frame.capturedImage)
         let scale = min(1,maximumDimension/max(source.extent.width,source.extent.height))
         let image = source.transformed(by: CGAffineTransform(scaleX: scale,y: scale))

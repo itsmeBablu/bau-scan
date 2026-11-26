@@ -6,6 +6,8 @@ enum ProjectArtifactGenerator {
         var errorDescription:String? { AppLanguage.text("Project sources changed while exporting. No new artifact was saved. Review the project and generate again.") }
     }
     static func generate(kind:ProjectExportKind,project:RenovationProject,index:ProjectIndex,entries:[ProjectLibraryEntry],locale:Locale,unit:MeasurementUnit,includeDetails:Bool,wastePercent:Double,root:URL) async throws -> Result {
+        let interval = PerformanceTrace.begin("ProjectExportGeneration")
+        defer { interval.end() }
         let request = try await ProjectExportRequest.make(project:project,index:index,entries:entries,kind:kind,locale:locale,unit:unit,includeDetails:includeDetails,wastePercent:wastePercent)
         try checkMetadata(request,root:root)
         if let existing = try ProjectArtifactIndex.lookup(request,root:root) { return Result(url:existing,reused:true) }

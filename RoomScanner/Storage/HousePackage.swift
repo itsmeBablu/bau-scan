@@ -41,6 +41,8 @@ struct HousePackage {
     }
 
     func write(to packageURL: URL, fileManager fm: FileManager = .default) throws {
+        let interval = PerformanceTrace.begin("HousePackageWrite")
+        defer { interval.end() }
         if let radiators { try radiators.validate(for: house) }
         let staging = try PackageReplacement.staging(for:packageURL,fm:fm)
         try fm.createDirectory(at: staging.appendingPathComponent(F.rooms, isDirectory: true), withIntermediateDirectories: true)

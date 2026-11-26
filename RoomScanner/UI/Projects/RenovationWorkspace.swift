@@ -99,6 +99,8 @@ import Observation
 
     func reload(location: StorageLocation) async {
         guard !loading else { pendingReload = location; return }; loading = true
+        let interval = PerformanceTrace.begin("CatalogueLoad")
+        defer { interval.end() }
         defer {
             loading = false
             if let next = pendingReload { pendingReload = nil; Task { await reload(location:next) } }

@@ -117,6 +117,8 @@ enum ARNoteStore {
     @discardableResult static func update(root: URL,projectID: UUID,audio: [UUID:Data] = [:],
                                          replaceAudio: Bool = true,
                                          edit: (inout ARNoteIndex) throws -> Void) throws -> ARNoteIndex {
+        let interval = PerformanceTrace.begin("VoiceNoteSave")
+        defer { interval.end() }
         try validateParents(root:root,projectID:projectID)
         let directory = url(root:root,projectID:projectID),fm = FileManager.default
         try fm.createDirectory(at:directory.deletingLastPathComponent(),withIntermediateDirectories:true)

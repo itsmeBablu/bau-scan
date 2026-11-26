@@ -67,6 +67,8 @@ struct TechnicalRoomPackage {
     }
 
     func write(to target: URL, fileManager fm: FileManager = .default) throws {
+        let interval = PerformanceTrace.begin("TechnicalPackageWrite")
+        defer { interval.end() }
         try validate()
         guard target.pathExtension == "technicalroom" else { throw PackageError.invalidPackage }
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]

@@ -4,6 +4,12 @@ import SwiftUI
 /// File menus on macOS (`MacUI/`).
 @main
 struct RoomScannerApp: App {
+    init() {
+        AppLaunchTrace.start()
+        #if os(iOS)
+        _ = PerformanceMetrics.shared
+        #endif
+    }
     @AppStorage(AppLanguage.preferenceKey) private var language = AppLanguage.system.rawValue
     #if os(macOS)
     @NSApplicationDelegateAdaptor(StudioTerminationDelegate.self) private var termination
@@ -15,6 +21,7 @@ struct RoomScannerApp: App {
         #if os(macOS)
         WindowGroup {
             MacRootView()
+                .onAppear { AppLaunchTrace.firstRootAppeared() }
                 .dsAppTheme()
                 .environment(\.locale,(AppLanguage(rawValue:language) ?? .system).locale)
                 .environment(store)
@@ -40,6 +47,7 @@ struct RoomScannerApp: App {
         #else
         WindowGroup {
             RootView()
+                .onAppear { AppLaunchTrace.firstRootAppeared() }
                 .dsAppTheme()
         }
         #endif

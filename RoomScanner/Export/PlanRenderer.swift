@@ -77,6 +77,8 @@ struct PlanRenderer {
     /// Vector PDF A4 landscape by default: one page per story (multi-level houses
     /// stacked on one sheet would be unreadable), single page for single rooms or stories.
     func pdfData(_ house: House, size: CGSize = CGSize(width: 842, height: 595), title: String? = nil) -> Data {
+        let interval = PerformanceTrace.begin("PlanPDFRender")
+        defer { interval.end() }
         let data = NSMutableData()
         var box = CGRect(origin: .zero, size: size)
         let consumer = CGDataConsumer(data: data as CFMutableData)!
@@ -166,6 +168,8 @@ struct PlanRenderer {
 
     /// Draws the house into `ctx`, sized `size` (points or pixels).
     func draw(_ house: House, in ctx: CGContext, size: CGSize) {
+        let interval = PerformanceTrace.begin("PlanDraw")
+        defer { interval.end() }
         let rooms = house.allRooms
         if !options.transparentBackground {
             ctx.setFillColor(CGColor(gray: 1, alpha: 1))

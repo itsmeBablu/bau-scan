@@ -21,6 +21,8 @@ actor ProjectEvidenceSummaryCache {
     private var values:[String:Cached] = [:]
     private var order:[String] = []
     func summary(projectID:UUID,entries:[ProjectLibraryEntry],notesRoot:URL,summaries:[String:ProjectScanSummary]) throws -> Summary {
+        let interval = PerformanceTrace.begin("DashboardEvidenceLoad")
+        defer { interval.end() }
         let entries = entries.filter { !$0.isDesign }.sorted { $0.id < $1.id }
         let notes = ARNoteStore.url(root:notesRoot,projectID:projectID)
         func revision(_ file:URL,label:String) -> Revision {

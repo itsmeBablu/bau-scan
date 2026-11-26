@@ -18,6 +18,8 @@ enum PackageReplacement {
     }
     static func commit(_ staging: URL, to target: URL, fm: FileManager = .default,
                        move: ((URL,URL) throws -> Void)? = nil) throws {
+        let interval = PerformanceTrace.begin("PackageReplacement")
+        defer { interval.end() }
         let rename = move ?? { try fm.moveItem(at:$0,to:$1) }
         try recover(target,fm:fm)
         let old = backup(for:target),existed = fm.fileExists(atPath:target.path)

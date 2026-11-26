@@ -1,0 +1,99 @@
+name: Core diagnostics (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      warning_budget:
+        description: Optional measured compiler-warning ceiling; blank records the first baseline
+        required: false
+        type: string
+permissions:
+  contents: read
+jobs:
+  diagnostics:
+    runs-on: macos-26
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        scheme: [RoomScanner, RoomScannerMac]
+        sanitizer: [thread, address]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Record environment and generate
+        run: |
+          set -euo pipefail
+          mkdir -p build-logs
+          {
+            git rev-parse HEAD
+            xcodebuild -version
+            swift --version
+            sw_vers
+            uname -m
+            command -v xcodegen || brew install xcodegen
+            xcodegen generate
+          } 2>&1 | tee build-logs/generate.log
+      - name: Select destination
+        env:
+          SCHEME: ${{ matrix.scheme }}
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > build-logs/simulators.json
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json, os
+          destination = 'platform=macOS'
+          if os.environ['SCHEME'] == 'RoomScanner':
+              with open('build-logs/simulators.json') as stream:
+                  devices = json.load(stream)['devices']
+              phones = [d for runtime, group in devices.items() if '.iOS-' in runtime
+                        for d in group if d.get('isAvailable') and d['name'].startswith('iPhone')]
+              if not phones:
+                  raise SystemExit('No available iPhone simulator')
+              destination = 'platform=iOS Simulator,id=' + phones[0]['udid']
+          print('TEST_DESTINATION=' + destination)
+          PY
+      - name: Full tests, sanitizer, coverage and complete concurrency warnings
+        env:
+          SCHEME: ${{ matrix.scheme }}
+          SANITIZER: ${{ matrix.sanitizer }}
+        run: |
+          set -euo pipefail
+          thread=NO
+          address=NO
+          if [ "$SANITIZER" = thread ]; then thread=YES; else address=YES; fi
+          xcodebuild -project RoomScanner.xcodeproj -scheme "$SCHEME" \
+            -destination "$TEST_DESTINATION" -derivedDataPath "$RUNNER_TEMP/diagnostic-derived-data" \
+            -resultBundlePath "$RUNNER_TEMP/CoreDiagnostics.xcresult" \
+            -enableThreadSanitizer "$thread" -enableAddressSanitizer "$address" \
+            -enableCodeCoverage YES SWIFT_STRICT_CONCURRENCY=complete \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test \
+            2>&1 | tee build-logs/tests.log
+      - name: Record warning baseline or enforce supplied measured ceiling
+        if: always()
+        env:
+          WARNING_BUDGET: ${{ inputs.warning_budget }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          log = pathlib.Path('build-logs/tests.log')
+          if not log.exists():
+              raise SystemExit('No compiler log; warning baseline unavailable')
+          diagnostics = sorted(set(re.findall(r'^.*\.swift:\d+:\d+: warning:.*$', log.read_text(errors='replace'), re.M)))
+          budget = os.environ.get('WARNING_BUDGET', '').strip()
+          if budget and not budget.isdecimal():
+              raise SystemExit('Warning budget must be a nonnegative measured integer')
+          result = {'uniqueSwiftWarnings': len(diagnostics), 'budget': int(budget) if budget else None,
+                    'status': 'checked' if budget else 'baseline-only', 'diagnostics': diagnostics}
+          pathlib.Path('build-logs/warnings.json').write_text(json.dumps(result, indent=2) + '\n')
+          if budget and len(diagnostics) > int(budget):
+              raise SystemExit('Compiler warning budget exceeded')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: core-${{ matrix.scheme }}-${{ matrix.sanitizer }}
+          path: |
+            build-logs/
+            ${{ runner.temp }}/CoreDiagnostics.xcresult
+          retention-days: 3

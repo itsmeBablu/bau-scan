@@ -10,6 +10,8 @@ import simd
         return m
     }
     static func scene(_ document: SceneEditDocument,story: Int?,cutaway: Bool,decorated: Bool = true,showDimensions: Bool = false,dimensionSelection: UUID? = nil) -> SCNScene {
+        let interval = PerformanceTrace.begin("StudioSceneBuild")
+        defer { interval.end() }
         let scene = SCNScene()
         let roomIDs = Set(document.architecturalShell.stories.filter { story == nil || $0.index == story }.flatMap(\.rooms).map(\.id))
         let rooms = document.architecturalShell.allRooms.filter { roomIDs.contains($0.id) }

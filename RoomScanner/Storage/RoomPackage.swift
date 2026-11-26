@@ -53,6 +53,8 @@ struct RoomPackage {
     // MARK: Writing
 
     func write(to packageURL: URL, fileManager: FileManager = .default) throws {
+        let interval = PerformanceTrace.begin("RoomPackageWrite")
+        defer { interval.end() }
         let staging = try PackageReplacement.staging(for:packageURL,fm:fileManager)
         try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: staging) }

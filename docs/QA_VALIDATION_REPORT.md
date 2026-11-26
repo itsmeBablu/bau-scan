@@ -624,3 +624,111 @@ actual screenshot comparison, native Mac/iPad adaptation and any resulting fixes
 Project-scoped and room/scan written notes reuse existing fields; independent
 zone-only note identity is not introduced. Legacy/manual string formatting and
 source-revision cache behavior require Apple review. No push/remote CI occurred.
+
+## Core consolidation — Phase G handoff, 2026-11-26
+
+Status: BLOCKED. Branch `codex/core-consolidation` starts at
+`015dbdb81e57d74fa959348162cca7f95cae70e5`. The supplied plan is preserved in
+`docs/CORE_REFACTOR_PLAN.md`; `runChecks.md` contains the Mac execution prompt,
+full-log commands for both schemes, and the evidence to return. User instructions
+limit this work to local files; no pull, push, PR or remote workflow was performed.
+No Mac results have arrived. CI status is unknown, not reported as red or green.
+
+The existing `.worktrees/core-phase-g-015dbdb.json` records checks on the clean
+base commit before these documentation additions:
+
+| Check | Recorded base result | Scope and limitation |
+| --- | --- | --- |
+| Strict localization | PASSED | Source audit only |
+| Node regressions | PASSED | JSON keys, UI routes/export requests, design tokens; 10 tests |
+| Style ratchet | PASSED | Source audit only |
+| Python service tests | PASSED | Backend tests; no live Google/AI validation |
+| Plist/entitlements/privacy syntax | PASSED | Parsing only; no signing/runtime validation |
+| Whitespace | PASSED | Base working tree only |
+| XcodeGen and both Apple schemes | UNRUN / BLOCKED | Apple tools unavailable on Windows |
+| Device capture, audio, recovery and iCloud | UNVERIFIED | Device validation pending |
+| Performance, sanitizers and leak checks | UNRUN | No measurements or improvement claimed |
+
+No app code was changed for this handoff: production Swift +0/-0. The implemented
+features described above remain unverified on Apple platforms. No consolidation
+or later phase has started. Full Mac logs and exact checkout identity are needed
+to investigate compilation/test failures. Local Mac results will not by themselves
+satisfy the original exact-final-commit GitHub CI requirement.
+
+### Authorized preliminary source inventory — 2026-11-26
+
+While the build gate is pending, the user authorized other safe work. Read-only
+inspection is recorded in `docs/CORE_REFACTOR_PLAN.md`, without starting production
+refactoring or declaring Phase 0A complete. Recount: 252 production Swift files /
+28,768 lines, and 99 shared test files / 7,200 lines. Lexical counts are 87 detached
+tasks, 117 `try?` expressions by the documented regex, and 111 MainActor annotations;
+these are search results, not concurrency defects. Existing Studio export signposts
+were found; no requested XCTest metric identifiers or MetricKit imports were found.
+
+Initial candidates are overlapping package transactions/recovery and catalogue
+enumeration. Shared export publication, playback, thumbnails, photo archive layout
+and marker glyphs already exist and should be reused. The legacy UUID export writer
+has direct qualified calls only in tests. Existing recovery/reuse/cache tests are
+listed for Mac execution. Production changes +0/-0; no tests added, removed or run
+for this documentation-only inventory. Performance and device validation pending.
+
+### Preliminary safety and concurrency review — parts 2/3, 2026-11-26
+
+The existing core plan now maps export/package/note/recovery tests to required
+guarantees. Existing format header/structure assertions are distinguished from
+reviewed golden files; injected swap faults are distinguished from disk-full and
+real process-kill tests. No golden expectations were regenerated or approved.
+
+Prioritized source traces identify follow-up tests for voice-operation timeout and
+retry ownership, stale recovery-count completion, cross-instance session writers,
+recovery-directory enumeration failure, and background expiration during saves.
+These are investigation candidates, not reproduced device defects. Existing export
+cancellation forwarding and source-identity guards should be reused, not replaced
+without evidence. Main-actor technical-library I/O is present in source; its cost
+has not been measured. No exhaustive concurrency audit or optimization is claimed.
+
+Production/test code +0/-0. Documentation whitespace check passed. No Swift tests
+were run; the Mac handoff and original Phase G gate remain outstanding. No subsequent
+implementation phase has started and no remote Git operation was performed.
+
+Read-only CI lookup on 2026-11-26 subsequently returned zero workflow runs for
+`015dbdb81e57d74fa959348162cca7f95cae70e5` in both `itsmeBablu/bau-scan` and
+`itsmeBablu/d-walk-scan-fork`. The latter is the current name resolved from the
+local origin URL `itsmeBablu/d-walk-scan`. No local remote URL was changed and no
+workflow was dispatched. This establishes no existing run was returned for that
+SHA in those repositories; it is not a failed or passing build result. An explicit
+question to revise the pre-refactoring build gate is pending; no revision is assumed.
+
+## Local implementation authorized — Phase 0A, part 1, 2026-11-26
+
+The user answered "Yes—implement locally; Mac verification later". This supersedes
+the pre-implementation Apple build gate, not the requirement for honest verification.
+Earlier blocked/read-only entries above describe their historical checkpoints.
+
+Added a content-free `PerformanceTrace` helper, root-appearance startup interval,
+MetricKit receipt subscriber on iOS, and intervals for catalogue/dashboard loading,
+package writes/replacement, project export generation, note saves, plan PDF/drawing,
+Studio scene construction, shared House/Technik photo JPEG encoding, and capture
+completion state writes. Static names contain no paths, names, IDs or content.
+The root interval measures appearance rather than first camera frame; completion
+state writes are not the entire scan-finalization duration. Payload JSON is not
+stored/uploaded by the MetricKit subscriber. Device validation pending.
+
+Six `CorePerformanceTests` measure clock/memory/CPU for metadata over 200 scans,
+dashboard quantities, a 200-photo file export within a 500-photo/50-audio fixture,
+eight-room house building, eight-room PDF rendering and a 100,000-triangle PLY write.
+Fixtures use 20 projects/200 scan packages. Audio headers exercise storage only,
+not decoding/playback. Setup is outside measurement; synthetic data is not capture
+evidence. No runtime or accuracy improvement is claimed. All six Swift tests UNRUN.
+
+Added manual-only `core-diagnostics.yml`: both schemes, separate thread/address
+sanitizer jobs, coverage, complete-concurrency warnings and short-lived logs. Blank
+warning budget records a baseline; an explicitly supplied measured ceiling enforces
+a warning-count ratchet. No baseline, timing budget, warning count or CI pass is
+invented. Workflow was not dispatched. Leak/lifecycle coverage remains pending.
+
+Production Swift +91/-1; tests +174/-0 at this checkpoint. Ten Node regressions,
+strict localization (1366 keys), style and whitespace checks passed locally.
+XcodeGen, Apple builds/tests, sanitizer execution, coverage, actual MetricKit
+delivery and performance baselines remain UNRUN. Phase 0A is implemented in part,
+not verified or complete. No native package formats or capture lifecycle changed.

@@ -64,5 +64,9 @@ import Observation
     }
     func recordFailure(_ error:Error) { failure = error.localizedDescription }
     func recordSaved(bytes:Int,milliseconds:Double) { savedAt = Date(); failure = nil; snapshotBytes = bytes; snapshotMilliseconds = milliseconds }
-    func complete() async { await state(.finalizing); await state(.completed) }
+    func complete() async {
+        let interval = PerformanceTrace.begin("ScanCompletionStateWrite")
+        defer { interval.end() }
+        await state(.finalizing); await state(.completed)
+    }
 }
