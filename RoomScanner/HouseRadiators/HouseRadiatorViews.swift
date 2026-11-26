@@ -80,7 +80,7 @@ struct HouseRadiatorListView: View {
                 }
             }
         }
-        .tint(.blue)
+
         #if os(macOS)
         .frame(minWidth: 500,minHeight: 500)
         #endif

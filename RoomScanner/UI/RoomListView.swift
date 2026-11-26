@@ -178,7 +178,7 @@ struct RoomListView: View {
                 Text("list.empty.message")
             } actions: {
                 Button { scanMode = .room } label: { Label("list.scanRoom", systemImage: "camera.viewfinder") }
-                    .buttonStyle(.borderedProminent)
+                    .dsProminentControl()
 
                 Button { scanMode = .house } label: { Label("list.scanHouse", systemImage: "house") }
                     .buttonStyle(.bordered)
@@ -231,7 +231,7 @@ struct RoomListView: View {
 
     @ViewBuilder private func itemActions(for item: LibraryItem) -> some View {
         Button(role: .destructive) { pendingDeletion = [item] } label: { Label("Delete", systemImage: "trash") }
-        Button { beginRenaming(item) } label: { Label("Rename", systemImage: "pencil") }.tint(.blue)
+        Button { beginRenaming(item) } label: { Label("Rename", systemImage: "pencil") }
     }
 
     private func beginRenaming(_ item: LibraryItem) {

@@ -24,12 +24,12 @@ struct VoiceNotePlayerSheet:View {
                 Button(recorder.recording ? "Stop and save recording" : "Record voice note") {
                     if recorder.recording { recorder.stop() }
                     else { player.stop(); Task { await recorder.start() } }
-                }.buttonStyle(.bordered).tint(.red).disabled(saving || recorder.preparing)
+                }.buttonStyle(.bordered).dsRecordingTint().disabled(saving || recorder.preparing)
                 if recorder.recording { Text(Duration.seconds(recorder.elapsed).formatted(.time(pattern:.minuteSecond))).monospacedDigit() }
                 if let message = recorder.error { Text(message).font(.caption) }
                 #endif
                 if player.duration > 0 {
-                    Button(player.playing ? "Pause playback" : "Resume playback") { player.toggle() }.buttonStyle(.borderedProminent)
+                    Button(player.playing ? "Pause playback" : "Resume playback") { player.toggle() }.dsProminentControl()
                     Slider(value:Binding(get:{ player.time },set:{ player.seek($0) }),in:0...max(0.1,player.duration)).accessibilityLabel("Playback position")
                     Text(Duration.seconds(player.time).formatted(.time(pattern:.minuteSecond))).monospacedDigit()
                 }

@@ -1,0 +1,78 @@
+{
+  "colors": [
+    {
+      "idiom": "universal",
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "red": "0.69019608",
+          "green": "0.00000000",
+          "blue": "0.12549020",
+          "alpha": "1.00000000"
+        }
+      }
+    },
+    {
+      "idiom": "universal",
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "red": "1.00000000",
+          "green": "0.62352941",
+          "blue": "0.62352941",
+          "alpha": "1.00000000"
+        }
+      },
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
+    },
+    {
+      "idiom": "universal",
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "red": "0.52156863",
+          "green": "0.00000000",
+          "blue": "0.09803922",
+          "alpha": "1.00000000"
+        }
+      },
+      "appearances": [
+        {
+          "appearance": "contrast",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "idiom": "universal",
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "red": "1.00000000",
+          "green": "0.77254902",
+          "blue": "0.77254902",
+          "alpha": "1.00000000"
+        }
+      },
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        },
+        {
+          "appearance": "contrast",
+          "value": "high"
+        }
+      ]
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

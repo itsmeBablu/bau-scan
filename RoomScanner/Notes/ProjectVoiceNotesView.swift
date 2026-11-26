@@ -59,7 +59,7 @@ struct ProjectVoiceNotesView: View {
                 } else {
                     Button(action: startRecording) {
                         Label("Record voice note",systemImage: "mic.fill").frame(maxWidth: .infinity,minHeight: 36)
-                    }.buttonStyle(.borderedProminent).tint(.red)
+                    }.dsProminentControl(recording:true)
                         .disabled(busy || recorder.preparing || !references.contains { $0.id == referenceID })
                 }
                 #endif

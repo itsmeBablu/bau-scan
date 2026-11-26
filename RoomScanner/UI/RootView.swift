@@ -33,7 +33,7 @@ struct RootView: View {
         applicationContent
             .environment(\.locale,(AppLanguage(rawValue:language) ?? .system).locale)
             .environment(store)
-            .tint(.blue)
+
             .task { await store.activateCloudIfAvailable() }
             .onOpenURL { url in
                 if TechnicalGoogleAIAccount.handle(url) { return }

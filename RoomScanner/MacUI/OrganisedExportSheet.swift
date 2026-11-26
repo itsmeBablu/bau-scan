@@ -146,7 +146,7 @@ struct OrganisedExportSheet: View {
                 Button(photosOnly ? "Export Photos (ZIP)…" : "Export Package (ZIP)…") {
                     startExport()
                 }
-                .buttonStyle(.borderedProminent)
+                .dsProminentControl()
                 .disabled(isExporting || (!photosOnly && !options.includePlans && !options.includeModels && !options.includeTechnicalRoom && !options.includePhotos && !options.includeStudio && !options.includeNativePackages && !options.includeIFC))
             }
             .padding(.horizontal)

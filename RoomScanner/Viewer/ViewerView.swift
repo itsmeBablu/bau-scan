@@ -335,7 +335,7 @@ private struct CameraARView: View {
                             Text(cameraStatus).font(.callout)
                             if cameraFailed {
                                 Button("Restart AR camera") { cameraFailed = false; state.resetToken += 1 }
-                                    .buttonStyle(.borderedProminent)
+                                    .dsProminentControl()
                             }
                         }
                             .padding(12)

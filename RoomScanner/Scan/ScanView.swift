@@ -127,14 +127,14 @@ struct ScanView: View {
                     .buttonStyle(.bordered)
                 Spacer()
                 Button { Task { await finishScan() } } label: { Text(mode == .house ? "scan.finishHouse" : "scan.finish") }
-                    .buttonStyle(.borderedProminent)
+                    .dsProminentControl()
                     .disabled((coordinator.state != .scanning && coordinator.state != .roomSaved) || radiatorBusy || photoCapture.busy)
             }
             .padding()
             Spacer()
-            if let failedSave { Button("Retry finishing") { Task { await saveState(failedSave) } }.buttonStyle(.borderedProminent) }
+            if let failedSave { Button("Retry finishing") { Task { await saveState(failedSave) } }.dsProminentControl() }
             if case .failed = coordinator.state {
-                Button("Retry finishing") { coordinator.retryFinish() }.buttonStyle(.borderedProminent)
+                Button("Retry finishing") { coordinator.retryFinish() }.dsProminentControl()
             }
             if let diagnostic = coordinator.cameraDiagnostic {
                 Text(diagnostic).font(.callout).padding().background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))

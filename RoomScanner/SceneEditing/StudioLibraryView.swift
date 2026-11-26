@@ -60,7 +60,7 @@ struct StudioLibraryView: View {
         #if os(macOS)
         .frame(minWidth: 800,minHeight: 650)
         #endif
-        .tint(.blue)
+
         .task {
             // Technical surveys own their local library independently of House iCloud switching.
             let library = TechnicalRoomLibraryStore()

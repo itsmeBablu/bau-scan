@@ -36,7 +36,7 @@ struct TechnicalRoomLibraryView: View {
                     } description: {
                         Text("Capture equipment, pipes and ducts in a Technik Room.")
                     } actions: {
-                        if let onRequestScan { Button("Scan Technik Room",action: onRequestScan).buttonStyle(.borderedProminent).disabled(!scanningSupported) }
+                        if let onRequestScan { Button("Scan Technik Room",action: onRequestScan).dsProminentControl().disabled(!scanningSupported) }
                     }.listRowBackground(Color.clear)
                 }
                 ForEach(library.records.filter { search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) }) { record in
@@ -74,7 +74,7 @@ struct TechnicalRoomLibraryView: View {
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 500)
         #endif
-        .tint(.blue)
+
         .onAppear { do { try library.reload() } catch { self.error = error.localizedDescription } }
         .task(id: refreshToken) {
             do {

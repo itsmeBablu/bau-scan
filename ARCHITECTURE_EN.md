@@ -161,6 +161,29 @@ D18 Sparkle auto-update on Mac, D19 public repo + branch per phase + landing pag
 - Storage v2 (done): `Documents/Houses/<uuid>.housescan/` packages (`HousePackage`, `HouseRecord`); `RoomStore` exposes `houseRecords`, `saveHouse`, `house(for:)`, `importAny`; `LibraryItem` (room | house) drives the two-section library on iOS and the Mac sidebar; `ExportSubject` (room | house) is the single input of `ExportService`, `ExportSheet`, `DragExportProvider` and the archive README. Remaining: multi-room capture on iPhone (`CapturedStructureAdapter`), shared-wall dedup, `.housescan` conflict resolution.
 
 ## Design system — S0 audit (2026-11-26)
+
+S1 implementation: the existing AppTheme.swift now lives in DesignSystem/, alongside
+DS.swift, fixed ExportPalette.swift and Colors.xcassets. AppTheme is a compatibility
+facade over the same tokens, not a parallel theme. DS namespaces color roles,
+spacing, radii, stroke, shadow, system typography, accessible sizes and Reduce
+Motion-aware animation. ScaledSizes provides a Dynamic Type-relative thumbnail.
+ColorToken.platformColor bridges the named assets for UIKit/AppKit rendering.
+
+AccentColor is the single app accent: dark amber on light surfaces, brand-family
+yellow on dark surfaces, with explicit increased-contrast variants. Brand remains
+#facc15 fill with dark OnBrand. Root application scenes apply dsAppTheme once;
+eight blue overrides are removed. Recording and camera indicator roles are the
+only centralized semantic tint exceptions. The native prominent-control helper
+retains system button layout and chooses OnAccent/OnRecording labels for contrast.
+No navigation, tab, list, sheet or AR lifecycle is replaced. Existing fixed export
+palette constants remain independent of appearance, and exporter source is unchanged.
+
+Add a color by adding all four variants to Colors.xcassets and a ColorToken case;
+add its supported foreground/background pairs to contrast tests. Use semantic
+system-font tokens, never fixed text sizes. Add future reusable styles beside
+AppTheme; evolve liquidGlass instead of adding another material stack. S2 components
+and S3 remaining-view migration are pending. S0 inventory below is historical.
+Apple builds, resolved-color Swift tests and visual checks remain unverified.
 Source snapshot: UI redesign Phase 0 commit `268505c`. S0 changes documentation only.
 Reuse `UI/AppTheme.swift` and its liquidGlass modifiers; there is no second theme.
 The intended destination is `RoomScanner/DesignSystem/`, shared by both targets.

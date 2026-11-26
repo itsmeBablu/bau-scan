@@ -129,7 +129,7 @@ struct RenovationNavigation: View {
                 Image(systemName:["folder","viewfinder","ruler"][guidePage]).font(.system(size:64)).accessibilityHidden(true)
                 Text(LocalizedStringKey(["Create a project","Scan your space","Review and verify"][guidePage])).font(.title).multilineTextAlignment(.center)
                 Text(LocalizedStringKey(["Group a building's scans, designs, photos and notes in one place.","Choose House or Technik room. Your original scan stays separate from design edits.","Check important dimensions before sharing a report. Capture-derived data is device validation pending."][guidePage])).multilineTextAlignment(.center)
-                Button(guidePage == 2 ? "Get started" : "Next") { if guidePage < 2 { guidePage += 1 } else { onboarded = true; guide = false } }.buttonStyle(.borderedProminent)
+                Button(guidePage == 2 ? "Get started" : "Next") { if guidePage < 2 { guidePage += 1 } else { onboarded = true; guide = false } }.dsProminentControl()
             }.padding(28).navigationTitle("Welcome")
                 .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Skip") { onboarded = true; guide = false } } }
         }.interactiveDismissDisabled()
@@ -358,7 +358,7 @@ struct ProjectChatWorkspace: View {
     private func scanCards(_ values:[ProjectLibraryEntry],mode:ScanMode) -> some View {
         ScrollView {
             VStack(alignment:.leading,spacing:16) {
-                Button(mode == .house ? "Scan a house" : "Scan Technik room",systemImage:"viewfinder") { onCapture(mode) }.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
+                Button(mode == .house ? "Scan a house" : "Scan Technik room",systemImage:"viewfinder") { onCapture(mode) }.dsProminentControl().buttonBorderShape(.capsule)
                 cards(values)
                 if values.isEmpty { ContentUnavailableView("No scans yet",systemImage:mode == .house ? "house" : "cube") }
             }.padding()

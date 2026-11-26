@@ -89,3 +89,34 @@ components added. Production +0/-0 lines, code removed: none. Confirmed yellow
 AccentColor versus root/per-view blue conflict. Categorized render/export colors
 and glyph sizing separately; this is not a blanket allowlist. No Apple test or
 contrast/visual check was run. S1 requires review before app appearance changes.
+
+## Design system S1 — tokens and root
+
+Reused/moved AppTheme.swift and kept its public names as compatibility aliases.
+Added DS namespace and semantic assets under one DesignSystem folder; no second
+theme. Removed duplicated SwiftUI/platform RGB palette definitions and all eight
+forced blue overrides. The only explicit tint modifiers now live in DesignSystem;
+semantic recording/camera roles remain distinct from the single app accent.
+Native prominent-button layout is retained via one shared helper with OnAccent/
+OnRecording labels. Removed Studio's forced white label override for that button.
+
+Intentional colors: light Accent changes from forced blue to dark amber #775600;
+dark Accent uses #facc15, with stronger contrast variants. Brand is a yellow fill
+with charcoal label. No per-mode accent was introduced. The existing app has no
+global preferredColorScheme setting, so system appearance remains the default.
+Layouts, actions, AR sessions, coordinates, package/recovery code and exporter
+source are unchanged. Existing fixed CGColor values are preserved in ExportPalette.
+
+20 semantic colors have Any/Dark plus high-contrast Any/Dark variants (80 entries).
+Three Node source tests pass: variant completeness, declared contrast pairs and
+centralized tint/old-path checks. These tests measure source sRGB values only.
+Three Swift tests are written for actual bundled color resolution on iOS/macOS,
+resolved contrast, sizes/grid and Reduce Motion; all are UNRUN on Windows.
+Source checks assert 4.5:1 for declared text pairs and 3:1 for separator/UI pairs;
+this is not whole-app accessibility compliance or a screenshot review.
+
+Production Swift net growth is 109 lines (raw move-inclusive +261/-152). Asset JSON,
+tests/scripts/docs are excluded. Reused existing native controls; no new dependency.
+Existing service, JSON, source-route, localization and plist checks remain required.
+No CI execution or device appearance/interaction evidence exists. S2–S4 remain
+pending, with device validation pending in DEVICE_TEST_CHECKLIST.md.

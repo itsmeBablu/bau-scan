@@ -2,6 +2,13 @@
 
 ## Audit du système de design — S0, 2026-11-26
 
+S1 : AppTheme.swift est déplacé dans DesignSystem/, avec DS.swift, ExportPalette
+fixe et Colors.xcassets. Les 20 couleurs ont quatre variantes ; l'accent est ambre
+sur fond clair et jaune sur fond sombre. Huit teintes bleues forcées sont retirées.
+Les styles système natifs et les couleurs d'export sont conservés. Aucun cycle AR
+ni format de stockage n'est modifié. Tests Apple et jugement visuel non vérifiés.
+Les composants S2 et la migration des vues S3 restent à réaliser.
+
 L'inventaire détaillé et les fichiers concernés figurent dans la section « Design
 system — S0 audit » d'ARCHITECTURE_EN.md. S0 ne modifie aucun code de production.
 Réutiliser AppTheme.swift et les modificateurs liquidGlass, puis les faire évoluer

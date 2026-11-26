@@ -136,7 +136,7 @@ struct StudioEditorView: View {
     }
     var body:some View {
         baseEditor
-        .tint(.blue)
+
         .toolbar { selectionToolbar }
         #if os(macOS)
         .sheet(item:$selectedPhoto) { photo in
@@ -412,7 +412,7 @@ struct StudioEditorView: View {
                     Label("Generate equipment", systemImage: "sparkles")
                         .font(.subheadline.weight(.semibold))
                 }
-                .buttonStyle(.borderedProminent)
+                .dsProminentControl()
                 .buttonBorderShape(.capsule)
                 Button {
                     showModelLibrary = true
@@ -446,7 +446,7 @@ struct StudioEditorView: View {
                     }.lineLimit(1).padding(.horizontal,14).padding(.vertical,8).background(.regularMaterial,in: Capsule())
                 }
                 Spacer(minLength: 0)
-                saveButton.buttonStyle(.borderedProminent).buttonBorderShape(.capsule).foregroundStyle(.white)
+                saveButton.dsProminentControl().buttonBorderShape(.capsule)
             }
         }
     }

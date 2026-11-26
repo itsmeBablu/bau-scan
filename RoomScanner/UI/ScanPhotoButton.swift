@@ -8,7 +8,7 @@ struct ScanPhotoButton: View {
             ZStack {
                 Circle().fill(.white)
                 Circle().stroke(.gray,lineWidth:2).padding(5)
-                if busy { ProgressView().tint(.black) }
+                if busy { ProgressView().dsCameraIndicatorTint() }
                 else { Image(systemName:"camera.fill").foregroundStyle(.black) }
             }.frame(width:52,height:52)
         }.buttonStyle(.plain).accessibilityLabel("Take survey photo").disabled(busy)

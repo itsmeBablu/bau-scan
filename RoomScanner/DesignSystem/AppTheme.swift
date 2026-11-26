@@ -15,44 +15,36 @@ public enum AppTheme {
     // MARK: - Palette SwiftUI Colors
 
     /// Primary Yellow: #facc15 (main color)
-    public static let primaryYellow = Color(red: 250/255, green: 204/255, blue: 21/255)
+    public static let primaryYellow = DS.ColorToken.brand.color
 
     /// Secondary Yellow: #fef08a
-    public static let secondaryYellow = Color(red: 254/255, green: 240/255, blue: 138/255)
+    public static let secondaryYellow = DS.ColorToken.brandSubtle.color
 
     /// Soft background tint: #fef3c7
-    public static let softBackgroundTint = Color(red: 254/255, green: 243/255, blue: 199/255)
+    public static let softBackgroundTint = DS.ColorToken.brandSurface.color
 
     /// Dark Charcoal: #111110 (text & dark chrome)
-    public static let darkCharcoal = Color(red: 17/255, green: 17/255, blue: 16/255)
+    public static let darkCharcoal = DS.ColorToken.onBrand.color
 
     /// Deep warm charcoal: #272000 (text & rich contrast)
-    public static let deepWarmCharcoal = Color(red: 39/255, green: 32/255, blue: 0/255)
+    public static let deepWarmCharcoal = DS.ColorToken.brandInk.color
 
     // MARK: - CoreGraphics Colors
 
-    public static let primaryCGColor = CGColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 1)
-    public static let secondaryCGColor = CGColor(red: 254/255, green: 240/255, blue: 138/255, alpha: 1)
-    public static let softBackgroundTintCGColor = CGColor(red: 254/255, green: 243/255, blue: 199/255, alpha: 1)
-    public static let darkCharcoalCGColor = CGColor(red: 17/255, green: 17/255, blue: 16/255, alpha: 1)
-    public static let deepWarmCharcoalCGColor = CGColor(red: 39/255, green: 32/255, blue: 0/255, alpha: 1)
+    public static let primaryCGColor = ExportPalette.primary
+    public static let secondaryCGColor = ExportPalette.secondary
+    public static let softBackgroundTintCGColor = ExportPalette.softBackground
+    public static let darkCharcoalCGColor = ExportPalette.ink
+    public static let deepWarmCharcoalCGColor = ExportPalette.warmInk
 
     // MARK: - Platform Colors (RealityKit / SceneBuilder)
 
     public static var primaryPlatformColor: AppPlatformColor {
-        #if canImport(UIKit)
-        UIColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 1)
-        #else
-        NSColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 1)
-        #endif
+        DS.ColorToken.brand.platformColor
     }
 
     public static var secondaryPlatformColor: AppPlatformColor {
-        #if canImport(UIKit)
-        UIColor(red: 254/255, green: 240/255, blue: 138/255, alpha: 1)
-        #else
-        NSColor(red: 254/255, green: 240/255, blue: 138/255, alpha: 1)
-        #endif
+        DS.ColorToken.brandSubtle.platformColor
     }
 }
 

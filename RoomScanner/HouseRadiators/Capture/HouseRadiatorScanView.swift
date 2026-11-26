@@ -37,13 +37,13 @@ struct HouseRadiatorScanView: View {
                                 if let candidate = scanner.candidate {
                                     Text("Candidate: \(candidate.geometry.width, specifier: "%.2f") × \(candidate.geometry.height, specifier: "%.2f") m")
                                     Button("This is a radiator · measure closer") { scanner.acceptCandidate() }
-                                        .buttonStyle(.borderedProminent).disabled(!scanner.trackingNormal)
+                                        .dsProminentControl().disabled(!scanner.trackingNormal)
                                     Button("Not a radiator") { scanner.skipCandidate() }
                                 }
                             } else {
                                 Text("\(scanner.viewpointCount) viewpoints · \(scanner.sampleCount) surface samples")
                                 Button("Finish radiator scan") { finish() }
-                                    .buttonStyle(.borderedProminent).disabled(busy || scanner.sampleCount < 30 || scanner.viewpointCount < 2)
+                                    .dsProminentControl().disabled(busy || scanner.sampleCount < 30 || scanner.viewpointCount < 2)
                             }
                             Button("Find another candidate") { scanner.resetBounds() }.disabled(scanner.geometry == nil && scanner.candidate == nil)
                         }
@@ -76,7 +76,7 @@ struct HouseRadiatorScanView: View {
             }
             .disabled(busy)
         }
-        .tint(.blue).interactiveDismissDisabled(!scanner.frontCorners.isEmpty || busy)
+        .interactiveDismissDisabled(!scanner.frontCorners.isEmpty || busy)
         .confirmationDialog("Discard this unsaved radiator scan?",isPresented: $confirmDiscard,titleVisibility: .visible) {
             Button("Discard",role: .destructive) { scanner.stop(); dismiss() }
         }

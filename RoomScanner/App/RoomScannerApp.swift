@@ -15,6 +15,7 @@ struct RoomScannerApp: App {
         #if os(macOS)
         WindowGroup {
             MacRootView()
+                .dsAppTheme()
                 .environment(\.locale,(AppLanguage(rawValue:language) ?? .system).locale)
                 .environment(store)
                 .environment(updater)
@@ -23,6 +24,7 @@ struct RoomScannerApp: App {
         WindowGroup("Design Studio", for: UUID.self) { $designID in
             if let id = designID {
                 MacStudioWindow(designID: id)
+                    .dsAppTheme()
                     .environment(\.locale,(AppLanguage(rawValue:language) ?? .system).locale)
                     .environment(store)
                     .environment(updater)
@@ -30,6 +32,7 @@ struct RoomScannerApp: App {
         }
         Settings {
             SettingsView()
+                .dsAppTheme()
                 .environment(\.locale,(AppLanguage(rawValue:language) ?? .system).locale)
                 .environment(store)
                 .environment(updater)
@@ -37,6 +40,7 @@ struct RoomScannerApp: App {
         #else
         WindowGroup {
             RootView()
+                .dsAppTheme()
         }
         #endif
     }

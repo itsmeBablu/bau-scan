@@ -191,7 +191,7 @@ struct TechnicalRoomScanView: View {
             }
         }
         .modifier(CaptureAwakeModifier())
-        .tint(.blue)
+
         .sheet(isPresented: $showingVoiceNotes) {
             ScanVoiceNotesSheet(reference: .init(kind: .technicalRoom,itemID: persistence.id,library: "local"),location: .local(),preferredProjectID:voiceProjectID)
         }
@@ -252,7 +252,7 @@ struct TechnicalRoomScanView: View {
                 GoogleAIConsentToggle()
                 if cameraPhotos {
                 Button { scanner.takeSurveyPhoto() } label: { Label(scanner.takingPhoto ? "Saving photo…" : "Take photo",systemImage: "camera") }
-                    .buttonStyle(.borderedProminent).controlSize(.large)
+                    .dsProminentControl().controlSize(.large)
                     .disabled(scanner.takingPhoto || !scanner.state.trackingNormal)
                 }
                 Text("\(scanner.fps,specifier:"%.0f") FPS · \(scanner.meshAnchorCount) anchors · \(scanner.previewVertexCount) preview vertices · \(scanner.meshProcessingMs,specifier:"%.1f") ms mesh worker")
