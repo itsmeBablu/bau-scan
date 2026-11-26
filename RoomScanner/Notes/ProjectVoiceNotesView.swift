@@ -9,7 +9,9 @@ struct ProjectVoiceNotesView: View {
     @Environment(\.locale) private var locale
     @State private var notes: [ARNote] = []
     @State private var referenceID = ""
-    @State private var busy = false
+    @State private var operation = OperationLifetime()
+    private var busy: Bool { operation.isRunning }
+    @State private var reloadRequest = UUID()
     @State private var visible = false
     @State private var error: String?
     @State private var deleting: ARNote?
@@ -149,16 +151,18 @@ struct ProjectVoiceNotesView: View {
         .interactiveDismissDisabled(audioActive || busy || (failedClip != nil && !staged))
         .onChange(of:recorder.error) { _,message in if let message { error = message; recorder.error = nil } }
         #endif
-        .task(id:busy) {
-            guard busy else { return }; try? await Task.sleep(for:.seconds(30))
-            guard !Task.isCancelled,busy else { return }
-            busy = false; error = AppLanguage.text("Operation timed out. Saved recovery copies are kept. Retry or close.")
+        .task(id:operation.id) {
+            guard let request = operation.id else { return }
+            do { try await Task.sleep(for:.seconds(30)) } catch { return }
+            guard !Task.isCancelled,operation.warnIfRunning(request) else { return }
+            error = AppLanguage.text("This operation is taking longer than expected. Please wait; recovery copies are kept.")
         }
         .onChange(of:references.map(\.id)) { _,_ in
             if !references.contains(where:{ $0.id == referenceID }),references.count == 1 { referenceID = references[0].id }
         }
         .onDisappear {
             visible = false
+            reloadRequest = UUID()
             #if os(iOS)
             recorder.stop(partial:true); recorder.onClip = nil
             #endif
@@ -188,26 +192,32 @@ struct ProjectVoiceNotesView: View {
         #endif
     }
     @MainActor private func reload() async {
-        let root = workspace.notesRoot
+        let root = workspace.notesRoot, request = UUID()
+        reloadRequest = request
         do {
             let index = try await Task.detached { try ARNoteStore.index(root:root,projectID:projectID) }.value
-            guard !Task.isCancelled,visible,root == workspace.notesRoot else { return }
+            guard !Task.isCancelled,visible,root == workspace.notesRoot,reloadRequest == request else { return }
             notes = index.notes
             let recoveryRoot = try VoiceNoteRecovery.root()
-            recoveryCount = try await Task.detached { try ARNoteStore.index(root:recoveryRoot,projectID:projectID).notes.count }.value
-        } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
+            let count = try await Task.detached { try ARNoteStore.index(root:recoveryRoot,projectID:projectID).notes.count }.value
+            guard !Task.isCancelled,visible,root == workspace.notesRoot,reloadRequest == request else { return }
+            recoveryCount = count
+        } catch {
+            guard !Task.isCancelled,visible,root == workspace.notesRoot,reloadRequest == request else { return }
+            self.error = error.localizedDescription
+        }
     }
     private func exportNotes() {
         let root = workspace.notesRoot,selected = references,audio = includeAudio
         let target = FileManager.default.temporaryDirectory.appendingPathComponent("voice-notes-"+UUID().uuidString+".zip")
-        busy = true
+        guard let request = operation.begin() else { return }
         Task { @MainActor in
-            defer { busy = false }
+            defer { operation.finish(request) }
             do {
                 try await Task.detached { try VoiceNotesExporter.export(root:root,projectID:projectID,references:selected,includeAudio:audio,to:target) }.value
                 guard visible,root == workspace.notesRoot else { try? FileManager.default.removeItem(at:target); return }
                 exportURL = target
-            } catch { self.error = error.localizedDescription }
+            } catch { if visible,root == workspace.notesRoot { self.error = error.localizedDescription } }
         }
     }
     private func shareAudio(_ note:ARNote) {
@@ -227,16 +237,18 @@ struct ProjectVoiceNotesView: View {
         }
     }
     private func recoverRecordings() {
-        let root = workspace.notesRoot,selected = references; busy = true
+        guard let request = operation.begin() else { return }
+        let root = workspace.notesRoot,selected = references
         Task { @MainActor in
-            defer { busy = false }
+            defer { operation.finish(request) }
             do {
                 try await Task.detached { try VoiceNoteRecovery.recover(projectID:projectID,from:VoiceNoteRecovery.root(),to:root,references:selected) }.value
+                guard visible,root == workspace.notesRoot else { return }
                 #if os(iOS)
                 failedClip = nil; pendingID = nil; staged = false
                 #endif
                 await reload()
-            } catch { self.error = error.localizedDescription }
+            } catch { if visible,root == workspace.notesRoot { self.error = error.localizedDescription } }
         }
     }
     @MainActor private func saveEdit(_ note:ARNote,expected:ARNote) async throws {
@@ -250,11 +262,15 @@ struct ProjectVoiceNotesView: View {
     }
     private func remove(_ note: ARNote) { mutate { $0.notes.removeAll { $0.id == note.id } } }
     private func mutate(_ edit: @escaping (inout ARNoteIndex) throws -> Void) {
-        let root = workspace.notesRoot; busy = true
+        guard let request = operation.begin() else { return }
+        let root = workspace.notesRoot
         Task { @MainActor in
-            defer { busy = false }
-            do { _ = try await Task.detached { try ARNoteStore.update(root:root,projectID:projectID,edit:edit) }.value; await reload() }
-            catch { self.error = error.localizedDescription }
+            defer { operation.finish(request) }
+            do {
+                _ = try await Task.detached { try ARNoteStore.update(root:root,projectID:projectID,edit:edit) }.value
+                guard visible,root == workspace.notesRoot else { return }
+                await reload()
+            } catch { if visible,root == workspace.notesRoot { self.error = error.localizedDescription } }
         }
     }
     #if os(iOS)
@@ -269,19 +285,21 @@ struct ProjectVoiceNotesView: View {
         guard !busy,let reference = clipReference,let root = clipRoot else { failedClip = clip; return }
         let language = locale.identifier
         let id = pendingID ?? UUID(); pendingID = id
-        busy = true; failedClip = clip
+        guard let request = operation.begin() else { failedClip = clip; return }
+        failedClip = clip
         Task { @MainActor in
-            defer { busy = false }
+            defer { operation.finish(request) }
             do {
                 try await Task.detached {
                     var note = ARNote(id:id,projectID:projectID,reference:reference,number:1,level:nil,roomID:reference.itemID,position:nil,planPosition:nil,language:language)
                     note.audioFileName = note.stem+".m4a"; note.audioDuration = clip.duration; note.partial = clip.partial
                     try VoiceNoteRecovery.stage(note,audio:clip.data,at:VoiceNoteRecovery.root())
                 }.value
-                staged = true
+                if visible,root == workspace.notesRoot { staged = true }
                 try await Task.detached { try VoiceNoteRecovery.recover(projectID:projectID,from:VoiceNoteRecovery.root(),to:root,references:[reference]) }.value
+                guard visible,root == workspace.notesRoot else { return }
                 failedClip = nil; pendingID = nil; staged = false; await reload()
-            } catch { self.error = error.localizedDescription }
+            } catch { if visible,root == workspace.notesRoot { self.error = error.localizedDescription } }
         }
     }
     #endif

@@ -746,3 +746,23 @@ Production +0/-0; tests +83/-0. Whitespace check passed. All four Swift tests UN
 on this Windows host. Full golden coverage, actual crash/ENOSPC/device/iCloud checks
 and both Apple schemes remain pending. This is partial safety-net implementation,
 not completion of Phase 0B acceptance.
+
+## Phase 1, part 1 — voice operation ownership, 2026-11-26
+
+Replaced the voice library's independent busy Boolean with a transient,
+Foundation-only `OperationLifetime`. Slow-operation warnings no longer release
+ownership while the detached save/export/recovery still runs. Duplicate starts
+are rejected until actual completion; an old completion/deadline cannot finish or
+warn a newer operation. Added two state-machine regressions (UNRUN).
+
+Voice-library reload now checks request identity, visibility and root after both
+suspensions, including recovery-count loading and error presentation. Disappearance
+invalidates reload identity. Save/recovery/delete completions avoid applying stale
+UI results to another root. Durable operations still finish; recovery files and
+audio/AR session policies are unchanged. Added EN/DE slow-operation wording that
+does not incorrectly call a still-running write failed or invite an overlapping retry.
+
+Localization (1367 keys), style and whitespace passed. Swift tests, real slow-save
+navigation, live recording and device capture remain unverified. No persistent
+formats changed. This fixes source-level ownership paths; it is not a claim that
+the entire concurrency/error audit or Phase 1 acceptance is complete.

@@ -1,6 +1,7 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "This operation is taking longer than expected. Please wait; recovery copies are kept.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"This operation is taking longer than expected. Please wait; recovery copies are kept."}},"de":{"stringUnit":{"state":"translated","value":"Dieser Vorgang dauert länger als erwartet. Bitte warten; Wiederherstellungskopien bleiben erhalten."}}}},
     "A Studio design depends on this scan. Remove the design first; the source scan has been kept.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"A Studio design depends on this scan. Remove the design first; the source scan has been kept."}},"de":{"stringUnit":{"state":"translated","value":"Ein Studio-Entwurf benötigt diesen Scan. Entferne zuerst den Entwurf; der ursprüngliche Scan bleibt erhalten."}}}},
     "The project library changed. Refresh before removing this item.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"The project library changed. Refresh before removing this item."}},"de":{"stringUnit":{"state":"translated","value":"Die Projektbibliothek wurde geändert. Aktualisiere sie, bevor du dieses Element entfernst."}}}},
     "Measurement report": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Measurement report"}},"de":{"stringUnit":{"state":"translated","value":"Messbericht"}}}},
