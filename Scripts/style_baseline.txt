@@ -1,0 +1,63 @@
+# Style ratchet: counts by file/rule, allowed only to shrink.
+# DesignSystem owns style definitions. Export/ is fixed drawing/format content.
+# RoomScanner/Viewer/AnnotationIcon.swift: RealityKit marker textures, not screen typography
+# RoomScanner/Viewer/PlanSceneBuilder.swift: Fixed plan/3D materials; must not follow UI appearance
+# RoomScanner/SceneEditing/StudioSceneBuilder.swift: SceneKit/RealityKit material conversion
+# RoomScanner/SceneEditing/StudioEngineering.swift: Engineering presentation colors, separate from UI chrome
+# RoomScanner/SceneEditing/StudioTechnicalData.swift: Technical model material descriptions
+# RoomScanner/TechnicalRoom/TechnicalMeshAppearance.swift: Captured mesh texture/color generation
+# RoomScanner/Scan/CapturePins.swift: UIKit projected AR marker overlay; migrate platform palette separately
+# RoomScanner/Scan/HoldMicrophoneControl.swift: UIKit touch/recording overlay; no SwiftUI view styling
+# RoomScanner/HouseRadiators/Capture/HouseRadiatorScanCoordinator.swift: Native AR measurement overlay
+# RoomScanner/TechnicalRoom/Capture/TechnicalRoomScanCoordinator.swift: RealityKit annotation materials
+RoomScanner/HouseRadiators/Capture/HouseRadiatorScanView.swift|named|1
+RoomScanner/HouseRadiators/HouseRadiatorViews.swift|named|1
+RoomScanner/MacUI/MacRootView.swift|radius|2
+RoomScanner/MacUI/OrganisedExportSheet.swift|font|1
+RoomScanner/Notes/VoiceNotePlayerSheet.swift|named|1
+RoomScanner/Scan/LiveScanNotes.swift|material|5
+RoomScanner/Scan/LiveScanNotes.swift|radius|1
+RoomScanner/Scan/ScanRelocalizationProbe.swift|material|1
+RoomScanner/Scan/ScanRelocalizationProbe.swift|radius|1
+RoomScanner/Scan/ScanSaveStatus.swift|material|1
+RoomScanner/Scan/ScanSaveStatus.swift|named|1
+RoomScanner/Scan/ScanView.swift|material|3
+RoomScanner/Scan/ScanView.swift|radius|4
+RoomScanner/Scan/TechnicalRoomScanView.swift|material|4
+RoomScanner/Scan/TechnicalRoomScanView.swift|named|6
+RoomScanner/Scan/TechnicalRoomScanView.swift|radius|2
+RoomScanner/SceneEditing/StudioEditorView.swift|font|2
+RoomScanner/SceneEditing/StudioEditorView.swift|material|13
+RoomScanner/SceneEditing/StudioEditorView.swift|radius|9
+RoomScanner/SceneEditing/StudioEditorView.swift|rgb|1
+RoomScanner/TechnicalRoom/TechnicalAnnotationEditor.swift|named|4
+RoomScanner/TechnicalRoom/TechnicalMEPReviewView.swift|named|1
+RoomScanner/TechnicalRoom/TechnicalRoomLibraryView.swift|named|2
+RoomScanner/TechnicalRoom/TechnicalRoomLibraryView.swift|radius|1
+RoomScanner/TechnicalRoom/TechnicalSavedScanView.swift|material|2
+RoomScanner/TechnicalRoom/TechnicalSurveyPhotoView.swift|named|1
+RoomScanner/UI/ExportSheet.swift|named|2
+RoomScanner/UI/HouseDetailView.swift|material|1
+RoomScanner/UI/HouseDetailView.swift|radius|1
+RoomScanner/UI/HousePhotosTabView.swift|radius|1
+RoomScanner/UI/Plan2DView.swift|font|2
+RoomScanner/UI/Plan2DView.swift|material|2
+RoomScanner/UI/Plan2DView.swift|named|3
+RoomScanner/UI/Projects/ProjectPinsView.swift|named|1
+RoomScanner/UI/Projects/ProjectPrivacyView.swift|named|1
+RoomScanner/UI/Projects/ProjectQuantitiesView.swift|named|1
+RoomScanner/UI/Projects/ProjectScanPreview.swift|named|1
+RoomScanner/UI/Projects/ProjectVerificationView.swift|named|1
+RoomScanner/UI/Projects/RenovationNavigation.swift|font|1
+RoomScanner/UI/Projects/RenovationNavigation.swift|radius|3
+RoomScanner/UI/RoomDetailView.swift|material|1
+RoomScanner/UI/RoomListView.swift|font|1
+RoomScanner/UI/RoomListView.swift|radius|3
+RoomScanner/UI/RootView.swift|font|1
+RoomScanner/UI/ScanPhotoButton.swift|named|1
+RoomScanner/UI/SettingsView.swift|font|1
+RoomScanner/Viewer/ViewerControls.swift|material|1
+RoomScanner/Viewer/ViewerControls.swift|radius|1
+RoomScanner/Viewer/ViewerView.swift|material|3
+RoomScanner/Viewer/ViewerView.swift|named|2
+RoomScanner/Viewer/ViewerView.swift|radius|1
