@@ -57,17 +57,7 @@ public struct LiquidGlassModifier: ViewModifier {
     public var shadowRadius: CGFloat = 10
 
     public func body(content: Content) -> some View {
-        content.background {
-            RoundedRectangle(cornerRadius: cornerRadius,style: .continuous)
-                .fill(.regularMaterial)
-                .overlay {
-                    if hasBorder {
-                        RoundedRectangle(cornerRadius: cornerRadius,style: .continuous)
-                            .stroke(.primary.opacity(0.08),lineWidth: 0.5)
-                    }
-                }
-                .shadow(color: .black.opacity(0.06),radius: min(shadowRadius,4),x: 0,y: 2)
-        }
+        content.modifier(DSFloatingSurface(radius:cornerRadius))
     }
 
 }
@@ -76,14 +66,7 @@ public struct LiquidGlassCardModifier: ViewModifier {
     public var cornerRadius: CGFloat = 14
 
     public func body(content: Content) -> some View {
-        content.padding().background {
-            RoundedRectangle(cornerRadius: cornerRadius,style: .continuous)
-                .fill(.regularMaterial)
-                .overlay {
-                    RoundedRectangle(cornerRadius: cornerRadius,style: .continuous)
-                        .stroke(.primary.opacity(0.08),lineWidth: 0.5)
-                }
-        }
+        content.padding().modifier(DSFloatingSurface(radius:cornerRadius))
     }
 
 }

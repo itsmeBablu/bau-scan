@@ -44,6 +44,9 @@ struct SettingsView: View {
 
     private var form: some View {
         Form {
+            #if DEBUG
+            Section { DisclosureGroup("Advanced") { NavigationLink("Design system") { DesignSystemGallery() } } }
+            #endif
             Section("Privacy") {
                 GoogleAIConsentToggle()
                 NavigationLink("Project data and deletion") { ProjectPrivacyView() }

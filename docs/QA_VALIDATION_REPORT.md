@@ -92,6 +92,16 @@ contrast/visual check was run. S1 requires review before app appearance changes.
 
 ## Design system S1 — tokens and root
 
+S2 local checkpoint: reusable button roles, card/section/badge/row/floating styles,
+section/stat/thumbnail/empty/audio shells and a DEBUG-only Settings > Advanced
+gallery are implemented. Existing liquidGlass modifiers now delegate to one
+material gate (quiet material on older systems, guarded glass on iOS/macOS 26,
+solid fallback for Reduce Transparency). No new navigation chrome or dependency.
+The first Projects screen remains outside the project TabView as clarified by
+the user. Contrast/asset tests from S1 remain; native layout, previews and haptics
+are UNRUN on Windows. The gallery is not a claim of real screenshots. S3 migration
+and application redesign continue under the user's explicit instruction.
+
 Reused/moved AppTheme.swift and kept its public names as compatibility aliases.
 Added DS namespace and semantic assets under one DesignSystem folder; no second
 theme. Removed duplicated SwiftUI/platform RGB palette definitions and all eight
