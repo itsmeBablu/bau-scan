@@ -191,7 +191,7 @@ struct StudioEditorView: View {
                 VStack(spacing:12) {
                     ProgressView("export.generating",value:exportProgress,total:1)
                     Button("Cancel") { exportTask?.cancel() }
-                }.padding(24).frame(width:280).background(.regularMaterial,in:RoundedRectangle(cornerRadius:16))
+                }.padding(24).frame(width:280).dsMaterial(in:RoundedRectangle(cornerRadius:DS.Radius.floating))
             }
         }
         .navigationTitle(session.document.title)
@@ -330,11 +330,11 @@ struct StudioEditorView: View {
                 phoneHeader
                 if session.document.shell.stories.count > 1 {
                     Picker("Level",selection:$story) { ForEach(session.document.shell.stories,id: \.index) { Text(StoryNaming.localizedName(for:$0.index)).tag($0.index) } }
-                        .padding(8).background(.regularMaterial,in:Capsule())
+                        .padding(8).dsMaterial(in:Capsule())
                 }
                 Spacer(minLength:0)
                 if session.selected != nil || multipleSelection { selectionHUD }
-                if !status.isEmpty { Text(status).font(.caption).padding(8).background(.regularMaterial,in:Capsule()) }
+                if !status.isEmpty { Text(status).font(.caption).padding(8).dsMaterial(in:Capsule()) }
                 phoneDock
             }.padding(.horizontal,12).padding(.top,8).padding(.bottom,4)
             if let photo = selectedPhoto {
@@ -352,13 +352,13 @@ struct StudioEditorView: View {
                             SurveyPhotoCanvas(data:photo.jpegData)
                         }.padding(12)
                             .frame(width:landscape ? min(380,canvasWidth*0.42) : nil,height:landscape ? 220 : 310)
-                            .background(.regularMaterial,in:RoundedRectangle(cornerRadius:20))
+                            .dsMaterial(in:RoundedRectangle(cornerRadius:DS.Radius.toolbar))
                     }
                     if landscape { Spacer() }
                 }.padding(.horizontal,12).padding(.top,70).padding(.bottom,70)
             }
             if showInspector && landscape {
-                HStack { Spacer(); inspector.frame(width:min(340,canvasWidth*0.4)).background(.regularMaterial) }.padding(.top,70).padding(.bottom,70)
+                HStack { Spacer(); inspector.frame(width:min(340,canvasWidth*0.4)).dsMaterial() }.padding(.top,70).padding(.bottom,70)
             }
         }
         #else
@@ -396,7 +396,7 @@ struct StudioEditorView: View {
     private var technikEmptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "wrench.and.screwdriver.fill")
-                .font(.system(size: 38))
+                .dsIcon(.capture)
                 .foregroundStyle(Color.accentColor)
             Text("Technik Studio · No Equipment Placed")
                 .font(.headline)
@@ -425,7 +425,7 @@ struct StudioEditorView: View {
             }
         }
         .padding(20)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+        .dsMaterial(in:RoundedRectangle(cornerRadius: DS.Radius.project))
         .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
         .padding(.horizontal, 24)
     }
@@ -434,16 +434,16 @@ struct StudioEditorView: View {
             if textSize.isAccessibilitySize {
                 Text(session.document.source == .technical ? "Technik Studio" : "House Studio")
                     .font(.headline).padding(.horizontal,12).padding(.vertical,8)
-                    .background(.regularMaterial,in: Capsule())
+                    .dsMaterial(in:Capsule())
             }
             HStack(spacing: 12) {
                 Button { requestClose() } label: { Image(systemName: "xmark").frame(width: 44,height: 44) }
-                    .accessibilityLabel("Close Studio").background(.regularMaterial,in: Circle())
+                    .accessibilityLabel("Close Studio").dsMaterial(in:Circle())
                 if !textSize.isAccessibilitySize {
                     VStack(alignment: .leading,spacing: 2) {
                         Text(session.document.source == .technical ? "Technik Studio" : "House Studio").font(.headline)
                         Text(session.dirty || !hasSaved ? "Unsaved design" : "Design saved").font(.caption).foregroundStyle(.secondary)
-                    }.lineLimit(1).padding(.horizontal,14).padding(.vertical,8).background(.regularMaterial,in: Capsule())
+                    }.lineLimit(1).padding(.horizontal,14).padding(.vertical,8).dsMaterial(in:Capsule())
                 }
                 Spacer(minLength: 0)
                 saveButton.dsProminentControl().buttonBorderShape(.capsule)
@@ -455,9 +455,9 @@ struct StudioEditorView: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 8) { phoneDockActions }.frame(minWidth: 660).padding(.horizontal,8).padding(.vertical,6)
             }.scrollIndicators(.hidden).fixedSize(horizontal: false,vertical: true)
-                .background(.regularMaterial,in: RoundedRectangle(cornerRadius: 22))
+                .dsMaterial(in:RoundedRectangle(cornerRadius: DS.Radius.project))
         } else {
-            HStack(spacing: 0) { phoneDockActions }.padding(.horizontal,4).padding(.vertical,3).background(.regularMaterial,in: Capsule())
+            HStack(spacing: 0) { phoneDockActions }.padding(.horizontal,4).padding(.vertical,3).dsMaterial(in:Capsule())
         }
     }
     @ViewBuilder private var selectionHUD: some View {
@@ -472,7 +472,7 @@ struct StudioEditorView: View {
             }
         }.padding(8)
         }.scrollIndicators(.hidden).fixedSize(horizontal:false,vertical:true)
-            .background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))
+            .dsMaterial(in:RoundedRectangle(cornerRadius:DS.Radius.panel))
         if let item = session.selected {
             HStack {
                 VStack(alignment: .leading,spacing: 3) {
@@ -483,7 +483,7 @@ struct StudioEditorView: View {
                 }
                 Spacer()
                 Button("Edit") { showInspector = true }.buttonStyle(.bordered)
-            }.padding(.horizontal,12).padding(.vertical,6).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 14))
+            }.padding(.horizontal,12).padding(.vertical,6).dsMaterial(in:RoundedRectangle(cornerRadius: DS.Radius.card))
         }
     }
     @ViewBuilder private var phoneDockActions: some View {
@@ -596,11 +596,11 @@ struct StudioEditorView: View {
     }
     private func dockLabel(_ title: String,icon: String,active: Bool = false) -> some View {
         VStack(spacing: 5) {
-            Image(systemName: icon).font(.system(size: 18,weight: .medium)).frame(height: 20)
+            Image(systemName: icon).dsIcon(.small,weight:.medium).frame(height: 20)
             Text(title).font(.caption2.weight(.medium)).lineLimit(1)
         }.frame(maxWidth: .infinity,minHeight: 44)
             .foregroundStyle(active ? Color.accentColor : Color.primary)
-            .background(active ? Color.accentColor.opacity(0.16) : Color.clear,in: RoundedRectangle(cornerRadius: 14))
+            .background(active ? Color.accentColor.opacity(0.16) : Color.clear,in: RoundedRectangle(cornerRadius: DS.Radius.card))
             .accessibilityAddTraits(active ? .isSelected : [])
             .contentShape(Rectangle())
     }
@@ -631,7 +631,7 @@ struct StudioEditorView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .padding(12)
-                        .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                        .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: DS.Radius.card))
                     }
                     .buttonStyle(.plain)
                     .padding(.horizontal)
@@ -666,7 +666,7 @@ struct StudioEditorView: View {
                                 Text(family.title).font(.subheadline.weight(.semibold))
                                 Text("\(family.defaultSize.x,specifier: "%.2f") × \(family.defaultSize.y,specifier: "%.2f") × \(family.defaultSize.z,specifier: "%.2f") m").font(.caption2).foregroundStyle(.secondary)
                             }.frame(maxWidth: .infinity,minHeight: 100).padding(8)
-                                .background(.quaternary,in: RoundedRectangle(cornerRadius: 18))
+                                .background(.quaternary,in: RoundedRectangle(cornerRadius: DS.Radius.inspector))
                         }.buttonStyle(.plain).disabled(session.document.objects.count >= 500)
                     }
                 }.padding()
@@ -920,7 +920,7 @@ private struct StudioObjectFields: View {
                 #endif
         }
     }
-    static func color(_ p: TechnicalPoint3) -> Color { Color(red: p.x,green: p.y,blue: p.z) }
+    static func color(_ p: TechnicalPoint3) -> Color { DS.materialPreviewColor(p) }
     static func rgb(_ value: Color) -> TechnicalPoint3? {
         #if os(iOS)
         let color = UIColor(value)
