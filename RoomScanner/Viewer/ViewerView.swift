@@ -26,7 +26,10 @@ struct ViewerView: View {
     @State private var selectedPhoto: SurveyPhotoImage?
     @State private var photoError: String?
     @State private var pendingPhoto: SurveyPhotoImage?
-    @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
+    @AppStorage("measurementUnit") private var appUnit: MeasurementUnit = .both
+    @Environment(\.projectPreferences) private var projectPreferences
+    @Environment(\.locale) private var locale
+    private var unit:MeasurementUnit { ProjectPreferenceResolution.unit(projectPreferences,appDefault:appUnit) }
     @State private var measureStart: SIMD3<Float>?
     @State private var lastMeasurementText: String?
     @State private var measureRoot = Entity()
@@ -162,7 +165,7 @@ struct ViewerView: View {
                 guard let worldPos = worldPosition else { return }
                 if let start = measureStart {
                     let dist = Double(simd_distance(start, worldPos))
-                    let text = MeasurementFormat.length(dist, unit: unit, locale: AppLanguage.locale)
+                    let text = MeasurementFormat.length(dist, unit: unit, locale: locale)
                     lastMeasurementText = text
                     #if os(macOS)
                     NSPasteboard.general.clearContents()
@@ -215,6 +218,7 @@ struct ViewerView: View {
 
     private func rebuildScene() {
         var builder = PlanSceneBuilder()
+        builder.options.locale = locale
         builder.radiators = radiators
         builder.options.showDimensions = state.showDimensions
         builder.options.showObjects = state.showObjects

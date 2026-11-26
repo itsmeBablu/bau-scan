@@ -42,11 +42,11 @@ struct RenovationNavigation: View {
             }
         }
         .sheet(isPresented:$scan,onDismiss:{ activeCapture = pendingCapture; pendingCapture = nil }) {
-            ScanSetupSheet(workspace:workspace,projectID:activeCaptureProject,mode:requestedScan) { pendingCapture = $0 }
+            ScanSetupSheet(workspace:workspace,projectID:activeCaptureProject,mode:requestedScan,defaultLocation:store.location) { pendingCapture = $0 }
                 .presentationDetents([.medium,.large])
         }
         .fullScreenCover(item:$activeCapture,onDismiss:refresh) { capture in
-            ProjectCaptureView(mode:capture.mode,projectID:capture.projectID,store:store,workspace:workspace,preparedPersistence:capture.persistence,onSaved:attach)
+            ProjectCaptureView(mode:capture.mode,projectID:capture.projectID,store:store,workspace:workspace,preparedPersistence:capture.persistence,captureLocation:capture.location,onSaved:attach)
         }
         .alert("New project",isPresented:$creating) {
             TextField("Project name",text:$projectName)
@@ -94,20 +94,7 @@ struct RenovationNavigation: View {
     }
     private func beginCapture(_ mode:ScanMode,projectID:UUID) {
         activeCaptureProject = projectID; workspace.currentProjectID = projectID
-        Task {
-            if let prefs = workspace.project(projectID)?.details?.preferences {
-                if let value = prefs.language,!value.isEmpty { UserDefaults.standard.set(value,forKey:AppLanguage.preferenceKey) }
-                if let value = prefs.units,MeasurementUnit(rawValue:value) != nil { UserDefaults.standard.set(value,forKey:"measurementUnit") }
-                if let value = prefs.exportFormat { UserDefaults.standard.set(value,forKey:"export.defaultFormat") }
-                if let value = prefs.photos { UserDefaults.standard.set(value,forKey:ScanPhotoPolicy.preferenceKey) }
-                if prefs.storage == "local",store.isCloud { store.switchLocation(to:.local()) }
-                if prefs.storage == "icloud",!store.isCloud {
-                    await store.setCloudEnabled(true)
-                    guard store.isCloud else { workspace.error = AppLanguage.text("Connect iCloud in App settings before scanning into it."); return }
-                }
-            }
-            requestedScan = mode; scan = true
-        }
+        requestedScan = mode; scan = true
     }
     private func beginScan() { activeCaptureProject = workspace.currentProjectID; requestedScan = .house; scan = true }
     private var visibleProjects:[RenovationProject] {
@@ -183,10 +170,18 @@ struct RenovationNavigation: View {
 struct ProjectCaptureView: View {
     let mode: ScanMode
     let projectID: UUID?
-    let store: RoomStore
+    @State private var store: RoomStore
     let workspace: RenovationWorkspace
     var preparedPersistence: CapturePersistence? = nil
     let onSaved: (ProjectReference.Kind,UUID,String) -> Void
+    init(mode:ScanMode,projectID:UUID?,store:RoomStore,workspace:RenovationWorkspace,preparedPersistence:CapturePersistence? = nil,captureLocation:StorageLocation? = nil,onSaved:@escaping (ProjectReference.Kind,UUID,String)->Void) {
+        self.mode = mode; self.projectID = projectID; self.workspace = workspace
+        self.preparedPersistence = preparedPersistence; self.onSaved = onSaved
+        if let captureLocation,captureLocation != store.location {
+            let scoped = RoomStore(location:captureLocation,allowsCloud:false); scoped.reload()
+            _store = State(initialValue:scoped)
+        } else { _store = State(initialValue:store) }
+    }
     var body: some View {
         Group {
             if mode == .technicalRoom {
@@ -197,6 +192,7 @@ struct ProjectCaptureView: View {
         }
         .environment(store)
         .environment(workspace)
+        .projectPreferenceScope(projectID.map { workspace.project($0)?.details?.preferences ?? .init() })
     }
 }
 
@@ -257,6 +253,7 @@ struct ProjectEntryRow: View {
     var openAsDesign = false
     var card = false
     @Environment(RenovationWorkspace.self) private var workspace
+    @Environment(\.locale) private var locale
     @State private var renaming = false
     @State private var organizing = false
     @State private var name = ""
@@ -265,7 +262,7 @@ struct ProjectEntryRow: View {
             if card {
                 VStack(alignment:.leading,spacing:8) {
                     ProjectCover(url:coverURL,size:140).frame(maxWidth:.infinity)
-                    Text(workspace.title(entry)).font(.headline).lineLimit(2)
+                    Text(workspace.title(entry,locale:locale)).font(.headline).lineLimit(2)
                     Text(String(entry.roomCount)+" "+AppLanguage.text("Rooms")).font(.caption).foregroundStyle(.secondary)
                     if let area = entry.area { Text(MeasurementFormat.squareMeters(area)).font(.caption).foregroundStyle(.secondary) }
                     Text(entry.date,style:.date).font(.caption2).foregroundStyle(.tertiary)
@@ -273,13 +270,13 @@ struct ProjectEntryRow: View {
             } else {
             HStack {
                 Image(systemName:entry.isDesign ? "square.stack.3d.up" : entry.reference.kind == .technicalRoom ? "wrench.and.screwdriver" : "house")
-                VStack(alignment:.leading) { Text(workspace.title(entry)); Text(entry.date,style:.date).font(.caption).foregroundStyle(.secondary) }
+                VStack(alignment:.leading) { Text(workspace.title(entry,locale:locale)); Text(entry.date,style:.date).font(.caption).foregroundStyle(.secondary) }
             }
             }
         }
         .contextMenu {
             if !entry.isDesign { Button("Edit organization",systemImage:"building.2") { organizing = true } }
-            Button("Rename") { name = workspace.title(entry); renaming = true }
+            Button("Rename") { name = workspace.title(entry,locale:locale); renaming = true }
             Button("Duplicate") { Task { await workspace.duplicate(entry) } }
             NavigationLink("Open in Studio",value:designReference)
             Menu("Move to project") { ForEach(workspace.index.projects) { project in Button(project.isUnsorted ? AppLanguage.text("Unsorted") : project.name) { workspace.assign(entry.reference,to:project.id) } } }
@@ -344,6 +341,7 @@ struct ProjectChatWorkspace: View {
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden()
         .onAppear { workspace.currentProjectID = projectID }
+        .projectPreferenceScope(workspace.project(projectID)?.details?.preferences ?? .init())
     }
     private func projectStack<Content: View>(_ title: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
         NavigationStack {

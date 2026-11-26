@@ -3,6 +3,7 @@ import SwiftUI
 struct ProjectRecentEvidenceView: View {
     let projectID:UUID
     @Environment(RenovationWorkspace.self) private var workspace
+    @Environment(\.locale) private var locale
     @State private var summary = ProjectEvidenceSummaryCache.Summary()
     @State private var selected:ProjectPhotoAsset?
     private var project:RenovationProject? { workspace.project(projectID) }
@@ -38,7 +39,7 @@ struct ProjectRecentEvidenceView: View {
                 if summary.voices.isEmpty { Text("No voice notes yet").foregroundStyle(.secondary) }
                 ForEach(summary.voices) { note in
                     InlineVoiceNoteRow(note:note,root:workspace.notesRoot,
-                        subtitle:workspace.entry(note.reference).map { workspace.title($0) } ?? note.reference.itemID.uuidString)
+                        subtitle:workspace.entry(note.reference).map { workspace.title($0,locale:locale) } ?? note.reference.itemID.uuidString)
                 }
             }.dsCard()
             VStack(alignment:.leading,spacing:DS.Spacing.m) {
@@ -54,8 +55,8 @@ struct ProjectRecentEvidenceView: View {
                 ForEach(Array(Set(summary.warnings)).sorted(),id:\.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
             }.dsCard()
         }
-        .task(id:projectID.uuidString+workspace.notesRoot.path+String(workspace.catalogueRevision)) {
-            let entries = project?.references.compactMap(workspace.entry) ?? []
+        .task(id:projectID.uuidString+workspace.notesRoot.path+String(workspace.catalogueRevision)+locale.identifier) {
+            let entries = project?.references.compactMap(workspace.entry).map { workspace.localizedEntry($0,locale:locale) } ?? []
             let root = workspace.notesRoot,summaries = workspace.scanSummaries
             do {
                 let result = try await ProjectEvidenceSummaryCache.shared.summary(projectID:projectID,entries:entries,notesRoot:root,summaries:summaries)

@@ -371,3 +371,10 @@ inside the existing coordinated index transaction. A stale save preserves the
 local draft and surfaces conflict instead of overwriting another window. The edit
 sheet owns dirty-close confirmation. Studio's existing action methods back the
 floating control layout; macOS uses only its native inspector presentation.
+
+ProjectPreferenceResolution is pure Foundation and side-effect free. SwiftUI scopes
+project preferences/locale around a project and its capture presentation; app defaults
+remain fallback values. A prepared capture includes its resolved library location;
+a local override creates a separate RoomStore instead of changing the app's browsing
+store. Native format/AR state stays independent. Technical capture retains local
+storage; requesting iCloud for House requires an already connected app library.

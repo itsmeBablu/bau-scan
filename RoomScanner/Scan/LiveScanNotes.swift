@@ -5,6 +5,7 @@ import SwiftUI
 typealias VoiceNoteHUD = LiveScanNotes
 
 struct LiveScanNotes: View {
+    @Environment(\.locale) private var locale
     let reference: ProjectReference
     let persistence: CapturePersistence
     let workspace: RenovationWorkspace?
@@ -47,7 +48,7 @@ struct LiveScanNotes: View {
                 Button {
                     guard let point = position() else { message = AppLanguage.text("Aim at a tracked surface"); return }
                     pin = point; capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level(); text = ""
-                    do { let owner = try owner(); var value = ARNote(projectID:owner,reference:reference,number:1,level:capturedLevel,roomID:capturedRoom,position:point,planPosition:nil,language:Locale.current.identifier); value.cameraPosition = cameraPoint(); value.title = AppLanguage.text("Pinned note"); pendingText = value; onPin(value); saveText() } catch { message = error.localizedDescription }
+                    do { let owner = try owner(); var value = ARNote(projectID:owner,reference:reference,number:1,level:capturedLevel,roomID:capturedRoom,position:point,planPosition:nil,language:locale.identifier); value.cameraPosition = cameraPoint(); value.title = AppLanguage.text("Pinned note",locale:locale); pendingText = value; onPin(value); saveText() } catch { message = error.localizedDescription }
                 } label: { Image(systemName:pin == nil ? "mappin" : "mappin.circle.fill").frame(width:48,height:48) }
                     .dsMaterial(in:Circle()).accessibilityLabel("Pin a note to this surface")
                     .disabled(holding || recorder.recording || recorder.preparing || pending != nil)
@@ -82,7 +83,7 @@ struct LiveScanNotes: View {
     }
     private func note(owner:UUID) -> ARNote {
         var note = ARNote(projectID:owner,reference:reference,number:1,level:recordingPin?.level ?? capturedLevel,
-            roomID:recordingPin?.roomID ?? capturedRoom,position:recordingPosition ?? cameraPoint(),planPosition:nil,language:Locale.current.identifier)
+            roomID:recordingPin?.roomID ?? capturedRoom,position:recordingPosition ?? cameraPoint(),planPosition:nil,language:locale.identifier)
         note.anchorPinID = recordingPin?.id; note.cameraPosition = cameraPoint()
         note.text = text; note.modifiedAt = Date()
         return note

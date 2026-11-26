@@ -4,6 +4,8 @@ import SwiftUI
 /// sharing (`ShareLink`), saving via system file exporter,
 /// or copies into `Exports/` folder of current storage.
 struct ExportSheet: View {
+    @Environment(\.projectPreferences) private var projectPreferences
+    @Environment(\.locale) private var locale
     @AppStorage("renovation.proDetails") private var proDetails = false
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -76,7 +78,7 @@ struct ExportSheet: View {
             }
         }
         .onAppear {
-            let preferred = initialFormat ?? UserDefaults.standard.string(forKey:"export.defaultFormat").flatMap(ExportFormat.init(rawValue:)) ?? selected
+            let preferred = initialFormat ?? projectPreferences?.exportFormat.flatMap(ExportFormat.init(rawValue:)) ?? UserDefaults.standard.string(forKey:"export.defaultFormat").flatMap(ExportFormat.init(rawValue:)) ?? selected
             select(formats.contains(preferred) ? preferred : (formats.first ?? .pdf))
         }
         .onDisappear { requestID = UUID(); generationTask?.cancel(); generationTask = nil; working = false }
@@ -154,13 +156,15 @@ struct ExportSheet: View {
         let format = selected
         let subject = self.subject
         var service = ExportService(); service.meshSource = meshSource
+        service.locale = locale
+        service.unit = ProjectPreferenceResolution.unit(projectPreferences,appDefault:service.unit)
         let configuredService = service
         runExport { try configuredService.export(subject,format:format) }
     }
 
     private func exportPhotos() {
         guard let url = subject.sourcePackageURL else { return }
-        let subject = subject, locale = AppLanguage.locale
+        let subject = subject, locale = locale
         runExport {
                     let reference = ProjectReference(kind:subject.kind == .house ? .house : .room,itemID:subject.id,library:"local")
                     let project = RenovationProject(name:subject.name,references:[reference])

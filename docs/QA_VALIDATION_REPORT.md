@@ -407,3 +407,33 @@ save/conflict/dismissal behavior are device validation pending. Both Apple schem
 remain UNRUN on Windows. Project-scoped preference propagation (avoiding global
 UserDefaults mutation at capture start), export identity/reuse, remaining note
 workflow actions and final visual validation still need completion.
+
+## Project preference isolation checkpoint — 2026-11-26
+
+Removed capture-start writes to global language, units, export format, photo and
+cloud preferences. Added Foundation-only read-only ProjectPreferenceResolution and
+one SwiftUI environment scope. Project native UI locale, measurement views/2D plan,
+export defaults/service options and photo visibility resolve project values over
+app defaults. Shared project labels/report inputs receive the scoped locale; note
+metadata records it. App Settings explicitly returns to the app scope. Existing
+legacy manually formatted/localized labels still require the final Apple audit.
+
+Capture setup resolves storage for the actually selected project before camera
+presentation. A local House override uses its own RoomStore context and leaves the
+browsing store unchanged. iCloud is used only when already connected; setup does not
+enable it silently. The Technical Room engine retains existing local-save behavior,
+now stated in setup. Photo toggles within a technical project session are local UI
+state rather than global preference writes. No AR lifecycle/configuration, coordinate,
+package format or checkpoint policy changed.
+
+Production Swift +151/-67 (net +84). Two shared Swift tests added for explicit
+fallbacks, EN/DE/system locale, independent project units and photo defaults; UNRUN.
+One Node source guard verifies capture entry has no global writes/library switch.
+10 Node checks, strict localization (1330 keys), style and whitespace passed on the
+working tree. Real environment propagation, local/iCloud save identity, capture
+recovery, measurements, exports and locale/large-text rendering remain UNRUN/device
+validation pending. Both Apple build/test schemes require a Mac and remain unrun.
+
+Remaining: logical artifact request/revision reuse, note re-record/context actions
+and independent written-note scopes, final localization/visual cleanup and Apple/
+device regression verification. The redesign is not declared complete.

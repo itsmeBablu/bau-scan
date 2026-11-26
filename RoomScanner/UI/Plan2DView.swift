@@ -10,7 +10,10 @@ struct Plan2DView: View {
     @AppStorage("planShowLabels") private var showLabels = true
     @AppStorage("planShowObjects") private var showObjects = true
     @AppStorage("planShowGrid") private var showGrid = true
-    @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
+    @AppStorage("measurementUnit") private var appUnit: MeasurementUnit = .both
+    @Environment(\.projectPreferences) private var projectPreferences
+    @Environment(\.locale) private var locale
+    private var unit:MeasurementUnit { ProjectPreferenceResolution.unit(projectPreferences,appDefault:appUnit) }
 
     @State private var showingOptions = false
     @State private var scale: CGFloat = 1
@@ -108,7 +111,7 @@ struct Plan2DView: View {
                             let p1 = housePoint(from: start, size: size)
                             let p2 = housePoint(from: pt, size: size)
                             let dist = hypot(p2.x - p1.x, p2.y - p1.y)
-                            let text = MeasurementFormat.length(dist, unit: unit, locale: AppLanguage.locale)
+                            let text = MeasurementFormat.length(dist, unit: unit, locale: locale)
                             lastMeasurementText = text
                             #if os(macOS)
                             NSPasteboard.general.clearContents()
@@ -217,7 +220,8 @@ struct Plan2DView: View {
     private func render(size: CGSize) -> CGImage? {
         guard size.width > 10, size.height > 10 else { return nil }
         var r = PlanRenderer()
-        r.options.unit = .meters
+        r.options.unit = projectPreferences?.units.flatMap(MeasurementUnit.init(rawValue:)) ?? .meters
+        r.options.locale = locale
         r.options.textScale = CGFloat(textScale)
         r.options.transparentBackground = true
         r.options.showFloor = false

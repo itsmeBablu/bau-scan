@@ -16,7 +16,10 @@ import Observation
     private var pendingReload: StorageLocation?
     var currentProject: RenovationProject? { index.projects.first { $0.id == currentProjectID } }
     func title(_ entry: ProjectLibraryEntry) -> String {
-        index.displayNames?[entry.id] ?? organization(for:entry.reference)?.displayName(locale:AppLanguage.locale) ?? entry.title
+        title(entry,locale:AppLanguage.locale)
+    }
+    func title(_ entry:ProjectLibraryEntry,locale:Locale) -> String {
+        index.displayNames?[entry.id] ?? organization(for:entry.reference)?.displayName(locale:locale) ?? entry.title
     }
     func organization(for reference: ProjectReference) -> ScanOrganization? {
         if let value = index.scanOrganization?[reference.id] { return value }
@@ -30,7 +33,10 @@ import Observation
         return index.scanOrganization?[ProjectReference(kind:sourceKind,itemID:reference.itemID,library:reference.library).id]
     }
     private func resolvedEntry(_ entry: ProjectLibraryEntry) -> ProjectLibraryEntry {
-        .init(reference:entry.reference,title:title(entry),date:entry.date,area:entry.area,roomCount:entry.roomCount,root:entry.root,url:entry.url)
+        localizedEntry(entry,locale:AppLanguage.locale)
+    }
+    func localizedEntry(_ entry:ProjectLibraryEntry,locale:Locale) -> ProjectLibraryEntry {
+        .init(reference:entry.reference,title:title(entry,locale:locale),date:entry.date,area:entry.area,roomCount:entry.roomCount,root:entry.root,url:entry.url)
     }
     @discardableResult func organize(_ value:ScanOrganization, reference:ProjectReference, expected:ScanOrganization?) -> Bool {
         guard ready else { error = AppLanguage.text("Wait for the project catalogue to finish loading."); return false }

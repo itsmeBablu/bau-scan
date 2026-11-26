@@ -17,7 +17,10 @@ struct ScanView: View {
     @State private var pins = CapturePins()
     @State private var photoCapture = HouseSurveyPhotoCapture()
     @State private var cameraLive = false
-    @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
+    @AppStorage(ScanPhotoPolicy.preferenceKey) private var appCameraPhotos = true
+    @Environment(\.projectPreferences) private var projectPreferences
+    @Environment(\.locale) private var locale
+    private var cameraPhotos:Bool { ProjectPreferenceResolution.photos(projectPreferences,appDefault:appCameraPhotos) }
     @Environment(\.scenePhase) private var scenePhase
     private let workspace: RenovationWorkspace?
     @State private var persistence: CapturePersistence
@@ -121,7 +124,7 @@ struct ScanView: View {
                 Button(role: .cancel) { coordinator.cancel(); dismiss() } label: { Text("Close") }
                     .buttonStyle(.bordered)
                 Spacer()
-                Text(persistence.organization?.displayName(locale:AppLanguage.locale) ?? AppLanguage.text(mode == .house ? "House" : "Room"))
+                Text(persistence.organization?.displayName(locale:locale) ?? AppLanguage.text(mode == .house ? "House" : "Room",locale:locale))
                     .font(.headline).lineLimit(1).minimumScaleFactor(0.8)
                 Spacer()
                 Button { Task { await finishScan() } } label: { Text(mode == .house ? "scan.finishHouse" : "scan.finish") }

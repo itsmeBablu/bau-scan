@@ -1,6 +1,7 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Technical room capture saves locally. Project storage defaults apply to House scans.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Technical room capture saves locally. Project storage defaults apply to House scans."}},"de":{"stringUnit":{"state":"translated","value":"Technikraum-Erfassungen werden lokal gespeichert. Projektspeichervorgaben gelten für Haus-Scans."}}}},
     "Save project changes before closing?": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Save project changes before closing?"}},"de":{"stringUnit":{"state":"translated","value":"Projektänderungen vor dem Schließen speichern?"}}}},
     "Select": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Select"}},"de":{"stringUnit":{"state":"translated","value":"Auswählen"}}}},
     "Add": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Add"}},"de":{"stringUnit":{"state":"translated","value":"Hinzufügen"}}}},

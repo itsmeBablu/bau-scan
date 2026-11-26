@@ -161,3 +161,12 @@ merge. It must be followed by independently checking a known point.
   App settings and return; draft must remain. Open two editors, save one, then save
   the stale one; conflict stays visible and draft remains. Test reload/discard,
   save-and-close, swipe dismissal, invalid fields and a project deleted elsewhere.
+
+- Preference isolation (device validation pending): configure two projects with
+  different language, units, export format and photo defaults. Open/start/close each;
+  app defaults must remain unchanged. Check measurement viewers, 2D labels, export
+  selection/units, photo toggles and note language metadata. Save a local House from
+  a cloud browsing library and verify project reference/library identity; browsing
+  location stays unchanged. Request disconnected iCloud and verify setup explains
+  the connection requirement without enabling it. Technical capture remains local.
+  Test force-root fixtures, recovery, rotation and returning to global App Settings.

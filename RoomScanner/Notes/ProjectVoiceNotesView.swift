@@ -6,6 +6,7 @@ struct ProjectVoiceNotesView: View {
     var initialReference: ProjectReference? = nil
     var onClose: (() -> Void)? = nil
     @Environment(RenovationWorkspace.self) private var workspace
+    @Environment(\.locale) private var locale
     @State private var notes: [ARNote] = []
     @State private var referenceID = ""
     @State private var busy = false
@@ -81,7 +82,7 @@ struct ProjectVoiceNotesView: View {
                         Text(note.createdAt,format:.dateTime).font(.caption).foregroundStyle(.secondary)
                         if note.audioDuration != nil {
                             InlineVoiceNoteRow(note:note,root:workspace.notesRoot,
-                                subtitle:workspace.entry(note.reference).map { workspace.title($0) } ?? note.reference.itemID.uuidString,
+                                subtitle:workspace.entry(note.reference).map { workspace.title($0,locale:locale) } ?? note.reference.itemID.uuidString,
                                 enabled:!busy && !audioActive)
                         }
                         HStack {
@@ -224,13 +225,14 @@ struct ProjectVoiceNotesView: View {
     }
     private func saveClip(_ clip: NoteAudioRecorder.Clip) {
         guard !busy,let reference = clipReference,let root = clipRoot else { failedClip = clip; return }
+        let language = locale.identifier
         let id = pendingID ?? UUID(); pendingID = id
         busy = true; failedClip = clip
         Task { @MainActor in
             defer { busy = false }
             do {
                 try await Task.detached {
-                    var note = ARNote(id:id,projectID:projectID,reference:reference,number:1,level:nil,roomID:reference.itemID,position:nil,planPosition:nil,language:Locale.current.identifier)
+                    var note = ARNote(id:id,projectID:projectID,reference:reference,number:1,level:nil,roomID:reference.itemID,position:nil,planPosition:nil,language:language)
                     note.audioFileName = note.stem+".m4a"; note.audioDuration = clip.duration; note.partial = clip.partial
                     try VoiceNoteRecovery.stage(note,audio:clip.data,at:VoiceNoteRecovery.root())
                 }.value

@@ -60,7 +60,7 @@ struct ProjectPhotosView: View {
     @State private var level:ProjectScanGrouping.LevelKey?
     @State private var zone:NameKey?
     @State private var room:RoomKey?
-    private var entries:[ProjectLibraryEntry] { workspace.project(projectID)?.references.compactMap(workspace.entry).filter { !$0.isDesign } ?? [] }
+    private var entries:[ProjectLibraryEntry] { workspace.project(projectID)?.references.compactMap(workspace.entry).map { workspace.localizedEntry($0,locale:locale) }.filter { !$0.isDesign } ?? [] }
     private var filtered:[ProjectPhotoAsset] {
         assets.filter { asset in
             (referenceID.isEmpty || asset.reference.id == referenceID) &&
@@ -107,7 +107,7 @@ struct ProjectPhotosView: View {
             LazyVStack(alignment:.leading,spacing:DS.Spacing.l) {
                 Picker("Associated scan",selection:$referenceID) {
                     Text("All").tag("")
-                    ForEach(entries) { Text(workspace.title($0)).tag($0.id) }
+                    ForEach(entries) { Text(workspace.title($0,locale:locale)).tag($0.id) }
                 }.pickerStyle(.menu)
                 DisclosureGroup("Filters") {
                     Picker("Building",selection:$building) {
@@ -131,7 +131,7 @@ struct ProjectPhotosView: View {
                     Picker("Room",selection:$room) {
                         Text("All").tag(RoomKey?.none)
                         ForEach(roomOptions) { asset in
-                            Text(asset.roomName+" · "+(workspace.entry(asset.reference).map { workspace.title($0) } ?? asset.reference.itemID.uuidString))
+                            Text(asset.roomName+" · "+(workspace.entry(asset.reference).map { workspace.title($0,locale:locale) } ?? asset.reference.itemID.uuidString))
                                 .tag(Optional(RoomKey(reference:asset.reference.id,room:asset.photo.roomID)))
                         }
                     }
@@ -177,7 +177,7 @@ struct ProjectPhotosView: View {
             }.padding(DS.Spacing.l)
         }.navigationTitle("Photos").searchable(text:$query,prompt:"Search photos")
             .toolbar { ToolbarItem { Button(selecting ? "Done" : "Select") { selecting.toggle() }.disabled(exporting) } }
-            .task(id:projectID.uuidString+workspace.notesRoot.path+String(workspace.catalogueRevision)) {
+            .task(id:projectID.uuidString+workspace.notesRoot.path+String(workspace.catalogueRevision)+locale.identifier) {
                 loading = true
                 let entries = entries,summaries = workspace.scanSummaries
                 let result = await Task.detached(priority:.utility) { () -> ([ProjectPhotoAsset],[String]) in

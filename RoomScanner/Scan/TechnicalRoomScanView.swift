@@ -11,7 +11,14 @@ struct TechnicalRoomScanView: View {
     @State private var scanner: TechnicalRoomScanCoordinator
     @State private var persistence: CapturePersistence
     @AppStorage("technical.googleAI.enabled") private var googleAIEnabled = false
-    @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
+    @AppStorage(ScanPhotoPolicy.preferenceKey) private var appCameraPhotos = true
+    @Environment(\.projectPreferences) private var projectPreferences
+    @Environment(\.locale) private var locale
+    @State private var sessionPhotos:Bool?
+    private var cameraPhotos:Bool { sessionPhotos ?? ProjectPreferenceResolution.photos(projectPreferences,appDefault:appCameraPhotos) }
+    private var photoVisibility:Binding<Bool> {
+        Binding(get:{ cameraPhotos },set:{ value in if projectPreferences != nil { sessionPhotos = value } else { appCameraPhotos = value } })
+    }
     @AppStorage("renovation.proDetails") private var proDetails = false
     @State private var viewport: ARView?
     @State private var pins = CapturePins()
@@ -152,7 +159,7 @@ struct TechnicalRoomScanView: View {
                             Toggle("Show captured mesh",isOn:$showMesh)
                             Toggle("Room surfaces",isOn:$showRoomSurfaces)
                             Toggle("Ceiling",isOn:$showCeiling)
-                            Toggle("Photos",isOn:$cameraPhotos)
+                            Toggle("Photos",isOn:photoVisibility)
                             Toggle("Voice notes",isOn:$showAudio)
                         } label: {
                             Image(systemName:"ellipsis").frame(width:DS.Size.minimumTouchTarget,height:DS.Size.minimumTouchTarget)
@@ -167,7 +174,7 @@ struct TechnicalRoomScanView: View {
             }
             .disabled(saving)
             .modifier(ScanPhotoFeedback(count:scanner.photoCompleted))
-            .navigationTitle(persistence.organization?.displayName(locale:AppLanguage.locale) ?? AppLanguage.text("Utility room"))
+            .navigationTitle(persistence.organization?.displayName(locale:locale) ?? AppLanguage.text("Utility room",locale:locale))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden,for: .navigationBar)
             .toolbar {

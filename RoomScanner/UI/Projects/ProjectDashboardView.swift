@@ -10,7 +10,7 @@ struct RenovationProjectPage: View {
     @State private var editing = false
     @State private var showingStatistics = false
     private var project: RenovationProject? { workspace.project(projectID) }
-    private var entries: [ProjectLibraryEntry] { project?.references.compactMap(workspace.entry) ?? [] }
+    private var entries: [ProjectLibraryEntry] { project?.references.compactMap(workspace.entry).map { workspace.localizedEntry($0,locale:locale) } ?? [] }
     private var sources: [ProjectLibraryEntry] { entries.filter { !$0.isDesign } }
     private var plans: [ProjectLibraryEntry] { sources.filter { $0.reference.kind == .house || $0.reference.kind == .room } }
     private var summaries: [ProjectScanSummary] { plans.compactMap { workspace.scanSummaries[$0.id] } }
@@ -47,7 +47,7 @@ struct RenovationProjectPage: View {
                                 LazyHStack(alignment: .top, spacing: DS.Spacing.l) {
                                     ForEach(plans) { entry in
                                         NavigationLink(value: entry.reference) {
-                                            DSThumbnailCard(title: workspace.title(entry)) {
+                                            DSThumbnailCard(title: workspace.title(entry,locale:locale)) {
                                                 ProjectCover(url: entry.url.appendingPathComponent("thumbnail.png"), size: DS.Size.thumbnail)
                                             }.frame(width: DS.Size.thumbnail)
                                         }.buttonStyle(.plain)

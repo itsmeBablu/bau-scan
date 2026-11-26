@@ -24,3 +24,12 @@ test('export generation checks request identity and cancels its worker', () => {
     assert.match(source,/onCancel:\s*\{ worker\.cancel\(\) \}/);
     assert.match(source,/onDisappear[^\n]*generationTask\?\.cancel\(\)/);
 });
+
+test('project capture setup never writes app defaults or switches the global library', () => {
+    const source = fs.readFileSync(path.join(__dirname,'../RoomScanner/UI/Projects/RenovationNavigation.swift'),'utf8');
+    const start = source.indexOf('private func beginCapture(');
+    const end = source.indexOf('private func beginScan()',start);
+    assert.ok(start > 0 && end > start);
+    assert.doesNotMatch(source.slice(start,end),/UserDefaults|setCloudEnabled|switchLocation/);
+    assert.match(source,/projectPreferenceScope\(/);
+});

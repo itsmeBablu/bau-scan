@@ -140,21 +140,24 @@ struct RoomDetailView: View {
 struct MeasuresView: View {
     let plan: FloorPlan
     var onRename: (() -> Void)? = nil
-    @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
+    @AppStorage("measurementUnit") private var appUnit: MeasurementUnit = .both
+    @Environment(\.projectPreferences) private var projectPreferences
+    @Environment(\.locale) private var locale
+    private var unit:MeasurementUnit { ProjectPreferenceResolution.unit(projectPreferences,appDefault:appUnit) }
     private var m: RoomMeasurements { RoomMeasurements(plan: plan) }
 
     var body: some View {
         List {
             Section("measures.summary") {
                 if let onRename { Button(action: onRename) { LabeledContent("Room name",value: plan.name) } }
-                row("measures.area", MeasurementFormat.squareMeters(m.floorArea))
-                row("measures.perimeter", MeasurementFormat.length(m.perimeter, unit: unit))
+                row("measures.area", MeasurementFormat.squareMeters(m.floorArea,locale:locale))
+                row("measures.perimeter", MeasurementFormat.length(m.perimeter, unit:unit,locale:locale))
                 row("measures.ceiling", ceilingText)
             }
             Section("measures.walls") {
                 ForEach(Array(m.walls.enumerated()), id: \.element.id) { i, w in
-                    row(String(localized:"measures.wall \(i + 1)",locale:AppLanguage.locale),
-                        "\(MeasurementFormat.length(w.length, unit: unit)) × \(MeasurementFormat.length(w.height, unit: unit))", w.confidence)
+                    row(String(localized:"measures.wall \(i + 1)",locale:locale),
+                        "\(MeasurementFormat.length(w.length, unit:unit,locale:locale)) × \(MeasurementFormat.length(w.height, unit:unit,locale:locale))", w.confidence)
                 }
             }
             if !m.openings.isEmpty {
@@ -166,7 +169,7 @@ struct MeasuresView: View {
                 Section("measures.objects") {
                     ForEach(m.objects) { o in
                         row(ObjectNaming.localizedName(o.category),
-                            "\(MeasurementFormat.length(o.width, unit: unit)) × \(MeasurementFormat.length(o.depth, unit: unit)) × \(MeasurementFormat.length(o.height, unit: unit))", o.confidence)
+                            "\(MeasurementFormat.length(o.width, unit:unit,locale:locale)) × \(MeasurementFormat.length(o.depth, unit:unit,locale:locale)) × \(MeasurementFormat.length(o.height, unit:unit,locale:locale))", o.confidence)
                     }
                 }
             }
@@ -176,8 +179,8 @@ struct MeasuresView: View {
     private var ceilingText: String {
         let r = m.ceilingHeight
         return abs(r.upperBound - r.lowerBound) < 0.02
-            ? MeasurementFormat.length(r.lowerBound, unit: unit)
-            : "\(MeasurementFormat.length(r.lowerBound, unit: unit)) – \(MeasurementFormat.length(r.upperBound, unit: unit))"
+            ? MeasurementFormat.length(r.lowerBound, unit:unit,locale:locale)
+            : "\(MeasurementFormat.length(r.lowerBound, unit:unit,locale:locale)) – \(MeasurementFormat.length(r.upperBound, unit:unit,locale:locale))"
     }
 
     private func openingName(_ kind: Opening.Kind) -> String {
@@ -189,8 +192,8 @@ struct MeasuresView: View {
     }
 
     private func openingText(_ o: RoomMeasurements.OpeningMeasure) -> String {
-        var t = "\(MeasurementFormat.length(o.width, unit: unit)) × \(MeasurementFormat.length(o.height, unit: unit))"
-        if o.kind == .window { t += " · " + String(localized:"measures.sill \(MeasurementFormat.length(o.sillHeight, unit: unit))",locale:AppLanguage.locale) }
+        var t = "\(MeasurementFormat.length(o.width, unit:unit,locale:locale)) × \(MeasurementFormat.length(o.height, unit:unit,locale:locale))"
+        if o.kind == .window { t += " · " + String(localized:"measures.sill \(MeasurementFormat.length(o.sillHeight, unit:unit,locale:locale))",locale:locale) }
         return t
     }
 

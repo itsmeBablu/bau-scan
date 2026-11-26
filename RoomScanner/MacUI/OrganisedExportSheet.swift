@@ -7,7 +7,10 @@ struct OrganisedExportSheet: View {
     var photosOnly: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(RoomStore.self) private var store
-    @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
+    @AppStorage("measurementUnit") private var appUnit: MeasurementUnit = .both
+    @Environment(\.projectPreferences) private var projectPreferences
+    @Environment(\.locale) private var locale
+    private var unit:MeasurementUnit { ProjectPreferenceResolution.unit(projectPreferences,appDefault:appUnit) }
 
     @State private var options = OrganisedExportService.Options()
     @State private var isExporting = false
@@ -156,6 +159,7 @@ struct OrganisedExportSheet: View {
         .onAppear {
             options.photosOnly = photosOnly
             options.unit = unit
+            options.locale = locale
         }
         .task {
             let library = TechnicalRoomLibraryStore(root:store.location.documentsURL.appendingPathComponent("TechnicalRooms"))

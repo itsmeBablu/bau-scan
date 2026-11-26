@@ -213,7 +213,10 @@ struct HouseDetailView: View {
 struct HouseMeasuresView: View {
     let house: House
     var onRename: ((FloorPlan) -> Void)? = nil
-    @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
+    @AppStorage("measurementUnit") private var appUnit: MeasurementUnit = .both
+    @Environment(\.projectPreferences) private var projectPreferences
+    @Environment(\.locale) private var locale
+    private var unit:MeasurementUnit { ProjectPreferenceResolution.unit(projectPreferences,appDefault:appUnit) }
 
     var body: some View {
         let hm = HouseMeasurements(house: house)
@@ -236,13 +239,13 @@ struct HouseMeasuresView: View {
                                 HStack {
                                     VStack(alignment: .leading,spacing: 4) {
                                         Text(room.name).foregroundStyle(.primary)
-                                        Text("\(MeasurementFormat.squareMeters(m.floorArea)) · \(MeasurementFormat.length(m.perimeter, unit: unit))").font(.subheadline).foregroundStyle(.secondary)
+                                        Text("\(MeasurementFormat.squareMeters(m.floorArea,locale:locale)) · \(MeasurementFormat.length(m.perimeter, unit:unit,locale:locale))").font(.subheadline).foregroundStyle(.secondary)
                                     }
                                     Spacer(); Image(systemName: "pencil").foregroundStyle(.secondary)
                                 }
                             }.buttonStyle(.plain).accessibilityLabel("Rename room: "+room.name)
                         } else {
-                            row(Text(room.name), "\(MeasurementFormat.squareMeters(m.floorArea)) · \(MeasurementFormat.length(m.perimeter, unit: unit))")
+                            row(Text(room.name), "\(MeasurementFormat.squareMeters(m.floorArea,locale:locale)) · \(MeasurementFormat.length(m.perimeter, unit:unit,locale:locale))")
                         }
                     }
                 }

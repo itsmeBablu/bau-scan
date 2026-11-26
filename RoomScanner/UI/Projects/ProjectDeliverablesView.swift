@@ -130,7 +130,7 @@ struct ProjectDeliverablesView: View {
     }
     private func generatePDF(csv: Bool = false) {
         guard let project = workspace.project(projectID) else { return }
-        let entries = workspace.entries,root = root,locale = locale,pins = workspace.index.pins ?? [],checks = workspace.index.distanceChecks ?? []
+        let entries = workspace.entries.map { workspace.localizedEntry($0,locale:self.locale) },root = root,locale = locale,pins = workspace.index.pins ?? [],checks = workspace.index.distanceChecks ?? []
         runGeneration {
             let waste = UserDefaults.standard.object(forKey:"renovation.wastePercent") as? Double ?? 10
             let report = try ProjectReportLoader.load(project:project,entries:entries,locale:locale,pins:pins,checks:checks,wastePercent:waste)
@@ -143,7 +143,7 @@ struct ProjectDeliverablesView: View {
     }
     private func generateBundle(photosOnly: Bool = false) {
         guard let project = workspace.project(projectID) else { return }
-        let entries = workspace.entries,index = workspace.index,root = root,locale = locale,details = includeDetails
+        let entries = workspace.entries.map { workspace.localizedEntry($0,locale:self.locale) },index = workspace.index,root = root,locale = locale,details = includeDetails
         runGeneration {
             let directory = ProjectArtifacts.directory(root:root,projectID:projectID)
             try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)

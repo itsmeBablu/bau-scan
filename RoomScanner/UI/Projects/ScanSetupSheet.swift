@@ -6,11 +6,13 @@ struct PreparedProjectCapture: Identifiable {
     let mode: ScanMode
     let projectID: UUID?
     let persistence: CapturePersistence
+    let location:StorageLocation
     var id: UUID { persistence.id }
 }
 
 struct ScanSetupSheet: View {
     let workspace: RenovationWorkspace
+    let defaultLocation:StorageLocation
     let onPrepared: (PreparedProjectCapture) -> Void
     @State private var projectID: UUID?
     @State private var mode: ScanMode
@@ -20,8 +22,8 @@ struct ScanSetupSheet: View {
     @State private var message: String?
     @Environment(\.dismiss) private var dismiss
 
-    init(workspace: RenovationWorkspace, projectID: UUID?, mode: ScanMode, onPrepared: @escaping (PreparedProjectCapture) -> Void) {
-        self.workspace = workspace; self.onPrepared = onPrepared
+    init(workspace: RenovationWorkspace, projectID: UUID?, mode: ScanMode, defaultLocation:StorageLocation, onPrepared: @escaping (PreparedProjectCapture) -> Void) {
+        self.workspace = workspace; self.defaultLocation = defaultLocation; self.onPrepared = onPrepared
         _projectID = State(initialValue: projectID.flatMap { workspace.project($0)?.isUnsorted == true ? nil : $0 })
         _mode = State(initialValue: mode)
         _organization = State(initialValue: .init(kind: mode == .technicalRoom ? .technicalRoom : mode == .house ? .house : .room))
@@ -50,6 +52,7 @@ struct ScanSetupSheet: View {
                 ScanOrganizationFields(value: $organization)
                 if let nextNumber { Section { Button("Suggest next number") { organization.number = nextNumber } } }
                 Section("Before you start") {
+                    if mode == .technicalRoom { Text("Technical room capture saves locally. Project storage defaults apply to House scans.").font(.caption) }
                     Text("Use good light. Clear access to walls and installations. Move slowly and avoid reflective surfaces.")
                     Text("Device validation pending. Verify critical dimensions independently.").font(.caption)
                     if !ScanCoordinator.isSupported { Text("LiDAR capture is unavailable on this device. You can still open saved projects and designs.") }
@@ -76,6 +79,7 @@ struct ScanSetupSheet: View {
             } message: { Text(message ?? "") }
         }
         .interactiveDismissDisabled(preparing)
+        .projectPreferenceScope(projectID.map { workspace.project($0)?.details?.preferences ?? .init() })
     }
     private func start() {
         guard !preparing else { return }
@@ -86,10 +90,17 @@ struct ScanSetupSheet: View {
             do {
                 try organization.validate()
                 if let projectID, workspace.project(projectID) == nil { throw CocoaError(.fileNoSuchFile) }
+                let preferences = projectID.flatMap { workspace.project($0)?.details?.preferences }
+                var location = defaultLocation
+                if mode == .technicalRoom { location = RootView.hasForcedRoot ? defaultLocation : .local() }
+                else if preferences?.storage == "local" { location = RootView.hasForcedRoot ? defaultLocation : .local() }
+                else if preferences?.storage == "icloud",defaultLocation.kind != .iCloud {
+                    message = AppLanguage.text("Connect iCloud in App settings before scanning into it."); return
+                }
                 let disk = CapturePersistence(kind: mode == .technicalRoom ? .technical : mode == .house ? .house : .room,
                                               projectID: projectID, organization: organization)
                 try await disk.prepare()
-                onPrepared(.init(mode: mode, projectID: projectID, persistence: disk))
+                onPrepared(.init(mode: mode, projectID: projectID, persistence: disk,location:location))
                 dismiss()
             } catch { message = error.localizedDescription }
         }
