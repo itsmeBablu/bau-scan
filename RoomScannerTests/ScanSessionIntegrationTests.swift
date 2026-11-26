@@ -35,7 +35,8 @@ final class ScanSessionIntegrationTests:XCTestCase {
         let root = root(),documents = self.root()
         defer { try? FileManager.default.removeItem(at:root); try? FileManager.default.removeItem(at:documents) }
         let disk = ScanSessionStore(root:root),project = UUID()
-        let session = try await disk.create(kind:.house,projectID:project)
+        let organization = ScanOrganization(level:-1,buildingName:"A",zoneName:"Kitchen",number:1,kind:.house)
+        let session = try await disk.create(kind:.house,projectID:project,organization:organization)
         let scan = SyntheticRooms.rectangularRoom(origin:.zero,width:4,depth:3)
         let saved = PersistedRoom(scan:scan,raw:Data("opaque native capture".utf8),partial:true)
         try await disk.writeLatest(session.id,key:"room-"+scan.id.uuidString,data:JSONEncoder().encode(saved))
