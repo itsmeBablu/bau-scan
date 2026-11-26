@@ -7,6 +7,9 @@ struct SurveyPhotoExportSource {
     let roomName: String
     let byteCount: Int
     static func list(from root: URL,house: House) throws -> [Self] {
+        try list(from:root,roomNames:Dictionary(grouping:house.allRooms,by:\.id).mapValues { $0.first?.name ?? "" })
+    }
+    static func list(from root: URL,roomNames:[UUID:String]) throws -> [Self] {
         try RoomPackage.coordinatedRead(at:root) { root in
             try SafePackageRead.validate(root)
             let meta = root.appendingPathComponent("survey-photos.json")
@@ -19,7 +22,7 @@ struct SurveyPhotoExportSource {
                 let info = try root.appendingPathComponent(photo.jpegPath).resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey])
                 guard info.isRegularFile == true,info.isSymbolicLink != true,let bytes = info.fileSize,bytes >= 2,bytes <= 4*1_048_576 else { throw CocoaError(.fileReadCorruptFile) }
                 total += bytes; guard total <= SurveyPhotoStore.maximumBytes else { throw CocoaError(.fileReadTooLarge) }
-                return Self(photo:photo,root:root,roomName:house.allRooms.first { $0.id == photo.roomID }?.name ?? AppLanguage.text("Unassigned room"),byteCount:bytes)
+                return Self(photo:photo,root:root,roomName:photo.roomID.flatMap { roomNames[$0] } ?? AppLanguage.text("Unassigned room"),byteCount:bytes)
             }
         }
     }

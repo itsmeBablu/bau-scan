@@ -257,3 +257,27 @@ style and whitespace passed on the working tree; no Apple tests were run.
 This does not finish the media phase: recent dashboard media, photo lazy loading,
 voice actions/re-record UI and written-note scopes are still pending. Formats,
 recording/recovery writes and accuracy/provenance fields are unchanged.
+
+## Lazy project photos checkpoint — 2026-11-26
+
+Reused SurveyPhotoExportSource's validated metadata listing, SurveyPhotoCanvas and
+native presentation/share controls. Added ProjectPhotoAsset (Foundation file
+references; a private Decodable projection of existing Technik evidence metadata)
+and ProjectPhotoLibraryView. Removed the old eager photo list that loaded up to
+64 MB of JPEGs before showing rows. Project photo listing now retains metadata/URLs,
+reads no mesh/world-map/raw scan, excludes Studio copies and deduplicates photo IDs.
+Lazy thumbnails have a 48-entry/12 MB decoded-image cache and release offscreen view
+images; the gallery loads only the current and adjacent pages, with swipe/zoom,
+previous/next, Share and full screen. Search and source-scan filtering are present.
+
+Production Swift +213/-43 (net +170). Two shared Swift tests added for metadata-only
+listing with unreadable plan/unrelated corrupt image, single-photo reads, and
+Technik camera pose/timestamp/captured-date retention without mesh decoding. UNRUN.
+Source localization (1285 keys), style and whitespace checks passed. Real thumbnail
+memory, image decode, swipe/full-screen/share and Mac/iPad layouts remain UNRUN and
+device validation pending. Existing file formats/provenance remain unchanged.
+
+This is not the complete media phase: building/floor/zone filter hierarchy,
+selection ZIP export and dashboard recent-media rows remain pending. The metadata
+list has a visible 10,000-item limit; full-resolution images are read individually
+under existing package coordination/path/size safeguards.

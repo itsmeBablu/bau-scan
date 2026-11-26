@@ -1,6 +1,8 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Loading photos…": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Loading photos…"}},"de":{"stringUnit":{"state":"translated","value":"Fotos werden geladen …"}}}},
+    "Search photos": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Search photos"}},"de":{"stringUnit":{"state":"translated","value":"Fotos suchen"}}}},
     "Unassigned building": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Unassigned building"}},"de":{"stringUnit":{"state":"translated","value":"Nicht zugewiesenes Gebäude"}}}},
     "View options": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"View options"}},"de":{"stringUnit":{"state":"translated","value":"Ansichtsoptionen"}}}},
     "Layout": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Layout"}},"de":{"stringUnit":{"state":"translated","value":"Darstellung"}}}},

@@ -121,3 +121,9 @@ merge. It must be followed by independently checking a known point.
   waveforms after loading, text size/VoiceOver and elapsed/total. Test an unavailable
   or replaced clip, recording after playback, audio route interruptions, leaving
   the screen and memory during repeated playback. No playback test ran on Windows.
+
+- Lazy photo library (device validation pending): browse a large mixed House/Technik
+  project while watching memory; scroll away/back, search/filter by scan, open and
+  swipe through images, zoom, full screen, share/Save to Files. Confirm numbers and
+  raw camera poses are unchanged and Studio copies add no duplicates. Test missing,
+  corrupt and iCloud-placeholder assets; failures must be visible without crashing.
