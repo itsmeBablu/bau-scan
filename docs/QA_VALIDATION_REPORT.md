@@ -1019,3 +1019,24 @@ Production +31/-4; tests +34/-0. This is a structural scene-lifecycle change, no
 evidence of faster rendering. Apple tests and actual gestures, shadows, dimensions,
 orientation and memory/latency measurements remain UNRUN / device validation pending.
 The existing engineering-metadata and Studio placement/export tests remain required.
+
+## Phase 1/2, part 3 — source identity and cancellable metadata reads, 2026-11-26
+
+Photo gallery/dashboard deduplication now uses the existing fully qualified asset
+identity (library + scan reference + raw photo UUID), rather than only the raw photo
+UUID. A local/iCloud twin or independent imported source therefore does not silently
+lose its photo entry. Raw UUIDs and packages remain unchanged. One regression builds
+two roots with identical source/photo IDs and expects two independently scoped
+preview references and counts. This is not a real iCloud integration test.
+
+Written-note reloads fence both success/errors with current request/root identity
+and use the common cancellable worker. Quantity and verification metadata reads
+also forward cancellation and reject late errors/results. Quantity-only screens
+explicitly skip photo loading; the report loader no longer scans photo metadata
+when neither PDF images nor photo-linked task pins need it. Actual PDF reports
+still use the user's explicit image option and preserve evidence references.
+
+No persistent fields or formats changed. Existing reference, note and quantity
+tests remain required. Swift tests are UNRUN; source/backend checks and exact tree
+evidence are reported at the final checkpoint. Full per-site concurrency audit and
+physical-device/iCloud verification remain outstanding, not implied by these fixes.

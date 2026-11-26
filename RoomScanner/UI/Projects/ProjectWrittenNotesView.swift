@@ -11,6 +11,7 @@ struct ProjectWrittenNotesView:View {
     @State private var baseline = ""
     @State private var message:String?
     @State private var values:[ARNote] = []
+    @State private var reloadRequest = UUID()
     @State private var query = ""
     @State private var editing:ARNote?
     @State private var deleting:ARNote?
@@ -87,11 +88,15 @@ struct ProjectWrittenNotesView:View {
             } message: { Text(message ?? "") }
     }
     private func reload() async {
-        let root = workspace.notesRoot
+        let root = workspace.notesRoot, projectID = projectID, request = UUID()
+        reloadRequest = request
         do {
-            let loaded = try await Task.detached(priority:.utility) { try ARNoteStore.index(root:root,projectID:projectID).notes }.value
-            guard !Task.isCancelled,root == workspace.notesRoot else { return }; values = loaded
-        } catch { if !Task.isCancelled { message = error.localizedDescription } }
+            let loaded = try await BackgroundWork.run(priority:.utility) { try ARNoteStore.index(root:root,projectID:projectID).notes }
+            guard !Task.isCancelled,root == workspace.notesRoot,reloadRequest == request else { return }; values = loaded
+        } catch {
+            guard !Task.isCancelled,root == workspace.notesRoot,reloadRequest == request else { return }
+            message = error.localizedDescription
+        }
     }
     private func save(_ note:ARNote,expected:ARNote?) async throws {
         let root = workspace.notesRoot

@@ -44,7 +44,7 @@ enum ProjectReportLoader {
                     let quantities = house.allRooms.flatMap { ProjectQuantitiesCSV.lines(RenovationQuantities($0),locale:locale,wastePercent:report.wastePercent) }
                     let sourcePins = pins.filter { $0.projectID == project.id && $0.reference == reference }
                     let sourcePhotos = includePhotos ? try SurveyPhotoStore.images(from:entry.url,house:house) : []
-                    let photoMetadata = includePhotos ? [] : try SurveyPhotoExportSource.list(from:entry.url,roomNames:Dictionary(grouping:house.allRooms,by:\.id).mapValues { $0.first?.name ?? "" })
+                    let photoMetadata = includePhotos || sourcePins.isEmpty ? [] : try SurveyPhotoExportSource.list(from:entry.url,house:house)
                     let pinNotes = sourcePins.map { pin in
                         let photo = sourcePhotos.first { $0.id == pin.photoID }
                         let metadata = photoMetadata.first { $0.photo.id == pin.photoID }

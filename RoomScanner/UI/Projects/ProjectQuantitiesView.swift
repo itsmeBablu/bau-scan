@@ -41,10 +41,10 @@ struct ProjectQuantitiesView: View {
             if let reference { project.references = project.references.filter { $0 == reference } }
             let entries = workspace.entries.map { workspace.localizedEntry($0,locale:self.locale) }, locale = locale,selectedProject = project
             do {
-                let loaded = try await Task.detached { try ProjectReportLoader.load(project:selectedProject,entries:entries,locale:locale) }.value
+                let loaded = try await BackgroundWork.run { try ProjectReportLoader.load(project:selectedProject,entries:entries,locale:locale,includePhotos:false) }
                 guard !Task.isCancelled else { return }; report = loaded
             }
-            catch { self.error = error.localizedDescription }
+            catch { if !Task.isCancelled { self.error = error.localizedDescription } }
         }
     }
 }

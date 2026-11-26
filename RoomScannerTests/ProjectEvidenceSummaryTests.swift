@@ -2,6 +2,25 @@ import XCTest
 @testable import RoomScanner
 
 final class ProjectEvidenceSummaryTests: XCTestCase {
+    func testLocalAndCloudPhotoTwinsKeepTheirIndependentSourceIdentities() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let roomID = UUID(), photo = SurveyPhoto(id:UUID(),roomID:nil,number:1,pose:SyntheticWorkload.pose,timestamp:1)
+        var entries:[ProjectLibraryEntry] = []
+        for library in ["local","icloud"] {
+            let package = root.appendingPathComponent(library+"/\(roomID.uuidString).roomscan")
+            let image = package.appendingPathComponent(photo.jpegPath)
+            try FileManager.default.createDirectory(at:image.deletingLastPathComponent(),withIntermediateDirectories:true)
+            try Data([0xff,0xd8]).write(to:image)
+            try RoomPackage.encoder.encode([photo]).write(to:package.appendingPathComponent("survey-photos.json"))
+            entries.append(.init(reference:.init(kind:.room,itemID:roomID,library:library),title:library,date:Date(),area:nil,roomCount:1,root:root,url:package))
+        }
+        let summary = try await ProjectEvidenceSummaryCache().summary(projectID:UUID(),entries:entries,notesRoot:root,summaries:[:])
+        XCTAssertEqual(summary.photoCount,2)
+        XCTAssertEqual(Set(summary.photos.map(\.reference.library)),["local","icloud"])
+        XCTAssertEqual(Set(summary.photos.map(\.id)).count,2)
+        XCTAssertEqual(Set(summary.photos.map(\.photo.id)).count,1,"Raw photo UUID stays unchanged")
+    }
     func testMetadataCacheInvalidatesNotesWithoutReadingAudio() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at:root) }

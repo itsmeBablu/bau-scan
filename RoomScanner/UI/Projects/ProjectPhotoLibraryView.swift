@@ -165,11 +165,11 @@ struct ProjectPhotosView: View {
                 loading = true
                 let entries = entries,summaries = workspace.scanSummaries
                 let result = await Task.detached(priority:.utility) { () -> ([ProjectPhotoAsset],[String]) in
-                    var assets:[ProjectPhotoAsset] = [],warnings:[String] = [],ids = Set<UUID>()
+                    var assets:[ProjectPhotoAsset] = [],warnings:[String] = [],ids = Set<String>()
                     for entry in entries {
                         if Task.isCancelled { break }
                         do {
-                            for asset in try ProjectPhotoAsset.list(entry:entry,summary:summaries[entry.id]) where ids.insert(asset.photo.id).inserted {
+                            for asset in try ProjectPhotoAsset.list(entry:entry,summary:summaries[entry.id]) where ids.insert(asset.id).inserted {
                                 guard assets.count < 10_000 else { throw CocoaError(.fileReadTooLarge) }
                                 assets.append(asset)
                             }

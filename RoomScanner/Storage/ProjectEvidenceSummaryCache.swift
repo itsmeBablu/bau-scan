@@ -36,11 +36,11 @@ actor ProjectEvidenceSummaryCache {
              revision(notes.deletingLastPathComponent().appendingPathComponent(".ARNotes-backup/index-v1.json"),label:"")]
         let key = notesRoot.path+"|"+projectID.uuidString
         if let cached = values[key],cached.revision == revisions { return cached.summary }
-        var result = Summary(),ids = Set<UUID>()
+        var result = Summary(),ids = Set<String>()
         for entry in entries {
             try Task.checkCancellation()
             do {
-                for asset in try ProjectPhotoAsset.list(entry:entry,summary:summaries[entry.id]) where ids.insert(asset.photo.id).inserted {
+                for asset in try ProjectPhotoAsset.list(entry:entry,summary:summaries[entry.id]) where ids.insert(asset.id).inserted {
                     result.photoCount += 1
                     result.photos.append(asset)
                     result.photos.sort {

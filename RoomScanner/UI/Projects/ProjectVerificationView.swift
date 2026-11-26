@@ -48,9 +48,10 @@ struct ProjectVerificationView: View {
         guard let project = workspace.project(projectID) else { return }
         let entries = project.references.compactMap(workspace.entry).filter { !$0.isDesign }, locale = locale
         do {
-            candidates = try await Task.detached {
+            let loaded = try await BackgroundWork.run {
                 var values: [Candidate] = []
                 for entry in entries {
+                    try Task.checkCancellation()
                     if entry.reference.kind == .technicalRoom {
                         let package = try TechnicalRoomPackage.read(from:entry.url)
                         for pipe in package.document.effectiveRoom.pipeRuns {
@@ -65,8 +66,10 @@ struct ProjectVerificationView: View {
                     }
                 }
                 return values.filter { $0.meters.isFinite && $0.meters > 0 }
-            }.value
+            }
+            guard !Task.isCancelled else { return }
+            candidates = loaded
             selected = candidates.first?.id
-        } catch { self.error = error.localizedDescription }
+        } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
     }
 }
