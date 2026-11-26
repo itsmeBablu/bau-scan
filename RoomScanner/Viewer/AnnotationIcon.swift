@@ -15,15 +15,21 @@ struct AnnotationTarget:Component {}
     static func image(_ symbol:String) -> CGImage? {
         if let existing = images[symbol] { return existing }
         #if os(iOS)
-        let rendered = UIGraphicsImageRenderer(size:CGSize(width:64,height:64)).image { _ in
-            UIColor.systemIndigo.setFill(); UIBezierPath(ovalIn:CGRect(x:2,y:2,width:60,height:60)).fill()
-            UIImage(systemName:symbol)?.withTintColor(.white,renderingMode:.alwaysOriginal).draw(in:CGRect(x:16,y:16,width:32,height:32))
+        let format = UIGraphicsImageRendererFormat(); format.opaque = false
+        let rendered = UIGraphicsImageRenderer(size:CGSize(width:64,height:64),format:format).image { context in
+            context.cgContext.setShadow(offset:.zero,blur:2,color:DS.ColorToken.mediaSurface.platformColor.cgColor)
+            UIImage(systemName:symbol,withConfiguration:UIImage.SymbolConfiguration(pointSize:44,weight:.light))?
+                .withTintColor(DS.ColorToken.onBrand.platformColor,renderingMode:.alwaysOriginal).draw(in:CGRect(x:8,y:8,width:48,height:48))
         }.cgImage
         #else
         let canvas = NSImage(size:NSSize(width:64,height:64))
-        canvas.lockFocus(); NSColor.systemIndigo.setFill(); NSBezierPath(ovalIn:NSRect(x:2,y:2,width:60,height:60)).fill()
-        let icon = NSImage(systemSymbolName:symbol,accessibilityDescription:nil)?.withSymbolConfiguration(.init(paletteColors:[.white]))
-        icon?.draw(in:NSRect(x:16,y:16,width:32,height:32)); canvas.unlockFocus()
+        canvas.lockFocus()
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow(); shadow.shadowColor = DS.ColorToken.mediaSurface.platformColor; shadow.shadowBlurRadius = 2; shadow.set()
+        let icon = NSImage(systemSymbolName:symbol,accessibilityDescription:nil)?
+            .withSymbolConfiguration(.init(pointSize:44,weight:.light))?
+            .withSymbolConfiguration(.init(paletteColors:[DS.ColorToken.onBrand.platformColor]))
+        icon?.draw(in:NSRect(x:8,y:8,width:48,height:48)); NSGraphicsContext.restoreGraphicsState(); canvas.unlockFocus()
         let rendered = canvas.cgImage(forProposedRect:nil,context:nil,hints:nil)
         #endif
         if let rendered { images[symbol] = rendered }; return rendered
@@ -53,7 +59,7 @@ struct AnnotationTarget:Component {}
         let point = ModelEntity(mesh:.generateSphere(radius:0.012),materials:[UnlitMaterial(color:.systemIndigo)])
         root.addChild(point)
         let height = note.audioFileName == nil ? 0.12 : 0.28
-        let icon = entity(symbol:note.audioFileName == nil ? "mappin" : "mic.fill",name:name ?? "scan-note:"+note.id.uuidString)
+        let icon = entity(symbol:note.audioFileName == nil ? "mappin" : AnnotationPresentation.audioSymbol,name:name ?? "scan-note:"+note.id.uuidString)
         icon.position.y = Float(height); root.addChild(icon)
         if let stem = line(from:.init(x:0,y:0,z:0),to:.init(x:0,y:height,z:0)) { stem.name = "pin-label-leader"; root.addChild(stem) }
         if let c = camera ?? note.viewingCameraPosition,let beam = line(from:.init(x:c.x-p.x,y:c.y-p.y,z:c.z-p.z),to:.init(x:0,y:0,z:0)) { beam.name = "capture-to-pin"; root.addChild(beam) }

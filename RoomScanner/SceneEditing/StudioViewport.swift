@@ -48,7 +48,7 @@ enum StudioCameraFraming {
         for note in notes.suffix(256) {
             if let level = note.level,level != previousStory { continue }
             guard let p = note.viewingPosition else { continue }
-            let node = iconNode(symbol:note.audioFileName == nil ? "mappin" : "mic.fill",name:"note:"+note.id.uuidString)
+            let node = iconNode(symbol:note.audioFileName == nil ? "mappin" : AnnotationPresentation.audioSymbol,name:"note:"+note.id.uuidString)
             let height = note.audioFileName == nil ? 0.12 : 0.28
             node.position = SCNVector3(p.x,p.y+height,p.z); noteRoot.addChildNode(node)
             if let stem = annotationLine(from:p,to:.init(x:p.x,y:p.y+height,z:p.z)) { noteRoot.addChildNode(stem) }
@@ -77,6 +77,14 @@ enum StudioCameraFraming {
     var onPhoto: ((UUID) -> Void)?
     private var photos: [SurveyPhotoImage] = []
     private let photoRoot = SCNNode()
+    private var selectedPhotoID:UUID?
+    func selectPhotoMarker(_ id:UUID?) { selectedPhotoID = id; updatePhotoSelection() }
+    private func updatePhotoSelection() {
+        for node in photoRoot.childNodes {
+            let selected = selectedPhotoID.map { node.name == "photo:"+$0.uuidString } ?? false
+            if let icon = node.childNodes.first { icon.scale = selected ? SCNVector3(1.25,1.25,1.25) : SCNVector3(1,1,1) }
+        }
+    }
     func setPhotos(_ photos: [SurveyPhotoImage]) {
         guard self.photos != photos else { return }; self.photos = photos
         updatePhotos()
@@ -94,9 +102,9 @@ enum StudioCameraFraming {
             node.simdTransform = simd_float4x4(columns:(
                 SIMD4(Float(m[0]),Float(m[1]),Float(m[2]),0),SIMD4(Float(m[4]),Float(m[5]),Float(m[6]),0),
                 SIMD4(Float(m[8]),Float(m[9]),Float(m[10]),0),SIMD4(Float(m[12]),Float(m[13]),Float(m[14]),1)))
-            let body = iconNode(symbol:"camera.fill",name:node.name ?? "")
+            let body = iconNode(symbol:AnnotationPresentation.cameraSymbol,name:node.name ?? "")
             node.addChildNode(body)
-            let corners:[TechnicalPoint3] = [.init(x:-0.25,y:-0.17,z:-0.45),.init(x:0.25,y:-0.17,z:-0.45),.init(x:0.25,y:0.17,z:-0.45),.init(x:-0.25,y:0.17,z:-0.45)]
+            let corners = AnnotationPresentation.directionCorners
             for i in corners.indices {
                 if let ray = annotationLine(from:.init(x:0,y:0,z:0),to:corners[i]) { node.addChildNode(ray) }
                 if let edge = annotationLine(from:corners[i],to:corners[(i+1)%4]) { node.addChildNode(edge) }
@@ -104,6 +112,7 @@ enum StudioCameraFraming {
             photoRoot.addChildNode(node)
         }
         view?.scene?.rootNode.addChildNode(photoRoot)
+        updatePhotoSelection()
     }
     func flyToPhoto(_ photo: SurveyPhoto) {
         let m = photo.viewingPose

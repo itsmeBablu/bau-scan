@@ -197,7 +197,7 @@ struct TechnicalSavedScanView: View {
                                 let m = photo.depth.cameraTransform
                                 guard m.count == 16, m.allSatisfy({ $0.isFinite }) else { continue }
                                 let size = max(0.08,min(0.2,radius*0.035))
-                                let marker = AnnotationIcon.entity(symbol:"camera.fill",name:"technicalPhoto:"+photo.id.uuidString)
+                                let marker = AnnotationIcon.entity(symbol:AnnotationPresentation.cameraSymbol,name:"technicalPhoto:"+photo.id.uuidString)
                                 marker.name = "technicalPhoto:\(photo.id.uuidString)"
                                     let p = TechnicalPoint3(x: m[12],y: m[13],z: m[14])
                                     let transformed = package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to: p) } ?? p
@@ -213,8 +213,8 @@ struct TechnicalSavedScanView: View {
                                     if simd_length(direction) > 0.001 {
                                         let axis = simd_normalize(direction)
                                         let material = SimpleMaterial(color: .systemYellow,isMetallic: false)
-                                        let ray = ModelEntity(mesh: .generateCylinder(height: size*2,radius: size*0.045),materials: [material])
-                                        ray.position = marker.position + axis*size
+                                        let ray = ModelEntity(mesh: .generateCylinder(height: size*2.4,radius: size*0.045),materials: [material])
+                                        ray.position = marker.position + axis*(size*1.2)
                                         ray.orientation = simd_quatf(from: SIMD3(0,1,0),to: axis)
                                         content.add(ray)
                                         let transform = package.alignment.referenceFrame
@@ -222,7 +222,7 @@ struct TechnicalSavedScanView: View {
                                             let v = transform.map { TechnicalReferenceFrame.apply($0,to: p) } ?? p
                                             return SIMD3(Float(v.x-geometry.center.x),Float(v.y-geometry.center.y),Float(v.z-geometry.center.z))
                                         }
-                                        let length = Double(size * 2.5)
+                                        let length = Double(size * 3)
                                         let intrinsics = photo.depth.intrinsics
                                         if intrinsics.count == 9, intrinsics[0] > 0, intrinsics[4] > 0 {
                                             let halfWidth = length * Double(photo.depth.imageWidth) / (2 * intrinsics[0])

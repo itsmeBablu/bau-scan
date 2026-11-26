@@ -410,3 +410,11 @@ uses explicit building-level mappings when available, retains original numbering
 and resolves same-name rooms without overwrites. Unassigned remains explicit for
 legacy scans. The existing photo-index/camera record contracts retain their fields;
 only export-relative paths change, never native package paths or camera coordinates.
+
+AnnotationPresentation in DesignSystem owns native camera/waveform symbols and
+symbolic direction-guide presentation constants. AnnotationIcon produces transparent
+textures reused by RealityKit/SceneKit; marker identifiers/collision targets remain.
+Plan2DView renders a paper drafting style with transparent evidence glyphs and a
+camera-axis direction outline. These changes affect presentation only, not recorded
+camera transforms, coordinates or export geometry. DS root appearance follows app
+System/Light/Dark selection; media paper surfaces remain intentionally white.

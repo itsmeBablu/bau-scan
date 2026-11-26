@@ -38,7 +38,7 @@ struct Plan2DView: View {
         GeometryReader { geo in
             let size = geo.size
             ZStack {
-                Color(white: 0.16)
+                DS.ColorToken.mediaSurface.color
                 if showGrid { CADGridBackground() }
                 if let image = render(size: size) {
                     Image(decorative: image, scale: displayScale * 2)
@@ -53,16 +53,15 @@ struct Plan2DView: View {
                 if showPhotos && !photos.isEmpty {
                     ForEach(photos) { photo in
                         let pos = viewPoint(from: Point2D(x: photo.photo.viewingPose[12], y: -photo.photo.viewingPose[14]), size: size)
+                        if let angle = AnnotationPresentation.planDirection(photo.photo.viewingPose) {
+                            photoDirection(at:pos,angle:angle).stroke(DS.ColorToken.onBrand.color.opacity(0.45),lineWidth:DS.Stroke.separator)
+                                .allowsHitTesting(false)
+                        }
                         Button { selectedPhoto = photo } label: {
-                            ZStack {
-                                Circle().fill(.yellow).frame(width: 22, height: 22)
-                                Circle().stroke(.black.opacity(0.4), lineWidth: 1).frame(width: 22, height: 22)
-                                Text("\(photo.photo.number)")
-                                    .font(DS.Typography.caption2.weight(.bold))
-                                    .foregroundStyle(DS.ColorToken.onBrand.color)
-                            }
+                            EvidenceMarkerGlyph(symbol:AnnotationPresentation.cameraSymbol,number:photo.photo.number,selected:selectedPhoto?.id == photo.id)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(photo.title)
                         .position(pos)
                     }
                 }
@@ -72,11 +71,9 @@ struct Plan2DView: View {
                         if let point = note.viewingPosition {
                             let anchor = viewPoint(from:.init(x:point.x,y:-point.z),size:size)
                             let label = CGPoint(x:anchor.x,y:anchor.y-(note.anchorPinID == nil ? 0 : 34))
-                            if note.anchorPinID != nil { Path { path in path.move(to:anchor); path.addLine(to:label) }.stroke(.indigo,lineWidth:1).allowsHitTesting(false) }
+                            if note.anchorPinID != nil { Path { path in path.move(to:anchor); path.addLine(to:label) }.stroke(DS.ColorToken.info.color,lineWidth:DS.Stroke.emphasis).allowsHitTesting(false) }
                             Button { selectedNote = note } label: {
-                                Image(systemName:note.audioFileName == nil ? "mappin" : "mic.fill")
-                                    .font(DS.Typography.caption.weight(.semibold)).foregroundStyle(DS.ColorToken.onAccent.color)
-                                    .frame(width:28,height:28).background(DS.ColorToken.info.color,in:Circle()).frame(width:44,height:44).contentShape(Rectangle())
+                                EvidenceMarkerGlyph(symbol:note.audioFileName == nil ? "mappin" : AnnotationPresentation.audioSymbol)
                             }.buttonStyle(.plain).accessibilityLabel(note.title ?? AppLanguage.text("Voice note"))
                                 .position(label)
                         }
@@ -90,11 +87,11 @@ struct Plan2DView: View {
                             var path = Path()
                             path.move(to: start)
                             path.addLine(to: end)
-                            ctx.stroke(path, with: .color(.yellow), lineWidth: 2)
-                            ctx.fill(Path(ellipseIn: CGRect(x: start.x - 4, y: start.y - 4, width: 8, height: 8)), with: .color(.yellow))
-                            ctx.fill(Path(ellipseIn: CGRect(x: end.x - 4, y: end.y - 4, width: 8, height: 8)), with: .color(.yellow))
+                            ctx.stroke(path, with: .color(DS.ColorToken.onBrand.color), lineWidth: 2)
+                            ctx.fill(Path(ellipseIn: CGRect(x: start.x - 4, y: start.y - 4, width: 8, height: 8)), with: .color(DS.ColorToken.onBrand.color))
+                            ctx.fill(Path(ellipseIn: CGRect(x: end.x - 4, y: end.y - 4, width: 8, height: 8)), with: .color(DS.ColorToken.onBrand.color))
                         } else if let start = measureStart {
-                            ctx.fill(Path(ellipseIn: CGRect(x: start.x - 5, y: start.y - 5, width: 10, height: 10)), with: .color(.yellow))
+                            ctx.fill(Path(ellipseIn: CGRect(x: start.x - 5, y: start.y - 5, width: 10, height: 10)), with: .color(DS.ColorToken.onBrand.color))
                         }
                     }
                 }
@@ -142,6 +139,7 @@ struct Plan2DView: View {
             SurveyPhotoGallery(photos: photos, initial: photo.id)
         }
         .safeAreaInset(edge: .bottom) {
+            ScrollView(.horizontal) {
             HStack(spacing: 12) {
                 Button { textScale = max(0.7, ((textScale - 0.1) * 10).rounded() / 10) } label: {
                     Label("Smaller text", systemImage: "textformat.size.smaller")
@@ -179,6 +177,8 @@ struct Plan2DView: View {
             .labelStyle(.iconOnly)
             .buttonStyle(.bordered)
             .padding(12)
+            }
+            .scrollIndicators(.hidden).fixedSize(horizontal:false,vertical:true)
             .dsMaterial()
         }
         .toolbar {
@@ -231,15 +231,22 @@ struct Plan2DView: View {
         r.options.showOpeningDimensions = showDimensions
         r.options.showRoomLabels = showLabels
         r.options.showObjects = showObjects
-        r.options.objectFill = CGColor(gray: 0.6, alpha: 0.12)
-        r.options.objectStroke = CGColor(gray: 0.65, alpha: 1)
-        r.options.wallColor = CGColor(gray: 0.88, alpha: 1)
-        r.options.dimensionColor = CGColor(gray: 0.72, alpha: 1)
-        r.options.dimensionLineColor = CGColor(gray: 0.62, alpha: 1)
-        r.options.textColor = CGColor(gray: 0.94, alpha: 1)
-        r.options.windowColor = CGColor(red: 0.35, green: 0.78, blue: 0.90, alpha: 1)
+        r.options.objectFill = DS.ColorToken.onBrand.platformColor.cgColor.copy(alpha:0.04) ?? DS.ColorToken.onBrand.platformColor.cgColor
+        r.options.objectStroke = DS.ColorToken.onBrand.platformColor.cgColor.copy(alpha:0.45) ?? DS.ColorToken.onBrand.platformColor.cgColor
+        r.options.wallColor = DS.ColorToken.onBrand.platformColor.cgColor
+        r.options.dimensionColor = DS.ColorToken.onBrand.platformColor.cgColor
+        r.options.dimensionLineColor = DS.ColorToken.onBrand.platformColor.cgColor.copy(alpha:0.55) ?? DS.ColorToken.onBrand.platformColor.cgColor
+        r.options.textColor = DS.ColorToken.onBrand.platformColor.cgColor
+        r.options.windowColor = DS.ColorToken.info.platformColor.cgColor
         r.options.mode = .fill
         return r.image(house, pageSize: size, pixelScale: displayScale * 2)
+    }
+
+    private func photoDirection(at origin:CGPoint,angle:Double) -> Path {
+        let length = Double(AnnotationPresentation.planDirectionLength),half = AnnotationPresentation.planDirectionHalfAngle
+        let first = CGPoint(x:origin.x+CGFloat(cos(angle-half)*length),y:origin.y+CGFloat(sin(angle-half)*length))
+        let second = CGPoint(x:origin.x+CGFloat(cos(angle+half)*length),y:origin.y+CGFloat(sin(angle+half)*length))
+        return Path { path in path.move(to:origin); path.addLine(to:first); path.addLine(to:second); path.closeSubpath() }
     }
 
     private func housePoint(from viewPt: CGPoint, size: CGSize) -> Point2D {
@@ -296,20 +303,20 @@ struct Plan2DView: View {
     }
 }
 
-/// Subtle drafting grid, like an AutoCAD model space; the plan stays crisp above it.
+/// Quiet paper drafting grid; optional, independent of actual measurement geometry.
 private struct CADGridBackground: View {
     var body: some View {
         Canvas { context, size in
-            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(white: 0.16)))
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(DS.ColorToken.mediaSurface.color))
             let minor: CGFloat = 16
             let major: CGFloat = minor * 5
             for x in stride(from: 0, through: size.width, by: minor) {
                 var line = Path(); line.move(to: CGPoint(x: x, y: 0)); line.addLine(to: CGPoint(x: x, y: size.height))
-                context.stroke(line, with: .color(.white.opacity(x.truncatingRemainder(dividingBy: major) == 0 ? 0.11 : 0.045)), lineWidth: 1)
+                context.stroke(line, with: .color(DS.ColorToken.onBrand.color.opacity(x.truncatingRemainder(dividingBy: major) == 0 ? 0.08 : 0.025)), lineWidth: DS.Stroke.separator)
             }
             for y in stride(from: 0, through: size.height, by: minor) {
                 var line = Path(); line.move(to: CGPoint(x: 0, y: y)); line.addLine(to: CGPoint(x: size.width, y: y))
-                context.stroke(line, with: .color(.white.opacity(y.truncatingRemainder(dividingBy: major) == 0 ? 0.11 : 0.045)), lineWidth: 1)
+                context.stroke(line, with: .color(DS.ColorToken.onBrand.color.opacity(y.truncatingRemainder(dividingBy: major) == 0 ? 0.08 : 0.025)), lineWidth: DS.Stroke.separator)
             }
         }
         .ignoresSafeArea()

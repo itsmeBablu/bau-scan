@@ -6,6 +6,8 @@ struct SettingsView: View {
     var includesProfile = false
     @AppStorage(AppLanguage.preferenceKey) private var language = AppLanguage.system.rawValue
     @AppStorage("renovation.proDetails") private var proDetails = false
+    @AppStorage("ui.appearance") private var appearance = "system"
+    @AppStorage("ui.projects.layout") private var projectLayout = "grid"
     @AppStorage("profile.displayName") private var displayName = ""
     @AppStorage("profile.organisation") private var organisation = ""
     @Environment(RoomStore.self) private var store
@@ -44,15 +46,18 @@ struct SettingsView: View {
 
     private var form: some View {
         Form {
-            #if DEBUG
-            Section { DisclosureGroup("Advanced") { NavigationLink("Design system") { DesignSystemGallery() } } }
-            #endif
             Section("Privacy") {
                 GoogleAIConsentToggle()
                 NavigationLink("Project data and deletion") { ProjectPrivacyView() }
                 Text("Scans stay on this device unless you enable iCloud, share a file or explicitly send selected images for AI processing.").font(.caption)
             }
             Section("Display") {
+                Picker("Appearance",selection:$appearance) {
+                    Text("System").tag("system"); Text("Light").tag("light"); Text("Dark").tag("dark")
+                }
+                Picker("Projects layout",selection:$projectLayout) {
+                    Text("List").tag("list"); Text("Grid").tag("grid")
+                }
                 Toggle("Pro details",isOn:$proDetails)
                 Text("Show pipe designations, systems, provenance and structured schema exports. Existing data is always retained.").font(.caption).foregroundStyle(.secondary)
             }
@@ -63,7 +68,12 @@ struct SettingsView: View {
                     Text("Deutsch").tag(AppLanguage.german.rawValue)
                 }
             }
-            Section { VoiceDiagnosticsView() }
+            Section { DisclosureGroup("Advanced") {
+                VoiceDiagnosticsView()
+                #if DEBUG
+                NavigationLink("Design system") { DesignSystemGallery() }
+                #endif
+            } }
             Section("Capture") {
                 Toggle("Experimental recovery alignment",isOn:$experimentalRelocalization)
                 Text("Read-only world-map test. Recovered and new rooms are never merged automatically.").font(.caption).foregroundStyle(.secondary)

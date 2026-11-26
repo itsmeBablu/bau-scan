@@ -101,6 +101,7 @@ struct ViewerView: View {
         .sheet(item:$selectedPhoto) { photo in
             SurveyPhotoGallery(photos:photos,initial:photo.id) { flyToPhoto($0) }
         }
+        .onChange(of:selectedPhoto?.id) { _,_ in updateMarkers() }
     }
 
     private var virtualView: some View {
@@ -238,7 +239,11 @@ struct ViewerView: View {
     private func selectPhoto(_ id:UUID) { selectedPhoto = photos.first { $0.id == id } }
     private func updateMarkers() {
         markerRoot.children.removeAll()
-        if showPhotos { for photo in photos.suffix(200) { markerRoot.addChild(SurveyPhotoMarkers.entity(photo.photo)) } }
+        if showPhotos { for photo in photos.suffix(200) {
+            let marker = SurveyPhotoMarkers.entity(photo.photo)
+            if selectedPhoto?.id == photo.id,let icon = marker.children.first { icon.scale = SIMD3(repeating:1.25) }
+            markerRoot.addChild(marker)
+        } }
         for note in notes.suffix(256) where showNotes {
             guard let p = note.viewingPosition else { continue }
             markerRoot.addChild(AnnotationIcon.noteEntity(note,position:p))

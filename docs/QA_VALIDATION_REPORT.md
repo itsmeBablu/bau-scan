@@ -558,3 +558,35 @@ style and whitespace passed on the working tree. Both Apple schemes, actual ZIP
 creation/unzipping and iCloud/media behavior remain UNRUN/device validation pending.
 Next/final requested visual pass: background-free camera/sound-wave markers and a
 slightly larger photo direction indicator in 3D/Studio/2D, without geometry changes.
+
+## Final requested marker/2D visual pass — 2026-11-26
+
+Evidence camera/audio icons now use native outline camera/waveform glyphs on
+transparent textures without coloured circular backgrounds. The shared renderer
+serves RealityKit viewers and SceneKit Studio; technical saved-camera markers use
+the same camera symbol. A white glyph shadow is only an outline contrast aid, not
+a filled disk. Existing tap volumes/names and note leaders remain. Selected Studio/
+viewer photo icons enlarge without adding a background. 2D markers show camera plus
+number or waveform/pin, with transparent 44-point tap areas and accessible labels.
+
+Shared presentation-only camera direction guides are 20% larger in 3D/Studio;
+technical saved guides also lengthen 20%. Camera transforms, calibration data,
+annotation coordinates and scan geometry are untouched. The generic direction guide
+is explicitly symbolic, not a measured lens/FOV volume. Plan projection respects
+camera -Z and plan/screen axis signs, omitting a meaningless vertical-camera wedge.
+
+2D viewer now uses a white paper surface, dark walls/dimensions, a quiet optional
+fine grid and open camera-direction outlines, following the requested clean plan
+style. PDF/CAD export palette and geometry are unchanged. Bottom plan controls scroll
+on narrow displays. Global Display settings now offer System/Light/Dark and remembered
+Projects layout; one DesignSystem root modifier owns appearance. Advanced diagnostics
+and the DEBUG gallery are consolidated under a collapsed group.
+
+Production Swift +132/-49 (net +83). Two shared Swift tests added for actual texture
+alpha/no background disk and camera projection/presentation guide size; UNRUN.
+Ten Node checks, strict localization (1360 keys), style and whitespace passed on the
+working tree. No SwiftUI/SceneKit/RealityKit rendering or Apple build/test was run.
+Actual icon stroke/readability, light/dark/high-contrast/large-text layout, marker
+hit targets, camera direction/selection and physical-device capture remain device
+validation pending. No React icons or other dependencies were added; existing SF
+Symbols provide the requested visual language. No claim of pixel-exact screenshots.

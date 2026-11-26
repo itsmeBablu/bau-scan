@@ -101,7 +101,7 @@ public enum DS {
 
 public extension View {
     func dsIcon(_ size:DS.IconSize,weight:Font.Weight = .regular) -> some View { font(.system(size:size.rawValue,weight:weight)) }
-    func dsAppTheme() -> some View { tint(DS.ColorToken.accent.color) }
+    func dsAppTheme() -> some View { modifier(DSAppAppearance()) }
     func dsRecordingTint() -> some View { tint(DS.ColorToken.recording.color) }
     func dsCameraIndicatorTint() -> some View { tint(DS.ColorToken.onBrand.color) }
     /// Preserve native prominent-button layout while keeping labels readable
@@ -110,5 +110,15 @@ public extension View {
         buttonStyle(.borderedProminent)
             .tint(recording ? DS.ColorToken.recording.color : DS.ColorToken.accent.color)
             .foregroundStyle(recording ? DS.ColorToken.onRecording.color : DS.ColorToken.onAccent.color)
+    }
+}
+
+private struct DSAppAppearance:ViewModifier {
+    @AppStorage("ui.appearance") private var appearance = "system"
+    private var scheme:ColorScheme? {
+        switch appearance { case "light": .light; case "dark": .dark; default: nil }
+    }
+    func body(content:Content) -> some View {
+        content.tint(DS.ColorToken.accent.color).preferredColorScheme(scheme)
     }
 }

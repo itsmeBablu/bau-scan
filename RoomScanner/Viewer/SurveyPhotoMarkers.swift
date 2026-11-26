@@ -15,11 +15,11 @@ enum SurveyPhotoMarkers {
             SIMD4(Float(m[8]),Float(m[9]),Float(m[10]),Float(m[11])),
             SIMD4(Float(m[12]),Float(m[13]),Float(m[14]),Float(m[15]))))
         root.transform = Transform(matrix:matrix)
-        let body = AnnotationIcon.entity(symbol:"camera.fill",name:root.name)
+        let body = AnnotationIcon.entity(symbol:AnnotationPresentation.cameraSymbol,name:root.name)
         root.addChild(body)
         // Pose is measured; the legacy photo format has no lens calibration,
         // so this is a camera-direction guide, not a measured viewing volume.
-        let corners:[TechnicalPoint3] = [.init(x:-0.25,y:-0.17,z:-0.45),.init(x:0.25,y:-0.17,z:-0.45),.init(x:0.25,y:0.17,z:-0.45),.init(x:-0.25,y:0.17,z:-0.45)]
+        let corners = AnnotationPresentation.directionCorners
         for i in corners.indices {
             if let ray = AnnotationIcon.line(from:.init(x:0,y:0,z:0),to:corners[i]) { ray.name = "photo-frustum-ray"; root.addChild(ray) }
             if let edge = AnnotationIcon.line(from:corners[i],to:corners[(i+1)%4]) { edge.name = "photo-frustum-edge"; root.addChild(edge) }

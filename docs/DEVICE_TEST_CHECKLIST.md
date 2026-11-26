@@ -197,3 +197,12 @@ merge. It must be followed by independently checking a known point.
   complete-project and single-scan ZIPs. Each contains building/floor/room photo
   folders with correct original numbers, same-room grouping and Bath Room 2 naming.
   Verify explicit story mappings versus Unassigned and camera metadata sidecars.
+
+- Final marker/plan visuals (device validation pending): inspect 3D, Studio, Technik
+  saved viewer and 2D in System/Light/Dark/high-contrast. Camera/waveform icons must
+  have no filled background disk, remain legible and tappable, and show the selected
+  photo below/highlight its icon. Verify slightly larger direction guides follow
+  the original camera pose; vertical cameras have no misleading 2D wedge. Compare
+  paper plan linework/dimensions/grid at zoom and large text with approved concepts.
+  Test toolbar scrolling, photo/audio selection, orbit/drag and narrow/landscape iPhone,
+  iPad and Mac. These are manual checks; no actual app screenshots were captured here.

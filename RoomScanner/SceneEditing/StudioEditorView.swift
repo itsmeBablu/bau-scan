@@ -147,6 +147,7 @@ struct StudioEditorView: View {
         .onChange(of:notes) { _,value in controller.setNotes(value) }
         .onChange(of:showPhotos) { _,value in controller.setPhotos(value ? photos : []) }
         .onChange(of:photos) { _,value in controller.setPhotos(showPhotos ? value : []) }
+        .onChange(of:selectedPhoto?.id) { _,id in controller.selectPhotoMarker(id) }
         .onAppear { configureInteraction() }
         .onDisappear(perform:releaseInteraction)
         .sheet(isPresented: Binding(get: { showEngineering && !inspectorPresentedModally },set: { showEngineering = $0 })) { StudioEngineeringView(session: session) }
