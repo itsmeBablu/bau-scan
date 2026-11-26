@@ -7,6 +7,7 @@ struct RoomDetailView: View {
     let record: RoomRecord
     @State private var plan: FloorPlan?
     @State private var loadError: String?
+    @State private var actionError: String?
     /// `-RoomScannerInitialTab viewer|measures` et `-RoomScannerInitialViewerMode 2d|ar` au lancement (captures, essais).
     @State private var tab: Tab = {
         switch UserDefaults.standard.string(forKey: "RoomScannerInitialTab") { case "viewer": .viewer; case "measures": .measures; default: .plan }
@@ -23,7 +24,7 @@ struct RoomDetailView: View {
         return s
     }()
 
-    enum Tab: Hashable { case plan, viewer, measures, photos }
+    typealias Tab = ScanDetailTab
 
     private var currentRecord: RoomRecord { store.records.first { $0.id == record.id } ?? record }
 
@@ -43,19 +44,9 @@ struct RoomDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button { exporting = true } label: { Label("detail.export", systemImage: "square.and.arrow.up") }
-                    .disabled(plan == nil)
-                    #if os(iOS)
-                    .keyboardShortcut("e", modifiers: .command)
-                    #endif
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Button { viewerState.mode = .threeD; showingStudio = true } label: { Label("Open in Design",systemImage: "square.stack.3d.up") }.disabled(plan == nil)
-                    Button { newName = currentRecord.name; renaming = true } label: { Label("detail.rename", systemImage: "pencil") }
-                } label: { Label("Options",systemImage: "ellipsis.circle") }
-            }
+            ScanDetailToolbar(ready:plan != nil,export:{ exporting = true },
+                              design:{ viewerState.mode = .threeD; showingStudio = true },
+                              rename:{ newName = currentRecord.name; renaming = true })
         }
         .sheet(isPresented: $showingVoiceNotes) {
             ScanVoiceNotesSheet(reference: .init(kind: .room,itemID: record.id,library: store.isCloud ? "icloud" : "local"),location: store.location)
@@ -75,17 +66,14 @@ struct RoomDetailView: View {
             Button("common.cancel", role: .cancel) {}
         }
         .task(id: record.id) { load() }
+        .alert("Error",isPresented:Binding(get:{ actionError != nil },set:{ if !$0 { actionError = nil } })) {
+            Button("OK") { actionError = nil }
+        } message: { Text(actionError ?? "") }
     }
 
     @ViewBuilder private func content(_ plan: FloorPlan) -> some View {
         VStack(spacing: 0) {
-            Picker("Model view", selection: $tab) {
-                Text("detail.tab.plan").tag(Tab.plan)
-                Text("detail.tab.viewer").tag(Tab.viewer)
-                Text("detail.tab.measures").tag(Tab.measures)
-                Text("detail.tab.photos").tag(Tab.photos)
-            }
-            .pickerStyle(.segmented)
+            ScanDetailTabPicker(selection:$tab)
             .padding(.horizontal)
             .padding(.vertical, 8)
             switch tab {
@@ -110,10 +98,7 @@ struct RoomDetailView: View {
         #if os(macOS)
         .background {
             Group {
-                Button("") { tab = .plan }.keyboardShortcut("1", modifiers: .command)
-                Button("") { tab = .viewer }.keyboardShortcut("2", modifiers: .command)
-                Button("") { tab = .measures }.keyboardShortcut("3", modifiers: .command)
-                Button("") { tab = .photos }.keyboardShortcut("4", modifiers: .command)
+                ScanDetailKeyboardShortcuts(selection:$tab)
                 Button("") { viewerState.resetToken += 1 }.keyboardShortcut("0", modifiers: .command)
             }
             .opacity(0)
@@ -131,7 +116,7 @@ struct RoomDetailView: View {
             try store.rename(currentRecord, to: newName)
             load()
         } catch {
-            loadError = error.localizedDescription
+            actionError = error.localizedDescription
         }
     }
 }

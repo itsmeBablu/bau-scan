@@ -9,6 +9,7 @@ struct HouseDetailView: View {
     let record: HouseRecord
     @State private var house: House?
     @State private var loadError: String?
+    @State private var actionError: String?
     @State private var tab: Tab = .plan
     @State private var storyIndex: Int?
     @State private var renaming = false
@@ -23,7 +24,7 @@ struct HouseDetailView: View {
     @State private var renameError: String?
     @State private var viewerState = ViewerState()
 
-    enum Tab: Hashable { case plan, viewer, measures, photos }
+    typealias Tab = ScanDetailTab
 
     private var currentRecord: HouseRecord { store.houseRecords.first { $0.id == record.id } ?? record }
 
@@ -43,27 +44,10 @@ struct HouseDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button { exporting = true } label: { Label("detail.export", systemImage: "square.and.arrow.up") }
-                    .disabled(house == nil)
-                    #if os(iOS)
-                    .keyboardShortcut("e", modifiers: .command)
-                    #endif
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Button {
-                        viewerState.mode = .threeD
-                        showingStudio = true
-                    } label: { Label("Open in Design",systemImage: "square.stack.3d.up") }.disabled(house == nil)
-                    Button {
-                        viewerState.mode = .threeD
-                        showingRadiators = true
-                    } label: { Label("Radiators", systemImage: "radiator") }
-                    .disabled(house == nil)
-                    Button { newName = currentRecord.name; renaming = true } label: { Label("detail.rename", systemImage: "pencil") }
-                } label: { Label("Options", systemImage: "ellipsis.circle") }
-            }
+            ScanDetailToolbar(ready:house != nil,export:{ exporting = true },
+                              design:{ viewerState.mode = .threeD; showingStudio = true },
+                              rename:{ newName = currentRecord.name; renaming = true },
+                              radiators:{ viewerState.mode = .threeD; showingRadiators = true })
         }
         .sheet(isPresented: $showingVoiceNotes) {
             ScanVoiceNotesSheet(reference: .init(kind: .house,itemID: record.id,library: store.isCloud ? "icloud" : "local"),location: store.location)
@@ -97,6 +81,9 @@ struct HouseDetailView: View {
         }
         .alert("Unable to rename room",isPresented: Binding(get: { renameError != nil },set: { if !$0 { renameError = nil } })) { Button("OK") { renameError = nil } } message: { Text(renameError ?? "") }
         .task(id: record.id) { load() }
+        .alert("Error",isPresented:Binding(get:{ actionError != nil },set:{ if !$0 { actionError = nil } })) {
+            Button("OK") { actionError = nil }
+        } message: { Text(actionError ?? "") }
     }
 
     /// House filtered to selected story (2D plan, measurements); `nil` = all stories.
@@ -108,13 +95,7 @@ struct HouseDetailView: View {
     @ViewBuilder private func content(_ house: House) -> some View {
         VStack(spacing: 0) {
             VStack(spacing: 8) {
-                Picker("Model view", selection: $tab) {
-                    Text("detail.tab.plan").tag(Tab.plan)
-                    Text("detail.tab.viewer").tag(Tab.viewer)
-                    Text("detail.tab.measures").tag(Tab.measures)
-                    Text("detail.tab.photos").tag(Tab.photos)
-                }
-                .pickerStyle(.segmented)
+                ScanDetailTabPicker(selection:$tab)
                 if house.stories.count > 1 {
                     HStack {
                         Text("house.story").font(.subheadline).foregroundStyle(.secondary)
@@ -156,10 +137,7 @@ struct HouseDetailView: View {
         #if os(macOS)
         .background {
             Group {
-                Button("") { tab = .plan }.keyboardShortcut("1", modifiers: .command)
-                Button("") { tab = .viewer }.keyboardShortcut("2", modifiers: .command)
-                Button("") { tab = .measures }.keyboardShortcut("3", modifiers: .command)
-                Button("") { tab = .photos }.keyboardShortcut("4", modifiers: .command)
+                ScanDetailKeyboardShortcuts(selection:$tab)
                 Button("") { stepStory(-1) }.keyboardShortcut("[", modifiers: [])
                 Button("") { stepStory(1) }.keyboardShortcut("]", modifiers: [])
                 Button("") { viewerState.resetToken += 1 }.keyboardShortcut("0", modifiers: .command)
@@ -205,7 +183,7 @@ struct HouseDetailView: View {
     }
 
     private func rename() {
-        do { try store.rename(currentRecord, to: newName); load() } catch { loadError = error.localizedDescription }
+        do { try store.rename(currentRecord, to: newName); load() } catch { actionError = error.localizedDescription }
     }
 }
 

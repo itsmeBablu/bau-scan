@@ -982,3 +982,23 @@ validation. Production +118/-63; tests +70/-1. Strict localization (1380 keys), 
 and whitespace passed. Swift tests and actual gallery orientation/zoom/share behavior
 remain UNRUN; device validation pending. No measured speed or memory improvement is
 claimed; the existing performance workloads must establish before/after evidence.
+
+## Phase 4, part 2 — Room/House detail presentation controls, 2026-11-26
+
+RoomDetailView and HouseDetailView now share the tab selection type/picker, export /
+design / rename toolbar and Mac tab shortcuts through ScanDetailControls. House
+floor selection, radiator actions, per-room rename, bracket shortcuts and source
+loading remain in the House adapter. Viewer states and capture lifecycles are not
+shared. Labels, order, disabled states and command shortcuts are preserved.
+
+Both details now surface rename-action failures in an alert rather than assigning
+them only to the initial-load error that is hidden once a plan/house is displayed.
+Catalogue-only renaming remains separate from native package renaming: these have
+different persistence semantics and must not be silently merged. No package or
+project schema changed. No test was added that merely mirrors SwiftUI composition;
+existing package-rename tests plus manual detail/shortcut checks remain required.
+
+Production +78/-60 (shared controls included); tests +0/-0. Localization/style and
+whitespace passed. Apple compilation, toolbar rendering, Mac commands and failed
+rename alert/retry behavior are UNVERIFIED. Broader item-operation consolidation
+still needs the distinct rename/delete/design ownership contracts preserved.
