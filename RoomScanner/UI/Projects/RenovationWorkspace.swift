@@ -137,10 +137,13 @@ import Observation
         if index.projects.contains(where:{ $0.id == project.id }) { currentProjectID = project.id }
     }
     func assign(_ reference: ProjectReference, to id: UUID) { change { try $0.assign(reference,to:id) } }
-    func note(_ text: String, projectID: UUID) {
-        change { index in
-            guard let i = index.projects.firstIndex(where:{ $0.id == projectID }) else { return }
-            index.projects[i].notes = text; index.projects[i].modifiedAt = Date()
+    @discardableResult func note(_ text:String,projectID:UUID,expected:String) -> Bool {
+        guard ready else { error = AppLanguage.text("Wait for the project catalogue to finish loading."); return false }
+        do { index = try ProjectIndexStore.updateNotes(text,projectID:projectID,expected:expected,root:catalogueRoot); return true }
+        catch {
+            self.error = error.localizedDescription
+            if let current = try? ProjectIndexStore.read(root:catalogueRoot) { index = current }
+            return false
         }
     }
 }

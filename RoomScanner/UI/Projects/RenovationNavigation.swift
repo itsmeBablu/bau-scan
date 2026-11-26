@@ -263,6 +263,8 @@ struct RenovationProjectPage: View {
     @State private var name = ""
     @State private var rename = false
     @State private var notes = ""
+    @State private var notesBaseline = ""
+    @State private var noteError: String?
     var body: some View {
         List {
             if let project = workspace.project(projectID) {
@@ -283,7 +285,10 @@ struct RenovationProjectPage: View {
                     NavigationLink("Notes & task pins") { ProjectPinsView(projectID:projectID) }
                     NavigationLink("Voice notes") { ProjectVoiceNotesView(projectID:projectID) }
                     TextEditor(text:$notes).frame(minHeight:100).accessibilityLabel("Project notes")
-                    Button("Save notes") { workspace.note(notes,projectID:projectID) }
+                    Button("Save notes") {
+                        if workspace.note(notes,projectID:projectID,expected:notesBaseline) { notesBaseline = notes }
+                        else { noteError = workspace.error }
+                    }
                 }
                 Section("Unavailable items") {
                     ForEach(project.references.filter { workspace.entry($0) == nil }) { ref in Label(ref.itemID.uuidString,systemImage:"icloud.slash").font(.caption) }
@@ -291,7 +296,11 @@ struct RenovationProjectPage: View {
             }
         }
         .navigationTitle(workspace.project(projectID).map { $0.isUnsorted ? AppLanguage.text("Unsorted") : $0.name } ?? AppLanguage.text("Project"))
-        .onAppear { notes = workspace.project(projectID)?.notes ?? ""; workspace.currentProjectID = projectID }
+        .onAppear { if notes == notesBaseline { notes = workspace.project(projectID)?.notes ?? ""; notesBaseline = notes }; workspace.currentProjectID = projectID }
+        .alert("Notes not saved",isPresented:Binding(get:{ noteError != nil },set:{ if !$0 { noteError = nil } })) {
+            Button("Load latest notes (discard draft)",role:.destructive) { notes = workspace.project(projectID)?.notes ?? notes; notesBaseline = notes; noteError = nil }
+            Button("OK") { noteError = nil }
+        } message: { Text(noteError ?? "") }
         .toolbar { ToolbarItem { Menu("Project",systemImage:"ellipsis.circle") {
             Button("Rename") { name = workspace.project(projectID)?.name ?? ""; rename = true }.disabled(workspace.project(projectID)?.isUnsorted == true)
         } } }

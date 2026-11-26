@@ -1,5 +1,16 @@
 # LiDAR device checks — pending
 
+## UI redesign Phase 0 — device validation pending
+
+- Open project details/settings and confirm no dead Scan more route is exposed.
+- Edit one note in two windows/devices; save the newer edit, then the stale draft.
+  Expect a visible conflict and retained draft, never a false success. Reload disk.
+- Repeat for project notes, source deletion and local/iCloud source twins. A scan's
+  cloud identity must not change the local project catalogue root.
+- Verify text edits preserve audio playback, transcription and spatial positions.
+- Equal export requests still create duplicates in Phase 0; artifact reuse belongs
+  to Phase 5. Do not delete user exports during this validation.
+
 No live LiDAR capture validation is claimed for this branch. Installing or
 launching the app is not equivalent to validating these scenarios.
 

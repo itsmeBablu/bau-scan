@@ -117,7 +117,7 @@ struct ProjectVoiceNotesView: View {
             Button("Discard unsaved recording and close",role:.destructive) { finishClose() }
             Button("Cancel",role:.cancel) {}
         } message: { Text("Saved recordings stay in recovery. Only the active or unsaved clip is discarded.") }
-        .sheet(item:$editing) { note in VoiceNoteEditor(note:note) { updated in saveEdit(updated) } }
+        .sheet(item:$editing) { note in VoiceNoteEditor(note:note) { updated in try await saveEdit(updated,expected:note) } }
         .alert("Delete voice note?",isPresented:Binding(get:{ deleting != nil },set:{ if !$0 { deleting = nil } })) {
             Button("Delete",role:.destructive) { if let deleting { remove(deleting) }; deleting = nil }
             Button("Cancel",role:.cancel) { deleting = nil }
@@ -218,10 +218,15 @@ struct ProjectVoiceNotesView: View {
             } catch { self.error = error.localizedDescription }
         }
     }
-    private func saveEdit(_ note: ARNote) { mutate { index in
-        guard let i = index.notes.firstIndex(where:{ $0.id == note.id }) else { throw CocoaError(.fileNoSuchFile) }
-        index.notes[i].title = note.title; index.notes[i].text = note.text
-    } }
+    @MainActor private func saveEdit(_ note:ARNote,expected:ARNote) async throws {
+        guard note.projectID == projectID else { throw CocoaError(.fileWriteNoPermission) }
+        let root = workspace.notesRoot
+        var updated = note; updated.modifiedAt = Date()
+        do {
+            _ = try await Task.detached { try ARNoteStore.upsertText(updated,root:root,expected:expected) }.value
+            await reload()
+        } catch { await reload(); throw error }
+    }
     private func remove(_ note: ARNote) { playback.stop(); mutate { $0.notes.removeAll { $0.id == note.id } } }
     private func mutate(_ edit: @escaping (inout ARNoteIndex) throws -> Void) {
         let root = workspace.notesRoot; busy = true
@@ -298,7 +303,9 @@ struct ScanVoiceNotesSheet: View {
 private struct VoiceNoteEditor: View {
     @Environment(\.dismiss) private var dismiss
     @State var note: ARNote
-    var save: (ARNote) -> Void
+    var save: (ARNote) async throws -> Void
+    @State private var saving = false
+    @State private var error: String?
     var body: some View {
         NavigationStack {
             Form {
@@ -307,10 +314,22 @@ private struct VoiceNoteEditor: View {
             }
             .navigationTitle("Edit voice note")
             .toolbar {
-                ToolbarItem(placement:.cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement:.confirmationAction) { Button("Save") { save(note); dismiss() }.disabled((note.title?.count ?? 0) > 200 || note.text.count > 16_000) }
+                ToolbarItem(placement:.cancellationAction) { Button("Cancel") { dismiss() }.disabled(saving) }
+                ToolbarItem(placement:.confirmationAction) {
+                    Button("Save") {
+                        saving = true
+                        Task { @MainActor in
+                            defer { saving = false }
+                            do { try await save(note); dismiss() } catch { self.error = error.localizedDescription }
+                        }
+                    }.disabled(saving || (note.title?.count ?? 0) > 200 || note.text.count > 16_000)
+                }
             }
         }
         .frame(minWidth:280,minHeight:280)
+        .interactiveDismissDisabled(saving)
+        .alert("Notes not saved",isPresented:Binding(get:{ error != nil },set:{ if !$0 { error = nil } })) {
+            Button("OK") { error = nil }
+        } message: { Text(error ?? "") }
     }
 }

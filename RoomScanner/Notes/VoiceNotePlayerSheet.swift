@@ -60,10 +60,11 @@ struct VoiceNotePlayerSheet:View {
     private func saveText() {
         guard !saving else { return }; saving = true
         var value = current ?? note; value.text = text; value.modifiedAt = Date()
+        let expected = current ?? note
         Task { @MainActor in
             defer { saving = false }
             do {
-                let saved = try await Task.detached { try ARNoteStore.upsertText(value,root:root) }.value
+                let saved = try await Task.detached { try ARNoteStore.upsertText(value,root:root,expected:expected) }.value
                 current = saved; onSave(saved); error = nil
             } catch { self.error = error.localizedDescription }
         }

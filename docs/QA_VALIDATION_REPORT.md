@@ -18,3 +18,64 @@ FULL_CODE_REVIEW_REPORT.md for base SHA, changes, actual API blockers and git st
 
 Do not reuse historical test counts from other branches as results for this phase.
 No tests or security checks were disabled or weakened.
+
+## UI redesign Phase 0 — 2026-11-26
+
+Branch codex/ui-redesign starts from local main at 59ee4e0. Separate autosave
+e591226 and pin f7e46ca remain on their feature branches, outside this UI baseline.
+No remote push or CI run was performed.
+
+Baseline: 221 handwritten app Swift files, 25,869 physical lines; 23,801 nonblank
+lines excluding lines starting with // (lexical count, not a Swift parser; block
+comments/string lines can remain). This excludes tests, resources, documentation
+and generated files. There are 429 test-method declarations in 83 files, not an
+executed test count. Base docs report 422 iOS/423 Mac tests from prior validation;
+the referenced Mac /tmp logs are unavailable here and do not validate this change.
+
+Screen inventory: 96 SwiftUI View structs include components as well as screens.
+Primary routes reviewed: RenovationNavigation, ProjectChatWorkspace,
+RenovationProjectPage, ProjectDetailsEditor/settings, ProjectDeliverablesView,
+ProjectPinsView/editor, ProjectVoiceNotesView/editor/ScanVoiceNotesSheet,
+VoiceNotePlayerSheet, ProjectPhotosView, ProjectQuantitiesView,
+ProjectVerificationView, ProjectPrivacyView, UnfinishedScansView, HouseDetailView,
+RoomDetailView, TechnicalRoomLibraryView, TechnicalSavedScanView, ScanView,
+TechnicalRoomScanView, StudioProjectView/StudioEditorView, StudioLibraryView,
+ViewerView, SurveyPhotoGallery, ExportSheet, OrganisedExportSheet, SettingsView
+and MacRootView/MacStudioWindow. Source inventory only; no screen was rendered.
+
+P0-A: removed the details-editor link that supplied onScan:{} to a scan-capable
+project page. Existing dashboard navigation remains. The Node source-route test
+failed before the edit and passed afterward; native navigation is UNRUN.
+
+P0-B: stale ARNoteStore.upsertText writes now throw a localized conflict instead
+of returning old text as success. Different equal-date edits conflict; identical
+retries work. An expected revision protects stale editors even with newer incoming
+timestamps. Existing audio/transcript data is retained. Note editors await the
+write before dismissal and retain drafts on error. Project notes use the existing
+coordinated catalogue update with expected-text comparison; missing projects throw.
+UI offers an explicit discard-and-reload action rather than silently losing drafts.
+Catalogue roots, local/cloud source identity and capture/recovery remain unchanged.
+
+UIRedesignBaselineTests was written before the text fix for stale/equal-date writes,
+source identity and export duplication, then extended for stale editors and project
+notes/reload/deletion. All six Swift tests are UNRUN: no Swift red/green cycle or
+physical reproduction is claimed. Existing recovery tests remain unchanged.
+
+P0-C: a characterization test documents duplicate exports: equal save requests
+produce separate UUID files with equal bytes; bundle UI adds a random suffix.
+Request identity/reuse is deferred to Phase 5. No existing user artifact is deleted.
+
+Reused: coordinated ARNoteStore/ProjectIndexStore, RenovationWorkspace, existing
+editors and ProjectArtifacts. Removed: one superseded route, silent stale-text
+success and premature dismissal. No dependencies, schema changes or AR changes.
+Production Swift: +77/-19 lines, net +58 across seven files. Tests, scripts,
+localization data and docs are excluded from that metric. Four EN/DE catalog keys
+were added. No app screen or capture component was added.
+
+Local checks: 13 service tests, three Node JSON tests, one Node source-route test,
+strict localization (1,225 keys), six plist-family syntax checks and whitespace.
+See .worktrees/ui-redesign-phase0-evidence.json for actual SHA/dirty state/results.
+The overall runner exits 1 because Apple schemes are BLOCKED on Windows. These
+checks do not validate Swift storage/UI behavior; no exact-commit Apple pass exists.
+
+Next: S0 design-system source audit, then S1–S4, before redesign Phase 1.

@@ -2,17 +2,33 @@ import Foundation
 
 /// Local, versioned project sidecar. No audio is uploaded or placed inside scan packages.
 enum ARNoteStore {
-    static func upsertText(_ note:ARNote,root:URL) throws -> ARNote {
+    enum TextConflict: LocalizedError {
+        case stale
+        var errorDescription: String? { AppLanguage.text("This note changed elsewhere. Your draft was not saved. Reload the latest note before retrying.") }
+    }
+    static func upsertText(_ note:ARNote,root:URL,expected:ARNote? = nil) throws -> ARNote {
+        if let expected {
+            guard expected.id == note.id,expected.projectID == note.projectID,expected.reference == note.reference else { throw CocoaError(.fileWriteNoPermission) }
+        }
         let index = try update(root:root,projectID:note.projectID) { value in
             var copy = note
             if let i = value.notes.firstIndex(where:{ $0.id == note.id }) {
                 let old = value.notes[i]
                 guard old.reference == note.reference else { throw CocoaError(.fileWriteFileExists) }
-                guard (note.modifiedAt ?? note.createdAt) >= (old.modifiedAt ?? old.createdAt) else { return }
+                let incomingDate = note.modifiedAt ?? note.createdAt,storedDate = old.modifiedAt ?? old.createdAt
+                guard incomingDate >= storedDate,
+                      incomingDate != storedDate || (note.text == old.text && note.title == old.title && note.status == old.status) else { throw TextConflict.stale }
+                if let expected {
+                    guard old.text == expected.text,old.title == expected.title,old.status == expected.status else { throw TextConflict.stale }
+                }
                 copy.number = old.number; copy.audioFileName = old.audioFileName; copy.audioDuration = old.audioDuration
                 copy.audioModifiedAt = old.audioModifiedAt; copy.partial = old.partial; copy.transcriptState = old.transcriptState
+                copy.transcript = old.transcript; copy.retainAudio = old.retainAudio
                 value.notes[i] = copy
-            } else { copy.number = try value.nextNumber(roomID:copy.roomID); value.notes.append(copy) }
+            } else {
+                guard expected == nil else { throw CocoaError(.fileNoSuchFile) }
+                copy.number = try value.nextNumber(roomID:copy.roomID); value.notes.append(copy)
+            }
         }
         guard let saved = index.notes.first(where:{ $0.id == note.id }) else { throw CocoaError(.fileWriteUnknown) }; return saved
     }

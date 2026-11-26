@@ -37,7 +37,6 @@ struct ProjectDetailsEditor:View {
                     ForEach(parties) { party in ProjectPartyEditor(party:party) }.onDelete { details.parties?.remove(atOffsets:$0) }
                     Button("Add party",systemImage:"person.badge.plus") { details.parties = (details.parties ?? [])+[ProjectParty()] }.disabled((details.parties?.count ?? 0) >= 100)
                 }
-                Section { NavigationLink("Notes, measurements and exports") { RenovationProjectPage(projectID:projectID,onScan:{}) } }
             }
             Section {
                 Button("Save project details") {

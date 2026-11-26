@@ -2,6 +2,17 @@ import Foundation
 
 /// Local project catalogue, separate from all existing package formats.
 enum ProjectIndexStore {
+    enum NotesConflict: LocalizedError {
+        case stale
+        var errorDescription: String? { AppLanguage.text("Project notes changed elsewhere. Your draft was not saved. Reload the latest notes before retrying.") }
+    }
+    static func updateNotes(_ text:String,projectID:UUID,expected:String,root:URL) throws -> ProjectIndex {
+        try update(root:root) { index in
+            guard let i = index.projects.firstIndex(where:{ $0.id == projectID }) else { throw CocoaError(.fileNoSuchFile) }
+            guard index.projects[i].notes == expected || index.projects[i].notes == text else { throw NotesConflict.stale }
+            index.projects[i].notes = text; index.projects[i].modifiedAt = Date()
+        }
+    }
     static func url(root: URL) -> URL { root.appendingPathComponent("Projects", isDirectory: true).appendingPathComponent("index-v1.json") }
     static func read(root: URL) throws -> ProjectIndex {
         let file = url(root: root)
