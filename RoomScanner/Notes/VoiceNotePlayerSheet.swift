@@ -42,7 +42,7 @@ struct VoiceNotePlayerSheet:View {
                     TextField("Title",text:$title)
                     TextField("Write a note",text:$text,axis:.vertical).lineLimit(3...10)
                     Button("Save text") { saveText() }.disabled(saving || loading || !dirty || text.count > 16_000 || title.count > 200)
-                }
+                }.disabled(loading)
                 if baseline.audioFileName != nil {
                     Section("Playback") { InlineVoiceNoteRow(note:baseline,root:root,subtitle:baseline.createdAt.formatted(),enabled:!saving && !recordingActive && !loading) }
                 }
@@ -73,18 +73,23 @@ struct VoiceNotePlayerSheet:View {
                     Button("Done") { if dirty || recordingActive || pending { confirmingClose = true } else { dismiss() } }.disabled(saving)
                 } }
         }.task(id:note.id) {
+            loading = true
             current = note; textBaseline = note; text = note.text; title = note.title ?? ""
             #if os(iOS)
             recorder.onClip = { clip in saveAudio(clip) }
             #endif
             do {
-                let index = try await Task.detached { try ARNoteStore.index(root:root,projectID:note.projectID) }.value
+                let root = root, projectID = note.projectID
+                let index = try await BackgroundWork.run { try ARNoteStore.index(root:root,projectID:projectID) }
                 guard !Task.isCancelled else { return }
                 if let latest = index.notes.first(where:{ $0.id == note.id }),latest.reference == note.reference {
                     current = latest; textBaseline = latest; text = latest.text; title = latest.title ?? ""
                 } else { throw CocoaError(.fileNoSuchFile) }
                 loading = false
-            } catch { loading = false; self.error = error.localizedDescription }
+            } catch {
+                guard !Task.isCancelled else { return }
+                loading = false; self.error = error.localizedDescription
+            }
         }
         .interactiveDismissDisabled(saving || recordingActive || pending || dirty)
         .confirmationDialog("Close note with unsaved changes?",isPresented:$confirmingClose,titleVisibility:.visible) {

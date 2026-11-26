@@ -861,8 +861,8 @@ test file present as an untracked change. Evidence:
 `.worktrees/core-local-checkpoint-fa16701.json`. Localization, JSON/UI/design Node
 regressions, style, Python service tests, plist syntax and whitespace passed;
 Apple schemes were explicitly BLOCKED. The runner's overall exit code was 1 for
-that missing Apple verification, not an all-green result. Final clean-commit local
-evidence is recorded separately below. No remote workflow was dispatched.
+that missing Apple verification, not an all-green result. Later local evidence
+must record its exact commit and any working-tree changes. No remote workflow was dispatched.
 
 ## Requested deliverables and Studio follow-up — 2026-11-26
 
@@ -901,3 +901,23 @@ baselines; run sanitizer/coverage/warning jobs; reviewed export goldens; compreh
 failure-injection and concurrency audit; live recorder/capture policies; common item
 actions/detail views; measured incremental Studio work; only then evidence-based
 optimization and verified unused-code cleanup. These are not reported finished.
+
+## Phase 1, part 3 — voice editor initial-load draft protection, 2026-11-26
+
+VoiceNotePlayerSheet did not release saving on a timeout, so that part needed no
+replacement. Source review found its text fields enabled during initial reload;
+that reload replaces their values with the latest saved text. The written-note
+section now stays disabled until initial loading finishes, loading is reset for a
+changed note, and cancelled reads do not present late errors. Metadata reading
+reuses BackgroundWork; durable text/audio writes and recovery policies are unchanged.
+
+Production +8/-3; no new tests added for this small UI change. Existing stale-note
+and durable-store tests remain required. Manual check: delay metadata reading,
+verify typing cannot start before the latest note appears, then edit, close/save,
+reopen and confirm the persisted text. Repeat closing during the delayed load and
+switching notes; no stale error/draft should appear. UI validation pending.
+
+Ten Node checks, strict localization (1380 keys), style and whitespace passed after
+this change; these do not validate SwiftUI interaction or compilation. No Apple
+scheme was run. Remaining broad consolidation work is listed in the previous
+entry and `docs/CORE_REFACTOR_PLAN.md`; no complete-release claim is made.
