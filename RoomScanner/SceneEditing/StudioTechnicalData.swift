@@ -41,7 +41,7 @@ struct StudioTechnicalDataView: View {
                     Text("Capacity, DN, wall thickness and service requirements cannot be established from an external scan. Record the actual operating conditions and manufacturer instructions. Object-envelope collision checks do not verify service clearances or installation compliance.").font(.caption).foregroundStyle(.secondary)
                 }
                 StudioGermanReferences()
-                if let error { Text(error).foregroundStyle(.red) }
+                if let error { Text(error).foregroundStyle(DS.ColorToken.error.color) }
             }.formStyle(.grouped).navigationTitle("Technical equipment")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

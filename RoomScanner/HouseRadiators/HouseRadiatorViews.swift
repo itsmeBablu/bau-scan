@@ -266,7 +266,7 @@ private struct HouseRadiatorEditor: View {
                     TextField("Wall → back gap (m), blank if unknown",value: $gap,format: .number)
                     Text("Unchanged values retain their original source. Changing a value records your selected source and preserves the raw scan. No millimetre accuracy is certified.").font(.caption).foregroundStyle(.secondary)
                 }
-                if let error { Text(error).foregroundStyle(.red) }
+                if let error { Text(error).foregroundStyle(DS.ColorToken.error.color) }
                 if busy { ProgressView("Saving…") }
             }.formStyle(.grouped).disabled(busy)
             .navigationTitle("Radiator measurements")

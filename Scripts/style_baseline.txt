@@ -10,5 +10,4 @@
 # RoomScanner/Scan/HoldMicrophoneControl.swift: UIKit touch/recording overlay; no SwiftUI view styling
 # RoomScanner/HouseRadiators/Capture/HouseRadiatorScanCoordinator.swift: Native AR measurement overlay
 # RoomScanner/TechnicalRoom/Capture/TechnicalRoomScanCoordinator.swift: RealityKit annotation materials
-RoomScanner/HouseRadiators/Capture/HouseRadiatorScanView.swift|named|1
-RoomScanner/HouseRadiators/HouseRadiatorViews.swift|named|1
+

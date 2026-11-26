@@ -48,7 +48,7 @@ struct HouseRadiatorScanView: View {
                             Button("Find another candidate") { scanner.resetBounds() }.disabled(scanner.geometry == nil && scanner.candidate == nil)
                         }
                         if let failure = error ?? scanner.error {
-                            Text(failure).foregroundStyle(.red)
+                            Text(failure).foregroundStyle(DS.ColorToken.error.color)
                             if AVCaptureDevice.authorizationStatus(for: .video) == .denied {
                                 Button("Camera settings") { if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } }
                             }

@@ -198,7 +198,7 @@ struct StudioEngineeringView: View {
                         }
                     }
                 }
-                if let error { Text(error).foregroundStyle(.red) }
+                if let error { Text(error).foregroundStyle(DS.ColorToken.error.color) }
             }
             .navigationTitle("Engineering")
             .onAppear { selected = session.selectedID }
