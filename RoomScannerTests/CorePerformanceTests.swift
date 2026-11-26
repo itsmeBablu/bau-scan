@@ -25,8 +25,9 @@ final class CorePerformanceTests: XCTestCase {
         let fixture = try SyntheticWorkload(root: root)
         XCTAssertEqual(fixture.projects.count, 20); XCTAssertEqual(fixture.entries.count, 200)
         measured {
-            let records = try fixture.entries.map { try RoomPackage.readRecord(from: $0.url) }
-            XCTAssertEqual(records.count, 200)
+            let catalogue = try PackageCatalogue.rooms(in: fixture.root.appendingPathComponent("Rooms"))
+            XCTAssertEqual(catalogue.records.count, 200)
+            XCTAssertTrue(catalogue.problems.isEmpty)
         }
     }
 

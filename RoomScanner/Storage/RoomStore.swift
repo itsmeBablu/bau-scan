@@ -215,32 +215,11 @@ final class RoomStore {
             try location.prepare()
             try PackageReplacement.recover(in:location.roomsURL)
             try PackageReplacement.recover(in:location.housesURL)
-            let fm = FileManager.default
-            let urls = try fm.contentsOfDirectory(at: location.roomsURL, includingPropertiesForKeys: nil)
-                .filter { $0.pathExtension == FileLayout.packageExtension }
-            // Undownloaded iCloud package has no readable `meta.json`: ignored
-            // until notified by file monitor.
-            libraryProblems = []
-            func read<T>(_ url: URL,_ load: () throws -> T,_ version: (T) -> Int) -> T? {
-                do {
-                    let record = try load()
-                    guard version(record) <= FloorPlan.schemaVersion else {
-                        libraryProblems.append(.init(url:url,reason:.unsupportedSchema,detail:String(version(record)))); return nil
-                    }
-                    return record
-                } catch {
-                    let info = try? url.resourceValues(forKeys:[.isUbiquitousItemKey,.ubiquitousItemDownloadingStatusKey])
-                    let downloaded = info?.isUbiquitousItem != true || info?.ubiquitousItemDownloadingStatus == .current
-                    libraryProblems.append(.init(url:url,reason:LibraryProblem.classify(error,downloaded:downloaded),detail:error.localizedDescription))
-                    return nil
-                }
-            }
-            records = urls.compactMap { url in read(url,{ try RoomPackage.readRecord(from:url) },{ $0.schemaVersion }) }
-                .sorted { $0.createdAt > $1.createdAt }
-            let houseURLs = try fm.contentsOfDirectory(at:location.housesURL,includingPropertiesForKeys:nil)
-                .filter { $0.pathExtension == FileLayout.housePackageExtension }
-            houseRecords = houseURLs.compactMap { url in read(url,{ try HousePackage.readRecord(from:url) },{ $0.schemaVersion }) }
-                .sorted { $0.createdAt > $1.createdAt }
+            let rooms = try PackageCatalogue.rooms(in: location.roomsURL, includeHidden: true)
+            let houses = try PackageCatalogue.houses(in: location.housesURL, includeHidden: true)
+            libraryProblems = rooms.problems + houses.problems
+            records = rooms.records.sorted { $0.createdAt > $1.createdAt }
+            houseRecords = houses.records.sorted { $0.createdAt > $1.createdAt }
             // Schema upgrade: a house saved by an earlier version retains outdated
             // `meta.json` area and names (schema 2: room union, compound
             // names). Recomputed once here so library displays accurate values.

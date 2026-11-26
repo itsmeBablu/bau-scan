@@ -117,25 +117,23 @@ import Observation
                         guard FileManager.default.fileExists(atPath: url.path) else { return [] }
                         return try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil, options: .skipsHiddenFiles).filter { $0.pathExtension == suffix }
                     }
-                    for url in try files("Rooms", "roomscan") {
-                        do {
-                            let r = try RoomPackage.readRecord(from: url)
-                            guard url.deletingPathExtension().lastPathComponent.caseInsensitiveCompare(r.id.uuidString) == .orderedSame else { throw CocoaError(.fileReadCorruptFile) }
-                            found.append(.init(reference:.init(kind:.room,itemID:r.id,library:library),title:r.name,date:r.createdAt,area:r.areaM2,roomCount:1,root:root,url:url))
-                        } catch { warnings.append(url.lastPathComponent) }
+                    let rooms = try PackageCatalogue.rooms(in: root.appendingPathComponent("Rooms"))
+                    warnings += rooms.problems.map { $0.url.lastPathComponent }
+                    for r in rooms.records {
+                        guard let url = rooms.urls[r.id] else { continue }
+                        found.append(.init(reference:.init(kind:.room,itemID:r.id,library:library),title:r.name,date:r.createdAt,area:r.areaM2,roomCount:1,root:root,url:url))
                     }
-                    for url in try files("Houses", "housescan") {
-                        do {
-                            let r = try HousePackage.readRecord(from: url)
-                            guard url.deletingPathExtension().lastPathComponent.caseInsensitiveCompare(r.id.uuidString) == .orderedSame else { throw CocoaError(.fileReadCorruptFile) }
-                            found.append(.init(reference:.init(kind:.house,itemID:r.id,library:library),title:r.name,date:r.createdAt,area:r.areaM2,roomCount:r.roomCount,root:root,url:url))
-                        } catch { warnings.append(url.lastPathComponent) }
+                    let houses = try PackageCatalogue.houses(in: root.appendingPathComponent("Houses"))
+                    warnings += houses.problems.map { $0.url.lastPathComponent }
+                    for r in houses.records {
+                        guard let url = houses.urls[r.id] else { continue }
+                        found.append(.init(reference:.init(kind:.house,itemID:r.id,library:library),title:r.name,date:r.createdAt,area:r.areaM2,roomCount:r.roomCount,root:root,url:url))
                     }
-                    for url in try files("TechnicalRooms", "technicalroom") {
-                        do {
-                            let r = try TechnicalRoomPackage.readManifest(from:url)
-                            found.append(.init(reference:.init(kind:.technicalRoom,itemID:r.id,library:library),title:r.name,date:r.modifiedAt,area:nil,roomCount:1,root:root,url:url))
-                        } catch { warnings.append(url.lastPathComponent) }
+                    let technical = try PackageCatalogue.technicalRooms(in: root.appendingPathComponent("TechnicalRooms"))
+                    warnings += technical.problems.map { $0.url.lastPathComponent }
+                    for r in technical.records {
+                        guard let url = technical.urls[r.id] else { continue }
+                        found.append(.init(reference:.init(kind:.technicalRoom,itemID:r.id,library:library),title:r.name,date:r.modifiedAt,area:nil,roomCount:1,root:root,url:url))
                     }
                     for url in try files("SceneEdits", "json") {
                         do {

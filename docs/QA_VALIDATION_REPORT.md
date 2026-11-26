@@ -807,3 +807,26 @@ runtime dependencies, persistent formats, AR/capture lifecycle or audio-session
 policies changed. Consolidation remains partial: raw frame adapters, recorder
 recovery policies, catalogue ownership, detail actions, Studio state and measured
 optimization require further evidence/review. Both Apple schemes remain UNRUN.
+
+## Phase 2, part 2 — common package metadata catalogue, 2026-11-26
+
+RoomStore, TechnicalRoomLibraryStore and project workspace enumeration now use
+Foundation-only `PackageCatalogue` for room/house/technical metadata. The reader
+checks package identity/version, preserves actual file URLs, returns explicit
+unreadable/future-version diagnostics, and does not decode plan geometry, meshes
+or media. Root selection, project reconciliation, sort order, house migrations,
+download controls and technical backup recovery remain owned by the existing stores.
+Legacy room/house hidden-file enumeration is retained through an explicit option;
+technical/project scans continue to skip hidden items. No global catalogue cache
+or new persisted index was added.
+
+Three tests cover metadata-only reading, identity mismatch, future/corrupt records,
+separate roots with identical IDs, and a missing library. The 200-scan performance
+test now measures this actual common enumerator. RoomStore additionally rejects
+metadata whose UUID does not match its package filename, consistent with project
+identity validation; malformed sources remain on disk with a diagnostic.
+
+Production +78/-52; tests +62/-2. Ten Node regressions, localization, style and
+whitespace passed. Swift tests, iCloud offline behavior and catalogue timings are
+UNVERIFIED. This shares metadata authority; it does not claim one global store or
+complete targeted-invalidation/performance acceptance.

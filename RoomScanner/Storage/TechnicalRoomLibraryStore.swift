@@ -11,15 +11,10 @@ import Observation
     func url(for id: UUID) -> URL { root.appendingPathComponent(id.uuidString).appendingPathExtension("technicalroom") }
     func reload() throws {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        var found: [TechnicalRoomManifest] = [], warnings = recoverInterruptedReplacements()
-        for url in try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil, options: .skipsHiddenFiles) where url.pathExtension == "technicalroom" {
-            do {
-                let record = try TechnicalRoomPackage.readManifest(from: url)
-                guard url.deletingPathExtension().lastPathComponent == record.id.uuidString else { throw TechnicalRoomPackage.PackageError.invalidPackage }
-                found.append(record)
-            } catch { warnings.append("\(url.lastPathComponent): \(error.localizedDescription)") }
-        }
-        records = found.sorted { $0.modifiedAt > $1.modifiedAt }; loadWarnings = warnings
+        let warnings = recoverInterruptedReplacements()
+        let catalogue = try PackageCatalogue.technicalRooms(in: root)
+        records = catalogue.records.sorted { $0.modifiedAt > $1.modifiedAt }
+        loadWarnings = warnings + catalogue.problems.map { "\($0.url.lastPathComponent): \($0.detail)" }
     }
     private func recoverInterruptedReplacements() -> [String] {
         var warnings: [String] = []
