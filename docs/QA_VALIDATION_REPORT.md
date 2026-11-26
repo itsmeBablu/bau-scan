@@ -203,3 +203,19 @@ This is a dashboard checkpoint, not all of Phase 2: recent photo/inline voice ro
 full counts and project details save/conflict polish remain. Grouped libraries,
 capture presentation, media, artifact reuse and Studio/settings remain subsequent
 work. Actual screenshots matching the approved concepts require a Mac/device run.
+
+## Grouped scan library checkpoint — 2026-11-26
+
+Reused ProjectEntryRow and the metadata/summary cache. Added Foundation-only
+ProjectScanGrouping and one shared House/Technik library view: collapsible building,
+numeric floor and scan groups; remembered list/grid; cached per-room details under
+house scans, with explicit user-mapped building levels (legacy remains Unassigned).
+Removed the flat scan-card wrapper. One primary scan link retains existing context
+menu actions and native + setup. No geometry, package or camera lifecycle changes.
+
+Production Swift +167/-9 (net +158). Two grouping Swift tests added for basement,
+EG/upper numeric ordering, legacy/named levels, number sorting, stable references
+and input-order independence. These and both Apple schemes are UNRUN on Windows.
+Localization (1283 keys), style-ratchet and whitespace checks passed on the working
+tree. Capture-layout and the remaining library actions/media work are still pending;
+this is not completion of all Phase 3 acceptance criteria.

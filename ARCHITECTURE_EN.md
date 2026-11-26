@@ -338,3 +338,9 @@ Dashboard appearance does not decode packages or create exports. Scan totals are
 explicitly sums across potentially overlapping scans; Studio copies are excluded.
 The native preview/layout/device checks remain pending; recent media rows and
 broader summary counters are still to follow in the media phase.
+
+ProjectScanGrouping derives building/floor/scan sections without changing identity.
+ProjectScanLibraryView is shared by the independent House and Technik tabs. Room
+names/areas/story indices come from the existing bounded summary cache, not from
+package decoding during view rendering. Optional story-level mappings affect labels
+only. Scan context menus remain on the shared entry row; + uses durable setup.

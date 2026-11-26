@@ -103,3 +103,9 @@ merge. It must be followed by independently checking a known point.
   Disconnect a library and confirm unavailable data isn't presented as current.
 - Edit details through the sheet; open written notes and reproduce stale-editor
   conflicts across windows. Actual Apple rendering/build validation remains unrun.
+
+- Grouped libraries (device validation pending): collapse/reopen building and floor
+  groups; verify UG 2, EG, 2. OG precede 10. OG numerically. Legacy scans stay under
+  Unassigned, named floors stay named. Switch list/grid and tabs; inspect large text
+  and narrow iPhone disclosure controls. House room labels reflect explicit story
+  mappings; mapping never changes scan coordinates or raw story indices.

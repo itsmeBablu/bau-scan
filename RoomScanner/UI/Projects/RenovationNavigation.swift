@@ -322,10 +322,10 @@ struct ProjectChatWorkspace: View {
                 projectStack("Project") { RenovationProjectPage(projectID: projectID, onScan: startScan) }
             }
             Tab("House", systemImage: "house") {
-                projectStack("House") { scanCards(entries.filter { $0.reference.kind == .house || $0.reference.kind == .room }, mode: .house) }
+                projectStack("House") { scanCards(mode: .house) }
             }
             Tab("Technik", systemImage: "wrench.and.screwdriver") {
-                projectStack("Technik") { scanCards(entries.filter { $0.reference.kind == .technicalRoom }, mode: .technicalRoom) }
+                projectStack("Technik") { scanCards(mode: .technicalRoom) }
             }
             Tab("Studio", systemImage: "cube.transparent") {
                 projectStack("Studio") {
@@ -365,13 +365,8 @@ struct ProjectChatWorkspace: View {
             ForEach(values) { ProjectEntryRow(entry: $0, openAsDesign: studio, card: true).buttonStyle(.plain) }
         }
     }
-    private func scanCards(_ values: [ProjectLibraryEntry], mode: ScanMode) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DS.Spacing.l) {
-                cards(values)
-                if values.isEmpty { ContentUnavailableView("No scans yet", systemImage: mode == .house ? "house" : "cube") }
-            }.padding(DS.Spacing.l)
-        }
+    private func scanCards(mode: ScanMode) -> some View {
+        ProjectScanLibraryView(projectID:projectID,technical:mode == .technicalRoom)
         .toolbar { ToolbarItem(placement: .topBarTrailing) {
             Button(mode == .house ? "Scan a house" : "Scan Technik room", systemImage: "plus") { onCapture(mode) }
         } }
