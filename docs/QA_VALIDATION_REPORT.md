@@ -82,6 +82,20 @@ Next: S0 design-system source audit, then S1–S4, before redesign Phase 1.
 
 ## Design system S0
 
+S3/S4 local source checkpoint: strict style candidates fell from 108 across 33
+files to zero outside the documented rendering exceptions. Directory migrations
+have separate commits. Shared tokens preserve existing radii; glyph sizing and
+materials are centralized. No exported file writer or capture lifecycle changed.
+S3 production Swift totals are available via git diff 199a837..28749c6 --numstat.
+Literal spacing in older layouts remains a migration item as redesign touches
+those layouts; the strict ratchet covers its documented rules, not every possible
+Swift expression. No claim that every visual style is centralized yet.
+
+Node source/contrast/route tests, localization and the style audit pass locally.
+Swift tests, actual asset/glass rendering, XXL Dynamic Type, increased contrast,
+recording/capture and all Apple screenshots remain UNVERIFIED. S4's Apple/CI gate
+is BLOCKED; implementation of the redesign continues under the user's instruction.
+
 Documentation-only source audit completed against 268505c; full counts and file
 lists are in ARCHITECTURE_EN.md, with a French mirror summary. Reused AppTheme and
 existing liquidGlass as the designated future home; no second theme, styles or

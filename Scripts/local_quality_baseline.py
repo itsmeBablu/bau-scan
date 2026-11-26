@@ -32,6 +32,7 @@ def main():
     run("json-key-regressions", ["node", "--test", "Scripts/test_json_unique_keys.js"])
     run("ui-phase0-source-route", ["node", "--test", "Scripts/test_ui_phase0.js"])
     run("design-system-source", ["node", "--test", "Scripts/test_design_system.js"])
+    run("style-ratchet", ["node", "Scripts/audit_styles.js"])
     run("service", [sys.executable, "-m", "pytest", "services/technical-google-ai", "-q"])
     files = list((root / "RoomScanner").rglob("*.plist")) + list((root / "RoomScanner").rglob("*.entitlements")) + list((root / "RoomScanner").rglob("*.xcprivacy"))
     try:
