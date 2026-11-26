@@ -28,7 +28,7 @@ struct ViewerControls: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .dsMaterial(in:RoundedRectangle(cornerRadius: DS.Radius.floating, style: .continuous))
         .padding(.horizontal)
         .padding(.vertical, 6)
         .fixedSize(horizontal: false, vertical: true)

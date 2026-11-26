@@ -62,9 +62,9 @@ struct ViewerView: View {
             VStack {
                 if !photos.isEmpty { Toggle("Photos",isOn:$showPhotos).toggleStyle(.button) }
                 if !notes.isEmpty { Toggle("Voice notes",isOn:$showNotes).toggleStyle(.button) }
-                if let noteError { Text(noteError).font(.caption).foregroundStyle(.red) }
-                if let photoError { Text(photoError).font(.caption).foregroundStyle(.red) }
-            }.padding().background(.regularMaterial,in:Capsule())
+                if let noteError { Text(noteError).font(.caption).foregroundStyle(DS.ColorToken.error.color) }
+                if let photoError { Text(photoError).font(.caption).foregroundStyle(DS.ColorToken.error.color) }
+            }.padding().dsMaterial(in:Capsule())
             }
         }
         .overlay(alignment: .top) {
@@ -88,7 +88,7 @@ struct ViewerView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(.regularMaterial, in: Capsule())
+                .dsMaterial(in:Capsule())
                 .padding(.top, 10)
             }
         }
@@ -339,7 +339,7 @@ private struct CameraARView: View {
                             }
                         }
                             .padding(12)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                            .dsMaterial(in:RoundedRectangle(cornerRadius: DS.Radius.panel))
                             .padding()
                     }
             } else if requested {

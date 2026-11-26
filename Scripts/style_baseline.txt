@@ -29,8 +29,3 @@ RoomScanner/TechnicalRoom/TechnicalRoomLibraryView.swift|named|2
 RoomScanner/TechnicalRoom/TechnicalRoomLibraryView.swift|radius|1
 RoomScanner/TechnicalRoom/TechnicalSavedScanView.swift|material|2
 RoomScanner/TechnicalRoom/TechnicalSurveyPhotoView.swift|named|1
-RoomScanner/Viewer/ViewerControls.swift|material|1
-RoomScanner/Viewer/ViewerControls.swift|radius|1
-RoomScanner/Viewer/ViewerView.swift|material|3
-RoomScanner/Viewer/ViewerView.swift|named|2
-RoomScanner/Viewer/ViewerView.swift|radius|1
