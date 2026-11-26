@@ -101,26 +101,3 @@ struct RenovationProjectPage: View {
         }.frame(minHeight: DS.Size.minimumTouchTarget).contentShape(Rectangle())
     }
 }
-
-/// Existing conflict-aware project notes editor, separated from the overview.
-struct ProjectWrittenNotesView: View {
-    let projectID: UUID
-    @Environment(RenovationWorkspace.self) private var workspace
-    @State private var notes = ""
-    @State private var baseline = ""
-    @State private var message: String?
-    var body: some View {
-        Form {
-            TextEditor(text: $notes).frame(minHeight: 240).accessibilityLabel("Project notes")
-            Button("Save notes") {
-                if workspace.note(notes, projectID: projectID, expected: baseline) { baseline = notes }
-                else { message = workspace.error }
-            }.disabled(notes == baseline || notes.count > 50_000)
-        }.navigationTitle("Project notes")
-            .onAppear { if notes == baseline { notes = workspace.project(projectID)?.notes ?? ""; baseline = notes } }
-            .alert("Notes not saved", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
-                Button("Load latest notes (discard draft)", role: .destructive) { notes = workspace.project(projectID)?.notes ?? notes; baseline = notes; message = nil }
-                Button("OK") { message = nil }
-            } message: { Text(message ?? "") }
-    }
-}

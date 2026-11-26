@@ -395,3 +395,11 @@ also compares byte size and SHA-256 against existing same-extension exports so a
 new logical label cannot duplicate identical data. Shared-file records are updated
 together on rename/delete. RoomStore's export-only save path similarly deduplicates
 and preserves changed versions through SavedExportFiles, without changing capture.
+
+Written and voice libraries are two views over existing ARNote records, not separate
+schemas. NoteTextEditor is shared; written-part deletion is conflict-checked and
+preserves audio/transcripts. New nonspatial written notes link to a source scan and
+optional room/explicit level; building/zone metadata stays on the scan catalogue.
+Project prose stays in RenovationProject.notes. The existing player sheet reuses
+the durable revision outbox for replacement audio, with in-memory retry and dirty
+close guards; recording does not silently save text drafts.

@@ -2,6 +2,14 @@ import Foundation
 
 /// Local, versioned project sidecar. No audio is uploaded or placed inside scan packages.
 enum ARNoteStore {
+    static func removeWrittenText(_ expected:ARNote,root:URL) throws -> ARNoteIndex {
+        try update(root:root,projectID:expected.projectID) { index in
+            guard let i = index.notes.firstIndex(where:{ $0.id == expected.id }),index.notes[i].reference == expected.reference else { throw CocoaError(.fileNoSuchFile) }
+            guard index.notes[i].text == expected.text,index.notes[i].title == expected.title else { throw TextConflict.stale }
+            if index.notes[i].audioFileName == nil && index.notes[i].transcript == nil { index.notes.remove(at:i) }
+            else { index.notes[i].text = ""; index.notes[i].title = nil; index.notes[i].modifiedAt = Date() }
+        }
+    }
     enum TextConflict: LocalizedError {
         case stale
         var errorDescription: String? { AppLanguage.text("This note changed elsewhere. Your draft was not saved. Reload the latest note before retrying.") }

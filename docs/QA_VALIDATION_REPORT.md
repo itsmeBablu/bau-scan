@@ -503,3 +503,38 @@ Apple builds, actual filesystem coordination/iCloud save behavior remain UNRUN a
 device validation pending. Byte-identical deduplication does not equate PDFs/ZIPs
 with different embedded timestamps; request reuse avoids regenerating unchanged
 requests in the first place. No files were pushed or user exports renamed.
+
+## Written/voice note workflow checkpoint — 2026-11-26
+
+Voice library now searches audio records and offers contextual rename/edit, re-record,
+share selected clip and confirmed deletion. Text-only records remain accessible in
+the dedicated written library rather than filling the audio list. Reuses NoteTextEditor,
+InlineVoiceNoteRow, NoteAudioRecorder, ARNoteStore and the existing VoiceNoteRecovery
+outbox; no second recording/storage engine. Sharing reads one selected clip and
+rejects late results after another sharing request/dismissal.
+
+VoiceNotePlayerSheet now opens text fields first, loads only metadata, retains failed
+replacement clips for retry and preserves the previous recording until durable
+replacement. Text drafts remain separate from audio replacement; stale text baseline
+checks still apply after replacing audio. Dirty close is explicit and recording/
+failed-save state blocks accidental dismissal. Existing recovery copies are retained
+when an in-memory failed recording is discarded; recoverable outbox data is not
+silently erased. Physical microphone/audio interruption behavior remains unverified.
+
+Written library reuses project prose plus existing ARNote records: searchable text,
+edit, create linked to a scan/optional room and an explicitly mapped level, and
+confirmed written-part deletion. It does not load audio. Combined records appear in
+both libraries while retaining audio/transcripts; deleting only text preserves them.
+A text-only record without a transcript can be removed. No .roomscan/.housescan/
+.technicalroom/TechnicalRoom-v1 or ARNote schema change. Project-wide prose uses the
+existing conflict-aware index field; scan/room/spatial notes use the approved notes
+sidecar. Zone/building organization is inherited from its scan, not duplicated.
+
+Production Swift +318/-71 (net +247). Three shared Swift tests added for combined
+text deletion retaining audio/transcript, stale delete rejection/text-only removal,
+and audio replacement failure retaining old clip plus outbox retry; UNRUN. Ten Node
+checks, localization (1355 keys), style and whitespace passed on the working tree.
+Both Apple schemes, actual recording/re-record/share/dirty-close/VoiceOver remain
+UNRUN/device validation pending. Explicit Save is used for edits, with close guards;
+no unverified auto-save is claimed. Remaining: export hierarchy consistency, final
+cleanup/visual comparison and Mac/iOS/device regression runs.

@@ -184,3 +184,11 @@ merge. It must be followed by independently checking a known point.
   different label: same saved file/path, no second copy. Change content: retain old
   file and add numbered version. Repeat in room/house Save to exports and iCloud.
   Check Unicode/long/unsafe names and indexed rename/delete shared by two requests.
+
+- Notes workflow (device validation pending): create/search/edit a project/scan/room
+  text note, reopen and verify persistence. Delete written text from a combined note;
+  audio/transcript must remain. Try stale editors across windows. In voice rows test
+  contextual rename/re-record/share/delete; deny microphone, fill disk, interrupt
+  recording and retry save. Old audio must remain until replacement commits. Close
+  dirty text without losing it; cancel/stop/retry before dismissal. Check VoiceOver,
+  large text and Mac text-only editing. Recovery copies remain available after errors.

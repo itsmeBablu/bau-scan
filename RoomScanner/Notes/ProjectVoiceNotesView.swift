@@ -14,6 +14,11 @@ struct ProjectVoiceNotesView: View {
     @State private var error: String?
     @State private var deleting: ARNote?
     @State private var editing: ARNote?
+    @State private var recordingEditor:ARNote?
+    @State private var query = ""
+    @State private var sharing = false
+    @State private var sharedAudio:URL?
+    @State private var shareRequest = UUID()
     @State private var includeAudio = false
     @State private var exportURL: URL?
     @State private var recoveryCount = 0
@@ -29,6 +34,10 @@ struct ProjectVoiceNotesView: View {
     #endif
     private var references: [ProjectReference] {
         workspace.project(projectID)?.references.filter { [.house,.room,.technicalRoom].contains($0.kind) } ?? []
+    }
+    private var voiceNotes:[ARNote] {
+        notes.filter { $0.audioFileName != nil && (query.isEmpty || ($0.title ?? "").localizedCaseInsensitiveContains(query) || $0.text.localizedCaseInsensitiveContains(query)) }
+            .sorted { ($0.audioModifiedAt ?? $0.createdAt) > ($1.audioModifiedAt ?? $1.createdAt) }
     }
     var body: some View {
         List {
@@ -75,7 +84,7 @@ struct ProjectVoiceNotesView: View {
                 }
             }
             Section("Voice notes") {
-                ForEach(notes) { note in
+                ForEach(voiceNotes) { note in
                     VStack(alignment:.leading,spacing:8) {
                         if note.audioFileName == nil { Text(note.title ?? note.stem).font(.headline) }
                         if !note.text.isEmpty { Text(note.text).textSelection(.enabled) }
@@ -85,12 +94,16 @@ struct ProjectVoiceNotesView: View {
                                 subtitle:workspace.entry(note.reference).map { workspace.title($0,locale:locale) } ?? note.reference.itemID.uuidString,
                                 enabled:!busy && !audioActive)
                         }
-                        HStack {
-                            Button("Edit") { editing = note }.disabled(busy || audioActive)
-                            Button("Delete",role:.destructive) { deleting = note }.disabled(busy || audioActive)
-                        }
-                    }.padding(.vertical,4)
+                    }.padding(.vertical,4).contextMenu {
+                        Button("Rename or edit",systemImage:"pencil") { editing = note }
+                        #if os(iOS)
+                        Button("Re-record",systemImage:"mic") { NotePlayback.stopActive(); recordingEditor = note }
+                        #endif
+                        Button("Share recording",systemImage:"square.and.arrow.up") { shareAudio(note) }
+                        Button("Delete",systemImage:"trash",role:.destructive) { deleting = note }
+                    }.disabled(busy || audioActive)
                 }
+                if voiceNotes.isEmpty { Text("No voice notes yet").foregroundStyle(.secondary) }
             }
             Section("Export") {
                 Toggle("Include voice audio in export",isOn:$includeAudio).disabled(busy)
@@ -99,6 +112,7 @@ struct ProjectVoiceNotesView: View {
             }
         }
         .navigationTitle("Voice notes")
+        .searchable(text:$query,prompt:"Search voice notes")
         .task(id:projectID.uuidString+workspace.notesRoot.absoluteString) {
             visible = true
             if let initialReference { referenceID = initialReference.id }
@@ -110,7 +124,19 @@ struct ProjectVoiceNotesView: View {
             Button("Discard unsaved recording and close",role:.destructive) { finishClose() }
             Button("Cancel",role:.cancel) {}
         } message: { Text("Saved recordings stay in recovery. Only the active or unsaved clip is discarded.") }
-        .sheet(item:$editing) { note in VoiceNoteEditor(note:note) { updated in try await saveEdit(updated,expected:note) } }
+        .sheet(item:$editing) { note in NoteTextEditor(note:note) { updated in try await saveEdit(updated,expected:note) } }
+        .sheet(item:$recordingEditor,onDismiss:{ Task { await reload() } }) { note in
+            VoiceNotePlayerSheet(note:note,root:workspace.notesRoot)
+        }
+        .sheet(isPresented:$sharing,onDismiss:{ shareRequest = UUID() }) {
+            NavigationStack {
+                Group {
+                    if let sharedAudio { ShareLink(item:sharedAudio) { Label("Share recording",systemImage:"square.and.arrow.up") } }
+                    else { ProgressView("Preparing recording…") }
+                }.padding().navigationTitle("Share recording")
+                    .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Done") { sharing = false } } }
+            }
+        }
         .alert("Delete voice note?",isPresented:Binding(get:{ deleting != nil },set:{ if !$0 { deleting = nil } })) {
             Button("Delete",role:.destructive) { if let deleting { remove(deleting) }; deleting = nil }
             Button("Cancel",role:.cancel) { deleting = nil }
@@ -182,6 +208,22 @@ struct ProjectVoiceNotesView: View {
                 guard visible,root == workspace.notesRoot else { try? FileManager.default.removeItem(at:target); return }
                 exportURL = target
             } catch { self.error = error.localizedDescription }
+        }
+    }
+    private func shareAudio(_ note:ARNote) {
+        guard !busy,!audioActive else { return }
+        let root = workspace.notesRoot
+        let request = UUID(); shareRequest = request
+        sharedAudio = nil; sharing = true
+        Task {
+            do {
+                let file = try await Task.detached(priority:.utility) {
+                    let bytes = try ARNoteStore.audio(for:note,root:root)
+                    let target = try ExportService.scratchDirectory().appendingPathComponent(ArchivePath.component(note.title ?? note.stem)+".m4a")
+                    try bytes.write(to:target,options:.atomic); return target
+                }.value
+                guard visible,sharing,shareRequest == request,root == workspace.notesRoot else { return }; sharedAudio = file
+            } catch { guard visible,shareRequest == request else { return }; sharing = false; self.error = error.localizedDescription }
         }
     }
     private func recoverRecordings() {
@@ -280,19 +322,23 @@ struct ScanVoiceNotesSheet: View {
     }
 }
 
-private struct VoiceNoteEditor: View {
+struct NoteTextEditor: View {
     @Environment(\.dismiss) private var dismiss
     @State var note: ARNote
+    private let initial:ARNote
     var save: (ARNote) async throws -> Void
     @State private var saving = false
     @State private var error: String?
+    init(note:ARNote,save:@escaping (ARNote) async throws -> Void) {
+        _note = State(initialValue:note); initial = note; self.save = save
+    }
     var body: some View {
         NavigationStack {
             Form {
                 TextField("Title",text:Binding(get:{ note.title ?? "" },set:{ note.title = $0 }))
                 TextEditor(text:$note.text).frame(minHeight:160).accessibilityLabel("Description")
             }
-            .navigationTitle("Edit voice note")
+            .navigationTitle("Edit note")
             .toolbar {
                 ToolbarItem(placement:.cancellationAction) { Button("Cancel") { dismiss() }.disabled(saving) }
                 ToolbarItem(placement:.confirmationAction) {
@@ -307,7 +353,7 @@ private struct VoiceNoteEditor: View {
             }
         }
         .frame(minWidth:280,minHeight:280)
-        .interactiveDismissDisabled(saving)
+        .interactiveDismissDisabled(saving || note != initial)
         .alert("Notes not saved",isPresented:Binding(get:{ error != nil },set:{ if !$0 { error = nil } })) {
             Button("OK") { error = nil }
         } message: { Text(error ?? "") }
