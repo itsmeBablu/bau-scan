@@ -179,6 +179,14 @@ import Observation
         if index.projects.contains(where:{ $0.id == project.id }) { currentProjectID = project.id }
     }
     func assign(_ reference: ProjectReference, to id: UUID) { change { try $0.assign(reference,to:id) } }
+    func remove(_ entry:ProjectLibraryEntry) async {
+        guard ready else { error = AppLanguage.text("Wait for the project catalogue to finish loading."); return }
+        let expected = index,root = catalogueRoot
+        do {
+            let updated = try await Task.detached(priority:.utility) { try ProjectScanRemoval.remove(entry,expected:expected,catalogueRoot:root) }.value
+            index = updated; libraryEntries.removeAll { $0.reference == entry.reference }; scanSummaries.removeValue(forKey:entry.id); catalogueRevision &+= 1
+        } catch { self.error = error.localizedDescription }
+    }
     func saveDetails(_ details:ProjectDetails,projectID:UUID,expected:ProjectDetails?) throws {
         guard ready else { throw CocoaError(.fileReadUnknown) }
         do {

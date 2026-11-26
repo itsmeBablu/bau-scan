@@ -590,3 +590,37 @@ Actual icon stroke/readability, light/dark/high-contrast/large-text layout, mark
 hit targets, camera direction/selection and physical-device capture remain device
 validation pending. No React icons or other dependencies were added; existing SF
 Symbols provide the requested visual language. No claim of pixel-exact screenshots.
+
+## Library actions/final source review checkpoint — 2026-11-26
+
+Shared scan cards now offer Export, per-scan measurement report, Studio, organization,
+rename/duplicate/move/share and confirmed removal. ProjectScanExportSheet adapts
+existing ExportSheet or TechnicalMeshExporter with explicit Generate and cancellable
+worker tasks, retaining the actual scan name. No file is generated merely on opening.
+ProjectQuantitiesView can scope an existing report to one scan, including technical
+schedule detail lines. Existing package readers/writers and geometry are reused.
+
+ProjectScanRemoval moves one checked exact item path to hidden sibling .removed-*
+trash before removing catalogue references/labels/pins/checks. It retains project
+notes/shared exports and rejects stale catalogues, linked paths and sources needed
+by indexed or on-disk Studio designs. Failed catalogue commits roll the move back.
+Trash remains on disk for manual recovery; no purge/automatic deletion was added.
+The UI exposes this only behind confirmation; no user item was removed during this
+implementation. New source-removal logic is Foundation-only, with no AR imports.
+
+Review corrected a Swift test mutating an immutable SurveyPhotoImage field and
+added cancellation checking before applying a late ProjectCover thumbnail result.
+Production Swift +187/-4 (net +183). Three shared Swift tests added for dependent
+source protection, single-item trash/catalogue changes preserving notes/other files,
+and stale/path rejection. All Swift tests and both Apple schemes remain UNRUN.
+Ten Node checks, localization (1366 keys), style and whitespace passed on the working
+tree. Actual export adapters, native file picker, item removal/rollback/iCloud and
+all light/dark/large-text/device rendering remain device validation pending.
+
+Local redesign implementation checkpoints are complete enough for a Mac build and
+visual review, not a verified release. Outstanding acceptance checks: xcodegen,
+RoomScanner and RoomScannerMac full schemes, real device scanning/voice/recovery,
+actual screenshot comparison, native Mac/iPad adaptation and any resulting fixes.
+Project-scoped and room/scan written notes reuse existing fields; independent
+zone-only note identity is not introduced. Legacy/manual string formatting and
+source-revision cache behavior require Apple review. No push/remote CI occurred.

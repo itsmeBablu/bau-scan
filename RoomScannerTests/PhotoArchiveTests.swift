@@ -7,8 +7,8 @@ final class PhotoArchiveTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at:root) }
         var layout = PhotoArchiveLayout()
         let room = UUID()
-        var first = image("Bath Room",number:1); first.photo.roomID = room
-        var second = image("Bath Room",number:2); second.photo.roomID = room
+        let first = image("Bath Room",number:1,roomID:room)
+        let second = image("Bath Room",number:2,roomID:room)
         let lower = ScanOrganization(level:-1,buildingName:"A",kind:.house)
         let upper = ScanOrganization(level:1,buildingName:"A",kind:.house)
         let files = try SurveyPhotoArchiveWriter.write([first,second],to:root,used:&layout,sourceID:"source",organization:lower,locale:Locale(identifier:"de"))
@@ -17,8 +17,8 @@ final class PhotoArchiveTests: XCTestCase {
         let other = try SurveyPhotoArchiveWriter.write([image("Bath Room",number:1)],to:root,used:&layout,sourceID:"other",organization:upper,locale:Locale(identifier:"de"))
         XCTAssertTrue(other[0].imageFile.hasPrefix("Photos/A/1.1. OG/Bath Room/"))
     }
-    private func image(_ room: String, number: Int) -> SurveyPhotoImage {
-        .init(photo:.init(id:UUID(),roomID:UUID(),number:number,pose:[1,0,0,0,0,1,0,0,0,0,1,0,2,1,3,1],timestamp:3),jpegData:Data([0xff,0xd8,0xff,0xd9]),roomName:room)
+    private func image(_ room: String, number: Int,roomID:UUID = UUID()) -> SurveyPhotoImage {
+        .init(photo:.init(id:UUID(),roomID:roomID,number:number,pose:[1,0,0,0,0,1,0,0,0,0,1,0,2,1,3,1],timestamp:3),jpegData:Data([0xff,0xd8,0xff,0xd9]),roomName:room)
     }
     func testPhotoFoldersUseRoomDotNumberWithoutCollisionsOrUnsafeWindowsNames() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

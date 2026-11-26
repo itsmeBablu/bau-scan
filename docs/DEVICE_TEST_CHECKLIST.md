@@ -206,3 +206,19 @@ merge. It must be followed by independently checking a known point.
   paper plan linework/dimensions/grid at zoom and large text with approved concepts.
   Test toolbar scrolling, photo/audio selection, orbit/drag and narrow/landscape iPhone,
   iPad and Mac. These are manual checks; no actual app screenshots were captured here.
+
+- Library actions (device validation pending): Export/measurement report from both
+  House and Technik cards; opening must create no file, Generate uses the actual
+  scan name. Cancel/close while loading. Remove an item only after confirmation:
+  dependent Studio source is blocked, unrelated items/notes/exports stay intact,
+  and hidden sibling trash retains the removed bytes. Exercise concurrent edits,
+  offline libraries, symlinks, failed catalogue commit and cancellation/rollback.
+
+### Required Apple validation before calling this redesign finished
+
+On a Mac at the exact local branch commit: run `xcodegen generate`, then
+`bash Scripts/test.sh all`. Preserve the full xcodebuild log for any failure and
+return its first compiler error plus context. Run iPhone 14 Pro capture, photos,
+voice replacement/recovery and background tests above; inspect iPad/Mac adaptation,
+light/dark/high contrast/Dynamic Type, navigation/dirty-close and screenshot parity.
+No Apple builds/tests or actual app screenshots were produced on Windows.

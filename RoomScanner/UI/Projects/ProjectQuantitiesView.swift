@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProjectQuantitiesView: View {
     let projectID: UUID
+    var reference:ProjectReference? = nil
     @Environment(RenovationWorkspace.self) private var workspace
     @Environment(\.locale) private var locale
     @State private var report: ProjectReport?
@@ -21,6 +22,7 @@ struct ProjectQuantitiesView: View {
             }
             ForEach(Array((report?.scans ?? []).enumerated()),id:\.offset) { _,scan in
                 Section(scan.title) {
+                    ForEach(Array(scan.detailLines.enumerated()),id:\.offset) { Text($0.element).font(.subheadline) }
                     ForEach(scan.house?.allRooms ?? []) { room in
                         let q = RenovationQuantities(room)
                         DisclosureGroup(room.name) {
@@ -35,9 +37,13 @@ struct ProjectQuantitiesView: View {
             if let error { Text(error).foregroundStyle(DS.ColorToken.error.color) }
         }.navigationTitle("Quantities").task {
             if !wastePercent.isFinite { wastePercent = 10 }
-            guard let project = workspace.project(projectID) else { return }
-            let entries = workspace.entries, locale = locale
-            do { report = try await Task.detached { try ProjectReportLoader.load(project:project,entries:entries,locale:locale) }.value }
+            guard var project = workspace.project(projectID) else { return }
+            if let reference { project.references = project.references.filter { $0 == reference } }
+            let entries = workspace.entries.map { workspace.localizedEntry($0,locale:self.locale) }, locale = locale,selectedProject = project
+            do {
+                let loaded = try await Task.detached { try ProjectReportLoader.load(project:selectedProject,entries:entries,locale:locale) }.value
+                guard !Task.isCancelled else { return }; report = loaded
+            }
             catch { self.error = error.localizedDescription }
         }
     }

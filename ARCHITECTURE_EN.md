@@ -418,3 +418,10 @@ Plan2DView renders a paper drafting style with transparent evidence glyphs and a
 camera-axis direction outline. These changes affect presentation only, not recorded
 camera transforms, coordinates or export geometry. DS root appearance follows app
 System/Light/Dark selection; media paper surfaces remain intentionally white.
+
+ProjectScanExportSheet is a presentation adapter around existing exporters and
+package readers. ProjectScanRemoval is a separate checked catalogue transaction:
+one exact source/design item is moved to sibling hidden trash, dependent Studio
+sources are protected, and notes/shared artifacts remain. Catalogue failure rolls
+back the move. Trash is retained rather than purged. No native scan schema or
+capture/session lifecycle changes are part of these library actions.

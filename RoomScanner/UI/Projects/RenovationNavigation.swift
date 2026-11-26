@@ -240,10 +240,12 @@ struct ProjectCover: View {
             .task(id:url) {
                 image = nil
                 guard let url else { return }
-                image = await Task.detached {
+                let decoded = await Task.detached {
                     guard let source = CGImageSourceCreateWithURL(url as CFURL,nil) else { return nil as CGImage? }
                     return CGImageSourceCreateThumbnailAtIndex(source,0,[kCGImageSourceCreateThumbnailFromImageAlways:true,kCGImageSourceThumbnailMaxPixelSize:256] as CFDictionary)
                 }.value
+                guard !Task.isCancelled else { return }
+                image = decoded
             }
     }
 }
@@ -256,6 +258,8 @@ struct ProjectEntryRow: View {
     @Environment(\.locale) private var locale
     @State private var renaming = false
     @State private var organizing = false
+    @State private var exporting = false
+    @State private var removing = false
     @State private var name = ""
     var body: some View {
         NavigationLink(value:openAsDesign ? designReference : entry.reference) {
@@ -275,12 +279,19 @@ struct ProjectEntryRow: View {
             }
         }
         .contextMenu {
+            if !entry.isDesign {
+                Button("Export",systemImage:"square.and.arrow.up") { exporting = true }
+                if let project = workspace.index.projects.first(where:{ $0.references.contains(entry.reference) }) {
+                    NavigationLink { ProjectQuantitiesView(projectID:project.id,reference:entry.reference) } label: { Label("Measurement report",systemImage:"ruler") }
+                }
+            }
             if !entry.isDesign { Button("Edit organization",systemImage:"building.2") { organizing = true } }
             Button("Rename") { name = workspace.title(entry,locale:locale); renaming = true }
             Button("Duplicate") { Task { await workspace.duplicate(entry) } }
             NavigationLink("Open in Studio",value:designReference)
             Menu("Move to project") { ForEach(workspace.index.projects) { project in Button(project.isUnsorted ? AppLanguage.text("Unsorted") : project.name) { workspace.assign(entry.reference,to:project.id) } } }
             ShareLink(item:entry.url) { Label("Share",systemImage:"square.and.arrow.up") }
+            Button("Remove saved item",systemImage:"trash",role:.destructive) { removing = true }
         }
         .alert("Rename",isPresented:$renaming) {
             TextField("Name",text:$name)
@@ -290,6 +301,15 @@ struct ProjectEntryRow: View {
         .sheet(isPresented:$organizing) {
             ScanOrganizationEditor(entry:entry,organization:workspace.index.scanOrganization?[entry.id]).environment(workspace)
         }
+        .sheet(isPresented:$exporting) {
+            ProjectScanExportSheet(entry:workspace.localizedEntry(entry,locale:locale))
+                .environment(RoomStore(location:.init(kind:entry.reference.library == "icloud" ? .iCloud : .local,documentsURL:entry.root),allowsCloud:false))
+                .projectPreferenceScope(workspace.index.projects.first(where:{ $0.references.contains(entry.reference) })?.details?.preferences)
+        }
+        .confirmationDialog("Remove saved item?",isPresented:$removing,titleVisibility:.visible) {
+            Button("Remove saved item",role:.destructive) { Task { await workspace.remove(entry) } }
+            Button("Cancel",role:.cancel) {}
+        } message: { Text("The item and its packaged photos leave the library. Project notes and shared exports remain. Source scans required by Studio designs are protected.") }
     }
     private var coverURL:URL {
         if !entry.isDesign { return entry.url.appendingPathComponent("thumbnail.png") }
