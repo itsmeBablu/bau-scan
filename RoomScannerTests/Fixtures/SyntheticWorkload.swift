@@ -75,7 +75,7 @@ struct SyntheticWorkload {
         UUID(uuidString: String(format: "00000000-0000-4000-8000-%012d", index))!
     }
 
-    private static func jpeg() throws -> Data {
+    static func jpeg() throws -> Data {
         let width = 1024, height = 768
         var pixels = [UInt8](repeating: 255, count: width * height * 4)
         for index in 0..<(width * height) {

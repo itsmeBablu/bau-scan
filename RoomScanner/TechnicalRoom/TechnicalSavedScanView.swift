@@ -18,13 +18,11 @@ private struct SurveyPhotoThumbnail: View {
             else { Image(systemName: "photo") }
         }.frame(maxWidth: 220, maxHeight: 140)
         .task(id: photo.id) {
-            guard let source = CGImageSourceCreateWithData(photo.jpegData as CFData,nil) else { return }
-            image = CGImageSourceCreateThumbnailAtIndex(source,0,[
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceThumbnailMaxPixelSize: 480
-            ] as CFDictionary)
+            image = nil
+            let decoded = try? await PhotoThumbnailCache.shared.image(data:photo.jpegData,maximumPixelSize:480)
+            guard !Task.isCancelled else { return }; image = decoded
         }
+        .onDisappear { image = nil }
     }
 }
 

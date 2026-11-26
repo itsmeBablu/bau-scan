@@ -20,16 +20,25 @@ enum SafePackageRead {
     }
     static func data(_ file: URL,root: URL,maximum: Int = 256*1_048_576,preflight: Bool = true) throws -> Data {
         if preflight { try validate(root) }
-        let base = root.standardizedFileURL,original = file.standardizedFileURL
-        guard original.path.hasPrefix(base.path+"/") else { throw CocoaError(.fileReadNoPermission) }
-        let relative = String(original.path.dropFirst(base.path.count+1))
-        let canonical = base.resolvingSymlinksInPath().appendingPathComponent(relative)
-        guard canonical.resolvingSymlinksInPath() == canonical else { throw CocoaError(.fileReadNoPermission) }
+        let canonical = try fileURL(file, root: root)
         let attrs = try canonical.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey])
         let limit = file.lastPathComponent == "meta.json" ? min(maximum,1_048_576) : maximum
         guard attrs.isRegularFile == true,attrs.isSymbolicLink != true,let size = attrs.fileSize,size >= 0,size <= limit else { throw CocoaError(.fileReadTooLarge) }
         let data = try Data(contentsOf:canonical,options:.mappedIfSafe)
         guard data.count <= limit else { throw CocoaError(.fileReadTooLarge) }
         return data
+    }
+
+    /// Cheap containment checks also used before a cached preview is returned.
+    /// Whole-package budgets remain the responsibility of `validate`/`data`.
+    static func fileURL(_ file: URL, root: URL) throws -> URL {
+        let rootInfo = try root.resourceValues(forKeys:[.isDirectoryKey,.isSymbolicLinkKey])
+        guard rootInfo.isDirectory == true,rootInfo.isSymbolicLink != true else { throw CocoaError(.fileReadNoPermission) }
+        let base = root.standardizedFileURL,original = file.standardizedFileURL
+        guard original.path.hasPrefix(base.path+"/") else { throw CocoaError(.fileReadNoPermission) }
+        let relative = String(original.path.dropFirst(base.path.count+1))
+        let canonical = base.resolvingSymlinksInPath().appendingPathComponent(relative)
+        guard canonical.resolvingSymlinksInPath() == canonical else { throw CocoaError(.fileReadNoPermission) }
+        return canonical
     }
 }

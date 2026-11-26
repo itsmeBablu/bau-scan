@@ -53,11 +53,12 @@ struct TechnicalSurveyPhotoView: View {
         .frame(minWidth: 400,minHeight: 450)
         #endif
         .interactiveDismissDisabled(busy)
-        .task {
-            if let source = CGImageSourceCreateWithData(photo.jpegData as CFData,nil) {
-                image = CGImageSourceCreateThumbnailAtIndex(source,0,[kCGImageSourceCreateThumbnailFromImageAlways: true,kCGImageSourceCreateThumbnailWithTransform: true,kCGImageSourceThumbnailMaxPixelSize: 2048] as CFDictionary)
-            }
+        .task(id:photo.id) {
+            image = nil
+            let decoded = try? await PhotoThumbnailCache.shared.image(data:photo.jpegData,maximumPixelSize:2048)
+            guard !Task.isCancelled else { return }; image = decoded
         }
+        .onDisappear { image = nil }
         .confirmationDialog("Copy this scan photo to Google Photos?",isPresented: $confirmCopy,titleVisibility: .visible) {
             Button("Copy photo") { copy() }
         } message: { Text("Google will receive this photo. Separate Google Photos upload permission is required. A local copy remains in your scan; the Google Photos link is private to its owning account.") }

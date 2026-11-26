@@ -407,11 +407,11 @@ private struct TechnicalStoredPhoto: View {
             Text(name).font(.caption)
             if let image { Image(decorative: image, scale: 1).resizable().aspectRatio(contentMode: .fit).frame(maxHeight: 180) }
         }
-        .task {
-            if let source = CGImageSourceCreateWithData(data as CFData, nil) {
-                image = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true,
-                    kCGImageSourceThumbnailMaxPixelSize: 800, kCGImageSourceCreateThumbnailWithTransform: true] as CFDictionary)
-            }
+        .task(id:data) {
+            image = nil
+            let decoded = try? await PhotoThumbnailCache.shared.image(data:data,maximumPixelSize:800)
+            guard !Task.isCancelled else { return }; image = decoded
         }
+        .onDisappear { image = nil }
     }
 }

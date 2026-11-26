@@ -5,15 +5,20 @@ import ImageIO
 struct HousePhotosTabView: View {
     let house: House
     let packageURL: URL
-    @State private var photos: [SurveyPhotoImage] = []
-    @State private var selectedPhoto: SurveyPhotoImage?
+    @State private var photos: [ProjectPhotoAsset] = []
+    @State private var selectedPhoto: ProjectPhotoAsset?
     @State private var loading = true
     @State private var error: String?
+    @State private var retry = 0
 
     var body: some View {
         Group {
             if loading {
                 ProgressView()
+            } else if let error {
+                ContentUnavailableView {
+                    Label("Photo unavailable",systemImage:"photo.badge.exclamationmark")
+                } description: { Text(error) } actions: { Button("Retry") { retry += 1 } }
             } else if photos.isEmpty {
                 ContentUnavailableView("detail.photos.empty", systemImage: "camera")
             } else {
@@ -22,7 +27,7 @@ struct HousePhotosTabView: View {
                         ForEach(photos) { photo in
                             Button { selectedPhoto = photo } label: {
                                 VStack(alignment: .leading, spacing: 6) {
-                                    SurveyPhotoThumbnailView(data: photo.jpegData)
+                                    ProjectPhotoThumbnail(asset: photo)
                                         .frame(height: 140)
                                         .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
                                     Text(photo.title)
@@ -38,18 +43,27 @@ struct HousePhotosTabView: View {
                 }
             }
         }
-        .task(id: packageURL) {
-            loading = true
+        .task(id: packageURL.absoluteString+"|"+String(retry)) {
+            loading = true; error = nil; photos = []; selectedPhoto = nil
+            let root = packageURL, house = house
             do {
-                photos = try await Task.detached { try SurveyPhotoStore.images(from: packageURL, house: house) }.value
+                let loaded = try await BackgroundWork.run {
+                    guard let id = UUID(uuidString: root.deletingPathExtension().lastPathComponent) else { throw CocoaError(.fileReadCorruptFile) }
+                    let reference = ScanVoiceNoteLibrary.reference(itemID:id,kind:root.pathExtension == "housescan" ? .house : .room,
+                                                                  storageRoot:root.deletingLastPathComponent().deletingLastPathComponent())
+                    return try ProjectPhotoAsset.list(from: root, house: house, reference: reference)
+                }
+                guard !Task.isCancelled else { return }
+                photos = loaded
             } catch {
+                guard !Task.isCancelled else { return }
                 self.error = error.localizedDescription
                 photos = []
             }
             loading = false
         }
         .sheet(item: $selectedPhoto) { photo in
-            SurveyPhotoGallery(photos: photos, initial: photo.id)
+            ProjectPhotoGallery(assets: photos, initial: photo.id)
         }
     }
 }
@@ -71,13 +85,10 @@ struct SurveyPhotoThumbnailView: View {
             }
         }
         .task(id: data) {
-            if let src = CGImageSourceCreateWithData(data as CFData, nil) {
-                image = CGImageSourceCreateThumbnailAtIndex(src, 0, [
-                    kCGImageSourceCreateThumbnailFromImageAlways: true,
-                    kCGImageSourceCreateThumbnailWithTransform: true,
-                    kCGImageSourceThumbnailMaxPixelSize: 400
-                ] as CFDictionary)
-            }
+            image = nil
+            let decoded = try? await PhotoThumbnailCache.shared.image(data: data)
+            guard !Task.isCancelled else { return }; image = decoded
         }
+        .onDisappear { image = nil }
     }
 }

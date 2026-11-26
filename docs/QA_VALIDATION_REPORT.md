@@ -957,3 +957,28 @@ full approved export goldens, comprehensive failure matrix, remaining media/deta
 action consolidation and evidence-based Studio/geometry optimization are incomplete.
 Capture-engine consolidation remains explicitly unstarted pending its separate
 review/device requirements. No claim is made that every requested phase is finished.
+
+## Phase 3a, part 2 — shared saved-photo decoding and lazy House gallery, 2026-11-26
+
+Project, House/Room, Technik saved photos, full-size canvases, stored photo cards
+and recognition evidence previews now share `PhotoThumbnailCache`. One actor owns
+ImageIO decoding, orientation handling and a 48-entry / 12 MiB-cost NSCache. JPEG
+bytes are not cached; request size is part of cache identity. File-backed keys
+include revision date, size and inode. The shared SafePackageRead containment check
+is applied even before returning a cached file thumbnail, so cached content cannot
+bypass a later root symlink or path escape. Existing package-budget preflights stay
+in place; no validation was weakened.
+
+HousePhotosTabView now retains metadata/source URLs through ProjectPhotoAsset and
+reuses the existing lazy project gallery (selected page plus neighbours). Its old
+all-JPEG array and repeated thumbnail decoder are removed. Read failures show an
+explicit retry state rather than an empty gallery. Local/cloud reference resolution
+reuses existing identity logic. Preview tasks discard cancelled results and release
+decoded images on disappearance. Technical package/capture/depth models are untouched.
+
+Four Swift tests cover requested sizes/unchanged originals, invalid data/sizes,
+metadata-only inventory with a subsequently missing asset, and cache-hit safe-path
+validation. Production +118/-63; tests +70/-1. Strict localization (1380 keys), style
+and whitespace passed. Swift tests and actual gallery orientation/zoom/share behavior
+remain UNRUN; device validation pending. No measured speed or memory improvement is
+claimed; the existing performance workloads must establish before/after evidence.

@@ -181,10 +181,11 @@ private struct TechnicalEvidenceThumbnail: View {
     var body: some View {
         Group { if let image { Image(decorative: image,scale: 1).resizable().scaledToFit() } else { ProgressView() } }
             .task(id: frame.id) {
-                if let source = CGImageSourceCreateWithData(frame.jpegData as CFData,nil) {
-                    image = CGImageSourceCreateThumbnailAtIndex(source,0,[kCGImageSourceCreateThumbnailFromImageAlways: true,kCGImageSourceThumbnailMaxPixelSize: 200] as CFDictionary)
-                }
+                image = nil
+                let decoded = try? await PhotoThumbnailCache.shared.image(data:frame.jpegData,maximumPixelSize:200)
+                guard !Task.isCancelled else { return }; image = decoded
             }
+            .onDisappear { image = nil }
     }
 }
 

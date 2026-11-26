@@ -114,15 +114,10 @@ struct SurveyPhotoCanvas: View {
         }
         .task(id:data) {
             image = nil; failed = false
-            let decoded = await Task.detached(priority:.userInitiated) {
-            guard let source = CGImageSourceCreateWithData(data as CFData,nil) else { return nil as CGImage? }
-            return CGImageSourceCreateThumbnailAtIndex(source,0,[
-                kCGImageSourceCreateThumbnailFromImageAlways:true,
-                kCGImageSourceCreateThumbnailWithTransform:true,
-                kCGImageSourceThumbnailMaxPixelSize:2048] as CFDictionary)
-            }.value
+            let decoded = try? await PhotoThumbnailCache.shared.image(data:data,maximumPixelSize:2048)
             guard !Task.isCancelled else { return }
             image = decoded; failed = decoded == nil
         }
+        .onDisappear { image = nil }
     }
 }

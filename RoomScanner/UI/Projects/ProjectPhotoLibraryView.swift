@@ -1,23 +1,6 @@
 import SwiftUI
 import ImageIO
 
-private actor ProjectPhotoThumbnailCache {
-    static let shared = ProjectPhotoThumbnailCache()
-    private let cache = NSCache<NSString,CGImage>()
-    init() { cache.countLimit = 48; cache.totalCostLimit = 12*1_048_576 }
-    func image(_ asset:ProjectPhotoAsset) throws -> CGImage {
-        let info = try asset.url.resourceValues(forKeys:[.contentModificationDateKey,.fileSizeKey])
-        let key = (asset.url.path+"|"+String(describing:info.contentModificationDate)+"|"+String(describing:info.fileSize)) as NSString
-        if let image = cache.object(forKey:key) { return image }
-        let bytes = try asset.image().jpegData
-        guard let source = CGImageSourceCreateWithData(bytes as CFData,nil),let image = CGImageSourceCreateThumbnailAtIndex(source,0,[
-            kCGImageSourceCreateThumbnailFromImageAlways:true,kCGImageSourceCreateThumbnailWithTransform:true,
-            kCGImageSourceThumbnailMaxPixelSize:400] as CFDictionary) else { throw CocoaError(.fileReadCorruptFile) }
-        cache.setObject(image,forKey:key,cost:image.bytesPerRow*image.height)
-        return image
-    }
-}
-
 struct ProjectPhotoThumbnail: View {
     let asset:ProjectPhotoAsset
     @State private var image:CGImage?
@@ -29,8 +12,9 @@ struct ProjectPhotoThumbnail: View {
             else if failed { Image(systemName:"photo.badge.exclamationmark") }
             else { ProgressView() }
         }.clipped().task(id:asset.id) {
+            image = nil; failed = false
             do {
-                let decoded = try await ProjectPhotoThumbnailCache.shared.image(asset)
+                let decoded = try await PhotoThumbnailCache.shared.image(asset)
                 guard !Task.isCancelled else { return }; image = decoded; failed = false
             } catch { if !Task.isCancelled { failed = true } }
         }.onDisappear { image = nil }
@@ -283,8 +267,10 @@ private struct ProjectPhotoPage: View {
             else if let error { ContentUnavailableView("Photo unavailable",systemImage:"photo.badge.exclamationmark",description:Text(error)) }
             else { ProgressView("Loading photo…") }
         }.task(id:asset.id) {
+            bytes = nil; error = nil
             do {
-                let data = try await Task.detached(priority:.userInitiated) { try asset.image().jpegData }.value
+                let asset = asset
+                let data = try await BackgroundWork.run { try asset.image().jpegData }
                 guard !Task.isCancelled else { return }; bytes = data
             } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
         }.onDisappear { bytes = nil }

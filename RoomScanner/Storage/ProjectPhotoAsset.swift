@@ -18,6 +18,11 @@ struct ProjectPhotoAsset: Identifiable {
             return SurveyPhotoImage(photo:photo,jpegData:bytes,roomName:roomName)
         }
     }
+    static func list(from root: URL, house: House, reference: ProjectReference) throws -> [Self] {
+        try SurveyPhotoExportSource.list(from: root, house: house).map {
+            Self(reference: reference, photo: $0.photo, roomName: $0.roomName, root: $0.root, relativePath: $0.photo.jpegPath)
+        }
+    }
     static func list(entry:ProjectLibraryEntry,summary:ProjectScanSummary?) throws -> [Self] {
         if entry.reference.kind != .technicalRoom {
             let names = Dictionary(grouping:summary?.roomDetails ?? [],by:\.id).mapValues { $0.first?.name ?? "" }
