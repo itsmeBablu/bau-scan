@@ -52,7 +52,7 @@ enum SurveyPhotoArchiveWriter {
         var imageFile: String
         var cameraFile: String
     }
-    private struct Camera: Encodable {
+    struct Camera: Encodable {
         let schemaVersion = 1
         let coordinateSystem = "rightHandedYUpMetres; scan coordinates, not GPS"
         let deviceValidationPending = true

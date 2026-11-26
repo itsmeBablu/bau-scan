@@ -47,6 +47,13 @@ struct ProjectPhotosView: View {
     @State private var query = ""
     @State private var warning:String?
     @State private var loading = false
+    @State private var selecting = false
+    @State private var selection = Set<String>()
+    @State private var exporting = false
+    @State private var exportURL:URL?
+    @State private var exportError:String?
+    @State private var exportRequest = UUID()
+    @State private var exportTask:Task<Void,Never>?
     private struct NameKey:Hashable { let name:String? }
     private struct RoomKey:Hashable { let reference:String; let room:UUID? }
     @State private var building:NameKey?
@@ -131,20 +138,45 @@ struct ProjectPhotosView: View {
                     Button("Reset filters") { referenceID = ""; building = nil; level = nil; zone = nil; room = nil; query = "" }
                 }
                 if loading { ProgressView("Loading photos…") }
+                if selecting {
+                    HStack {
+                        Text("\(selection.count) selected").font(.subheadline)
+                        Spacer()
+                        Button("Select visible photos") { selection.formUnion(filtered.map(\.id)) }.disabled(exporting)
+                        Button("Clear") { selection = [] }.disabled(exporting)
+                    }
+                    Button("Export selected photos ZIP",systemImage:"archivebox") { exportSelection() }
+                        .disabled(exporting || selection.isEmpty || selection.count > 1000)
+                    if selection.count > 1000 { Text("Select at most 1,000 photos per ZIP.").font(.caption).foregroundStyle(.secondary) }
+                }
+                if exporting { ProgressView("Exporting photos…") }
+                if let exportURL { ShareLink(item:exportURL) { Label("Share selected photos ZIP",systemImage:"square.and.arrow.up") } }
                 if filtered.isEmpty && !loading { ContentUnavailableView("No project photos yet",systemImage:"photo.on.rectangle") }
                 LazyVGrid(columns:[GridItem(.adaptive(minimum:140))],spacing:DS.Spacing.l) {
                     ForEach(filtered) { asset in
-                        Button { selected = asset } label: {
+                        Button {
+                            if selecting {
+                                if selection.contains(asset.id) { selection.remove(asset.id) } else { selection.insert(asset.id) }
+                            } else { selected = asset }
+                        } label: {
                             VStack(alignment:.leading,spacing:DS.Spacing.s) {
                                 ProjectPhotoThumbnail(asset:asset).frame(height:DS.Size.thumbnail).clipShape(RoundedRectangle(cornerRadius:DS.Radius.thumbnail))
                                 Text(asset.title).font(.subheadline).lineLimit(2)
                             }
-                        }.buttonStyle(.plain)
+                        }.buttonStyle(.plain).disabled(exporting)
+                            .overlay(alignment:.topTrailing) {
+                                if selecting {
+                                    Image(systemName:selection.contains(asset.id) ? "checkmark.circle.fill" : "circle")
+                                        .padding(DS.Spacing.s).dsMaterial(in:Circle()).padding(DS.Spacing.xs).allowsHitTesting(false)
+                                }
+                            }
+                            .accessibilityAddTraits(selection.contains(asset.id) ? .isSelected : [])
                     }
                 }
                 if let warning { Text(warning).font(.caption).foregroundStyle(.secondary) }
             }.padding(DS.Spacing.l)
         }.navigationTitle("Photos").searchable(text:$query,prompt:"Search photos")
+            .toolbar { ToolbarItem { Button(selecting ? "Done" : "Select") { selecting.toggle() }.disabled(exporting) } }
             .task(id:projectID.uuidString+workspace.notesRoot.path+String(workspace.catalogueRevision)) {
                 loading = true
                 let entries = entries,summaries = workspace.scanSummaries
@@ -169,6 +201,35 @@ struct ProjectPhotosView: View {
             .onChange(of:building) { _,_ in level = nil; zone = nil; room = nil }
             .onChange(of:level) { _,_ in zone = nil; room = nil }
             .onChange(of:zone) { _,_ in room = nil }
+            .onChange(of:selection) { _,_ in exportURL = nil }
+            .onChange(of:workspace.catalogueRevision) { _,_ in cancelExport() }
+            .onDisappear { cancelExport() }
+            .alert("Photo export",isPresented:Binding(get:{ exportError != nil },set:{ if !$0 { exportError = nil } })) {
+                Button("OK") { exportError = nil }
+            } message: { Text(exportError ?? "") }
+    }
+    private func cancelExport() { exportRequest = UUID(); exportTask?.cancel(); exportTask = nil; exporting = false }
+    private func exportSelection() {
+        guard !exporting,let project = workspace.project(projectID) else { return }
+        let chosen = assets.filter { selection.contains($0.id) }
+        guard chosen.count == selection.count,!chosen.isEmpty else { exportError = AppLanguage.text("Some selected photos are unavailable. Refresh and select again."); return }
+        let request = UUID(),organization = workspace.index.scanOrganization ?? [:],summaries = workspace.scanSummaries,locale = locale
+        exportRequest = request; exporting = true; exportURL = nil
+        exportTask = Task {
+            let worker = Task.detached(priority:.userInitiated) {
+                let target = try ExportService.scratchDirectory().appendingPathComponent(ArchivePath.component(project.name)+"-Selected-Photos.zip")
+                try SelectedPhotosExporter.export(project:project,assets:chosen,organization:organization,summaries:summaries,locale:locale,to:target)
+                return target
+            }
+            do {
+                let result = try await withTaskCancellationHandler(operation:{ try await worker.value },onCancel:{ worker.cancel() })
+                guard !Task.isCancelled,exportRequest == request else { return }
+                exportURL = result; exporting = false; exportTask = nil
+            } catch {
+                guard !Task.isCancelled,exportRequest == request else { return }
+                exportError = error.localizedDescription; exporting = false; exportTask = nil
+            }
+        }
     }
 }
 

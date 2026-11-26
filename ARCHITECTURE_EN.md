@@ -350,3 +350,10 @@ at most six photo references and three note records per project. Existing file
 readers remain authoritative. InlineVoiceNoteRow is shared between the voice library
 and dashboard; starting another playback intent prevents late older clip loads
 from taking over. No image or audio upload is performed by these components.
+
+SelectedPhotosExporter is an export-only handoff over lazy ProjectPhotoAsset
+references. It serially reads selected JPEGs into a temporary staging tree, reuses
+the existing camera/index record contracts and verifies SHA-256 inventory entries
+before the existing atomic ZIP writer publishes the file. Native scan formats are
+unchanged. Selection export uses building/floor/room folders with original photo
+numbers and explicit Unassigned legacy levels; raw camera poses remain Y-up metres.

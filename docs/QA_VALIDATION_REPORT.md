@@ -321,3 +321,31 @@ UNRUN. Production Swift +99/-17 (net +82). Seven Node/source checks, localizatio
 Apple build/test schemes remain UNRUN. Selection ZIP export, voice re-record/actions,
 written-note scopes, artifact reuse/library, Studio/settings and final verification
 remain pending; this checkpoint does not complete the redesign.
+
+## Selected photo ZIP checkpoint — 2026-11-26
+
+Added native photo multi-select, select-visible/clear and explicit Export selected
+photos ZIP, with Share/Save to Files through the native share flow. Selection can
+span filters and is not silently reduced to visible items. Export work is off-main;
+navigation/catalogue changes cancel the worker and ignore stale results.
+
+SelectedPhotosExporter reuses ArchivePath, existing camera metadata and photo-index
+records, ExportChecksum, ExportManifestValidation and ArchiveExporter/ZIP validation.
+It reads one source JPEG at a time, exports only selected originals, and writes
+Photos/building/level/room with separate floor/room folders. Same-name rooms become
+Bath Room, Bath Room 2, etc.; original photo numbers, source IDs, raw/display camera
+poses and device-validation markers are retained. Multi-storey levels require an
+explicit story mapping. Legacy locations remain Unassigned. Output has a checksummed
+inventory and README; no source/package format is rewritten. Temporary export files
+use the existing scratch-directory lifecycle. Existing complete/all-photos exporters
+are unchanged by this selection-specific path.
+
+Production Swift +145/-3 (net +142). Two shared Swift tests were added for selected
+membership, room-name collisions, floor folders, camera pose/number retention,
+checksum tampering, unsafe names, no-overwrite and foreign-reference/wrong-extension
+rejection; UNRUN. Seven Node checks, strict EN/DE localization (1303 keys), style and
+whitespace checks passed on the working tree. Actual Foundation ZIP creation, Swift
+builds/tests, share sheet and photo selection UI remain unrun/device validation
+pending. Safety bounds are explicit: at most 1000 selected photos and 512 MB output
+payload; failures are surfaced rather than omitting selected files. Remaining export
+library/reuse, voice actions, Studio/settings and final Apple verification continue.

@@ -139,3 +139,10 @@ merge. It must be followed by independently checking a known point.
   clears child filters. Basement/upper floors sort numerically; multi-storey photos
   require explicit story mappings. Export one project from a multi-project catalogue
   and verify project-index.json validates and contains only that project's metadata.
+
+- Selected photo ZIP (device validation pending): select across several filters,
+  clear/select-visible, export, Share/Save to Files and unzip. Verify only selected
+  images, building/floor/room folders, Bath Room 2 collisions, original numbers and
+  camera metadata. Cancel by navigating away; stale results must not replace a new
+  export. Test missing/iCloud photos, over-limit selections and low disk space.
+  Validate manifest checksums and confirm original scan files are unchanged.
