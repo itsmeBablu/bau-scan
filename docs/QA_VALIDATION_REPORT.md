@@ -79,3 +79,13 @@ The overall runner exits 1 because Apple schemes are BLOCKED on Windows. These
 checks do not validate Swift storage/UI behavior; no exact-commit Apple pass exists.
 
 Next: S0 design-system source audit, then S1–S4, before redesign Phase 1.
+
+## Design system S0
+
+Documentation-only source audit completed against 268505c; full counts and file
+lists are in ARCHITECTURE_EN.md, with a French mirror summary. Reused AppTheme and
+existing liquidGlass as the designated future home; no second theme, styles or
+components added. Production +0/-0 lines, code removed: none. Confirmed yellow
+AccentColor versus root/per-view blue conflict. Categorized render/export colors
+and glyph sizing separately; this is not a blanket allowlist. No Apple test or
+contrast/visual check was run. S1 requires review before app appearance changes.

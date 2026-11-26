@@ -1,5 +1,17 @@
 # Architecture — dWalkScan (miroir français)
 
+## Audit du système de design — S0, 2026-11-26
+
+L'inventaire détaillé et les fichiers concernés figurent dans la section « Design
+system — S0 audit » d'ARCHITECTURE_EN.md. S0 ne modifie aucun code de production.
+Réutiliser AppTheme.swift et les modificateurs liquidGlass, puis les faire évoluer
+dans DesignSystem/ ; ne pas créer un second thème. Conflit confirmé : AccentColor
+jaune sans variantes et huit surcharges de teinte bleue, dont une à la racine.
+Inventaire lexical : 6 couleurs RGB, 86 candidats de couleurs nommées, 9 tailles
+de police fixes, 31 rayons, 82 espacements, 41 matériaux, 59 styles de boutons,
+11 teintes, 3 ombres et 2 animations. Les couleurs de rendu/export restent séparées.
+Compilation Apple, contraste et vérification visuelle non effectués pour S0.
+
 **Plateformes :** iPhone (iOS 18+, LiDAR) scanne, visualise, exporte · Mac (macOS 15+) visualise, mesure, exporte, imprime, se met à jour via Sparkle · iCloud Drive synchronise les deux et expose les fichiers aux apps tierces. Une seule base de code, deux cibles XcodeGen (`RoomScanner`, `RoomScannerMac`), une dépendance SPM (Sparkle, Mac seulement). Dépôt public `BabuReddy/dWalkScan`, landing page GitHub Pages (`/docs`).
 
 _Source de vérité : `ARCHITECTURE_EN.md`. Éditer les deux dans le même tour._

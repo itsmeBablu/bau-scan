@@ -1,5 +1,16 @@
 # LiDAR device checks — pending
 
+## Design system S1–S4 — device validation pending
+
+- After token migration, compare light/dark and increased contrast on iPhone/iPad
+  and Mac; brand fills must retain readable labels, links/icons must stay legible.
+- Test accessibility XXL Dynamic Type, VoiceOver names, 44-point targets and
+  portrait/landscape safe areas. Capture controls must not alter session lifecycle.
+- Confirm Reduce Motion changes feedback appropriately; recording state remains
+  distinguishable without color. Compare exported plan/PDF/SVG/DXF content before
+  and after theming; UI appearance must not change engineering deliverables.
+- S0 is inventory only: none of these visual or physical checks has been run.
+
 ## UI redesign Phase 0 — device validation pending
 
 - Open project details/settings and confirm no dead Scan more route is exposed.

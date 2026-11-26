@@ -159,3 +159,114 @@ D18 Sparkle auto-update on Mac, D19 public repo + branch per phase + landing pag
 - Scan flow v2 (done, device validation pending): `ScanCoordinator(mode: .house)` keeps one `ARSession` across rooms (`RoomCaptureView(frame:arSession:)`, `stop(pauseARSession: false)`), accumulates `CapturedRoom`s, then `StructureBuilder(options: [.beautifyObjects]).capturedStructure(from:)` → `CapturedStructure` → `CapturedStructureAdapter` → `StructureInput` → `HouseBuilder` → `HousePackage.assemble` → `.housescan`. `ScanView` drives it with "Room done" / "Next room" / "Finish the house"; the library toolbar offers "Scan a room" / "Scan a house" (`ScanMode`).
 - Downstream: `PlanRenderer`, `PlanSceneBuilder` and every exporter iterate over `house.allRooms`. Houses get one PDF page per story (`PlanRenderer.pages(of:)`, PNG pages stacked vertically) and a pastel floor tint per room (`PlanRenderer.roomPalette`, applied to the 2D plan and to the 3D floor texture); `HouseDetailView` filters plan, viewer and measures by story.
 - Storage v2 (done): `Documents/Houses/<uuid>.housescan/` packages (`HousePackage`, `HouseRecord`); `RoomStore` exposes `houseRecords`, `saveHouse`, `house(for:)`, `importAny`; `LibraryItem` (room | house) drives the two-section library on iOS and the Mac sidebar; `ExportSubject` (room | house) is the single input of `ExportService`, `ExportSheet`, `DragExportProvider` and the archive README. Remaining: multi-room capture on iPhone (`CapturedStructureAdapter`), shared-wall dedup, `.housescan` conflict resolution.
+
+## Design system — S0 audit (2026-11-26)
+Source snapshot: UI redesign Phase 0 commit `268505c`. S0 changes documentation only.
+Reuse `UI/AppTheme.swift` and its liquidGlass modifiers; there is no second theme.
+The intended destination is `RoomScanner/DesignSystem/`, shared by both targets.
+Lexical counts below are candidates, not AST findings or approved exceptions. They
+include platform/3D colors; comments/strings and multiline variants may affect matching.
+| Pattern | Occurrences | Files |
+|---|---:|---:|
+| RGB Color literals | 6 | 2 |
+| Named color candidates | 86 | 37 |
+| Fixed system font sizes | 9 | 7 |
+| Literal corner radii | 31 | 14 |
+| Literal padding | 82 | 23 |
+| Material backgrounds/fills | 41 | 15 |
+| Button styles | 59 | 26 |
+| Tint modifiers | 11 | 11 |
+| Root blue tint | 8 | 8 |
+| Shadows | 3 | 3 |
+| Animations | 2 | 2 |
+
+Blue count includes one root `.tint(.blue)` (`UI/RootView.swift:36`) and seven
+per-view overrides. `AccentColor.colorset` currently defines one universal yellow
+(#facc15 approximately), without dark or high-contrast variants. `AppTheme` duplicates
+that fixed RGB palette in SwiftUI, CGColor and platform colors. This conflicts with
+forced blue and cannot yet provide contextual contrast. S1 must keep brand yellow
+as a fill with dark OnBrand, select contrast-tested link/icon Accent variants, and
+remove per-view overrides. No color/contrast correction has been applied in S0.
+
+### Classification before migration
+- UI candidates: statuses, recording controls, cards, badges, lists, inspectors,
+  photo controls and toolbars should use semantic tokens/styles. Native buttonStyle
+  usage is legitimate; centralization should preserve native controls and actions.
+- Icon sizes: seven of the nine fixed-font candidates appear to size glyphs; retain
+  centrally named icon-size tokens after context review. The two Plan2DView text
+  labels (lines 58/75) need separate Dynamic Type/plan-overlay review. No blanket
+  exemption for every fixed font is approved.
+- SceneKit/RealityKit/ARKit: mesh materials, marker textures, confidence colors and
+  native overlay geometry can legitimately need platform color/geometry values.
+  Examples: Viewer/AnnotationIcon, TechnicalRoom/Capture/TechnicalRoomScanCoordinator,
+  HouseRadiators/Capture/HouseRadiatorScanCoordinator and SceneEditing/StudioEngineering.
+  Review individual render expressions; surrounding SwiftUI HUDs are not exempt.
+- Exports: Export/PlanRenderer, SVGExporter, DXFExporter and TechnicalMeshExporter
+  have fixed drawing/format colors. PlanSceneBuilder also consumes plan textures.
+  Preserve their output bytes/palettes independently of UI appearance. Future
+  ExportPalette must not depend on SwiftUI or dynamic theme assets. Raw CGColor
+  literals are intentionally outside the SwiftUI Color(red:) count.
+- Existing AppTheme material/shadow implementations are centralization candidates.
+  Do not add new material layers or custom navigation chrome. S2 evolves these
+  existing modifiers; S0 has not changed their appearance.
+- Motion review: Plan2DView animation and ScanPhotoButton feedback are the two
+  explicit animation calls found. Both require Reduce Motion review.
+
+### Files containing matches
+Paths below are relative to `RoomScanner/`. Category counts are per file and may
+overlap. Blue is included in Tint; Color also includes render-only candidates.
+| File | Categories (occurrences) |
+|---|---|
+| `HouseRadiators/Capture/HouseRadiatorScanCoordinator.swift` | Color:1, Radius:1, Padding:1, Material:1 |
+| `HouseRadiators/Capture/HouseRadiatorScanView.swift` | Color:2, Button:2, Tint:1, Blue:1 |
+| `HouseRadiators/HouseRadiatorViews.swift` | Color:3, Tint:1, Blue:1 |
+| `MacUI/MacRootView.swift` | Radius:2, Padding:2 |
+| `MacUI/OrganisedExportSheet.swift` | Font:1, Button:2 |
+| `Notes/ProjectVoiceNotesView.swift` | Color:1, Padding:1, Button:1, Tint:1 |
+| `Notes/VoiceNotePlayerSheet.swift` | Color:2, Button:2, Tint:1 |
+| `Scan/CapturePins.swift` | Color:3 |
+| `Scan/HoldMicrophoneControl.swift` | Color:1 |
+| `Scan/LiveScanNotes.swift` | Color:1, Radius:1, Padding:3, Material:5 |
+| `Scan/RoomCaptureViewRepresentable.swift` | Color:1 |
+| `Scan/ScanRelocalizationProbe.swift` | Color:1, Radius:1, Material:1 |
+| `Scan/ScanSaveStatus.swift` | Color:1, Padding:1, Material:1 |
+| `Scan/ScanView.swift` | Color:2, Radius:4, Padding:5, Material:3, Button:4 |
+| `Scan/TechnicalRoomScanView.swift` | Color:8, Radius:2, Padding:4, Material:4, Button:4, Tint:1, Blue:1, Shadow:1 |
+| `SceneEditing/StudioEditorView.swift` | RGB:1, Color:4, Font:2, Radius:9, Padding:33, Material:13, Button:8, Tint:1, Blue:1, Shadow:1 |
+| `SceneEditing/StudioEngineering.swift` | Color:1 |
+| `SceneEditing/StudioLibraryView.swift` | Color:1, Button:1, Tint:1, Blue:1 |
+| `SceneEditing/StudioTechnicalData.swift` | Color:1 |
+| `TechnicalRoom/Capture/TechnicalRoomScanCoordinator.swift` | Color:3 |
+| `TechnicalRoom/TechnicalAnnotationEditor.swift` | Color:4 |
+| `TechnicalRoom/TechnicalGoogleAIAccount.swift` | Button:1 |
+| `TechnicalRoom/TechnicalMEPReviewView.swift` | Color:1, Padding:1, Button:1 |
+| `TechnicalRoom/TechnicalRoomLibraryView.swift` | Color:3, Radius:1, Padding:2, Button:1, Tint:1, Blue:1 |
+| `TechnicalRoom/TechnicalSavedScanView.swift` | Color:1, Padding:4, Material:2, Button:6 |
+| `TechnicalRoom/TechnicalSurveyPhotoView.swift` | Color:1, Button:1 |
+| `UI/AppTheme.swift` | RGB:5, Color:1, Material:2, Shadow:1 |
+| `UI/ExportSheet.swift` | Color:2, Material:1, Button:1 |
+| `UI/HouseDetailView.swift` | Radius:1, Padding:3, Material:1, Button:1 |
+| `UI/HousePhotosTabView.swift` | Radius:1, Button:1 |
+| `UI/Plan2DView.swift` | Color:12, Font:2, Padding:1, Material:2, Button:4, Motion:1 |
+| `UI/Projects/ProjectPinsView.swift` | Color:1 |
+| `UI/Projects/ProjectPrivacyView.swift` | Color:1 |
+| `UI/Projects/ProjectQuantitiesView.swift` | Color:1 |
+| `UI/Projects/ProjectScanPreview.swift` | Color:1, Button:1 |
+| `UI/Projects/ProjectVerificationView.swift` | Color:1 |
+| `UI/Projects/RenovationNavigation.swift` | Font:1, Radius:3, Padding:3, Button:4 |
+| `UI/Projects/UnfinishedScansView.swift` | Padding:1, Button:1 |
+| `UI/RoomDetailView.swift` | Color:2, Padding:2, Material:1 |
+| `UI/RoomListView.swift` | Color:1, Font:1, Radius:3, Padding:1, Button:4, Tint:1, Blue:1 |
+| `UI/RootView.swift` | Color:1, Font:1, Padding:2, Button:1, Tint:1, Blue:1 |
+| `UI/ScanPhotoButton.swift` | Color:5, Padding:1, Button:1, Tint:1, Motion:1 |
+| `UI/SettingsView.swift` | Font:1, Padding:2 |
+| `UI/SurveyPhotoGallery.swift` | Padding:2, Button:3 |
+| `Viewer/AnnotationIcon.swift` | Color:6 |
+| `Viewer/ViewerControls.swift` | Radius:1, Padding:3, Material:1, Button:1 |
+| `Viewer/ViewerView.swift` | Color:4, Radius:1, Padding:4, Material:3, Button:2 |
+
+S0 verification: inventory actually generated from tracked Swift source; no app
+rendering, contrast resolution, Apple build or Dynamic Type check occurred. No
+production line changes, removed component or dependency in S0. S1–S4 are pending;
+no app-wide token migration or visual quality claim is made. Physical checks are
+listed in `docs/DEVICE_TEST_CHECKLIST.md` as device validation pending.
