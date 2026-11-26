@@ -222,3 +222,36 @@ return its first compiler error plus context. Run iPhone 14 Pro capture, photos,
 voice replacement/recovery and background tests above; inspect iPad/Mac adaptation,
 light/dark/high contrast/Dynamic Type, navigation/dirty-close and screenshot parity.
 No Apple builds/tests or actual app screenshots were produced on Windows.
+# Core consolidation local changes — device validation pending
+
+Run both Mac/simulator test schemes first using `runChecks.md`. Record the exact
+commit, device/iOS version, dataset and thermal state; do not compare timings from
+different datasets or sanitizer-enabled versus normal builds.
+
+- Open a large project, then change projects while photos/voice previews load.
+  Verify no previous project's thumbnails, note counts or errors appear.
+- Export selected photos and a complete project; cancel and immediately request a
+  different format. Only the current request should be shown. Previously saved
+  exports and recovery copies must remain. A cancelled blocking write may finish
+  durably; cancellation must not be reported as a rollback guarantee.
+- Exercise a slow voice save/recovery using a controlled test fixture. The warning
+  must say the operation is still running; retry/export/delete must remain disabled
+  until it actually completes. Reopen and check the persisted note/audio.
+- Scan House and Technik separately for ten minutes, take photos, save voice notes,
+  background/foreground and interrupt/recover. Check alignment and all saved media.
+  No AR/audio-session ownership or capture-engine changes are intended in this pass.
+- In Instruments, inspect static Performance intervals for catalogue/dashboard,
+  photo encoding, package writes/replacement, export, note save, Studio and plans.
+  Root appearance and completion-state writes are deliberately narrower than full
+  launch-to-camera and scan-finalization timings. Check allocations, hangs, disk
+  writes and thermal behavior; do not infer improvements from added signposts.
+- Inspect MetricKit delivery on an eligible installed build; delivery is delayed
+  and not guaranteed during one test session. The subscriber emits receipt events,
+  not captured content or payload JSON. Verify no names, paths, notes or geometry
+  are included in the added diagnostics.
+- Test iCloud offline and with items awaiting download. Retained project references,
+  explicit availability problems, local/cloud twins and recovery backups must remain
+  distinguishable. Do not delete or "repair" a user's package to pass this check.
+
+All cases above remain unverified until device logs/results are supplied. No
+engineering accuracy, DIN compliance or universal performance budget is implied.

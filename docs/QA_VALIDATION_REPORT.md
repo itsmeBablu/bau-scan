@@ -847,3 +847,19 @@ session. Production +18/-0; tests +42/-0. Whitespace passed; Swift tests UNRUN.
 The lock serializes synchronous transactions across local roots in this process;
 its contention cost must be measured on Mac/device. No performance gain is claimed.
 The original fault-injection/recovery tests remain required and unchanged.
+
+## Phase 0A, part 2 — ownership-release coverage, 2026-11-26
+
+Added three weak-reference lifecycle tests for library stores after metadata reload,
+CapturePersistence after a completed checkpoint, and a session actor after a durable
+write/reopen. These are post-operation ARC checks, not evidence for live camera,
+recorder, playback, cloud-monitor or interrupted-task lifetimes. Those remain on the
+device checklist. Tests +50/-0; production +0/-0; all three Swift tests UNRUN.
+
+The existing local baseline runner was executed at `fa16701` with the new lifecycle
+test file present as an untracked change. Evidence:
+`.worktrees/core-local-checkpoint-fa16701.json`. Localization, JSON/UI/design Node
+regressions, style, Python service tests, plist syntax and whitespace passed;
+Apple schemes were explicitly BLOCKED. The runner's overall exit code was 1 for
+that missing Apple verification, not an all-green result. Final clean-commit local
+evidence is recorded separately below. No remote workflow was dispatched.

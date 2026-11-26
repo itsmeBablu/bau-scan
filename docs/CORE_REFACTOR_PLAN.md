@@ -181,6 +181,27 @@ results, device results or standards-compliance claims were generated.
 
 ## Original supplied plan (preserved)
 
+Implementation status as of the local consolidation pass (see dated QA entries
+for changed files/counts and local commit history):
+
+| Phase | Local implementation | Acceptance still pending |
+| --- | --- | --- |
+| G | Mac handoff and read-only CI lookup prepared; implementation gate explicitly revised by user | Both Apple schemes and final-SHA CI |
+| 0A | Static diagnostics, six performance workloads, manual sanitizer/coverage/warning workflow, three lifecycle tests | Measured baselines/budgets, executed diagnostics and live lifecycle checks |
+| 0B | Existing coverage mapped; four additional failure tests | Reviewed complete export goldens, real process-kill/disk-full and legacy recovery matrix |
+| 1 | Voice operation ownership/stale results, shared cancellation, cross-instance local checkpoint transactions with regressions | Full per-site concurrency audit and executed UI/race/device tests |
+| 2 | Shared publication/rollback primitive, shared metadata enumeration in three consumers | Offline/iCloud and recovery execution; targeted invalidation measurements |
+| 3a | Shared cancellable media work; existing playback, thumbnail, glyph and archive authorities preserved | Recorder/photo adapter consolidation requires capture/audio-policy validation |
+| 3b | Not started; ARKit and RoomPlan lifecycles remain separate | Explicit capture-change review and device validation |
+| 4 | Export worker ownership shared; existing preference resolver/request publication reused | Common item/detail actions and full pipeline acceptance |
+| 5 | Existing Studio/geometry authorities preserved; no new geometry engine | Duplication/incremental scene work and actual portrait/landscape validation |
+| 6 | No speculative optimization | Same-dataset before/after measurements; no invented budgets |
+| 7 | Local source/backend checks and handoff updated | Final Apple/golden/sanitizer/leak/performance/device verification; no unverified cleanup |
+
+This table does not declare any phase complete. The original supplied plan below
+is historical scope, with the user's later local-only and deferred-Mac decisions
+taking precedence where explicitly stated.
+
 # dWalkScan / bau-scan - CORE CONSOLIDATION, STABILITY AND PERFORMANCE PLAN (v2)
 
 Repository: itsmeBablu/bau-scan. Starting point: main at 015dbdb. Work branch:
