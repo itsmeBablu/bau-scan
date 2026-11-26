@@ -2,6 +2,43 @@ import Foundation
 
 /// Local, versioned project sidecar. No audio is uploaded or placed inside scan packages.
 enum ARNoteStore {
+    static func upsertText(_ note:ARNote,root:URL) throws -> ARNote {
+        let index = try update(root:root,projectID:note.projectID) { value in
+            var copy = note
+            if let i = value.notes.firstIndex(where:{ $0.id == note.id }) {
+                let old = value.notes[i]
+                guard old.reference == note.reference else { throw CocoaError(.fileWriteFileExists) }
+                guard (note.modifiedAt ?? note.createdAt) >= (old.modifiedAt ?? old.createdAt) else { return }
+                copy.number = old.number; copy.audioFileName = old.audioFileName; copy.audioDuration = old.audioDuration
+                copy.audioModifiedAt = old.audioModifiedAt; copy.partial = old.partial; copy.transcriptState = old.transcriptState
+                value.notes[i] = copy
+            } else { copy.number = try value.nextNumber(roomID:copy.roomID); value.notes.append(copy) }
+        }
+        guard let saved = index.notes.first(where:{ $0.id == note.id }) else { throw CocoaError(.fileWriteUnknown) }; return saved
+    }
+    private enum RevisionError:Error { case stale }
+    static func upsertAudio(_ note:ARNote,audio:Data,root:URL) throws -> ARNote {
+        do {
+        let index = try update(root:root,projectID:note.projectID,audio:[note.id:audio]) { value in
+            let audioDate = note.audioModifiedAt ?? note.modifiedAt ?? note.createdAt
+            var copy = note; copy.audioModifiedAt = audioDate
+            if let i = value.notes.firstIndex(where:{ $0.id == note.id }) {
+                guard value.notes[i].reference == note.reference else { throw CocoaError(.fileWriteFileExists) }
+                let old = value.notes[i]
+                let previousAudioDate = old.audioModifiedAt ?? (old.audioFileName == nil ? .distantPast : old.modifiedAt ?? old.createdAt)
+                guard audioDate >= previousAudioDate else { throw RevisionError.stale }
+                if (old.modifiedAt ?? old.createdAt) > (note.modifiedAt ?? note.createdAt) {
+                    copy.text = old.text; copy.title = old.title; copy.status = old.status; copy.modifiedAt = old.modifiedAt
+                }
+                copy.number = value.notes[i].number; copy.audioFileName = copy.stem+".m4a"; value.notes[i] = copy
+            } else { copy.number = try value.nextNumber(roomID:copy.roomID); copy.audioFileName = copy.stem+".m4a"; value.notes.append(copy) }
+        }
+        guard let saved = index.notes.first(where:{ $0.id == note.id }) else { throw CocoaError(.fileWriteUnknown) }; return saved
+        } catch RevisionError.stale {
+            guard let current = try index(root:root,projectID:note.projectID).notes.first(where:{ $0.id == note.id }) else { throw CocoaError(.fileNoSuchFile) }
+            return current
+        }
+    }
     struct Library { var index: ARNoteIndex; var audio: [UUID:Data] }
     private static func validateParents(root: URL,projectID: UUID) throws {
         let projects = root.appendingPathComponent("Projects")

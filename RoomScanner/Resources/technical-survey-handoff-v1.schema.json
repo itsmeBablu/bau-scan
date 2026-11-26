@@ -1,0 +1,67 @@
+{
+  "type": "object",
+  "required": [
+    "format",
+    "handoffSchemaVersion",
+    "captureValidationStatus",
+    "name",
+    "ducts",
+    "connections",
+    "measurements",
+    "acceptedDetectionsInSessionCoordinates",
+    "originalPipeRuns"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "dWalkScan.technicalSurvey"
+    },
+    "handoffSchemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "captureValidationStatus": {
+      "type": "string",
+      "const": "device validation pending"
+    },
+    "name": {
+      "type": "string"
+    },
+    "calibration": {
+      "type": "object"
+    },
+    "sessionToRoom": {
+      "type": "object"
+    },
+    "ducts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "measurements": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "acceptedDetectionsInSessionCoordinates": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "originalPipeRuns": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  }
+}

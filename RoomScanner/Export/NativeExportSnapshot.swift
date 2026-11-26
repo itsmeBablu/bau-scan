@@ -19,7 +19,10 @@ enum NativeExportSnapshot {
         for case let file as URL in enumerator {
             try Task.checkCancellation()
             if try file.resourceValues(forKeys:[.isRegularFileKey]).isRegularFile == true {
-                result.append(String(file.path.dropFirst(root.path.count+1)))
+                let base = root.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+                let path = file.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+                guard path.starts(with:base),path.count > base.count else { throw CocoaError(.fileReadNoPermission) }
+                result.append(path.dropFirst(base.count).joined(separator:"/"))
             }
         }
         if let failure { throw failure }

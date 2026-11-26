@@ -13,6 +13,9 @@ struct ARNote: Codable, Equatable, Identifiable {
     var planPosition: Point2D?
     var text = ""
     var title: String? = nil
+    var modifiedAt: Date? = nil
+    var audioRevision: Bool? = nil
+    var audioModifiedAt: Date? = nil
     var status = ProjectPin.Status.open
     var createdAt = Date()
     var audioFileName: String?
@@ -36,7 +39,7 @@ struct ARNote: Codable, Equatable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id,projectID,reference,number,level,roomID,position,planPosition,text,status,createdAt
         case audioFileName,audioDuration,partial,transcriptState,language,elementID,displayPosition,retainAudio,transcript
-        case title
+        case title,modifiedAt,audioRevision,audioModifiedAt
     }
     private enum ProvenanceKeys: String, CodingKey { case positionSource,accuracyMm,deviceValidationPending }
     func encode(to encoder: Encoder) throws {
@@ -46,7 +49,9 @@ struct ARNote: Codable, Equatable, Identifiable {
         try c.encode(number,forKey:.number); try c.encodeIfPresent(level,forKey:.level); try c.encodeIfPresent(roomID,forKey:.roomID)
         try c.encodeIfPresent(position,forKey:.position); try c.encodeIfPresent(planPosition,forKey:.planPosition)
         try c.encode(text,forKey:.text); try c.encode(status,forKey:.status); try c.encode(createdAt,forKey:.createdAt)
-        try c.encodeIfPresent(title,forKey:.title)
+        try c.encodeIfPresent(audioModifiedAt,forKey:.audioModifiedAt)
+        try c.encodeIfPresent(audioRevision,forKey:.audioRevision)
+        try c.encodeIfPresent(title,forKey:.title); try c.encodeIfPresent(modifiedAt,forKey:.modifiedAt)
         try c.encodeIfPresent(audioFileName,forKey:.audioFileName); try c.encodeIfPresent(audioDuration,forKey:.audioDuration)
         try c.encodeIfPresent(partial,forKey:.partial); try c.encode(transcriptState,forKey:.transcriptState)
         try c.encode(language,forKey:.language); try c.encodeIfPresent(elementID,forKey:.elementID)
@@ -66,6 +71,8 @@ struct ARNote: Codable, Equatable, Identifiable {
               displayPosition.map({ finite([$0.x,$0.y,$0.z]) }) ?? true,
               planPosition.map({ finite([$0.x,$0.y]) }) ?? true,
               text.count <= 16_000,(title?.count ?? 0) <= 200,(transcript?.count ?? 0) <= 16_000,createdAt.timeIntervalSince1970.isFinite,
+              modifiedAt.map { $0.timeIntervalSince1970.isFinite } ?? true,
+              audioModifiedAt.map { $0.timeIntervalSince1970.isFinite } ?? true,
               !language.isEmpty,language.count <= 40 else { throw CocoaError(.fileReadCorruptFile) }
         if let audioFileName {
             guard audioFileName == stem+".m4a",let audioDuration,audioDuration.isFinite,

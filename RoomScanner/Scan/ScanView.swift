@@ -13,6 +13,7 @@ struct ScanView: View {
     @State private var radiatorScanner: HouseRadiatorScanCoordinator?
     @State private var radiators: [HouseRadiator] = []
     @State private var radiatorBusy = false
+    @State private var pins = CapturePins()
     @State private var photoCapture = HouseSurveyPhotoCapture()
     @State private var cameraLive = false
     @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
@@ -47,9 +48,11 @@ struct ScanView: View {
                 RoomCaptureViewRepresentable(coordinator: coordinator)
                     .ignoresSafeArea()
 
+                CapturePinOverlay(session:coordinator.arSession,pins:pins).ignoresSafeArea()
                 overlay
             }
         }
+        .modifier(CaptureAwakeModifier())
         .onAppear { photoCapture.persistence = persistence }
         .onDisappear { radiatorScanner?.stop(); coordinator.stop() }
         .modifier(ScanPhotoFeedback(count:photoCapture.completed))
@@ -109,7 +112,6 @@ struct ScanView: View {
                     ZStack {
                     RoundedRectangle(cornerRadius: 6).stroke(.cyan,lineWidth: 3)
                         .frame(width: rect.width,height: rect.height).position(x: rect.midX,y: rect.midY)
-                    Text("Radiator candidate").font(.caption.bold()).padding(6).background(.regularMaterial,in: Capsule()).position(x: rect.midX,y: max(90,rect.minY-18))
                     }
                 }
             }.ignoresSafeArea().allowsHitTesting(false)
@@ -119,13 +121,6 @@ struct ScanView: View {
                 Button(role: .cancel) { coordinator.cancel(); dismiss() } label: { Text("common.cancel") }
                     .buttonStyle(.bordered)
                 Spacer()
-                if mode == .house {
-                    Text("House scan")
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 12).padding(.vertical, 6)
-                        .background(.regularMaterial, in: Capsule())
-                    Spacer()
-                }
                 Button { Task { await finishScan() } } label: { Text(mode == .house ? "scan.finishHouse" : "scan.finish") }
                     .buttonStyle(.borderedProminent)
                     .disabled((coordinator.state != .scanning && coordinator.state != .roomSaved) || radiatorBusy || photoCapture.busy)
@@ -139,18 +134,10 @@ struct ScanView: View {
             if let diagnostic = coordinator.cameraDiagnostic {
                 Text(diagnostic).font(.callout).padding().background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))
             }
-            VStack(spacing:8) {
-                ScanSaveStatus(persistence:persistence)
-                if mode == .house {
-                    HStack {
-                        Button("Room done") { coordinator.roomDone() }.disabled(coordinator.state != .scanning)
-                        Button("Next room") { coordinator.nextRoom() }.disabled(coordinator.state != .roomSaved)
-                    }.buttonStyle(.borderedProminent)
-                }
-            }.padding(.bottom,8)
+            if persistence.failure != nil { Label("Saving failed · draft retained",systemImage:"exclamationmark.triangle").font(.caption).padding(8).background(.regularMaterial,in:Capsule()) }
             HStack {
                 if workspace?.project(voiceProjectID ?? UUID())?.details?.preferences?.voice != false { VoiceNoteHUD(reference:captureReference,persistence:persistence,workspace:workspace,projectID:voiceProjectID,
-                    position:{ coordinator.noteSurface() },pose:{ coordinator.notePose() },roomID:{ mode == .house ? coordinator.liveRoomID : captureID },level:{ coordinator.liveLevel })
+                    position:{ coordinator.noteSurface() },pose:{ coordinator.notePose() },roomID:{ mode == .house ? coordinator.liveRoomID : captureID },level:{ coordinator.liveLevel },selectedPin:pins.selection,onPin:{ pins.put($0) })
                     .disabled(coordinator.state != .scanning) }
                 Spacer()
             }.padding(.horizontal,20).padding(.bottom,20)

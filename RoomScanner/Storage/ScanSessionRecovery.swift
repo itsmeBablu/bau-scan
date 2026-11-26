@@ -4,6 +4,12 @@ import Foundation
 /// any older draft. Completion is recorded only after package and catalogue save.
 actor ScanSessionRecovery {
     static let shared = ScanSessionRecovery()
+    struct MissingGeometry:LocalizedError {
+        var hasEvidence = false
+        var errorDescription:String? {
+            AppLanguage.text(hasEvidence ? "No room geometry was saved. Recovered notes are available in the project's voice notes. The scan draft has been kept." : "No room geometry was saved. The scan draft has been kept.")
+        }
+    }
     func promote(_ session:ScanSession,store:ScanSessionStore,documents:URL) async throws -> ProjectReference {
         let reference = ProjectReference(kind:session.kind == .house ? .house : session.kind == .room ? .room : .technicalRoom,itemID:session.id,library:"local")
         if try await store.read(session.id).state == .completed { return reference }
@@ -11,13 +17,30 @@ actor ScanSessionRecovery {
         do {
             try await store.removeOrphans(session.id)
             let entries = try await store.entries(session.id)
+            // Salvage evidence before attempting geometry promotion. An early
+            // camera failure must not make completed voice notes unrecoverable.
+            let owner = session.projectID ?? ProjectIndex.unsortedID
+            _ = try ProjectIndexStore.update(root:documents) { index in
+                if !index.projects.contains(where:{ $0.id == owner }) { index.projects.append(.init(id:owner,name:owner == ProjectIndex.unsortedID ? "Unsorted" : AppLanguage.text("Recovered project"),isUnsorted:owner == ProjectIndex.unsortedID)) }
+                try index.assign(reference,to:owner)
+            }
+            for entry in entries where entry.key.hasPrefix("voice-") || entry.key.hasPrefix("note-") {
+                let value = try JSONDecoder().decode(ScanVoiceMedia.self,from:await store.payload(session.id,entry:entry))
+                if let audio = value.audio {
+                    let outbox = try VoiceNoteRecovery.root()
+                    try VoiceNoteRecovery.stageRevision(value.note,audio:audio,at:outbox)
+                    try VoiceNoteRecovery.recover(projectID:value.note.projectID,from:outbox,to:documents,references:[value.note.reference])
+                } else {
+                    _ = try ARNoteStore.upsertText(value.note,root:documents)
+                }
+            }
             if session.kind == .technical {
                 let target = documents.appendingPathComponent("TechnicalRooms/\(session.id.uuidString).technicalroom")
                 if FileManager.default.fileExists(atPath:target.path) { _ = try TechnicalRoomPackage.readManifest(from:target) }
                 else {
                     let state = try await store.latestValues(session.id,prefix:"technical-state").last.map { try JSONDecoder().decode(TechnicalSessionState.self,from:$0.data) }
                     let journal = try await TechnicalSessionDeltaWriter.recover(store:store,id:session.id)
-                    guard !journal.meshes.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
+                    guard !journal.meshes.isEmpty else { throw MissingGeometry(hasEvidence:entries.contains { $0.key.hasPrefix("voice-") || $0.key.hasPrefix("note-") }) }
                     var evidence = TechnicalCaptureEvidence()
                     for entry in entries where entry.key.hasPrefix("technical-photo-") || entry.key.hasPrefix("keyframe-") {
                         let frame = try JSONDecoder().decode(TechnicalCaptureKeyframe.self,from:await store.payload(session.id,entry:entry))
@@ -38,7 +61,7 @@ actor ScanSessionRecovery {
                     if session.kind == .house { _ = try HousePackage.readRecord(from:target) } else { _ = try RoomPackage.readRecord(from:target) }
                 } else {
                     let rooms = try await store.latestValues(session.id,prefix:"room-").map { try JSONDecoder().decode(PersistedRoom.self,from:$0.data) }
-                    guard !rooms.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
+                    guard !rooms.isEmpty else { throw MissingGeometry(hasEvidence:entries.contains { $0.key.hasPrefix("voice-") || $0.key.hasPrefix("note-") }) }
                     var photos:[SurveyPhoto] = [],assets:[UUID:Data] = [:]
                     for entry in entries where entry.key.hasPrefix("photo-") {
                         let value = try JSONDecoder().decode(ScanPhotoMedia.self,from:await store.payload(session.id,entry:entry))
@@ -56,24 +79,6 @@ actor ScanSessionRecovery {
                         var record = RoomRecord(plan:plan); record.incomplete = true
                         var package = RoomPackage(record:record,plan:plan,scan:scan,capturedRoomData:room.raw,usdzData:nil,usdzMeshData:nil,thumbnailPNG:room.thumbnail)
                         package.surveyPhotos = photos; package.surveyPhotoAssets = assets; try package.write(to:target)
-                    }
-                }
-            }
-            let owner = session.projectID ?? ProjectIndex.unsortedID
-            _ = try ProjectIndexStore.update(root:documents) { index in
-                if !index.projects.contains(where:{ $0.id == owner }) { index.projects.append(.init(id:owner,name:owner == ProjectIndex.unsortedID ? "Unsorted" : AppLanguage.text("Recovered project"),isUnsorted:owner == ProjectIndex.unsortedID)) }
-                try index.assign(reference,to:owner)
-            }
-            for entry in entries where entry.key.hasPrefix("voice-") || entry.key.hasPrefix("note-") {
-                let value = try JSONDecoder().decode(ScanVoiceMedia.self,from:await store.payload(session.id,entry:entry))
-                if let audio = value.audio {
-                    let outbox = try VoiceNoteRecovery.root()
-                    try VoiceNoteRecovery.stage(value.note,audio:audio,at:outbox)
-                    try VoiceNoteRecovery.recover(projectID:value.note.projectID,from:outbox,to:documents,references:[value.note.reference])
-                } else {
-                    try ARNoteStore.update(root:documents,projectID:value.note.projectID) { index in
-                        guard !index.notes.contains(where:{ $0.id == value.note.id }) else { return }
-                        var note = value.note; note.number = try index.nextNumber(roomID:note.roomID); index.notes.append(note)
                     }
                 }
             }

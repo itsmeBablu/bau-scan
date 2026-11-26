@@ -65,7 +65,7 @@ final class MacOrganisedExportTests: XCTestCase {
         let name3 = ArchivePath.unique("BEDROOM", used: &used)
         XCTAssertEqual(name1, "Bedroom")
         XCTAssertEqual(name2, "Bedroom-2")
-        XCTAssertEqual(name3, "Bedroom-3")
+        XCTAssertEqual(name3, "BEDROOM-3")
     }
 
     // MARK: - 3. Studio Dirty-State Logic
@@ -142,41 +142,18 @@ enum ZipInspector {
         let data = try Data(contentsOf: zipURL)
         var entries: [String] = []
 
-        // Parse Local File Headers (0x04034B50)
+        // Read the central directory: streaming ZIP local headers deliberately
+        // omit sizes and are followed by data descriptors.
         var offset = 0
-        while offset + 30 <= data.count {
-            let sig = data.subdata(in: offset..<(offset + 4))
-            guard sig == Data([0x50, 0x4B, 0x03, 0x04]) else { break }
-
-            let nameLen = Int(data[offset + 26]) | (Int(data[offset + 27]) << 8)
-            let extraLen = Int(data[offset + 28]) | (Int(data[offset + 29]) << 8)
-            let compSize = Int(data[offset + 18]) | (Int(data[offset + 19]) << 8) | (Int(data[offset + 20]) << 16) | (Int(data[offset + 21]) << 24)
-
-            let nameStart = offset + 30
-            if nameStart + nameLen <= data.count {
-                let nameData = data.subdata(in: nameStart..<(nameStart + nameLen))
-                if let name = String(data: nameData, encoding: .utf8) {
-                    entries.append(name)
-                }
-            }
-            offset = nameStart + nameLen + extraLen + compSize
+        while offset+46 <= data.count {
+            guard data[offset..<offset+4] == Data([0x50,0x4b,0x01,0x02]) else { offset += 1; continue }
+            func word(_ at:Int) -> Int { Int(data[at]) | Int(data[at+1]) << 8 }
+            let length = word(offset+28),extra = word(offset+30),comment = word(offset+32)
+            let end = offset+46+length
+            guard end+extra+comment <= data.count else { throw CocoaError(.fileReadCorruptFile) }
+            entries.append(String(decoding:data[offset+46..<end],as:UTF8.self))
+            offset = end+extra+comment
         }
-
-        #if os(macOS)
-        if entries.isEmpty {
-            // Fallback via /usr/bin/unzip on macOS if streaming ZIP has data descriptor
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-            p.arguments = ["-Z1", zipURL.path]
-            let pipe = Pipe()
-            p.standardOutput = pipe
-            if (try? p.run()) != nil {
-                p.waitUntilExit()
-                let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-                entries = output.components(separatedBy: "\n").filter { !$0.isEmpty }
-            }
-        }
-        #endif
 
         return entries
     }

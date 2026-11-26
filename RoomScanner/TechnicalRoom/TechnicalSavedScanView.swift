@@ -137,6 +137,8 @@ struct TechnicalSavedScanView: View {
             voiceNotes = (try? await Task.detached { try ScanVoiceNoteLibrary.notes(for:reference) }.value) ?? []
         }
         .sheet(item:$selectedVoice) { note in VoiceNotePlayerSheet(note:note) }
+        .onChange(of: showAudio) { _,_ in resetID = UUID() }
+        .onChange(of: voiceNotes) { _,_ in resetID = UUID() }
         .onChange(of: showPhotos) { _,_ in resetID = UUID() }
         .onChange(of: showRoomSurfaces) { _,_ in renderError = nil; resetID = UUID() }
         .onChange(of: showCeiling) { _,_ in renderError = nil; resetID = UUID() }
@@ -178,15 +180,20 @@ struct TechnicalSavedScanView: View {
                         light.light.intensity = 2500
                         light.look(at: .zero, from: SIMD3(radius, radius * 2, radius), relativeTo: nil)
                         content.add(light)
+                        if showAudio {
+                            for note in voiceNotes.suffix(256) {
+                                guard let point = note.viewingPosition else { continue }
+                                let p = note.displayPosition == nil ? package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:point) } ?? point : point
+                                let marker = AnnotationIcon.entity(symbol:note.audioFileName == nil ? "mappin" : "mic.fill",name:"technicalNote:"+note.id.uuidString)
+                                marker.position = SIMD3(Float(p.x-geometry.center.x),Float(p.y-geometry.center.y),Float(p.z-geometry.center.z)); content.add(marker)
+                            }
+                        }
                         if showPhotos {
-                            for (index, photo) in surveyPhotos.enumerated() {
+                            for photo in surveyPhotos {
                                 let m = photo.depth.cameraTransform
                                 guard m.count == 16, m.allSatisfy({ $0.isFinite }) else { continue }
-                                let markerTexture = try TextureResource.generate(from: photoMarkerImage(number: index + 1),options: .init(semantic: .color))
-                                var markerMaterial = UnlitMaterial()
-                                markerMaterial.color = .init(texture: .init(markerTexture))
                                 let size = max(0.08,min(0.2,radius*0.035))
-                                let marker = ModelEntity(mesh: .generatePlane(width: size,height: size),materials: [markerMaterial])
+                                let marker = AnnotationIcon.entity(symbol:"camera.fill",name:"technicalPhoto:"+photo.id.uuidString)
                                 marker.name = "technicalPhoto:\(photo.id.uuidString)"
                                     let p = TechnicalPoint3(x: m[12],y: m[13],z: m[14])
                                     let transformed = package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to: p) } ?? p
@@ -242,6 +249,7 @@ struct TechnicalSavedScanView: View {
                 .accessibilityLabel("Saved 3D survey")
                 .accessibilityHint("Drag to rotate. Use Reset view or the numbered photo buttons below.")
                 .gesture(TapGesture().targetedToAnyEntity().onEnded { value in
+                    if value.entity.name.hasPrefix("technicalNote:"),let id = UUID(uuidString:String(value.entity.name.dropFirst(14))) { selectedVoice = voiceNotes.first { $0.id == id }; return }
                     let prefix = "technicalPhoto:"
                     guard value.entity.name.hasPrefix(prefix),let id = UUID(uuidString: String(value.entity.name.dropFirst(prefix.count))) else { return }
                     selectedPhoto = package.evidence.keyframes.first { $0.id == id }

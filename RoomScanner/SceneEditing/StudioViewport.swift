@@ -34,14 +34,36 @@ enum StudioCameraFraming {
     private let selectionOverlay = SCNNode()
     var moving = false
     var rotating = false
-    var selectedIDs: Set<UUID> = [] { didSet { highlight(selected) } }
+    var selectedIDs: Set<UUID> = [] { didSet { if oldValue != selectedIDs { highlight(selected) } } }
     var manipulating: Bool { moving || rotating }
     var onSelect: ((UUID?) -> Void)?
+    var onNote:((UUID)->Void)?
+    private var notes:[ARNote] = []
+    private let noteRoot = SCNNode()
+    func setNotes(_ values:[ARNote]) {
+        guard values != notes else { return }; notes = values; updateNotes()
+    }
+    private func updateNotes() {
+        noteRoot.removeFromParentNode(); noteRoot.childNodes.forEach { $0.removeFromParentNode() }
+        for note in notes.suffix(256) {
+            if let level = note.level,level != previousStory { continue }
+            guard let p = note.viewingPosition else { continue }
+            let node = iconNode(symbol:note.audioFileName == nil ? "mappin" : "mic.fill",name:"note:"+note.id.uuidString)
+            node.position = SCNVector3(p.x,p.y,p.z); noteRoot.addChildNode(node)
+        }
+        view?.scene?.rootNode.addChildNode(noteRoot)
+    }
+    private func iconNode(symbol:String,name:String) -> SCNNode {
+        let material = SCNMaterial(); material.lightingModel = .constant; material.isDoubleSided = true
+        material.diffuse.contents = AnnotationIcon.image(symbol)
+        let node = SCNNode(geometry:SCNPlane(width:0.16,height:0.16)); node.name = name
+        node.geometry?.materials = [material]; node.constraints = [SCNBillboardConstraint()]; return node
+    }
     var onPhoto: ((UUID) -> Void)?
     private var photos: [SurveyPhotoImage] = []
     private let photoRoot = SCNNode()
     func setPhotos(_ photos: [SurveyPhotoImage]) {
-        self.photos = photos
+        guard self.photos != photos else { return }; self.photos = photos
         updatePhotos()
     }
     private func updatePhotos() {
@@ -57,16 +79,8 @@ enum StudioCameraFraming {
             node.simdTransform = simd_float4x4(columns:(
                 SIMD4(Float(m[0]),Float(m[1]),Float(m[2]),0),SIMD4(Float(m[4]),Float(m[5]),Float(m[6]),0),
                 SIMD4(Float(m[8]),Float(m[9]),Float(m[10]),0),SIMD4(Float(m[12]),Float(m[13]),Float(m[14]),1)))
-            let material = SCNMaterial(); material.lightingModel = .constant
-            material.diffuse.contents = platformColor(CGColor(red:1,green:0.8,blue:0,alpha:1))
-            let body = SCNNode(geometry:SCNBox(width:0.1,height:0.07,length:0.05,chamferRadius:0.01))
-            body.geometry?.materials = [material]; node.addChildNode(body)
-            let arrow = SCNNode(geometry:SCNBox(width:0.015,height:0.015,length:0.3,chamferRadius:0))
-            arrow.geometry?.materials = [material]; arrow.position.z = -0.18; node.addChildNode(arrow)
-            let text = SCNText(string:String(image.photo.number),extrusionDepth:0)
-            text.materials = [material]; text.font = .systemFont(ofSize:12,weight:.bold)
-            let label = SCNNode(geometry:text); label.scale = SCNVector3(0.008,0.008,0.008)
-            label.position.y = 0.12; label.constraints = [SCNBillboardConstraint()]; node.addChildNode(label)
+            let body = iconNode(symbol:"camera.fill",name:node.name ?? "")
+            node.addChildNode(body)
             photoRoot.addChildNode(node)
         }
         view?.scene?.rootNode.addChildNode(photoRoot)
@@ -102,6 +116,7 @@ enum StudioCameraFraming {
         }
         previous = document
         if photoRoot.parent !== view.scene?.rootNode { updatePhotos() }
+        if noteRoot.parent !== view.scene?.rootNode { updateNotes() }
         if resetToken != reset { resetToken = reset; frame(document,story: story) }
         self.selected = selected; highlight(selected)
         applyCameraAppearance(document)
@@ -159,6 +174,7 @@ enum StudioCameraFraming {
             for hit in hits {
                 var node: SCNNode? = hit.node
                 while let current = node {
+                    if let name = current.name,name.hasPrefix("note:"),let id = UUID(uuidString:String(name.dropFirst(5))) { onNote?(id); return }
                     if let name = current.name,name.hasPrefix("photo:"),let id = UUID(uuidString:String(name.dropFirst(6))) {
                         onPhoto?(id); return
                     }

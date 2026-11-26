@@ -40,12 +40,20 @@ actor ScanSessionStore {
     }
     private func directory(_ id:UUID) -> URL { root.appendingPathComponent(id.uuidString,isDirectory:true) }
     private func check(_ url:URL) throws {
-        guard url.standardizedFileURL.path.hasPrefix(root.standardizedFileURL.path+"/") else { throw CocoaError(.fileReadNoPermission) }
-        var current = url
-        while current.path != root.deletingLastPathComponent().path {
+        let base = root.resolvingSymlinksInPath().standardizedFileURL
+        let resolved = url.resolvingSymlinksInPath().standardizedFileURL
+        guard resolved.pathComponents.starts(with:base.pathComponents),resolved.pathComponents.count > base.pathComponents.count else { throw CocoaError(.fileReadNoPermission) }
+        if FileManager.default.fileExists(atPath:root.path),try root.resourceValues(forKeys:[.isSymbolicLinkKey]).isSymbolicLink == true { throw CocoaError(.fileReadNoPermission) }
+        var current = url.standardizedFileURL
+        // Foundation enumerators may canonicalize /var to /private/var. Never
+        // compare only literal root strings or walk past the filesystem root.
+        for _ in 0...current.pathComponents.count {
             if FileManager.default.fileExists(atPath:current.path),try current.resourceValues(forKeys:[.isSymbolicLinkKey]).isSymbolicLink == true { throw CocoaError(.fileReadNoPermission) }
-            if current.path == root.path { break }; current.deleteLastPathComponent()
+            if current.resolvingSymlinksInPath().standardizedFileURL.path == base.path { return }
+            let parent = current.deletingLastPathComponent()
+            guard parent.path != current.path else { break }; current = parent
         }
+        throw CocoaError(.fileReadNoPermission)
     }
     private func atomic(_ data:Data,to target:URL) throws {
         try check(target)

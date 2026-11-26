@@ -3,6 +3,23 @@ import XCTest
 
 final class ScanSessionIntegrationTests:XCTestCase {
     private func root() -> URL { FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString) }
+    func testVoiceEvidenceRecoversEvenWithoutRoomGeometry() async throws {
+        let root = root(),documents = self.root()
+        defer { try? FileManager.default.removeItem(at:root); try? FileManager.default.removeItem(at:documents) }
+        let disk = ScanSessionStore(root:root),project = UUID()
+        let session = try await disk.create(kind:.house,projectID:project)
+        let reference = ProjectReference(kind:.house,itemID:session.id,library:"local")
+        var note = ARNote(projectID:project,reference:reference,number:1,level:0,roomID:nil,position:.init(x:1,y:2,z:3),planPosition:nil,language:"en")
+        note.audioFileName = note.stem+".m4a"; note.audioDuration = 1
+        let bytes = Data([0,0,0,16])+Data("ftypM4A ".utf8)
+        let media = ScanVoiceMedia(note:note,audio:bytes,pose:nil,capturedAt:Date())
+        try await disk.write(session.id,key:"voice-"+note.id.uuidString,data:JSONEncoder().encode(media),media:true)
+        do { _ = try await ScanSessionRecovery().promote(session,store:disk,documents:documents); XCTFail("Geometry should remain unavailable") }
+        catch { XCTAssertTrue(error is ScanSessionRecovery.MissingGeometry) }
+        XCTAssertEqual(try ARNoteStore.read(root:documents,projectID:project).audio[note.id],bytes)
+        let state = try await disk.read(session.id); XCTAssertEqual(state.state,.failed)
+        XCTAssertEqual(try ProjectIndexStore.read(root:documents).projects.first(where:{ $0.id == project })?.references,[reference])
+    }
     func testLatestRoomSnapshotOverwritesRatherThanAppendingDuplicates() async throws {
         let root = root(); defer { try? FileManager.default.removeItem(at:root) }
         let disk = ScanSessionStore(root:root),session = try await disk.create(kind:.room,projectID:nil)

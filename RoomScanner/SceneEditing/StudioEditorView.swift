@@ -12,12 +12,13 @@ private struct StudioFile: FileDocument {
 struct StudioProjectView: View {
     let seed: SceneEditDocument
     let storageRoot: URL
+    @State private var notes:[ARNote] = []
     @State private var loaded: SceneEditDocument?
     @State private var photos: [SurveyPhotoImage] = []
     @State private var error: String?
     var body: some View {
         Group {
-            if let loaded { StudioEditorView(document: loaded,storageURL: SceneEditStore.url(root: storageRoot,source: seed.source,id: seed.sourceID),photos:photos) }
+            if let loaded { StudioEditorView(document: loaded,storageURL: SceneEditStore.url(root: storageRoot,source: seed.source,id: seed.sourceID),photos:photos,notes:notes,notesRoot:storageRoot) }
             else if let error { ContentUnavailableView("Could not open design",systemImage: "exclamationmark.triangle",description: Text(error)) }
             else { ProgressView("Opening Studio…") }
         }
@@ -33,6 +34,26 @@ struct StudioProjectView: View {
                 let url = source == .house ? location.housesURL.appendingPathComponent(id.uuidString).appendingPathExtension(FileLayout.housePackageExtension) :
                     location.roomsURL.appendingPathComponent(id.uuidString).appendingPathExtension(FileLayout.packageExtension)
                 return try SurveyPhotoStore.images(from:url,house:house)
+            }.value) ?? []
+            notes = (try? await Task.detached { () throws -> [ARNote] in
+                let kind:ProjectReference.Kind = source == .house ? .house : source == .room ? .room : .technicalRoom
+                let values = try ScanVoiceNoteLibrary.notes(itemID:id,kind:kind,root:root)
+                guard !values.isEmpty else { return [] }
+                if source == .technical {
+                    let package = try TechnicalRoomPackage.read(from:root.appendingPathComponent("TechnicalRooms/"+id.uuidString+".technicalroom"))
+                    let floor = TechnicalSavedMeshGeometry.latest(in:package.journal.meshes).flatMap { try? TechnicalSavedMeshGeometry(snapshot:$0,reference:package.alignment.referenceFrame) }.map { $0.center.y-$0.extent.y/2 } ?? 0
+                    return values.map { value in
+                        var note = value
+                        if note.displayPosition == nil,let point = note.position {
+                            var p = package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:point) } ?? point
+                            p.y -= floor; note.displayPosition = p
+                        }; return note
+                    }
+                }
+                let location = StorageLocation(kind:.local,documentsURL:root)
+                let url = source == .house ? location.housePackageURL(for:id) : location.packageURL(for:id)
+                let scans = source == .house ? try HousePackage.readStructure(from:url)?.rooms ?? [] : try RoomPackage.readScan(from:url).map { [$0] } ?? []
+                return ScanNoteRegistration.registered(values,house:house,scans:scans,singleRoom:source == .room)
             }.value) ?? []
             guard !Task.isCancelled else { return }
             do {
@@ -58,6 +79,9 @@ struct StudioProjectView: View {
 }
 
 struct StudioEditorView: View {
+    var notes:[ARNote] = []
+    var notesRoot:URL = ScanVoiceNoteLibrary.root
+    @State private var selectedNote:ARNote?
     var photos: [SurveyPhotoImage] = []
     @State private var showPhotos = true
     @State private var selectedPhoto: SurveyPhotoImage?
@@ -98,84 +122,15 @@ struct StudioEditorView: View {
     @FocusState private var viewportFocused: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var textSize
-    init(document: SceneEditDocument,storageURL: URL,photos: [SurveyPhotoImage] = []) {
+    init(document: SceneEditDocument,storageURL: URL,photos: [SurveyPhotoImage] = [],notes:[ARNote] = [],notesRoot:URL = ScanVoiceNoteLibrary.root) {
+        self.notes = notes; self.notesRoot = notesRoot
         self.photos = photos
         self.storageURL = storageURL
         _session = State(initialValue: SceneEditSession(document))
         _story = State(initialValue: document.shell.stories.first?.index ?? 0)
     }
-    var body: some View {
-        editorLayout
-        .disabled(busy).allowsHitTesting(!busy)
-        .overlay {
-            if exportTask != nil {
-                VStack(spacing:12) {
-                    ProgressView("export.generating",value:exportProgress,total:1)
-                    Button("Cancel") { exportTask?.cancel() }
-                }.padding(24).frame(width:280).background(.regularMaterial,in:RoundedRectangle(cornerRadius:16))
-            }
-        }
-        .navigationTitle(session.document.title)
-        #if os(macOS)
-        .background(StudioWindowGuard(dirty:{ session.dirty },save:{ try await persistDesign() }))
-        #endif
-        .focusedSceneValue(\.studioSession, session)
-        #if os(iOS)
-        .toolbar(.hidden,for:.navigationBar)
-        .toolbar(.hidden,for:.tabBar)
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { size in landscape = size.width > size.height; canvasWidth = size.width }
-        .sheet(isPresented: Binding(get: { showInspector && !landscape },set: { if !landscape { showInspector = $0 } })) {
-            NavigationStack {
-                inspector.navigationTitle("Object properties")
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showInspector = false } } }
-            }
-            .sheet(item: $equipmentEditor) { item in equipmentSheet(item) }
-            .sheet(isPresented: $showEngineering) { StudioEngineeringView(session: session) }
-            .presentationDetents([.medium,.large])
-            .presentationDragIndicator(.visible)
-            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-        }
-        #else
-        .frame(minWidth: 760,minHeight: 650)
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                if session.document.shell.stories.count > 1 {
-                    Picker("house.story", selection: $story) {
-                        ForEach(session.document.shell.stories, id: \.index) { story in
-                            Text(StoryNaming.localizedName(for: story.index)).tag(story.index)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
-            }
-            ToolbarItem(placement: .principal) {
-                Picker("View mode", selection: Binding(
-                    get: { session.document.engineering?.view ?? .all },
-                    set: { v in try? session.change { $0.engineering = ($0.engineering ?? .init()); $0.engineering?.view = v } }
-                )) {
-                    Text("All").tag(StudioEngineering.ViewMode.all)
-                    Text("Existing").tag(StudioEngineering.ViewMode.existing)
-                    Text("Demolition").tag(StudioEngineering.ViewMode.demolition)
-                    Text("Proposed").tag(StudioEngineering.ViewMode.proposed)
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 300)
-            }
-            ToolbarItemGroup(placement: .automatic) {
-                Toggle(isOn: $showPhotos) { Label("Photos", systemImage: "camera") }
-                Toggle(isOn: $showDimensions) { Label("Dimensions", systemImage: "ruler") }
-                Button { showAppearance = true } label: { Label("Appearance", systemImage: "paintpalette") }
-                Button { showEngineering = true } label: { Label("Engineering", systemImage: "hammer") }
-                Button { export3D(.usdz) } label: { Label("Export", systemImage: "square.and.arrow.up") }
-                Button { showInspector.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }
-                saveButton
-            }
-        }
-        .inspector(isPresented: $showInspector) {
-            inspector
-                .frame(minWidth: 280, idealWidth: 320)
-        }
-        #endif
+    var body:some View {
+        baseEditor
         .tint(.blue)
         .toolbar { selectionToolbar }
         #if os(macOS)
@@ -183,10 +138,12 @@ struct StudioEditorView: View {
             SurveyPhotoGallery(photos:photos,initial:photo.id) { controller.flyToPhoto($0.photo) }
         }
         #endif
+        .sheet(item:$selectedNote) { note in VoiceNotePlayerSheet(note:note,root:notesRoot,onSave:savedDisplayedNote) }
+        .onChange(of:notes) { _,value in controller.setNotes(value) }
         .onChange(of:showPhotos) { _,value in controller.setPhotos(value ? photos : []) }
         .onChange(of:photos) { _,value in controller.setPhotos(showPhotos ? value : []) }
         .onAppear { configureInteraction() }
-        .onDisappear { exportTask?.cancel(); controller.onSelect = nil; controller.onMove = nil; controller.onRotate = nil; controller.onPhoto = nil }
+        .onDisappear(perform:releaseInteraction)
         .sheet(isPresented: Binding(get: { showEngineering && !inspectorPresentedModally },set: { showEngineering = $0 })) { StudioEngineeringView(session: session) }
         .onChange(of: story) { _,_ in session.select(nil,multiple:false) }
         .onChange(of: session.selectedIDs) { _,ids in
@@ -221,6 +178,58 @@ struct StudioEditorView: View {
         .fileImporter(isPresented: $importing,allowedContentTypes: [.json]) { result in importProject(result) }
     }
 
+    private var baseEditor:some View {
+        editorLayout
+        .disabled(busy).allowsHitTesting(!busy)
+        .overlay {
+            if exportTask != nil {
+                VStack(spacing:12) {
+                    ProgressView("export.generating",value:exportProgress,total:1)
+                    Button("Cancel") { exportTask?.cancel() }
+                }.padding(24).frame(width:280).background(.regularMaterial,in:RoundedRectangle(cornerRadius:16))
+            }
+        }
+        .navigationTitle(session.document.title)
+        #if os(macOS)
+        .background(StudioWindowGuard(dirty:{ session.dirty },save:{ try await persistDesign() }))
+        #endif
+        .focusedSceneValue(\.studioSession, session)
+        #if os(iOS)
+        .toolbar(.hidden,for:.navigationBar)
+        .toolbar(.hidden,for:.tabBar)
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { size in landscape = size.width > size.height; canvasWidth = size.width }
+        .sheet(isPresented: Binding(get: { showInspector && !landscape },set: { if !landscape { showInspector = $0 } })) {
+            NavigationStack {
+                inspector.navigationTitle("Object properties")
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showInspector = false } } }
+            }
+            .sheet(item: $equipmentEditor) { item in equipmentSheet(item) }
+            .sheet(isPresented: $showEngineering) { StudioEngineeringView(session: session) }
+            .presentationDetents([.medium,.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+        }
+        #else
+        .frame(minWidth: 760,minHeight: 650)
+        .toolbar { desktopToolbar }
+        .inspector(isPresented: $showInspector) {
+            inspector
+                .frame(minWidth: 280, idealWidth: 320)
+        }
+        #endif
+    }
+    private func releaseInteraction() {
+        exportTask?.cancel()
+        controller.onSelect = nil; controller.onMove = nil; controller.onRotate = nil
+        controller.onPhoto = nil; controller.onNote = nil
+    }
+    private func savedDisplayedNote(_ saved:ARNote) {
+        var updated = notes
+        if let i = updated.firstIndex(where:{ $0.id == saved.id }) {
+            var value = saved; value.displayPosition = updated[i].displayPosition; updated[i] = value
+        }
+        controller.setNotes(updated)
+    }
     @ToolbarContentBuilder private var selectionToolbar: some ToolbarContent {
         ToolbarItem {
             Menu {
@@ -247,6 +256,8 @@ struct StudioEditorView: View {
                 session.selectedIDs = Set(session.document.presentationObjects.filter { $0.story == story }.map(\.id))
                 session.selectedID = nil
             }
+            controller.setNotes(notes)
+            controller.onNote = { id in selectedNote = notes.first { $0.id == id } }
             controller.setPhotos(showPhotos ? photos : [])
             controller.onPhoto = { id in showInspector = false; selectedPhoto = photos.first { $0.id == id } }
             controller.onSelect = { session.select($0,multiple:multipleSelection) }
@@ -264,6 +275,47 @@ struct StudioEditorView: View {
             }
     }
 
+    private var engineeringViewBinding:Binding<StudioEngineering.ViewMode> {
+        Binding(get:{ session.document.engineering?.view ?? .all },set:{ mode in
+            try? session.change { value in
+                var engineering = value.engineering ?? StudioEngineering()
+                engineering.view = mode; value.engineering = engineering
+            }
+        })
+    }
+    #if os(macOS)
+    @ToolbarContentBuilder private var desktopToolbar:some ToolbarContent {
+            ToolbarItem(placement: .navigation) {
+                if session.document.shell.stories.count > 1 {
+                    Picker("house.story", selection: $story) {
+                        ForEach(session.document.shell.stories, id: \.index) { story in
+                            Text(StoryNaming.localizedName(for: story.index)).tag(story.index)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
+            ToolbarItem(placement: .principal) {
+                Picker("View mode", selection: engineeringViewBinding) {
+                    Text("All").tag(StudioEngineering.ViewMode.all)
+                    Text("Existing").tag(StudioEngineering.ViewMode.existing)
+                    Text("Demolition").tag(StudioEngineering.ViewMode.demolition)
+                    Text("Proposed").tag(StudioEngineering.ViewMode.proposed)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 300)
+            }
+            ToolbarItemGroup(placement: .automatic) {
+                Toggle(isOn: $showPhotos) { Label("Photos", systemImage: "camera") }
+                Toggle(isOn: $showDimensions) { Label("Dimensions", systemImage: "ruler") }
+                Button { showAppearance = true } label: { Label("Appearance", systemImage: "paintpalette") }
+                Button { showEngineering = true } label: { Label("Engineering", systemImage: "hammer") }
+                Button { export3D(.usdz) } label: { Label("Export", systemImage: "square.and.arrow.up") }
+                Button { showInspector.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }
+                saveButton
+            }
+        }
+    #endif
     @ViewBuilder private var editorLayout: some View {
         #if os(iOS)
         ZStack {

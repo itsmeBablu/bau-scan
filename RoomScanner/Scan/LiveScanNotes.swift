@@ -13,80 +13,72 @@ struct LiveScanNotes: View {
     var pose: () -> [Double]?
     var roomID: () -> UUID? = { nil }
     var level: () -> Int? = { nil }
+    var selectedPin: ARNote? = nil
+    var onPin: (ARNote)->Void = { _ in }
     @State private var recorder = NoteAudioRecorder()
     @State private var holding = false
-    @State private var cancelled = false
     @State private var pin: TechnicalPoint3?
     @State private var text = ""
-    @State private var editing = false
     @State private var message: String?
     @State private var busy = false
     @State private var pending: NoteAudioRecorder.Clip?
+    @State private var recordingPin: ARNote?
     @State private var capturedPose: [Double]?
     @State private var capturedRoom: UUID?
     @State private var capturedLevel: Int?
     @State private var pendingMedia: ScanVoiceMedia?
+    @State private var pendingText: ARNote?
     var body: some View {
         VStack(alignment:.leading,spacing:6) {
             HStack(spacing:12) {
-                Image(systemName:recorder.recording ? "mic.fill" : "mic")
-                    .foregroundStyle(recorder.recording ? Color.red : Color.primary)
-                    .frame(width:48,height:48).background(.regularMaterial,in:Circle())
-                    .contentShape(Circle())
-                    .onLongPressGesture(minimumDuration:0.18,maximumDistance:.infinity,pressing:{ pressed in
-                        holding = pressed
-                        if pressed { cancelled = false }
-                        if !pressed && !cancelled { recorder.stop() }
-                    }) {
-                        guard !busy,!cancelled else { return }
-                        capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level()
-                        recorder.onClip = { clip in pending = clip; saveAudio(clip) }
-                        Task { if holding { await recorder.start() }; if !holding { recorder.stop() } }
-                    }
-                    .simultaneousGesture(DragGesture(minimumDistance:0).onChanged { value in
-                        if value.translation.width < -60,!cancelled {
-                            cancelled = true; holding = false; recorder.stop(cancel:true,reason:"Recording discarded")
-                        }
-                    }.onEnded { _ in if !cancelled { holding = false; recorder.stop() } })
-                    .accessibilityLabel("Hold to record voice note")
-                    .accessibilityAction(named:Text("Start recording")) {
-                        capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level()
-                        recorder.onClip = { clip in pending = clip; saveAudio(clip) }
-                        Task { await recorder.start() }
-                    }
+                HoldMicrophoneControl(recording:recorder.recording,start:{
+                    guard !busy,pending == nil else { return }
+                    recordingPin = selectedPin
+                    holding = true; capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level()
+                    recorder.onClip = { clip in pending = clip; saveAudio(clip) }
+                    Task { if holding { await recorder.start() }; if !holding { recorder.stop() } }
+                },finish:{ cancel in holding = false; recorder.stop(cancel:cancel,reason:cancel ? "Recording discarded" : "User stopped recording") })
+                    .frame(width:48,height:48)
                 Button {
                     guard let point = position() else { message = AppLanguage.text("Aim at a tracked surface"); return }
-                    pin = point; capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level(); editing = true
+                    pin = point; capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level(); text = ""
+                    do { let owner = try owner(); var value = ARNote(projectID:owner,reference:reference,number:1,level:capturedLevel,roomID:capturedRoom,position:point,planPosition:nil,language:Locale.current.identifier); value.title = AppLanguage.text("Pinned note"); pendingText = value; onPin(value); saveText() } catch { message = error.localizedDescription }
                 } label: { Image(systemName:pin == nil ? "mappin" : "mappin.circle.fill").frame(width:48,height:48) }
                     .background(.regularMaterial,in:Circle()).accessibilityLabel("Pin a note to this surface")
-                if pending != nil,!recorder.recording { Button("Retry saving") { if let pending { saveAudio(pending) } } }
+                    .disabled(holding || recorder.recording || recorder.preparing || pending != nil)
             }.disabled(busy)
+        }.frame(width:112,height:48)
+        .overlay(alignment:.trailing) {
+            if pending != nil,!recorder.recording,!busy {
+                Button("Retry saving") { if let pending { saveAudio(pending) } }
+                    .font(.caption).padding(8).background(.regularMaterial,in:Capsule()).offset(x:110)
+            }
+        }
+        .overlay(alignment:.top) {
             if recorder.recording {
                 HStack(spacing:2) { ForEach(Array(recorder.levels.suffix(20).enumerated()),id:\.offset) { _,level in
                     Capsule().fill(.red).frame(width:3,height:max(2,level*22))
-                } }.frame(height:24).accessibilityHidden(true)
-                Button("Stop") { recorder.stop() }
-                Text("Release to save · slide left to cancel").font(.caption)
+                } }.frame(width:100,height:24).background(.regularMaterial,in:Capsule()).offset(y:-32).allowsHitTesting(false)
             }
-            else { Text("Hold mic · aim and pin").font(.caption).padding(4).background(.regularMaterial,in:Capsule()) }
-            if let error = recorder.error ?? message { Text(error).font(.caption).padding(6).background(.regularMaterial,in:Capsule()) }
         }
-        .sheet(isPresented:$editing) {
-            NavigationStack {
-                Form {
-                    TextField("Note",text:$text,axis:.vertical)
-                    Text("Pinned to the observed scan surface. Verify alignment after recovery.").font(.caption)
-                    Button("Save note") { saveText() }.disabled(busy || text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
-                }.navigationTitle("Pinned note")
-                .toolbar { ToolbarItem(placement:.cancellationAction) { Button("Cancel") { editing = false } } }
-            }.interactiveDismissDisabled(busy)
+        .overlay(alignment:.bottomLeading) {
+            if let error = recorder.error ?? message { Text(error).font(.caption2).lineLimit(2).frame(width:220,alignment:.leading).padding(6).background(.regularMaterial,in:Capsule()).offset(y:45).allowsHitTesting(false) }
         }
+        .overlay(alignment:.topLeading) {
+            if let selectedPin,!recorder.recording {
+                HStack {
+                    TextField("Note",text:$text).textFieldStyle(.roundedBorder)
+                    Button { pendingText = selectedPin; saveText() } label: { Image(systemName:"checkmark.circle.fill") }.accessibilityLabel("Save note")
+                }.padding(8).frame(width:260).background(.regularMaterial,in:RoundedRectangle(cornerRadius:14)).offset(y:-60)
+            }
+        }
+        .onChange(of:selectedPin) { _,value in text = value?.text ?? "" }
         .onDisappear { recorder.stop(partial:true) }
     }
     private func note(owner:UUID) -> ARNote {
-        var note = ARNote(projectID:owner,reference:reference,number:1,level:capturedLevel,
-            roomID:capturedRoom,position:pin,planPosition:nil,language:Locale.current.identifier)
-        note.text = text
+        var note = recordingPin ?? ARNote(projectID:owner,reference:reference,number:1,level:capturedLevel,
+            roomID:capturedRoom,position:capturedPose.flatMap { $0.count == 16 ? TechnicalPoint3(x:$0[12],y:$0[13],z:$0[14]) : nil },planPosition:nil,language:Locale.current.identifier)
+        note.text = text; note.modifiedAt = Date()
         return note
     }
     private func owner() throws -> UUID {
@@ -103,37 +95,38 @@ struct LiveScanNotes: View {
                 let owner = try owner()
                 if pendingMedia == nil {
                     var value = note(owner:owner)
+                    value.audioModifiedAt = value.modifiedAt
                     value.audioFileName = value.stem+".m4a"; value.audioDuration = clip.duration; value.partial = clip.partial
                     pendingMedia = ScanVoiceMedia(note:value,audio:clip.data,pose:capturedPose,capturedAt:Date())
                 }
                 guard let media = pendingMedia else { return }
                 let value = media.note
-                let outbox = try VoiceNoteRecovery.root()
-                try await Task.detached(priority:.utility) { try VoiceNoteRecovery.stage(value,audio:clip.data,at:outbox) }.value
-                try await persistence.write(media,key:"voice-"+value.id.uuidString,latest:false,media:true)
                 let root = workspace?.notesRoot ?? StorageLocation.local().documentsURL
-                try await Task.detached(priority:.utility) {
-                    try VoiceNoteRecovery.recover(projectID:owner,from:outbox,to:root,references:[reference])
-                }.value
+                let outbox = try VoiceNoteRecovery.root()
+                let saved = try await Task.detached(priority:.utility) { try VoiceNoteRecovery.publishRevision(value,audio:clip.data,to:root,outbox:outbox) }.value
+                onPin(saved)
                 pending = nil; pendingMedia = nil; message = AppLanguage.text("Voice note saved")
+                // The project sidecar is already durable. A checkpoint must never
+                // hold the microphone or project finish controls hostage.
+                Task { try? await persistence.write(media,key:"voice-"+value.id.uuidString,latest:false,media:true) }
             } catch { message = error.localizedDescription }
         }
     }
     private func saveText() {
-        busy = true
+        guard !busy else { return }; busy = true
         Task { @MainActor in
             defer { busy = false }
             do {
                 let owner = try owner()
-                let value = note(owner:owner)
-                try await persistence.write(ScanVoiceMedia(note:value,audio:nil,pose:capturedPose,capturedAt:Date()),key:"note-"+value.id.uuidString,latest:false,media:true)
+                var value = pendingText ?? note(owner:owner); value.text = text; value.modifiedAt = Date()
                 let root = workspace?.notesRoot ?? StorageLocation.local().documentsURL
-                try await Task.detached(priority:.utility) {
-                    try ARNoteStore.update(root:root,projectID:owner) { index in
-                        var copy = value; copy.number = try index.nextNumber(roomID:copy.roomID); index.notes.append(copy)
-                    }
+                let saved = try await Task.detached(priority:.utility) {
+                    try ARNoteStore.upsertText(value,root:root)
                 }.value
-                text = ""; editing = false; message = AppLanguage.text("Pinned note saved")
+                onPin(saved)
+                pendingText = nil; message = AppLanguage.text("Pinned note saved")
+                let media = ScanVoiceMedia(note:saved,audio:nil,pose:capturedPose,capturedAt:Date())
+                Task { try? await persistence.write(media,key:"note-"+saved.id.uuidString,latest:false,media:true) }
             } catch { message = error.localizedDescription }
         }
     }

@@ -8,4 +8,11 @@ enum ScanVoiceNoteLibrary {
             try ARNoteStore.index(root:root,projectID:$0.id).notes.filter { $0.reference == reference }
         }
     }
+    static func notes(itemID:UUID,kind:ProjectReference.Kind,root:URL) throws -> [ARNote] {
+        let index = try ProjectIndexStore.read(root:root)
+        return try index.projects.filter { $0.references.contains { $0.itemID == itemID && $0.kind == kind } }.flatMap {
+            try ARNoteStore.index(root:root,projectID:$0.id).notes.filter { $0.reference.itemID == itemID && $0.reference.kind == kind }
+        }
+    }
+
 }

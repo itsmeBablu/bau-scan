@@ -15,6 +15,10 @@ struct ViewerView: View {
     @Bindable var state: ViewerState
     var radiators: [HouseRadiator] = []
     var photoPackageURL: URL? = nil
+    @State private var notes:[ARNote] = []
+    @State private var selectedNote:ARNote?
+    @State private var noteRoot:URL?
+    @State private var markerRoot = Entity()
     @State private var photos: [SurveyPhotoImage] = []
     @State private var showPhotos = true
     @State private var selectedPhoto: SurveyPhotoImage?
@@ -45,6 +49,17 @@ struct ViewerView: View {
         }
         .task(id:photoPackageURL) {
             guard let url = photoPackageURL else { return }
+            noteRoot = url.deletingLastPathComponent().deletingLastPathComponent()
+            notes = (try? await Task.detached { () throws -> [ARNote] in
+                let kind:ProjectReference.Kind = url.pathExtension == FileLayout.housePackageExtension ? .house : .room
+                guard let id = UUID(uuidString:url.deletingPathExtension().lastPathComponent) else { return [] }
+                let values = try ScanVoiceNoteLibrary.notes(itemID:id,kind:kind,root:url.deletingLastPathComponent().deletingLastPathComponent())
+                guard !values.isEmpty else { return [] }
+                let scans:[ScanInput]
+                if kind == .house { scans = try HousePackage.readStructure(from:url)?.rooms ?? [] }
+                else { scans = try RoomPackage.readScan(from:url).map { [$0] } ?? [] }
+                return ScanNoteRegistration.registered(values,house:house,scans:scans,singleRoom:kind == .room)
+            }.value) ?? []
             do { photos = try await Task.detached { try SurveyPhotoStore.images(from:url,house:house) }.value }
             catch { photos = []; photoError = "Survey photos could not be loaded: "+error.localizedDescription }
         }
@@ -81,6 +96,9 @@ struct ViewerView: View {
                 .padding(.top, 10)
             }
         }
+        .sheet(item:$selectedNote) { note in VoiceNotePlayerSheet(note:note,root:noteRoot ?? ScanVoiceNoteLibrary.root) { saved in
+            if let i = notes.firstIndex(where:{ $0.id == saved.id }) { var value = saved; value.displayPosition = notes[i].displayPosition; notes[i] = value }
+        } }
         .sheet(item:$selectedPhoto) { photo in
             SurveyPhotoGallery(photos:photos,initial:photo.id) { flyToPhoto($0) }
         }
@@ -93,8 +111,9 @@ struct ViewerView: View {
             .onChange(of: state.showObjects) { _, _ in rebuildScene() }
             .onChange(of: house) { _, _ in rebuildScene(); resetView() }
             .onChange(of: radiators) { _, _ in rebuildScene() }
-            .onChange(of: photos) { _, _ in rebuildScene() }
-            .onChange(of: showPhotos) { _, _ in rebuildScene() }
+            .onChange(of: notes) { _, _ in updateMarkers() }
+            .onChange(of: photos) { _, _ in updateMarkers() }
+            .onChange(of: showPhotos) { _, _ in updateMarkers() }
     }
     private var sceneContent: some View {
         RealityView { content in
@@ -160,6 +179,9 @@ struct ViewerView: View {
                 }
                 return
             }
+            if entity.name.hasPrefix("scan-note:"),let id = UUID(uuidString:String(entity.name.dropFirst(10))) {
+                selectedNote = notes.first { $0.id == id }; return
+            }
             guard entity.name.hasPrefix(SurveyPhotoMarkers.prefix),
                   let id = UUID(uuidString:String(entity.name.dropFirst(SurveyPhotoMarkers.prefix.count))) else { return }
             selectedPhoto = photos.first { $0.id == id }
@@ -200,15 +222,22 @@ struct ViewerView: View {
         // Replaces children while preserving root entity (already attached to content).
         for child in sceneRoot.children.map({ $0 }) { child.removeFromParent() }
         for child in fresh.children.map({ $0 }) { sceneRoot.addChild(child) }
-        if showPhotos {
-            for photo in photos where photo.photo.roomID.map({ id in house.allRooms.contains { $0.id == id } }) ?? true {
-                sceneRoot.addChild(SurveyPhotoMarkers.entity(photo.photo))
-            }
-        }
+        updateMarkers()
         // Recenters house at origin: RealityView orbit controls rotate
         // around world origin, and AR anchor places model by its center.
         let b = house.bounds
         sceneRoot.position = b.isEmpty ? .zero : SIMD3(Float(-b.center.x), 0, Float(b.center.y))
+    }
+
+    private func updateMarkers() {
+        markerRoot.children.removeAll()
+        if showPhotos { for photo in photos.suffix(200) { markerRoot.addChild(SurveyPhotoMarkers.entity(photo.photo)) } }
+        for note in notes.suffix(256) {
+            guard let p = note.viewingPosition else { continue }
+            let marker = AnnotationIcon.entity(symbol:note.audioFileName == nil ? "mappin" : "mic.fill",name:"scan-note:"+note.id.uuidString)
+            marker.position = SIMD3(Float(p.x),Float(p.y),Float(p.z)); markerRoot.addChild(marker)
+        }
+        sceneRoot.addChild(markerRoot)
     }
 
     private func flyToPhoto(_ photo: SurveyPhotoImage) {

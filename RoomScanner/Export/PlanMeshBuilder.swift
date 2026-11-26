@@ -68,13 +68,8 @@ struct PlanMeshBuilder {
                     guard emittedWalls.insert(wall.id).inserted else { continue }
                     for solid in solids where solid.wallID == wall.id { Self.addSolid(solid, to: &m) }
                 }
-                let joins = StudioWallJoins.mesh(room: room, visible: Set(room.walls.map(\.id)))
-                if !joins.isEmpty {
-                    let offset = UInt32(m.positions.count)
-                    m.positions += joins.positions
-                    m.normals += joins.normals
-                    m.triangles += joins.triangles.map { $0 &+ SIMD3<UInt32>(repeating: offset) }
-                }
+                // ResolvedWallGeometry already owns the joined wall footprint.
+                // Appending legacy corner patches creates overlapping solids.
             }
             if includePanels {
                 for kind in [Opening.Kind.door, .window] {

@@ -14,6 +14,7 @@ struct TechnicalRoomScanView: View {
     @AppStorage(ScanPhotoPolicy.preferenceKey) private var cameraPhotos = true
     @AppStorage("renovation.proDetails") private var proDetails = false
     @State private var viewport: ARView?
+    @State private var pins = CapturePins()
     @State private var showMesh = true
     @State private var showRoomSurfaces = true
     @State private var showAudio = true
@@ -112,6 +113,7 @@ struct TechnicalRoomScanView: View {
                     }
                     .coordinateSpace(name: "technicalCapture")
                     .ignoresSafeArea()
+                CapturePinOverlay(session:scanner.session,pins:pins).ignoresSafeArea()
                 VStack(spacing: 12) {
                     Spacer()
                     if let error = scanner.errorMessage {
@@ -148,7 +150,7 @@ struct TechnicalRoomScanView: View {
                             position:{ CaptureSurfacePoint.center(session:scanner.session) },pose:{
                                 guard let m = scanner.session.currentFrame?.camera.transform else { return nil }
                                 return (0..<4).flatMap { c in (0..<4).map { Double(m[c][$0]) } }
-                            }).frame(width:112).disabled(saving || !scanner.hasLiveFrames) }
+                            },selectedPin:pins.selection,onPin:{ pins.put($0) }).frame(width:112).disabled(saving || !scanner.hasLiveFrames) }
                         Button { showMesh.toggle() } label: {
                             Image(systemName: showMesh ? "cube.fill" : "cube").frame(width: 44,height: 44)
                         }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
@@ -188,6 +190,7 @@ struct TechnicalRoomScanView: View {
                 }
             }
         }
+        .modifier(CaptureAwakeModifier())
         .tint(.blue)
         .sheet(isPresented: $showingVoiceNotes) {
             ScanVoiceNotesSheet(reference: .init(kind: .technicalRoom,itemID: persistence.id,library: "local"),location: .local(),preferredProjectID:voiceProjectID)

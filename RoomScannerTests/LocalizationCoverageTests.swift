@@ -3,10 +3,15 @@ import XCTest
 
 final class LocalizationCoverageTests: XCTestCase {
     func testEveryCatalogueKeyHasGermanTextAndMatchingFormatArguments() throws {
-        let file = URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("RoomScanner/Resources/Localizable.xcstrings")
-        let root = try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:file)) as? [String:Any])
-        let strings = try XCTUnwrap(root["strings"] as? [String:[String:Any]])
+        // Validate shipped resources; source-path reads can block on Desktop
+        // privacy prompts. The Node audit separately validates the source catalogue.
+        func strings(_ language:String) throws -> [String:String] {
+            let url = try XCTUnwrap(Bundle.main.url(forResource:"Localizable",withExtension:"strings",subdirectory:nil,localization:language))
+            let data = try Data(contentsOf:url)
+            return try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:String])
+        }
+        let english = try strings("en"),german = try strings("de")
+        XCTAssertFalse(english.isEmpty)
         let expression = try NSRegularExpression(pattern:"%(?:[0-9]+\\$)?(?:lld|ld|d|@|f)")
         func tokens(_ text: String) -> [String] {
             expression.matches(in:text,range:NSRange(text.startIndex...,in:text)).map {
@@ -14,12 +19,9 @@ final class LocalizationCoverageTests: XCTestCase {
                 return token.replacingOccurrences(of:"[0-9]+\\$",with:"",options:.regularExpression)
             }.sorted()
         }
-        for (key, entry) in strings {
-            let localizations = entry["localizations"] as? [String:[String:Any]]
-            let german = (localizations?["de"]?["stringUnit"] as? [String:String])?["value"]
-            let english = (localizations?["en"]?["stringUnit"] as? [String:String])?["value"] ?? key
-            XCTAssertFalse((german ?? "").isEmpty,"Missing German: \(key)")
-            XCTAssertEqual(tokens(german ?? ""),tokens(english),"Format mismatch: \(key)")
+        for (key, value) in english {
+            XCTAssertFalse((german[key] ?? "").isEmpty,"Missing German: \(key)")
+            XCTAssertEqual(tokens(german[key] ?? ""),tokens(value),"Format mismatch: \(key)")
         }
     }
     func testGermanNumberFormatting() {

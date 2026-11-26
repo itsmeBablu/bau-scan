@@ -30,10 +30,10 @@ enum SceneFurniture: String,Codable,CaseIterable,Identifiable {
     }
     static func detected(_ category: String, size: TechnicalPoint3? = nil) -> Self {
         let c = category.lowercased()
-        if c.contains("desk") { return .desk }
         if c.contains("office chair") || c.contains("swivel") { return .officeChair }
         if c.contains("conference") || c.contains("meeting") { return .conferenceTable }
         if c.contains("computer") || c.contains("desktop") || c.contains("pc") { return .computer }
+        if c.contains("desk") { return .desk }
         if c.contains("monitor") { return .monitor }
         if c.contains("bookshelf") || c.contains("bookcase") { return .bookshelf }
         if c.contains("whiteboard") { return .whiteboard }

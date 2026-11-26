@@ -137,7 +137,7 @@ final class PlanSceneBuilderTests: XCTestCase {
 
         var b3 = PlanSceneBuilder(); b3.options.showDimensions = true
         let root3 = b3.makeScene(for: House(room: plan))
-        let dims3 = try XCTUnwrap(root3.children[0].children.first { $0.name == "dimensions" })
+        let dims3 = try XCTUnwrap(root3.children.first { $0.name.hasPrefix("room:") }?.children.first { $0.name == "dimensions" })
         XCTAssertTrue(dims3.children.allSatisfy { $0.components[BillboardComponent.self] != nil }, "billboard en 3D")
     }
 }

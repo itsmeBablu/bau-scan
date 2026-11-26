@@ -87,10 +87,15 @@ final class RevitIFCExportTests: XCTestCase {
     func testResolvedRealHouseDiagnosticPreservesNetSpaceQuantities() throws {
         let data = try resource("house.structure"),source = try RoomPackage.decoder.decode(StructureInput.self,from:data)
         let house = try HouseBuilder().build(from:source,name:"Real house"),options = try RevitScanEvidence.options(house:house,structureData:data)
-        let graph = HouseWallGraph(house:house),output = try RevitIFCExporter.export(house:house,options:options)
+        let output = try RevitIFCExporter.export(house:house,options:options)
         let actual = count("IFCWALL",in:text(output))
         print("Resolved real-house IFC walls=\(actual); legacy oracle=52; Apple merged reference=48")
-        XCTAssertEqual(actual,graph.walls.filter { !$0.footprints.isEmpty }.count)
+        let canonicalCount = house.stories.reduce(0) { total,original in
+            var story = original; story.rooms.sort { $0.id.uuidString < $1.id.uuidString }
+            for i in story.rooms.indices { story.rooms[i].walls.sort { $0.id.uuidString < $1.id.uuidString } }
+            return total+HouseWallGraph(house:House(id:house.id,name:house.name,stories:[story])).walls.filter { !$0.footprints.isEmpty }.count
+        }
+        XCTAssertEqual(actual,canonicalCount)
         XCTAssertEqual(count("IFCSPACE",in:text(output)),house.allRooms.count)
         XCTAssertEqual(output,try RevitIFCExporter.export(house:house,options:options))
         for room in house.allRooms { XCTAssertTrue(text(output).contains(IFCWriter.number(RoomMeasurements(plan:room).floorArea))) }
