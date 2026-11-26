@@ -22,7 +22,7 @@ enum ProjectBundleExporter {
         try index.validate()
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         if includeDetails,let details = project.details { try JSONEncoder().encode(details).write(to:root.appendingPathComponent("project-details.json"),options:.atomic) }
-        var manifest = Manifest(projectID:project.id,records:[],photos:[]), usedPhotoNames = Set<String>(), usedSourceNames = Set<String>()
+        var manifest = Manifest(projectID:project.id,records:[],photos:[]), usedPhotoNames = PhotoArchiveLayout(), usedSourceNames = Set<String>()
         func directory(_ path: String) throws -> URL {
             let url = root.appendingPathComponent(path,isDirectory:true)
             try FileManager.default.createDirectory(at:url,withIntermediateDirectories:true); return url
@@ -81,7 +81,7 @@ enum ProjectBundleExporter {
                             try TechnicalMeshExporter.write(package,format:format,to:folder.appendingPathComponent("survey."+format.rawValue))
                         }
                     }
-                    manifest.photos += try SurveyPhotoArchiveWriter.write(SurveyPhotoStore.images(technical:package),to:root,used:&usedPhotoNames,sourceID:reference.id)
+                    manifest.photos += try SurveyPhotoArchiveWriter.write(SurveyPhotoStore.images(technical:package),to:root,used:&usedPhotoNames,sourceID:reference.id,organization:index.scanOrganization?[reference.id],locale:locale)
                 }
             } else {
                 attempt(reference,path:base) {
@@ -106,7 +106,7 @@ enum ProjectBundleExporter {
                         let path = base+"/"+category+"/"+ExportService.fileName(for:subject,format:format)
                         attempt(reference,path:path) { _ = try service.export(subject,format:format,to:directory(base+"/"+category)) }
                     }
-                    manifest.photos += try SurveyPhotoArchiveWriter.write(SurveyPhotoStore.images(from:entry.url,house:house),to:root,used:&usedPhotoNames,sourceID:reference.id)
+                    manifest.photos += try SurveyPhotoArchiveWriter.write(SurveyPhotoStore.images(from:entry.url,house:house),to:root,used:&usedPhotoNames,sourceID:reference.id,organization:index.scanOrganization?[reference.id],summary:ProjectScanSummary(house:house),locale:locale)
                 }
             }
         }
@@ -124,7 +124,7 @@ enum ProjectBundleExporter {
         try encoder.encode(manifest).write(to:root.appendingPathComponent("manifest.json"))
         let failed = manifest.records.filter { $0.status != "exported" }
         var readme = AppLanguage.text("Project bundle: plans, models, source packages, reports, quantities, notes and numbered photos.",locale:locale)+"\n\n"
-        readme += AppLanguage.text("Photos use Photos/<room-name>.<number>/. Numbering restarts at 1 in each room. Same-name collisions receive a suffix; manifest.json preserves room IDs and original numbers.",locale:locale)+"\n\n"
+        readme += AppLanguage.text("Photos use Photos/building/level/room/ with room-name.number image and camera files. Missing organization remains Unassigned. Same-name rooms receive numbered suffixes; manifest.json preserves room IDs and original numbers.",locale:locale)+"\n\n"
         readme += AppLanguage.text("Raw RoomPlan USDZ is not cleaned. Scan coordinates are not GPS. Device validation pending. Review manifest.json for missing or failed outputs; unavailable geometry is never invented.",locale:locale)+"\n\n"
         readme += AppLanguage.text("Multiple levels are separated into level files. Design files may use local floor datums. Review each level README before combining elevations.",locale:locale)+"\n\n"
         readme += failed.map { "\($0.sourceID): \($0.path) — \($0.detail ?? "")" }.joined(separator:"\n")

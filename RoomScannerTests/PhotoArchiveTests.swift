@@ -2,16 +2,31 @@ import XCTest
 @testable import RoomScanner
 
 final class PhotoArchiveTests: XCTestCase {
+    func testRepeatedPhotosStayInSameRoomAndSeparateFloorsUseTheirOwnFolders() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        var layout = PhotoArchiveLayout()
+        let room = UUID()
+        var first = image("Bath Room",number:1); first.photo.roomID = room
+        var second = image("Bath Room",number:2); second.photo.roomID = room
+        let lower = ScanOrganization(level:-1,buildingName:"A",kind:.house)
+        let upper = ScanOrganization(level:1,buildingName:"A",kind:.house)
+        let files = try SurveyPhotoArchiveWriter.write([first,second],to:root,used:&layout,sourceID:"source",organization:lower,locale:Locale(identifier:"de"))
+        XCTAssertTrue(files[0].imageFile.hasPrefix("Photos/A/-1.UG 1/Bath Room/"))
+        XCTAssertEqual(URL(fileURLWithPath:files[0].imageFile).deletingLastPathComponent(),URL(fileURLWithPath:files[1].imageFile).deletingLastPathComponent())
+        let other = try SurveyPhotoArchiveWriter.write([image("Bath Room",number:1)],to:root,used:&layout,sourceID:"other",organization:upper,locale:Locale(identifier:"de"))
+        XCTAssertTrue(other[0].imageFile.hasPrefix("Photos/A/1.1. OG/Bath Room/"))
+    }
     private func image(_ room: String, number: Int) -> SurveyPhotoImage {
         .init(photo:.init(id:UUID(),roomID:UUID(),number:number,pose:[1,0,0,0,0,1,0,0,0,0,1,0,2,1,3,1],timestamp:3),jpegData:Data([0xff,0xd8,0xff,0xd9]),roomName:room)
     }
     func testPhotoFoldersUseRoomDotNumberWithoutCollisionsOrUnsafeWindowsNames() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at:root) }
-        var used = Set<String>()
-        let records = try SurveyPhotoArchiveWriter.write([image("Küche",number:1),image("Bad",number:1),image("KÜCHE",number:1),image("../CON",number:2)],to:root,used:&used)
-        XCTAssertEqual(records[0].imageFile,"Photos/Küche.1/Küche.1.jpg")
-        XCTAssertEqual(records[1].imageFile,"Photos/Bad.1/Bad.1.jpg")
+        var used = PhotoArchiveLayout()
+        let records = try SurveyPhotoArchiveWriter.write([image("Küche",number:1),image("Bad",number:1),image("KÜCHE",number:1),image("../CON",number:2)],to:root,used:&used,locale:Locale(identifier:"en"))
+        XCTAssertEqual(records[0].imageFile,"Photos/Unassigned building/Unassigned level/Küche/Küche.1.jpg")
+        XCTAssertEqual(records[1].imageFile,"Photos/Unassigned building/Unassigned level/Bad/Bad.1.jpg")
         XCTAssertNotEqual(records[0].imageFile.lowercased(),records[2].imageFile.lowercased())
         for record in records {
             XCTAssertFalse(record.imageFile.contains("../"))
@@ -41,7 +56,7 @@ final class PhotoArchiveTests: XCTestCase {
         let entry = ProjectLibraryEntry(reference:ref,title:room.name,date:Date(),area:12,roomCount:1,root:root,url:source)
         let output = root.appendingPathComponent("bundle")
         try await ProjectBundleExporter.files(project:project,index:index,entries:[entry],locale:Locale(identifier:"en_GB"),in:output)
-        for path in ["Photos/Küche.1/Küche.1.jpg","Photos/Küche.1/camera.json","Reports/project-report.pdf","Quantities/quantities.csv","manifest.json","project-index.json"] {
+        for path in ["Photos/Unassigned building/Unassigned level/Küche/Küche.1.jpg","Photos/Unassigned building/Unassigned level/Küche/Küche.1.camera.json","Reports/project-report.pdf","Quantities/quantities.csv","manifest.json","project-index.json"] {
             XCTAssertTrue(FileManager.default.fileExists(atPath:output.appendingPathComponent(path).path),path)
         }
         let manifest = try JSONDecoder().decode(ProjectBundleExporter.Manifest.self,from:Data(contentsOf:output.appendingPathComponent("manifest.json")))

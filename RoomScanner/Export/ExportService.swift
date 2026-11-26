@@ -143,7 +143,7 @@ struct ExportService {
             files.append((category+"/"+url.lastPathComponent, format))
         }
         if let package = subject.sourcePackageURL {
-            var used = Set<String>()
+            var used = PhotoArchiveLayout()
             let photos = try SurveyPhotoArchiveWriter.write(SurveyPhotoStore.images(from:package,house:subject.house),to:folder,used:&used,sourceID:subject.id.uuidString)
             let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted,.sortedKeys]
             try encoder.encode(photos).write(to:folder.appendingPathComponent("photo-index.json"))

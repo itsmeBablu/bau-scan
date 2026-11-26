@@ -403,3 +403,10 @@ optional room/explicit level; building/zone metadata stays on the scan catalogue
 Project prose stays in RenovationProject.notes. The existing player sheet reuses
 the durable revision outbox for replacement audio, with in-memory retry and dirty
 close guards; recording does not silently save text drafts.
+
+PhotoArchiveLayout now owns export photo folder naming across selection, all-photo,
+project bundles and individual scan ZIPs. It groups by stable source/room identities,
+uses explicit building-level mappings when available, retains original numbering,
+and resolves same-name rooms without overwrites. Unassigned remains explicit for
+legacy scans. The existing photo-index/camera record contracts retain their fields;
+only export-relative paths change, never native package paths or camera coordinates.

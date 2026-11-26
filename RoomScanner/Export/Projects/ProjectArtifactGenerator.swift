@@ -19,7 +19,7 @@ enum ProjectArtifactGenerator {
             else { data = try ProjectReportRenderer.pdf(report,locale:locale,unit:unit) }
             try data.write(to:file,options:.atomic)
         case .photos:
-            try SurveyPhotoArchiveWriter.archive(project:project,entries:entries,locale:locale,to:file)
+            try SurveyPhotoArchiveWriter.archive(project:project,entries:entries,locale:locale,to:file,organization:index.scanOrganization ?? [:])
         case .complete:
             try await ProjectBundleExporter.write(project:project,index:index,entries:entries,locale:locale,to:file,includeDetails:includeDetails,unit:unit,wastePercent:wastePercent)
         }

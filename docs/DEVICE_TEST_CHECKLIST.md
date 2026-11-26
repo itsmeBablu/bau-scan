@@ -192,3 +192,8 @@ merge. It must be followed by independently checking a known point.
   recording and retry save. Old audio must remain until replacement commits. Close
   dirty text without losing it; cancel/stop/retry before dismissal. Check VoiceOver,
   large text and Mac text-only editing. Recovery copies remain available after errors.
+
+- Shared photo hierarchy (device validation pending): compare selected, all-photo,
+  complete-project and single-scan ZIPs. Each contains building/floor/room photo
+  folders with correct original numbers, same-room grouping and Bath Room 2 naming.
+  Verify explicit story mappings versus Unassigned and camera metadata sidecars.

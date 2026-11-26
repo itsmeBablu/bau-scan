@@ -538,3 +538,23 @@ Both Apple schemes, actual recording/re-record/share/dirty-close/VoiceOver remai
 UNRUN/device validation pending. Explicit Save is used for edits, with close guards;
 no unverified auto-save is claimed. Remaining: export hierarchy consistency, final
 cleanup/visual comparison and Mac/iOS/device regression runs.
+
+## Shared photo export hierarchy — 2026-11-26
+
+Extracted PhotoArchiveLayout and reused it for selected photos, all-project Photos
+ZIP, complete-project photo folders and individual scan ZIP photo sets. Photos now
+share building/floor/room folders with room-name.number images and camera sidecars.
+The same room's images stay in one folder; distinct same-name rooms receive space-
+number suffixes. Explicit project organization/story mappings drive floor labels;
+legacy or standalone exports without organization remain Unassigned. All existing
+photo IDs/numbers and raw/display camera poses remain unchanged. Readmes describe
+actual paths; no native scan format changes. The selected path retains its checksum
+inventory; other archive paths retain their existing manifests/validation.
+
+Production Swift +70/-53 (net +17): extracted shared logic instead of a second
+layout implementation. Added one grouping test and updated existing archive path
+expectations; all Swift/ZIP tests UNRUN. Ten Node checks, localization (1357 keys),
+style and whitespace passed on the working tree. Both Apple schemes, actual ZIP
+creation/unzipping and iCloud/media behavior remain UNRUN/device validation pending.
+Next/final requested visual pass: background-free camera/sound-wave markers and a
+slightly larger photo direction indicator in 3D/Studio/2D, without geometry changes.
