@@ -921,3 +921,39 @@ Ten Node checks, strict localization (1380 keys), style and whitespace passed af
 this change; these do not validate SwiftUI interaction or compilation. No Apple
 scheme was run. Remaining broad consolidation work is listed in the previous
 entry and `docs/CORE_REFACTOR_PLAN.md`; no complete-release claim is made.
+
+## Current local progress and validation checkpoint — 2026-11-26
+
+Implementation commit: `619876016da2cba69a958b410e81ac1b13415395` on
+`codex/core-consolidation`. Relative to `015dbdb`, committed production Swift is
++551/-142 (net +409); tests +680/-0, including 34 new test methods. Documentation,
+CI, scripts and localization are separate. These counts exclude unrelated
+working-tree branding/icon edits. The added code primarily supplies diagnostics,
+shared transaction/task ownership, tests and requested export/presentation features;
+no code-size reduction is claimed.
+
+Latest actual local check evidence is `.worktrees/core-local-6198760.json`:
+
+| Check | Result |
+| --- | --- |
+| JSON/UI/design Node regression tests | 10 passed |
+| Strict EN/DE localization | Passed, 1380 keys, no missing German/unextracted literals |
+| Style ratchet | Passed, zero remaining violations |
+| Python backend | 13 passed; one pre-existing Starlette/httpx deprecation warning |
+| Plist/entitlements/privacy syntax | Passed |
+| Whitespace | Passed |
+| XcodeGen, RoomScanner, RoomScannerMac | UNRUN / BLOCKED on Windows |
+| Swift tests, sanitizers, coverage, performance baselines | UNRUN |
+| Capture/audio/iCloud/Studio/PDF visuals | Device/Mac validation pending |
+
+The check recorded `dirty: true` because separate branding/AppTheme edits remain in
+the working tree. It describes that recorded tree, not an isolated clean checkout.
+Those edits were not staged, reverted or committed by this consolidation task.
+The overall runner exit remains 1 because Apple verification is blocked.
+
+Finished implementation parts are listed above, with precise tests and limits.
+Remaining work is not merely testing: the exhaustive concurrency inventory,
+full approved export goldens, comprehensive failure matrix, remaining media/detail
+action consolidation and evidence-based Studio/geometry optimization are incomplete.
+Capture-engine consolidation remains explicitly unstarted pending its separate
+review/device requirements. No claim is made that every requested phase is finished.
