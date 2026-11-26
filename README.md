@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/dwalkscan-logo.png" width="128" height="128" alt="dWalkScan bau-scan logo" />
+  <img src="docs/assets/dwalkscan-logo-3d.png" width="128" height="128" alt="dWalkScan bau-scan logo" />
 </p>
 
 <h1 align="center">dWalkScan (bau-scan)</h1>
@@ -219,7 +219,7 @@ d-walk-scan/
 ## 🔒 Branding & Upstream Alignment
 
 This repository includes an automated compliance engine in [`.agents/skills/sync-upstream-features`](.agents/skills/sync-upstream-features) to selectively synchronize algorithmic improvements and bug fixes from upstream while safeguarding local brand identity:
-* **Brand Identity:** **`dWalkScan`** by **`BabuReddy`** with the official **`dwalkscan-logo`** isometric LiDAR house logo ([PNG](docs/assets/dwalkscan-logo.png) / [SVG](docs/assets/dwalkscan-logo.svg)).
+* **Brand Identity:** **`dWalkScan`** by **`BabuReddy`** with the official **`dwalkscan-logo-3d`** logo ([new PNG](docs/assets/dwalkscan-logo-3d.png), plus previous [isometric PNG](docs/assets/dwalkscan-logo.png) / [SVG](docs/assets/dwalkscan-logo.svg)).
 * **Palette:** Brand Yellow (`#facc15`), Soft Yellow (`#fef08a`), and Charcoal (`#111110`).
 * **Standards:** Metric units (`mm` and `meters`) and Liquid Glass visual styling.
 

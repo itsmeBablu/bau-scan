@@ -83,7 +83,7 @@ public extension View {
     }
 }
 
-/// IBV / dWalkScan brand logo with vector support and fallback.
+/// dWalkScan brand logo across iOS, iPadOS, and macOS.
 public struct BrandLogoView: View {
     public var size: CGFloat = 40
 
