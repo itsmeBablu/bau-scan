@@ -357,3 +357,11 @@ the existing camera/index record contracts and verifies SHA-256 inventory entrie
 before the existing atomic ZIP writer publishes the file. Native scan formats are
 unchanged. Selection export uses building/floor/room folders with original photo
 numbers and explicit Unassigned legacy levels; raw camera poses remain Y-up metres.
+
+Export selection is now side-effect free. ExportSheet and project deliverables use
+explicit generation with per-request identity and worker cancellation. The project
+export library reads file metadata only, categorizes saved types, and reuses native
+Quick Look/Share/fileExporter. ProjectArtifacts' coordinated rename/remove methods
+operate only on checked regular files directly inside that project's Exports folder;
+no source packages or legacy files are automatically removed. Logical export reuse
+and revision indexing remain pending; the legacy save API still creates UUID files.

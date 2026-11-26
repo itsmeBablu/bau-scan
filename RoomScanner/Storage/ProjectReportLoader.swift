@@ -62,7 +62,7 @@ enum ProjectArtifacts {
         root.appendingPathComponent("Projects",isDirectory:true).appendingPathComponent(projectID.uuidString,isDirectory:true).appendingPathComponent("Exports",isDirectory:true)
     }
     static func save(_ data: Data, extension suffix: String, root: URL, projectID: UUID) throws -> URL {
-        guard ["pdf","csv","zip"].contains(suffix) else { throw CocoaError(.fileWriteInvalidFileName) }
+        guard supportedExtensions.contains(suffix) else { throw CocoaError(.fileWriteInvalidFileName) }
         let directory = directory(root:root,projectID:projectID)
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
         let file = directory.appendingPathComponent(UUID().uuidString).appendingPathExtension(suffix)
@@ -73,7 +73,7 @@ enum ProjectArtifacts {
         guard FileManager.default.fileExists(atPath:dir.path) else { return [] }
         return try FileManager.default.contentsOfDirectory(at:dir,includingPropertiesForKeys:[.isRegularFileKey,.isSymbolicLinkKey,.contentModificationDateKey]).filter {
             let info = try $0.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey])
-            return info.isRegularFile == true && info.isSymbolicLink != true && ["pdf","csv","zip"].contains($0.pathExtension)
+            return info.isRegularFile == true && info.isSymbolicLink != true && !$0.lastPathComponent.hasPrefix(".") && supportedExtensions.contains($0.pathExtension.lowercased())
         }.sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 }

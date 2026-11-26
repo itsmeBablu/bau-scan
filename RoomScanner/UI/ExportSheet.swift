@@ -25,6 +25,8 @@ struct ExportSheet: View {
     @State private var meshSource: ExportService.MeshSource = .parametric
     @State private var showingRevit = false
     @State private var photoOnly = false
+    @State private var generationTask:Task<Void,Never>?
+    @State private var requestID = UUID()
 
     private var formats: [ExportFormat] { ExportService.availableFormats(for: subject) }
     private var hasScanMesh: Bool { subject.usdzMeshURL != nil }
@@ -36,7 +38,9 @@ struct ExportSheet: View {
                     Section {
                         Button { showingRevit = true } label: { Label("IFC (Revit)",systemImage:"building.2") }
                         if subject.sourcePackageURL != nil {
-                            Button("Photos · ZIP",systemImage:"photo.on.rectangle") { exportPhotos() }.disabled(working)
+                            Button { select(.zip); photoOnly = true } label: {
+                                HStack { Label("Photos · ZIP",systemImage:"photo.on.rectangle"); Spacer(); if photoOnly { Image(systemName:"checkmark") } }
+                            }.disabled(working)
                         }
                     }
                     ForEach(ExportFormat.Group.allCases) { group in
@@ -51,13 +55,14 @@ struct ExportSheet: View {
                                     Picker("export.meshSource", selection: $meshSource) {
                                         ForEach(ExportService.MeshSource.allCases) { Text(LocalizedStringKey($0.titleKey)).tag($0) }
                                     }
-                                    .onChange(of: meshSource) { _, _ in select(selected) }
+                                    .onChange(of: meshSource) { _, _ in if !photoOnly { select(selected) } }
                                 }
                             }
                         }
                     }
                 }
                 .formStyle(.grouped)
+                .disabled(working)
                 Divider()
                 footer
             }
@@ -70,7 +75,11 @@ struct ExportSheet: View {
                 if case .failure(let e) = outcome { error = e.localizedDescription }
             }
         }
-        .onAppear { select(initialFormat ?? UserDefaults.standard.string(forKey:"export.defaultFormat").flatMap(ExportFormat.init(rawValue:)) ?? selected) }
+        .onAppear {
+            let preferred = initialFormat ?? UserDefaults.standard.string(forKey:"export.defaultFormat").flatMap(ExportFormat.init(rawValue:)) ?? selected
+            select(formats.contains(preferred) ? preferred : (formats.first ?? .pdf))
+        }
+        .onDisappear { requestID = UUID(); generationTask?.cancel(); generationTask = nil; working = false }
         .sheet(isPresented:$showingRevit) { RevitExportPanel(subject:subject) }
         #if os(macOS)
         .frame(minWidth: 480, minHeight: 560)
@@ -93,8 +102,10 @@ struct ExportSheet: View {
             .font(.callout)
             if let error { Text(error).foregroundStyle(DS.ColorToken.error.color).font(.footnote) }
             HStack {
+                Button("Generate",systemImage:"arrow.down.doc") { generate() }.dsProminentControl().disabled(working)
                 if let result, !working {
                     ShareLink(item: result) { Label("export.share", systemImage: "square.and.arrow.up") }
+                    Menu("More",systemImage:"ellipsis") {
                     Button { savingWithPicker = true } label: { Label("export.saveAs", systemImage: "folder") }
                     Button { saveToExports(result) } label: {
                         Label(savedToExports ? (store.isCloud ? "export.savedToCloud" : "export.savedToExports")
@@ -104,6 +115,7 @@ struct ExportSheet: View {
                     #if os(macOS)
                     OpenWithMenu(fileURL: result, type: result.pathExtension == "zip" ? .zip : selected.utType).fixedSize()
                     #endif
+                    }
                 }
                 Spacer()
             }
@@ -130,31 +142,26 @@ struct ExportSheet: View {
     }
 
     private func select(_ format: ExportFormat) {
+        guard !working else { return }
         photoOnly = false
         selected = format
-        result = nil; error = nil; savedToExports = false; working = true
+        requestID = UUID(); result = nil; error = nil; savedToExports = false
+    }
+
+    private func generate() {
+        guard !working else { return }
+        if photoOnly { exportPhotos(); return }
+        let format = selected
         let subject = self.subject
         var service = ExportService(); service.meshSource = meshSource
-        Task.detached(priority: .userInitiated) { [service] in
-            let outcome = Result { try service.export(subject, format: format) }
-            await MainActor.run {
-                guard selected == format else { return }
-                working = false
-                switch outcome {
-                case .success(let url): result = url
-                case .failure(let e): error = e.localizedDescription
-                }
-            }
-        }
+        let configuredService = service
+        runExport { try configuredService.export(subject,format:format) }
     }
 
     private func exportPhotos() {
         guard let url = subject.sourcePackageURL else { return }
-        selected = .zip; photoOnly = true; working = true; result = nil; error = nil; savedToExports = false
         let subject = subject, locale = AppLanguage.locale
-        Task {
-            do {
-                let file = try await Task.detached(priority:.userInitiated) {
+        runExport {
                     let reference = ProjectReference(kind:subject.kind == .house ? .house : .room,itemID:subject.id,library:"local")
                     let project = RenovationProject(name:subject.name,references:[reference])
                     let entry = ProjectLibraryEntry(reference:reference,title:subject.name,date:subject.createdAt,area:nil,roomCount:subject.house.allRooms.count,root:url.deletingLastPathComponent().deletingLastPathComponent(),url:url)
@@ -162,9 +169,23 @@ struct ExportSheet: View {
                     let file = folder.appendingPathComponent(ArchivePath.component(subject.name)+"-Photos.zip")
                     try SurveyPhotoArchiveWriter.archive(project:project,entries:[entry],locale:locale,to:file)
                     return file
-                }.value
-                guard photoOnly else { return }; result = file; working = false
-            } catch { if photoOnly { self.error = error.localizedDescription; working = false } }
+        }
+    }
+
+    private func runExport(_ work:@escaping () throws -> URL) {
+        guard !working else { return }
+        let request = UUID(); requestID = request
+        working = true; result = nil; error = nil; savedToExports = false
+        generationTask = Task {
+            let worker = Task.detached(priority:.userInitiated,operation:work)
+            do {
+                let url = try await withTaskCancellationHandler(operation:{ try await worker.value },onCancel:{ worker.cancel() })
+                guard !Task.isCancelled,requestID == request else { return }
+                result = url; working = false; generationTask = nil
+            } catch {
+                guard !Task.isCancelled,requestID == request else { return }
+                self.error = error.localizedDescription; working = false; generationTask = nil
+            }
         }
     }
 

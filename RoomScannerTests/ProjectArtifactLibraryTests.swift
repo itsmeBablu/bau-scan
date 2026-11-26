@@ -1,0 +1,54 @@
+import XCTest
+@testable import RoomScanner
+
+final class ProjectArtifactLibraryTests:XCTestCase {
+    func testCategoriesAndSupportedFilesPreserveLegacyExports() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let project = UUID()
+        let legacy = try ProjectArtifacts.save(Data("report".utf8),extension:"pdf",root:root,projectID:project)
+        let cad = try ProjectArtifacts.save(Data("ifc".utf8),extension:"ifc",root:root,projectID:project)
+        _ = try ProjectArtifacts.save(Data("mesh".utf8),extension:"glb",root:root,projectID:project)
+        let files = try ProjectArtifacts.inspect(root:root,projectID:project)
+        XCTAssertEqual(files.count,3)
+        XCTAssertEqual(files.first { $0.url == legacy }?.category,.reports)
+        XCTAssertEqual(files.first { $0.url == cad }?.category,.cad)
+        XCTAssertTrue(try XCTUnwrap(files.first { $0.url == legacy }).legacy)
+        XCTAssertEqual(try Data(contentsOf:legacy),Data("report".utf8))
+        XCTAssertEqual(ProjectArtifactCategory.category(URL(fileURLWithPath:"A-Photos.zip")),.photos)
+        XCTAssertEqual(ProjectArtifactCategory.category(URL(fileURLWithPath:"A-Complete.zip")),.archives)
+    }
+    func testRenamePreservesExtensionRejectsOverwriteAndDeleteCannotReachSourceScan() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let project = UUID(),bytes = Data("report".utf8)
+        let first = try ProjectArtifacts.save(bytes,extension:"pdf",root:root,projectID:project)
+        let second = try ProjectArtifacts.save(Data("keep".utf8),extension:"pdf",root:root,projectID:project)
+        let renamed = try ProjectArtifacts.rename(first,to:"Room schedule",root:root,projectID:project)
+        XCTAssertEqual(renamed.lastPathComponent,"Room schedule.pdf")
+        XCTAssertEqual(try Data(contentsOf:renamed),bytes)
+        XCTAssertThrowsError(try ProjectArtifacts.rename(second,to:"room schedule",root:root,projectID:project))
+        let source = root.appendingPathComponent("source.roomscan")
+        try bytes.write(to:source)
+        XCTAssertThrowsError(try ProjectArtifacts.remove(source,root:root,projectID:project))
+        try ProjectArtifacts.remove(renamed,root:root,projectID:project)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:renamed.path))
+        XCTAssertEqual(try Data(contentsOf:source),bytes)
+        XCTAssertEqual(try Data(contentsOf:second),Data("keep".utf8))
+    }
+    func testSymlinkArtifactCannotBeRenamedOrDeleted() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let project = UUID(),outside = root.appendingPathComponent("source.pdf")
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        try Data("source".utf8).write(to:outside)
+        let directory = ProjectArtifacts.directory(root:root,projectID:project)
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        let link = directory.appendingPathComponent("linked.pdf")
+        try FileManager.default.createSymbolicLink(at:link,withDestinationURL:outside)
+        XCTAssertTrue(try ProjectArtifacts.inspect(root:root,projectID:project).isEmpty)
+        XCTAssertThrowsError(try ProjectArtifacts.rename(link,to:"Moved",root:root,projectID:project))
+        XCTAssertThrowsError(try ProjectArtifacts.remove(link,root:root,projectID:project))
+        XCTAssertEqual(try Data(contentsOf:outside),Data("source".utf8))
+    }
+}

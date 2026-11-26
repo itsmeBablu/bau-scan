@@ -349,3 +349,35 @@ builds/tests, share sheet and photo selection UI remain unrun/device validation
 pending. Safety bounds are explicit: at most 1000 selected photos and 512 MB output
 payload; failures are surfaced rather than omitting selected files. Remaining export
 library/reuse, voice actions, Studio/settings and final Apple verification continue.
+
+## Export intent/library checkpoint — 2026-11-26
+
+Room/house ExportSheet now configures formats/options without writing files; an
+explicit Generate starts work. Photos ZIP follows the same flow. Requests capture
+options, cancel workers on dismissal and reject stale results by request identity.
+Secondary footer actions are consolidated in More to avoid adding another wide
+button row. Project deliverables likewise use an output picker plus Generate and
+cancellable worker tasks; no project export is generated on appearance.
+
+Added a Foundation-only ProjectArtifactLibrary over the existing Exports folder:
+All/Reports/Plans/CAD-BIM/3D/Photos/Audio/Archives filtering, real type/size/date,
+native Quick Look preview, Share, Save to Files, rename and confirmed file deletion.
+Supported types now include existing CAD/3D/data/media outputs. Legacy UUID-named
+files remain visible. Rename retains the extension, rejects case-insensitive name
+collisions and never overwrites; management preflights project folder ancestry,
+regular-file ownership and symlinks. No source scan can be renamed/deleted through
+this API. Existing UUID save behavior remains until logical request/revision reuse
+is implemented; this is not completion of the artifact identity phase.
+
+Production Swift +249/-65 (net +184). Three shared Swift tests added for categories,
+legacy retention, safe rename/no-overwrite, source protection and symlink rejection;
+UNRUN. Two source-only Node guards added for explicit generation/cancellation;
+9 Node checks, localization (1319 keys), style and whitespace passed on the working
+tree. Those guards do not execute SwiftUI. XcodeGen, both Apple schemes, actual
+Quick Look/file export/rename/delete interaction and cancellation remain UNRUN.
+Device validation pending. API reference: Apple quickLookPreview documentation:
+https://developer.apple.com/documentation/swiftui/view/quicklookpreview(_:)
+
+Remaining: logical request/source revision reuse and artifact index/regeneration;
+voice re-record/actions and written-note scopes; Studio/settings polish; final
+Apple/device visual and regression verification. No remote push or CI was run.

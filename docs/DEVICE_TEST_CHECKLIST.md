@@ -146,3 +146,11 @@ merge. It must be followed by independently checking a known point.
   camera metadata. Cancel by navigating away; stale results must not replace a new
   export. Test missing/iCloud photos, over-limit selections and low disk space.
   Validate manifest checksums and confirm original scan files are unchanged.
+
+- Export intent/library (device validation pending): open and change formats/mesh
+  source without Generate; no file should be created. Generate, dismiss/cancel and
+  reopen; old results must not appear. Verify Photos ZIP stays selected independently
+  of mesh options. Browse categories, preview supported types, Share/Save to Files,
+  rename (including collision) and cancel/confirm deletion. Check only the exported
+  file changes; source scans and other exports remain. Test small iPhone footer,
+  iPad/Mac Quick Look, large text, unavailable files and no network/iCloud.
