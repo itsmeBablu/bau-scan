@@ -2,6 +2,18 @@ import Foundation
 
 /// Local project catalogue, separate from all existing package formats.
 enum ProjectIndexStore {
+    enum DetailsConflict:LocalizedError {
+        case stale
+        var errorDescription:String? { AppLanguage.text("Project details changed elsewhere. Your draft was not saved. Reload the latest details before retrying.") }
+    }
+    static func updateDetails(_ details:ProjectDetails,projectID:UUID,expected:ProjectDetails?,root:URL) throws -> ProjectIndex {
+        try update(root:root) { index in
+            guard details.valid else { throw CocoaError(.fileWriteInvalidFileName) }
+            guard let i = index.projects.firstIndex(where:{ $0.id == projectID }) else { throw CocoaError(.fileNoSuchFile) }
+            guard index.projects[i].details == expected || index.projects[i].details == details else { throw DetailsConflict.stale }
+            index.projects[i].details = details; index.projects[i].modifiedAt = Date()
+        }
+    }
     enum NotesConflict: LocalizedError {
         case stale
         var errorDescription: String? { AppLanguage.text("Project notes changed elsewhere. Your draft was not saved. Reload the latest notes before retrying.") }

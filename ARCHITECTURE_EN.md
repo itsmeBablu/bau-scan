@@ -365,3 +365,9 @@ Quick Look/Share/fileExporter. ProjectArtifacts' coordinated rename/remove metho
 operate only on checked regular files directly inside that project's Exports folder;
 no source packages or legacy files are automatically removed. Logical export reuse
 and revision indexing remain pending; the legacy save API still creates UUID files.
+
+Project details use an optimistic baseline via ProjectIndexStore.updateDetails,
+inside the existing coordinated index transaction. A stale save preserves the
+local draft and surfaces conflict instead of overwriting another window. The edit
+sheet owns dirty-close confirmation. Studio's existing action methods back the
+floating control layout; macOS uses only its native inspector presentation.

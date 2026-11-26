@@ -173,6 +173,16 @@ import Observation
         if index.projects.contains(where:{ $0.id == project.id }) { currentProjectID = project.id }
     }
     func assign(_ reference: ProjectReference, to id: UUID) { change { try $0.assign(reference,to:id) } }
+    func saveDetails(_ details:ProjectDetails,projectID:UUID,expected:ProjectDetails?) throws {
+        guard ready else { throw CocoaError(.fileReadUnknown) }
+        do {
+            index = try ProjectIndexStore.updateDetails(details,projectID:projectID,expected:expected,root:catalogueRoot)
+            catalogueRevision &+= 1
+        } catch {
+            if let current = try? ProjectIndexStore.read(root:catalogueRoot) { index = current; catalogueRevision &+= 1 }
+            throw error
+        }
+    }
     @discardableResult func note(_ text:String,projectID:UUID,expected:String) -> Bool {
         guard ready else { error = AppLanguage.text("Wait for the project catalogue to finish loading."); return false }
         do { index = try ProjectIndexStore.updateNotes(text,projectID:projectID,expected:expected,root:catalogueRoot); catalogueRevision &+= 1; return true }

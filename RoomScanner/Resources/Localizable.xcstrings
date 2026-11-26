@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Save project changes before closing?": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Save project changes before closing?"}},"de":{"stringUnit":{"state":"translated","value":"Projektänderungen vor dem Schließen speichern?"}}}},
+    "Select": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Select"}},"de":{"stringUnit":{"state":"translated","value":"Auswählen"}}}},
+    "Add": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Add"}},"de":{"stringUnit":{"state":"translated","value":"Hinzufügen"}}}},
+    "Project details changed elsewhere. Your draft was not saved. Reload the latest details before retrying.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Project details changed elsewhere. Your draft was not saved. Reload the latest details before retrying."}},"de":{"stringUnit":{"state":"translated","value":"Die Projektdetails wurden an anderer Stelle geändert. Dein Entwurf wurde nicht gespeichert. Lade vor einem erneuten Versuch die aktuellen Details."}}}},
+    "Measurement": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Measurement"}},"de":{"stringUnit":{"state":"translated","value":"Maßeinheiten"}}}},
+    "Capture defaults": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Capture defaults"}},"de":{"stringUnit":{"state":"translated","value":"Erfassungsvorgaben"}}}},
+    "Export defaults": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Export defaults"}},"de":{"stringUnit":{"state":"translated","value":"Exportvorgaben"}}}},
+    "Storage and recovery": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Storage and recovery"}},"de":{"stringUnit":{"state":"translated","value":"Speicher und Wiederherstellung"}}}},
+    "Project details not saved": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Project details not saved"}},"de":{"stringUnit":{"state":"translated","value":"Projektdetails nicht gespeichert"}}}},
+    "Reload latest details (discard draft)": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Reload latest details (discard draft)"}},"de":{"stringUnit":{"state":"translated","value":"Aktuelle Details laden (Entwurf verwerfen)"}}}},
     "Generate": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Generate"}},"de":{"stringUnit":{"state":"translated","value":"Erstellen"}}}},
     "Output": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Output"}},"de":{"stringUnit":{"state":"translated","value":"Ausgabe"}}}},
     "Category": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Category"}},"de":{"stringUnit":{"state":"translated","value":"Kategorie"}}}},

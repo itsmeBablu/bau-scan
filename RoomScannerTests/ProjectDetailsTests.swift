@@ -1,6 +1,35 @@
 import XCTest
 @testable import RoomScanner
 final class ProjectDetailsTests:XCTestCase {
+    func testCoordinatedDetailsSaveRejectsStaleDraftAndReloadsFromDisk() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let project = RenovationProject(name:"Old")
+        try ProjectIndexStore.write(.init(projects:[project]),root:root)
+        let first = ProjectDetails(city:"Berlin")
+        _ = try ProjectIndexStore.updateDetails(first,projectID:project.id,expected:nil,root:root)
+        let latest = try ProjectIndexStore.read(root:root).projects[0].details
+        XCTAssertEqual(latest,first)
+        XCTAssertThrowsError(try ProjectIndexStore.updateDetails(.init(city:"Hamburg"),projectID:project.id,expected:nil,root:root)) {
+            XCTAssertTrue($0 is ProjectIndexStore.DetailsConflict)
+        }
+        XCTAssertEqual(try ProjectIndexStore.read(root:root).projects[0].details,first)
+        // Idempotent retry of the same content is safe, even with the original baseline.
+        _ = try ProjectIndexStore.updateDetails(first,projectID:project.id,expected:nil,root:root)
+        _ = try ProjectIndexStore.updateDetails(.init(city:"Hamburg"),projectID:project.id,expected:latest,root:root)
+        XCTAssertEqual(try ProjectIndexStore.read(root:root).projects[0].details?.city,"Hamburg")
+    }
+    func testDetailsSaveCannotResurrectDeletedProjectOrWriteInvalidDetails() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let project = RenovationProject(name:"A")
+        try ProjectIndexStore.write(.init(projects:[project]),root:root)
+        XCTAssertThrowsError(try ProjectIndexStore.updateDetails(.init(city:String(repeating:"x",count:4001)),projectID:project.id,expected:nil,root:root))
+        XCTAssertNil(try ProjectIndexStore.read(root:root).projects[0].details)
+        _ = try ProjectIndexStore.update(root:root) { $0.projects.removeAll() }
+        XCTAssertThrowsError(try ProjectIndexStore.updateDetails(.init(city:"Berlin"),projectID:project.id,expected:nil,root:root))
+        XCTAssertTrue(try ProjectIndexStore.read(root:root).projects.isEmpty)
+    }
     func testOptionalDetailsKeepOldProjectsReadable() throws {
         let project = RenovationProject(name:"Old")
         let bytes = try JSONEncoder().encode(project)

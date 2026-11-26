@@ -154,3 +154,10 @@ merge. It must be followed by independently checking a known point.
   rename (including collision) and cancel/confirm deletion. Check only the exported
   file changes; source scans and other exports remain. Test small iPhone footer,
   iPad/Mac Quick Look, large text, unavailable files and no network/iCloud.
+
+- Studio/details polish (device validation pending): use Select/Add/Move/Rotate/Edit/
+  More, Undo/Redo and Save in portrait/landscape/large text; verify state/geometry
+  matches existing behavior. Mac shows one inspector. Edit project fields, visit
+  App settings and return; draft must remain. Open two editors, save one, then save
+  the stale one; conflict stays visible and draft remains. Test reload/discard,
+  save-and-close, swipe dismissal, invalid fields and a project deleted elsewhere.

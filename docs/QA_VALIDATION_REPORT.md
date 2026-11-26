@@ -381,3 +381,29 @@ https://developer.apple.com/documentation/swiftui/view/quicklookpreview(_:)
 Remaining: logical request/source revision reuse and artifact index/regeneration;
 voice re-record/actions and written-note scopes; Studio/settings polish; final
 Apple/device visual and regression verification. No remote push or CI was run.
+
+## Studio/project settings polish checkpoint — 2026-11-26
+
+Studio reuses existing undo/redo, selection, placement and inspector actions. iPhone/
+iPad floating header shows the design name, Undo/Redo and Save; dock exposes Select,
+Add, Move, Rotate, Edit and More, with secondary appearance/dimension actions retained
+in More. Narrow/accessibility layouts keep the name above controls. Removed the
+invisible iOS selection toolbar and duplicate macOS inline inspector; the native Mac
+inspector remains. No geometry, capture, placement math or document formats changed.
+
+Project settings are grouped into project/measurement/capture/export/storage with
+Advanced collapsed and project-scoped privacy navigation. Details drafts survive a
+return from App settings. Coordinated save compares the loaded baseline, throws a
+typed stale-editor conflict, reloads the catalogue for an explicit retry, and cannot
+resurrect deleted projects. Success depends on the actual save result, not a stale
+workspace error. The dashboard Edit sheet now confirms save/discard before closing
+and blocks accidental drag dismissal of dirty fields.
+
+Production Swift +94/-38 (net +56). Two shared Swift tests added for stale/idempotent
+save/reload, invalid details and deleted-project protection; UNRUN. Source checks,
+strict localization (1329 keys), style and whitespace passed on the working tree.
+Actual Studio touch/undo/redo, landscape/large text, Mac inspector and detail sheet
+save/conflict/dismissal behavior are device validation pending. Both Apple schemes
+remain UNRUN on Windows. Project-scoped preference propagation (avoiding global
+UserDefaults mutation at capture start), export identity/reuse, remaining note
+workflow actions and final visual validation still need completion.

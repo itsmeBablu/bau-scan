@@ -76,8 +76,7 @@ struct RenovationProjectPage: View {
         .toolbar { ToolbarItem { Button("Edit", systemImage: "pencil") { editing = true } } }
         .sheet(isPresented: $editing) {
             NavigationStack {
-                ProjectDetailsEditor(projectID: projectID).environment(workspace).navigationTitle("Project details")
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { editing = false } } }
+                ProjectDetailsEditor(projectID:projectID,onClose:{ editing = false }).environment(workspace).navigationTitle("Project details")
             }
         }
         .sheet(isPresented: $showingStatistics) {

@@ -137,8 +137,8 @@ struct StudioEditorView: View {
     var body:some View {
         baseEditor
 
-        .toolbar { selectionToolbar }
         #if os(macOS)
+        .toolbar { selectionToolbar }
         .sheet(item:$selectedPhoto) { photo in
             SurveyPhotoGallery(photos:photos,initial:photo.id) { controller.flyToPhoto($0.photo) }
         }
@@ -381,9 +381,6 @@ struct StudioEditorView: View {
                     technikEmptyState
                 }
             }
-            if showInspector {
-                inspector.frame(maxHeight: 270)
-            }
             HStack {
                 Text(busy ? "Working…" : status.isEmpty ? rotating ? "Drag the rotation ring. Changes are design edits." : moving ? "Drag an object to move it. Changes are design edits." : "Tap furniture to select · drag to orbit · pinch to zoom" : status)
                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
@@ -430,25 +427,28 @@ struct StudioEditorView: View {
         .padding(.horizontal, 24)
     }
     private var phoneHeader: some View {
-        VStack(alignment: .leading,spacing: 8) {
-            if textSize.isAccessibilitySize {
-                Text(session.document.source == .technical ? "Technik Studio" : "House Studio")
-                    .font(.headline).padding(.horizontal,12).padding(.vertical,8)
-                    .dsMaterial(in:Capsule())
-            }
-            HStack(spacing: 12) {
-                Button { requestClose() } label: { Image(systemName: "xmark").frame(width: 44,height: 44) }
+        VStack(alignment: .leading,spacing:DS.Spacing.s) {
+            if textSize.isAccessibilitySize || canvasWidth < 350 { phoneDocumentLabel }
+            HStack(spacing:DS.Spacing.s) {
+                Button { requestClose() } label: { Image(systemName:"xmark").frame(width:DS.Size.minimumTouchTarget,height:DS.Size.minimumTouchTarget) }
                     .accessibilityLabel("Close Studio").dsMaterial(in:Circle())
-                if !textSize.isAccessibilitySize {
-                    VStack(alignment: .leading,spacing: 2) {
-                        Text(session.document.source == .technical ? "Technik Studio" : "House Studio").font(.headline)
-                        Text(session.dirty || !hasSaved ? "Unsaved design" : "Design saved").font(.caption).foregroundStyle(.secondary)
-                    }.lineLimit(1).padding(.horizontal,14).padding(.vertical,8).dsMaterial(in:Capsule())
+                if !textSize.isAccessibilitySize && canvasWidth >= 350 { phoneDocumentLabel }
+                Spacer(minLength:0)
+                HStack(spacing:0) {
+                    undoButton.labelStyle(.iconOnly).frame(minWidth:DS.Size.minimumTouchTarget,minHeight:DS.Size.minimumTouchTarget)
+                    Button { session.redo() } label: { Image(systemName:"arrow.uturn.forward").frame(width:DS.Size.minimumTouchTarget,height:DS.Size.minimumTouchTarget) }
+                        .accessibilityLabel("Redo").disabled(session.redoStack.isEmpty || busy)
                 }
-                Spacer(minLength: 0)
+                .dsMaterial(in:Capsule())
                 saveButton.dsProminentControl().buttonBorderShape(.capsule)
             }
         }
+    }
+    private var phoneDocumentLabel:some View {
+        VStack(alignment:.leading,spacing:DS.Spacing.xs) {
+            Text(session.document.title).font(.headline)
+            Text(session.dirty || !hasSaved ? "Unsaved design" : "Design saved").font(.caption).foregroundStyle(.secondary)
+        }.lineLimit(1).padding(.horizontal,DS.Spacing.m).padding(.vertical,DS.Spacing.s).dsMaterial(in:Capsule())
     }
     @ViewBuilder private var phoneDock: some View {
         if textSize.isAccessibilitySize {
@@ -487,16 +487,18 @@ struct StudioEditorView: View {
         }
     }
     @ViewBuilder private var phoneDockActions: some View {
-        Button { showModelLibrary = true } label: { dockLabel(session.document.source == .technical ? "Equipment" : "Models",icon: session.document.source == .technical ? "pipe.and.drop" : "sofa.fill",active: showModelLibrary) }
         Menu {
-            Picker("Interaction",selection: interaction) {
-                Text("Orbit").tag("orbit"); Text("Move").tag("move"); Text("Rotate").tag("rotate")
-            }
-        } label: { dockLabel(rotating ? "Rotate" : moving ? "Move" : "Orbit",icon: rotating ? "arrow.triangle.2.circlepath" : moving ? "arrow.up.and.down.and.arrow.left.and.right" : "rotate.3d",active: !showPlan) }
-            .accessibilityLabel("Interaction mode").accessibilityValue(rotating ? "Rotate" : moving ? "Move" : "Orbit").disabled(showPlan)
+            Button("Select") { moving = false; rotating = false }
+            Toggle("Select multiple",isOn:$multipleSelection)
+            Button("Select all on this floor") { selectAllObjects() }
+            Button("Clear selection") { session.select(nil,multiple:false) }
+        } label: { dockLabel("Select",icon:"cursorarrow",active:!moving && !rotating) }
+        Button { showModelLibrary = true } label: { dockLabel("Add",icon:"plus",active:showModelLibrary) }
+        Button { moving.toggle(); rotating = false } label: { dockLabel("Move",icon:"arrow.up.and.down.and.arrow.left.and.right",active:moving) }
+            .disabled(showPlan || multipleSelection)
+        Button { rotating.toggle(); moving = false } label: { dockLabel("Rotate",icon:"arrow.triangle.2.circlepath",active:rotating) }
+            .disabled(showPlan || multipleSelection)
         Button { selectedPhoto = nil; showInspector.toggle() } label: { dockLabel("Edit",icon: "slider.horizontal.3",active: showInspector) }
-        Button { showAppearance = true } label: { dockLabel("Style",icon: "paintpalette",active: showAppearance) }
-        Button { showDimensions.toggle() } label: { dockLabel("Sizes",icon: "ruler",active: showDimensions) }.accessibilityLabel("3D dimensions").accessibilityValue(showDimensions ? "On" : "Off")
         Menu { designActions } label: { dockLabel("More",icon: "ellipsis",active: showPlan || showEngineering) }
     }
     private var interaction: Binding<String> {
@@ -597,7 +599,7 @@ struct StudioEditorView: View {
     private func dockLabel(_ title: String,icon: String,active: Bool = false) -> some View {
         VStack(spacing: 5) {
             Image(systemName: icon).dsIcon(.small,weight:.medium).frame(height: 20)
-            Text(title).font(.caption2.weight(.medium)).lineLimit(1)
+            Text(AppLanguage.text(title)).font(.caption2.weight(.medium)).lineLimit(1)
         }.frame(maxWidth: .infinity,minHeight: 44)
             .foregroundStyle(active ? Color.accentColor : Color.primary)
             .background(active ? Color.accentColor.opacity(0.16) : Color.clear,in: RoundedRectangle(cornerRadius: DS.Radius.card))
