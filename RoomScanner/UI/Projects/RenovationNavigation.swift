@@ -16,7 +16,11 @@ struct RenovationNavigation: View {
     @State private var creating = false
     @State private var projectName = ""
     @State private var projectQuery = ""
-    @State private var sortNewest = true
+    @AppStorage("ui.projects.newest") private var sortNewest = true
+    @AppStorage("ui.projects.layout") private var projectLayout = "grid"
+    @State private var renamingProject: RenovationProject?
+    @State private var privacyProject: RenovationProject?
+    @State private var renamedProjectName = ""
     @State private var activeCaptureProject: UUID?
     @AppStorage("renovation.onboarded") private var onboarded = false
     @State private var guide = false
@@ -31,6 +35,12 @@ struct RenovationNavigation: View {
         .onChange(of:store.location.documentsURL) { _,_ in refresh() }
         .sheet(isPresented:$settings,onDismiss:refresh) { SettingsView(includesProfile:true).environment(store) }
         .sheet(isPresented:$guide) { onboarding }
+        .sheet(item:$privacyProject,onDismiss:refresh) { project in
+            NavigationStack {
+                ProjectPrivacyView(projectID:project.id).environment(store)
+                    .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Done") { privacyProject = nil } } }
+            }
+        }
         .sheet(isPresented:$scan,onDismiss:{ activeCapture = pendingCapture; pendingCapture = nil }) {
             ScanSetupSheet(workspace:workspace,projectID:activeCaptureProject,mode:requestedScan) { pendingCapture = $0 }
                 .presentationDetents([.medium,.large])
@@ -43,6 +53,19 @@ struct RenovationNavigation: View {
             Button("Create") { workspace.create(projectName); projectName = "" }
             Button("Cancel",role:.cancel) {}
         } message: { Text("A place, such as a flat or building address.") }
+        .alert("Rename project",isPresented:Binding(get:{ renamingProject != nil },set:{ if !$0 { renamingProject = nil } })) {
+            TextField("Project name",text:$renamedProjectName)
+            Button("Save") {
+                guard let id = renamingProject?.id else { return }
+                let clean = renamedProjectName.trimmingCharacters(in:.whitespacesAndNewlines)
+                workspace.change { index in
+                    guard !clean.isEmpty, let i = index.projects.firstIndex(where:{ $0.id == id }) else { throw CocoaError(.fileWriteUnknown) }
+                    index.projects[i].name = clean; index.projects[i].modifiedAt = Date()
+                }
+                renamingProject = nil
+            }
+            Button("Cancel",role:.cancel) { renamingProject = nil }
+        }
         .alert("Project library",isPresented:Binding(get:{ workspace.error != nil },set:{ if !$0 { workspace.error = nil } })) {
             Button("OK") { workspace.error = nil }
         } message: { Text(workspace.error ?? "") }
@@ -87,21 +110,59 @@ struct RenovationNavigation: View {
         }
     }
     private func beginScan() { activeCaptureProject = workspace.currentProjectID; requestedScan = .house; scan = true }
+    private var visibleProjects:[RenovationProject] {
+        workspace.index.projects.filter {
+            projectQuery.isEmpty || ($0.isUnsorted ? AppLanguage.text("Unsorted") : $0.name).localizedCaseInsensitiveContains(projectQuery)
+        }.sorted {
+            if sortNewest, $0.modifiedAt != $1.modifiedAt { return $0.modifiedAt > $1.modifiedAt }
+            let comparison = $0.name.localizedStandardCompare($1.name)
+            return comparison == .orderedSame ? $0.id.uuidString < $1.id.uuidString : comparison == .orderedAscending
+        }
+    }
     private var projects: some View {
-        ScrollView {
-            VStack(spacing:16) { UnfinishedScansView()
-            if workspace.index.projects.isEmpty { ContentUnavailableView { Label("Your projects",systemImage:"folder") } description: { Text("Keep scans, designs and survey notes together.") } actions: { Button("Create a project") { creating = true } } }
-            LazyVGrid(columns:sizeClass == .compact ? [GridItem(.flexible()),GridItem(.flexible())] : [GridItem(.adaptive(minimum:200))],spacing:14) {
-            ForEach(workspace.index.projects.filter { projectQuery.isEmpty || ($0.isUnsorted ? AppLanguage.text("Unsorted") : $0.name).localizedCaseInsensitiveContains(projectQuery) }.sorted { sortNewest ? $0.modifiedAt > $1.modifiedAt : $0.name.localizedStandardCompare($1.name) == .orderedAscending }) { project in
-                NavigationLink(value:project.id) { ProjectSummary(project:project,workspace:workspace,card:true) }.buttonStyle(.plain)
+        Group {
+            if projectLayout == "list" {
+                List {
+                    UnfinishedScansView()
+                    ForEach(visibleProjects) { projectLink($0,card:false) }
+                    if visibleProjects.isEmpty { projectEmptyState }
+                }
+            } else {
+                ScrollView {
+                    VStack(spacing:DS.Spacing.l) {
+                        UnfinishedScansView()
+                        if visibleProjects.isEmpty { projectEmptyState }
+                        LazyVGrid(columns:sizeClass == .compact ? [GridItem(.flexible()),GridItem(.flexible())] : [GridItem(.adaptive(minimum:200))],spacing:DS.Spacing.l) {
+                            ForEach(visibleProjects) { projectLink($0,card:true) }
+                        }
+                    }.padding(DS.Spacing.l)
+                }
             }
-            } }.frame(maxWidth:.infinity).padding()
         }.navigationTitle("Projects").searchable(text:$projectQuery,prompt:"Search projects")
             .toolbar { ToolbarItemGroup(placement:.topBarLeading) {
                 Button("New project",systemImage:"plus") { creating = true }.labelStyle(.iconOnly)
-                Menu("Sort",systemImage:"arrow.up.arrow.down") { Toggle("Newest first",isOn:$sortNewest) }
+                Menu("View options",systemImage:"line.3.horizontal.decrease") {
+                    Picker("Layout",selection:$projectLayout) { Label("Grid",systemImage:"square.grid.2x2").tag("grid"); Label("List",systemImage:"list.bullet").tag("list") }
+                    Toggle("Newest first",isOn:$sortNewest)
+                }
             } }
             .refreshable { await workspace.reload(location:store.location) }
+    }
+    private var projectEmptyState:some View {
+        ContentUnavailableView {
+            Label(LocalizedStringKey(projectQuery.isEmpty ? "Your projects" : "No matching projects"),systemImage:"folder")
+        } description: { Text("Keep scans, designs and survey notes together.") }
+        actions: { if projectQuery.isEmpty { Button("Create a project") { creating = true } } }
+    }
+    private func projectLink(_ project:RenovationProject,card:Bool) -> some View {
+        NavigationLink(value:project.id) { ProjectSummary(project:project,workspace:workspace,card:card) }
+            .buttonStyle(.plain)
+            .contextMenu {
+                if !project.isUnsorted {
+                    Button("Rename project",systemImage:"pencil") { renamedProjectName = project.name; renamingProject = project }
+                }
+                Button("Delete project data…",systemImage:"trash",role:.destructive) { privacyProject = project }
+            }
     }
     private var onboarding: some View {
         NavigationStack {
@@ -242,116 +303,82 @@ struct ProjectEntryRow: View {
     private var designReference: ProjectReference { .init(kind:entry.reference.kind == .house ? .designHouse : entry.reference.kind == .room ? .designRoom : entry.isDesign ? entry.reference.kind : .designTechnical,itemID:entry.reference.itemID,library:entry.reference.library) }
 }
 
-struct RenovationProjectPage: View {
-    let projectID: UUID
-    var onScan: () -> Void
-    @Environment(RenovationWorkspace.self) private var workspace
-    @State private var name = ""
-    @State private var rename = false
-    @State private var notes = ""
-    @State private var notesBaseline = ""
-    @State private var noteError: String?
-    var body: some View {
-        List {
-            if let project = workspace.project(projectID) {
-                Section {
-                    ProjectSummary(project:project,workspace:workspace)
-                    Button("Scan more",systemImage:"viewfinder") { workspace.currentProjectID = projectID; onScan() }
-                }
-                if !project.references.isEmpty { Section("Preview") { ProjectScanPreview(entries:project.references.compactMap(workspace.entry)) } }
-                Section("Scans") { ForEach(project.references.compactMap(workspace.entry).filter { !$0.isDesign }) { ProjectEntryRow(entry:$0) } }
-                Section("Studio designs") { ForEach(project.references.compactMap(workspace.entry).filter(\.isDesign)) { ProjectEntryRow(entry:$0) } }
-                Section("Exports") { NavigationLink("Project report and exports") { ProjectDeliverablesView(projectID:projectID) } }
-                Section("Measurements") {
-                    NavigationLink("Quantities") { ProjectQuantitiesView(projectID:projectID) }
-                    NavigationLink("Verify with a known distance") { ProjectVerificationView(projectID:projectID) }
-                }
-                Section("Photos & notes") {
-                    NavigationLink("Photos") { ProjectPhotosView(projectID:projectID) }
-                    NavigationLink("Notes & task pins") { ProjectPinsView(projectID:projectID) }
-                    NavigationLink("Voice notes") { ProjectVoiceNotesView(projectID:projectID) }
-                    TextEditor(text:$notes).frame(minHeight:100).accessibilityLabel("Project notes")
-                    Button("Save notes") {
-                        if workspace.note(notes,projectID:projectID,expected:notesBaseline) { notesBaseline = notes }
-                        else { noteError = workspace.error }
-                    }
-                }
-                Section("Unavailable items") {
-                    ForEach(project.references.filter { workspace.entry($0) == nil }) { ref in Label(ref.itemID.uuidString,systemImage:"icloud.slash").font(.caption) }
-                }
-            }
-        }
-        .navigationTitle(workspace.project(projectID).map { $0.isUnsorted ? AppLanguage.text("Unsorted") : $0.name } ?? AppLanguage.text("Project"))
-        .onAppear { if notes == notesBaseline { notes = workspace.project(projectID)?.notes ?? ""; notesBaseline = notes }; workspace.currentProjectID = projectID }
-        .alert("Notes not saved",isPresented:Binding(get:{ noteError != nil },set:{ if !$0 { noteError = nil } })) {
-            Button("Load latest notes (discard draft)",role:.destructive) { notes = workspace.project(projectID)?.notes ?? notes; notesBaseline = notes; noteError = nil }
-            Button("OK") { noteError = nil }
-        } message: { Text(noteError ?? "") }
-        .toolbar { ToolbarItem { Menu("Project",systemImage:"ellipsis.circle") {
-            Button("Rename") { name = workspace.project(projectID)?.name ?? ""; rename = true }.disabled(workspace.project(projectID)?.isUnsorted == true)
-        } } }
-        .alert("Rename project",isPresented:$rename) {
-            TextField("Project name",text:$name)
-            Button("Save") { workspace.change { index in if let i = index.projects.firstIndex(where:{ $0.id == projectID }), !name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty { index.projects[i].name = name; index.projects[i].isUnsorted = false; index.projects[i].modifiedAt = Date() } } }
-            Button("Cancel",role:.cancel) {}
-        }
-    }
-}
-
-
 #if os(iOS)
-/// A project owns its three working areas; switching tabs never changes project.
+/// A project owns independent navigation stacks for its five working areas.
 struct ProjectChatWorkspace: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @State private var profile = false
+    @Environment(\.dismiss) private var dismiss
     @Environment(RoomStore.self) private var store
+    @Environment(RenovationWorkspace.self) private var workspace
     let projectID: UUID
     var onScan: () -> Void
     var onCapture: (ScanMode) -> Void
-    @Environment(RenovationWorkspace.self) private var workspace
     private var entries: [ProjectLibraryEntry] {
         workspace.project(projectID)?.references.compactMap(workspace.entry) ?? []
     }
     var body: some View {
         TabView {
-            ProjectDetailsEditor(projectID:projectID).tabItem { Label("Project",systemImage:"building.2") }
-            scanCards(entries.filter { $0.reference.kind == .house || $0.reference.kind == .room },mode:.house).tabItem { Label("House",systemImage:"house") }
-            scanCards(entries.filter { $0.reference.kind == .technicalRoom },mode:.technicalRoom).tabItem { Label("Technik",systemImage:"wrench.and.screwdriver") }
-            ScrollView {
-                VStack(alignment:.leading,spacing:16) {
-                    Text("Saved Studio designs").font(.headline); cards(entries.filter(\.isDesign),studio:false)
-                    Text("Create from a scan").font(.headline); cards(entries.filter { !$0.isDesign },studio:true)
-                }.padding()
-            }.tabItem { Label("Studio",systemImage:"cube.transparent") }
-            ProjectDetailsEditor(projectID:projectID,settings:true).tabItem { Label("Settings",systemImage:"gearshape") }
+            Tab("Project", systemImage: "building.2") {
+                projectStack("Project") { RenovationProjectPage(projectID: projectID, onScan: startScan) }
+            }
+            Tab("House", systemImage: "house") {
+                projectStack("House") { scanCards(entries.filter { $0.reference.kind == .house || $0.reference.kind == .room }, mode: .house) }
+            }
+            Tab("Technik", systemImage: "wrench.and.screwdriver") {
+                projectStack("Technik") { scanCards(entries.filter { $0.reference.kind == .technicalRoom }, mode: .technicalRoom) }
+            }
+            Tab("Studio", systemImage: "cube.transparent") {
+                projectStack("Studio") {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: DS.Spacing.l) {
+                            Text("Saved Studio designs").font(.headline); cards(entries.filter(\.isDesign))
+                            Text("Create from a scan").font(.headline); cards(entries.filter { !$0.isDesign }, studio: true)
+                        }.padding(DS.Spacing.l)
+                    }
+                }
+            }
+            Tab("Settings", systemImage: "gearshape") {
+                projectStack("Settings") { ProjectDetailsEditor(projectID: projectID, settings: true) }
+            }
         }
-        .navigationTitle(workspace.project(projectID).map { $0.isUnsorted ? "Unsorted" : $0.name } ?? "Project")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden()
         .onAppear { workspace.currentProjectID = projectID }
-        .sheet(isPresented:$profile) { SettingsView(includesProfile:true).environment(store) }
-        .toolbar { ToolbarItem(placement:.topBarTrailing) {
-            Button { profile = true } label: { Image(systemName:"person.crop.circle") }.accessibilityLabel("Profile and settings")
-        } }
-        .toolbar { ToolbarItem(placement:.topBarTrailing) {
-            NavigationLink { RenovationProjectPage(projectID:projectID,onScan:startScan) } label: { Image(systemName:"ellipsis.circle") }.accessibilityLabel("Project details, notes and exports")
-        } }
     }
-    private func cards(_ values:[ProjectLibraryEntry],studio:Bool = false) -> some View {
-        LazyVGrid(columns:sizeClass == .compact ? [GridItem(.flexible()),GridItem(.flexible())] : [GridItem(.adaptive(minimum:180))],spacing:14) {
-            ForEach(values) { ProjectEntryRow(entry:$0,openAsDesign:studio,card:true).buttonStyle(.plain) }
+    private func projectStack<Content: View>(_ title: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
+        NavigationStack {
+            content()
+                .navigationTitle(title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar(.visible, for: .navigationBar)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) { Button("Projects", systemImage: "chevron.left") { dismiss() } }
+                }
+                .navigationDestination(for: ProjectReference.self) { reference in
+                    if let entry = workspace.destination(reference) { RenovationItemDestination(entry: entry) }
+                    else { ContentUnavailableView("Item unavailable", systemImage: "icloud.slash", description: Text("Reconnect its library to open this item. Your project reference has been kept.")) }
+                }
         }
     }
-    private func scanCards(_ values:[ProjectLibraryEntry],mode:ScanMode) -> some View {
+    private func cards(_ values: [ProjectLibraryEntry], studio: Bool = false) -> some View {
+        LazyVGrid(columns: sizeClass == .compact ? [GridItem(.flexible()), GridItem(.flexible())] : [GridItem(.adaptive(minimum: 180))], spacing: DS.Spacing.l) {
+            ForEach(values) { ProjectEntryRow(entry: $0, openAsDesign: studio, card: true).buttonStyle(.plain) }
+        }
+    }
+    private func scanCards(_ values: [ProjectLibraryEntry], mode: ScanMode) -> some View {
         ScrollView {
-            VStack(alignment:.leading,spacing:16) {
-                Button(mode == .house ? "Scan a house" : "Scan Technik room",systemImage:"viewfinder") { onCapture(mode) }.dsProminentControl().buttonBorderShape(.capsule)
+            VStack(alignment: .leading, spacing: DS.Spacing.l) {
                 cards(values)
-                if values.isEmpty { ContentUnavailableView("No scans yet",systemImage:mode == .house ? "house" : "cube") }
-            }.padding()
+                if values.isEmpty { ContentUnavailableView("No scans yet", systemImage: mode == .house ? "house" : "cube") }
+            }.padding(DS.Spacing.l)
         }
+        .toolbar { ToolbarItem(placement: .topBarTrailing) {
+            Button(mode == .house ? "Scan a house" : "Scan Technik room", systemImage: "plus") { onCapture(mode) }
+        } }
     }
     private func startScan() { workspace.currentProjectID = projectID; onScan() }
 }
+
 #endif
 
 struct RenovationItemDestination: View {

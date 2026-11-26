@@ -175,3 +175,31 @@ number scope compares trimmed case/diacritic-insensitive building/zone labels;
 existing custom names are retained until the user saves organization. Remaining
 work: project dashboard/navigation, grouped libraries/capture layout, media, artifact
 reuse/library, Studio/settings and Apple/device verification. No push/CI was run.
+
+## Project dashboard/navigation checkpoint — 2026-11-26
+
+Reused ProjectSummary/ProjectCover, coordinated project edits, ProjectPrivacyView,
+HouseMeasurements, RenovationQuantities and existing notes/report/media screens.
+Removed the superseded editable project overview, shared tab navigation and duplicate
+profile/details toolbar routes. Projects has no bottom tabs; only an opened project
+has the five native iOS 18 tabs. Added a read-only dashboard, separate conflict-aware
+written-notes route and bounded source-revision summary cache.
+
+Production Swift: +338/-99 (net +239). Added ProjectScanSummary.swift,
+ProjectScanSummaryCache.swift and ProjectDashboardView.swift; modified navigation,
+workspace summary loading and scoped ProjectPrivacyView. Two shared Swift tests
+cover measurement semantics and summary invalidation/unavailable source/design
+exclusion; UNRUN. During review a scope typo in the prior recovery test was fixed
+in ab3a7f7; that test has still not been compiled or run on Apple platforms.
+
+Seven Node checks, strict EN/DE localization (1282 keys), the zero-growth style
+ratchet and whitespace checks passed on the working tree. Exact-commit evidence
+follows the commit. XcodeGen, iOS/macOS builds/tests, actual navigation/tab state,
+QuickLook, native rendering, accessibility and device capture are UNRUN. The first
+cache load reads source plan geometry off the main actor during library reload;
+unchanged revisions reuse summaries. It does not load scan.json, meshes or photos.
+
+This is a dashboard checkpoint, not all of Phase 2: recent photo/inline voice rows,
+full counts and project details save/conflict polish remain. Grouped libraries,
+capture presentation, media, artifact reuse and Studio/settings remain subsequent
+work. Actual screenshots matching the approved concepts require a Mac/device run.

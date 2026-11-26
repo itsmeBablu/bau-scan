@@ -319,3 +319,22 @@ scoped by project/building/level/zone/kind; Keep both never overwrites an item.
 Metadata editing includes optimistic conflict rejection and numeric story mapping.
 The redesigned dashboard, grouped libraries, artifact identity and project-scoped
 preference cleanup remain subsequent UI phases; this is not the completed redesign.
+
+## UI redesign: project overview and navigation checkpoint (2026-11-26)
+
+Projects remains a standalone NavigationStack with no TabView. It offers native
+list/grid, persisted sort/layout, search, rename and a scoped entry into the
+existing deletion preflight/confirmation flow. The project workspace alone owns
+the five iOS 18 Tabs, each with its own NavigationStack and scan destination.
+
+RenovationProjectPage is now a read-only dashboard with an Edit sheet reusing
+ProjectDetailsEditor, existing thumbnail gallery, scan statistics and links to
+media/notes/report tools. The old editable overview was removed; its conflict-aware
+notes editor remains as ProjectWrittenNotesView. ProjectScanSummary reuses
+HouseMeasurements and RenovationQuantities. A bounded 128-entry actor cache checks
+plan/house file path, size, modification date and filesystem identity during
+catalogue reload, decoding only changed plan geometry (no raw capture/media).
+Dashboard appearance does not decode packages or create exports. Scan totals are
+explicitly sums across potentially overlapping scans; Studio copies are excluded.
+The native preview/layout/device checks remain pending; recent media rows and
+broader summary counters are still to follow in the media phase.

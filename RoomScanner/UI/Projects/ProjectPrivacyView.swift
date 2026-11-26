@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProjectPrivacyView: View {
+    var projectID: UUID? = nil
     @Environment(RoomStore.self) private var store
     @State private var workspace = RenovationWorkspace()
     @State private var confirming = false
@@ -11,10 +12,12 @@ struct ProjectPrivacyView: View {
         List {
             Section("Project data") {
                 Text("Deletion permanently removes indexed scans, their photos, designs and generated project exports in connected libraries. Files you shared elsewhere, legacy export folders, backups and provider-held data are not removed.")
-                ForEach(workspace.index.projects) { project in
+                ForEach(workspace.index.projects.filter { projectID == nil || $0.id == projectID }) { project in
                     Button(role:.destructive) { selected = project.id; confirming = true } label: { Label(project.isUnsorted ? AppLanguage.text("Unsorted") : project.name,systemImage:"trash") }
                 }
-                Button("Delete all project data",role:.destructive) { selected = nil; confirming = true }.disabled(workspace.index.projects.isEmpty)
+                if projectID == nil {
+                    Button("Delete all project data",role:.destructive) { selected = nil; confirming = true }.disabled(workspace.index.projects.isEmpty)
+                }
             }.disabled(busy || workspace.loading)
             if busy { ProgressView("Deleting project data…") }
             if let result { Text(result) }

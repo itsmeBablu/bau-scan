@@ -88,3 +88,18 @@ merge. It must be followed by independently checking a known point.
   both scan packages. Move a scan to another project; verify labels remain.
 - Test EN/DE, small iPhone, iPad, Mac organization editor, large text, dark mode,
   VoiceOver and save errors. These checks have not been run on this Windows host.
+
+### Project navigation/dashboard (device validation pending)
+
+- Launch into Projects: no tab bar. Toggle list/grid, search and sort; relaunch and
+  confirm preferences. Rename a project. Open its deletion route and cancel at
+  confirmation; no file should change. Verify Unsorted and recovery stay accessible.
+- Open a project: five tabs; each preserves its own navigation and returns to the
+  correct project. Projects back action returns to the picker. Check iPad sidebar,
+  compact iPhone, rotation, VoiceOver and large text for duplicate bars/clipping.
+- Dashboard shows existing plan thumbnails; no export is created on appearance.
+  Compare union area within each scan and sums across separate scans; Studio copies
+  do not increase totals. Change a plan, refresh and verify summary invalidation.
+  Disconnect a library and confirm unavailable data isn't presented as current.
+- Edit details through the sheet; open written notes and reproduce stale-editor
+  conflicts across windows. Actual Apple rendering/build validation remains unrun.

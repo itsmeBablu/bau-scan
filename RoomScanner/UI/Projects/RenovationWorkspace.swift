@@ -4,6 +4,7 @@ import Observation
 @MainActor @Observable final class RenovationWorkspace {
     private(set) var index = ProjectIndex()
     private var libraryEntries: [ProjectLibraryEntry] = []
+    private(set) var scanSummaries: [String:ProjectScanSummary] = [:]
     var entries: [ProjectLibraryEntry] { libraryEntries.map(resolvedEntry) }
     var currentProjectID: UUID?
     var error: String?
@@ -151,7 +152,9 @@ import Observation
                 if let owner = updated.projects.first(where:{ !$0.isUnsorted && $0.references.contains(scan) }) { try updated.assign(design.reference,to:owner.id) }
             }
             }
-            index = updated; libraryEntries = result.1.filter { FileManager.default.fileExists(atPath:$0.url.path) }; ready = true
+            let available = result.1.filter { FileManager.default.fileExists(atPath:$0.url.path) }
+            let summaries = try await ProjectScanSummaryCache.shared.summaries(for:available)
+            index = updated; libraryEntries = available; scanSummaries = summaries; ready = true
             if currentProjectID == nil || !index.projects.contains(where:{ $0.id == currentProjectID }) { currentProjectID = index.projects.first(where:{ !$0.isUnsorted })?.id ?? index.projects.first?.id }
             error = result.2.isEmpty ? nil : AppLanguage.text("Some library items could not be read")+": " + result.2.joined(separator:", ")
         } catch { self.error = error.localizedDescription }
