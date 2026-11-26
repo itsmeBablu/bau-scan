@@ -5,6 +5,7 @@ import Observation
     private(set) var index = ProjectIndex()
     private var libraryEntries: [ProjectLibraryEntry] = []
     private(set) var scanSummaries: [String:ProjectScanSummary] = [:]
+    private(set) var catalogueRevision = 0
     var entries: [ProjectLibraryEntry] { libraryEntries.map(resolvedEntry) }
     var currentProjectID: UUID?
     var error: String?
@@ -39,7 +40,7 @@ import Observation
                 try current.setOrganization(value,for:reference)
                 current.displayNames?.removeValue(forKey:reference.id)
             }
-            error = nil; return true
+            catalogueRevision &+= 1; error = nil; return true
         } catch { self.error = error.localizedDescription; return false }
     }
     private struct OrganizationConflict: LocalizedError {
@@ -155,13 +156,14 @@ import Observation
             let available = result.1.filter { FileManager.default.fileExists(atPath:$0.url.path) }
             let summaries = try await ProjectScanSummaryCache.shared.summaries(for:available)
             index = updated; libraryEntries = available; scanSummaries = summaries; ready = true
+            catalogueRevision &+= 1
             if currentProjectID == nil || !index.projects.contains(where:{ $0.id == currentProjectID }) { currentProjectID = index.projects.first(where:{ !$0.isUnsorted })?.id ?? index.projects.first?.id }
             error = result.2.isEmpty ? nil : AppLanguage.text("Some library items could not be read")+": " + result.2.joined(separator:", ")
         } catch { self.error = error.localizedDescription }
     }
     func change(_ edit: (inout ProjectIndex) throws -> Void) {
         guard ready else { error = AppLanguage.text("Wait for the project catalogue to finish loading."); return }
-        do { index = try ProjectIndexStore.update(root:catalogueRoot,edit) }
+        do { index = try ProjectIndexStore.update(root:catalogueRoot,edit); catalogueRevision &+= 1 }
         catch { self.error = error.localizedDescription }
     }
     func create(_ name: String) {
@@ -173,7 +175,7 @@ import Observation
     func assign(_ reference: ProjectReference, to id: UUID) { change { try $0.assign(reference,to:id) } }
     @discardableResult func note(_ text:String,projectID:UUID,expected:String) -> Bool {
         guard ready else { error = AppLanguage.text("Wait for the project catalogue to finish loading."); return false }
-        do { index = try ProjectIndexStore.updateNotes(text,projectID:projectID,expected:expected,root:catalogueRoot); return true }
+        do { index = try ProjectIndexStore.updateNotes(text,projectID:projectID,expected:expected,root:catalogueRoot); catalogueRevision &+= 1; return true }
         catch {
             self.error = error.localizedDescription
             if let current = try? ProjectIndexStore.read(root:catalogueRoot) { index = current }

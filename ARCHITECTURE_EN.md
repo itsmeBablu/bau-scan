@@ -344,3 +344,9 @@ ProjectScanLibraryView is shared by the independent House and Technik tabs. Room
 names/areas/story indices come from the existing bounded summary cache, not from
 package decoding during view rendering. Optional story-level mappings affect labels
 only. Scan context menus remain on the shared entry row; + uses durable setup.
+
+Dashboard evidence previews use a 16-project metadata-only revision cache, keeping
+at most six photo references and three note records per project. Existing file
+readers remain authoritative. InlineVoiceNoteRow is shared between the voice library
+and dashboard; starting another playback intent prevents late older clip loads
+from taking over. No image or audio upload is performed by these components.

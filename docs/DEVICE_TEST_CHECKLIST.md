@@ -127,3 +127,9 @@ merge. It must be followed by independently checking a known point.
   swipe through images, zoom, full screen, share/Save to Files. Confirm numbers and
   raw camera poses are unchanged and Studio copies add no duplicates. Test missing,
   corrupt and iCloud-placeholder assets; failures must be visible without crashing.
+
+- Recent dashboard evidence (device validation pending): add/rename a note or photo,
+  switch away/back and refresh; preview counts/order must update. Play two clips in
+  rapid succession while the first loads, then navigate or start recording; old
+  results must not begin playback. Confirm only the selected clip is loaded and
+  leaving a row/screen stops its player. Verify no export appears on dashboard entry.

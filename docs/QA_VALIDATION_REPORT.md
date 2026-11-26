@@ -281,3 +281,24 @@ This is not the complete media phase: building/floor/zone filter hierarchy,
 selection ZIP export and dashboard recent-media rows remain pending. The metadata
 list has a visible 10,000-item limit; full-resolution images are read individually
 under existing package coordination/path/size safeguards.
+
+## Dashboard evidence reuse checkpoint — 2026-11-26
+
+Reused lazy ProjectPhotoAsset/thumbnail/gallery, coordinated note metadata reader,
+NotePlayback, waveform cache and DSInlineAudioRow. Dashboard now has recent photos
+(max 6), recent playable voice notes (max 3), project notes and evidence counts.
+Added bounded metadata-only ProjectEvidenceSummaryCache (16 projects), invalidated
+by source photo/note index revisions and resolved room names. It never retains
+JPEG/audio/mesh/world-map data. Shared InlineVoiceNoteRow replaces the voice library's
+inline loading implementation; latest playback intent and per-view request tokens
+reject late clip results after another play request or navigation/recording changes.
+Catalogue revision invalidates dashboard/photo tasks after library reload or edits.
+
+Production Swift +207/-50 (net +157). One shared Swift regression test added for
+note-cache revision invalidation and preview with corrupt audio; UNRUN. Seven Node
+checks, strict localization (1289 keys), style and whitespace passed on the working
+tree. Actual recent-media order, cache memory, playback races/audio sessions,
+accessibility and Apple builds/tests remain UNRUN/device validation pending.
+Remaining media work: hierarchy filters, selection ZIP export, re-record/context
+menus and written-note scopes. Remaining app work: artifact reuse/library, Studio,
+project-scoped settings, cleanup and Apple/device verification. No push/CI occurred.

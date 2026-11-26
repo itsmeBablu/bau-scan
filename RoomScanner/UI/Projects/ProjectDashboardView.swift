@@ -56,18 +56,7 @@ struct RenovationProjectPage: View {
                             }
                         }
                     }
-                    VStack(alignment: .leading, spacing: DS.Spacing.m) {
-                        DSSectionHeader(title: "Photos & notes")
-                        NavigationLink { ProjectPhotosView(projectID: projectID) } label: { dashboardRow("Photos", symbol: "photo.on.rectangle") }
-                        NavigationLink { ProjectVoiceNotesView(projectID: projectID) } label: { dashboardRow("Voice notes", symbol: "waveform") }
-                        NavigationLink { ProjectWrittenNotesView(projectID: projectID) } label: {
-                            VStack(alignment: .leading, spacing: DS.Spacing.xs) {
-                                dashboardRow("Project notes", symbol: "note.text")
-                                if !project.notes.isEmpty { Text(project.notes).font(.subheadline).foregroundStyle(.secondary).lineLimit(3) }
-                            }
-                        }
-                        NavigationLink { ProjectPinsView(projectID: projectID) } label: { dashboardRow("Notes & task pins", symbol: "mappin") }
-                    }.dsCard()
+                    ProjectRecentEvidenceView(projectID:projectID)
                     VStack(alignment: .leading, spacing: DS.Spacing.m) {
                         DSSectionHeader(title: "Reports & exports")
                         NavigationLink { ProjectDeliverablesView(projectID: projectID) } label: { dashboardRow("Project report and exports", symbol: "doc.richtext") }

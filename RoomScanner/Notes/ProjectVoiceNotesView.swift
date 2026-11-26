@@ -13,9 +13,6 @@ struct ProjectVoiceNotesView: View {
     @State private var error: String?
     @State private var deleting: ARNote?
     @State private var editing: ARNote?
-    @State private var playback = NotePlayback()
-    @State private var playingID: UUID?
-    @State private var waveforms: [UUID:[Double]] = [:]
     @State private var includeAudio = false
     @State private var exportURL: URL?
     @State private var recoveryCount = 0
@@ -82,13 +79,10 @@ struct ProjectVoiceNotesView: View {
                         if note.audioFileName == nil { Text(note.title ?? note.stem).font(.headline) }
                         if !note.text.isEmpty { Text(note.text).textSelection(.enabled) }
                         Text(note.createdAt,format:.dateTime).font(.caption).foregroundStyle(.secondary)
-                        if let duration = note.audioDuration {
-                            DSInlineAudioRow(title:note.title ?? note.stem,
+                        if note.audioDuration != nil {
+                            InlineVoiceNoteRow(note:note,root:workspace.notesRoot,
                                 subtitle:workspace.entry(note.reference).map { workspace.title($0) } ?? note.reference.itemID.uuidString,
-                                time:Duration.seconds(playingID == note.id ? playback.time : 0).formatted(.time(pattern:.minuteSecond))+" / "+Duration.seconds(duration).formatted(.time(pattern:.minuteSecond)),
-                                playing:playingID == note.id && playback.playing,waveform:waveforms[note.id] ?? [],
-                                progress:Binding(get:{ playingID == note.id && playback.duration > 0 ? playback.time/playback.duration : 0 },set:{ if playingID == note.id { playback.seek($0*playback.duration) } }),
-                                toggle:{ play(note) }).disabled(busy || audioActive)
+                                enabled:!busy && !audioActive)
                         }
                         HStack {
                             Button("Edit") { editing = note }.disabled(busy || audioActive)
@@ -120,9 +114,9 @@ struct ProjectVoiceNotesView: View {
             Button("Delete",role:.destructive) { if let deleting { remove(deleting) }; deleting = nil }
             Button("Cancel",role:.cancel) { deleting = nil }
         }
-        .alert("Error",isPresented:Binding(get:{ error != nil || playback.error != nil },set:{ if !$0 { error = nil; playback.error = nil } })) {
-            Button("OK") { error = nil; playback.error = nil }
-        } message: { Text(error ?? playback.error ?? "") }
+        .alert("Error",isPresented:Binding(get:{ error != nil },set:{ if !$0 { error = nil } })) {
+            Button("OK") { error = nil }
+        } message: { Text(error ?? "") }
         #if os(iOS)
         .navigationBarBackButtonHidden(audioActive || busy || (failedClip != nil && !staged))
         .interactiveDismissDisabled(audioActive || busy || (failedClip != nil && !staged))
@@ -138,7 +132,7 @@ struct ProjectVoiceNotesView: View {
         }
         .onDisappear {
             visible = false
-            playback.stop()
+            NotePlayback.stopActive()
             #if os(iOS)
             recorder.stop(partial:true); recorder.onClip = nil
             #endif
@@ -151,7 +145,7 @@ struct ProjectVoiceNotesView: View {
         #if os(iOS)
         recorder.stop(cancel:true,reason:"Recording discarded"); failedClip = nil
         #endif
-        playback.stop()
+        NotePlayback.stopActive()
         if let onClose { onClose() } else { dismiss() }
     }
     private var audioActive: Bool {
@@ -177,24 +171,6 @@ struct ProjectVoiceNotesView: View {
             let recoveryRoot = try VoiceNoteRecovery.root()
             recoveryCount = try await Task.detached { try ARNoteStore.index(root:recoveryRoot,projectID:projectID).notes.count }.value
         } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
-    }
-    private func play(_ note: ARNote) {
-        if playingID == note.id,playback.duration > 0 { playback.toggle(); return }
-        let root = workspace.notesRoot; busy = true
-        Task { @MainActor in
-            defer { busy = false }
-            do {
-                let data = try await Task.detached { try ARNoteStore.audio(for:note,root:root) }.value
-                guard visible,root == workspace.notesRoot else { return }
-                playback.load(data); playingID = note.id; playback.toggle()
-                Task {
-                    if let peaks = try? await AudioWaveformCache.shared.peaks(for:data),visible,playingID == note.id {
-                        if waveforms.count >= 32,let old = waveforms.keys.first(where:{ $0 != note.id }) { waveforms.removeValue(forKey:old) }
-                        waveforms[note.id] = peaks
-                    }
-                }
-            } catch { self.error = error.localizedDescription }
-        }
     }
     private func exportNotes() {
         let root = workspace.notesRoot,selected = references,audio = includeAudio
@@ -231,7 +207,7 @@ struct ProjectVoiceNotesView: View {
             await reload()
         } catch { await reload(); throw error }
     }
-    private func remove(_ note: ARNote) { playback.stop(); mutate { $0.notes.removeAll { $0.id == note.id } } }
+    private func remove(_ note: ARNote) { NotePlayback.stopActive(); mutate { $0.notes.removeAll { $0.id == note.id } } }
     private func mutate(_ edit: @escaping (inout ARNoteIndex) throws -> Void) {
         let root = workspace.notesRoot; busy = true
         Task { @MainActor in
@@ -243,7 +219,7 @@ struct ProjectVoiceNotesView: View {
     #if os(iOS)
     private func startRecording() {
         guard let reference = references.first(where:{ $0.id == referenceID }) else { return }
-        playback.stop(); clipReference = reference; clipRoot = workspace.notesRoot
+        NotePlayback.stopActive(); clipReference = reference; clipRoot = workspace.notesRoot
         pendingID = nil; staged = false
         recorder.onClip = { clip in saveClip(clip) }
         Task { guard visible else { return }; await recorder.start() }

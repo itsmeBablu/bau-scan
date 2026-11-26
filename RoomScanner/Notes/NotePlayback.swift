@@ -3,6 +3,10 @@ import Observation
 
 @MainActor @Observable final class NotePlayback {
     private static weak var active: NotePlayback?
+    private static var latestRequest = UUID()
+    static func reserveRequest() -> UUID { latestRequest = UUID(); return latestRequest }
+    static func isCurrentRequest(_ token:UUID) -> Bool { latestRequest == token }
+    static func stopActive() { _ = reserveRequest(); active?.stop() }
     private(set) var playing = false
     private(set) var time = 0.0
     private(set) var duration = 0.0
@@ -22,6 +26,7 @@ import Observation
     }
     func toggle() {
         guard let player else { return }
+        _ = Self.reserveRequest()
         if playing { player.pause(); playing = false; releaseAudio(); return }
         do {
             if let other = Self.active,other !== self { other.stop() }

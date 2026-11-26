@@ -72,7 +72,7 @@ struct ProjectPhotosView: View {
                 if let warning { Text(warning).font(.caption).foregroundStyle(.secondary) }
             }.padding(DS.Spacing.l)
         }.navigationTitle("Photos").searchable(text:$query,prompt:"Search photos")
-            .task(id:projectID.uuidString+workspace.notesRoot.path+String(workspace.project(projectID)?.modifiedAt.timeIntervalSince1970 ?? 0)) {
+            .task(id:projectID.uuidString+workspace.notesRoot.path+String(workspace.catalogueRevision)) {
                 loading = true
                 let entries = entries,summaries = workspace.scanSummaries
                 let result = await Task.detached(priority:.utility) { () -> ([ProjectPhotoAsset],[String]) in
