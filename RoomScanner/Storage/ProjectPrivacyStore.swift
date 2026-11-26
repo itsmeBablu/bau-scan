@@ -59,6 +59,7 @@ enum ProjectPrivacyStore {
         updated.projects.removeAll { ids.contains($0.id) }
         updated.pins?.removeAll { ids.contains($0.projectID) }; updated.distanceChecks?.removeAll { ids.contains($0.projectID) }
         updated.displayNames = updated.displayNames?.filter { key,_ in !refs.contains(where:{ $0.id == key }) }
+        updated.scanOrganization = updated.scanOrganization?.filter { key,_ in !refs.contains(where:{ $0.id == key }) }
         current = updated
         }
         // The index is committed. A failed purge leaves a recoverable trash item;

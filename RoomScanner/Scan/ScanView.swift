@@ -27,12 +27,12 @@ struct ScanView: View {
     /// Created item (room or house) passed to caller to display.
     var onSaved: (LibraryItem) -> Void
 
-    init(mode: ScanMode = .room, voiceProjectID: UUID? = nil, workspace: RenovationWorkspace? = nil, onSaved: @escaping (LibraryItem) -> Void = { _ in }) {
+    init(mode: ScanMode = .room, voiceProjectID: UUID? = nil, workspace: RenovationWorkspace? = nil, preparedPersistence: CapturePersistence? = nil, onSaved: @escaping (LibraryItem) -> Void = { _ in }) {
         self.workspace = workspace
         self.voiceProjectID = voiceProjectID
         self.mode = mode
         self.onSaved = onSaved
-        let disk = CapturePersistence(kind:mode == .house ? .house : .room,projectID:voiceProjectID)
+        let disk = preparedPersistence ?? CapturePersistence(kind:mode == .house ? .house : .room,projectID:voiceProjectID)
         _persistence = State(initialValue:disk)
         let voiceEnabled = voiceProjectID.flatMap { workspace?.project($0)?.details?.preferences?.voice } != false
         _cameraResource = State(initialValue:LazyCaptureResource {
@@ -223,6 +223,7 @@ struct ScanView: View {
                 let output = store.packageURL(for:package.record),finished = package
                 try await Task.detached(priority:.userInitiated) { try finished.write(to:output) }.value
                 let record = package.record; store.reload()
+                try await persistence.registerOrganization(for:.init(kind:.room,itemID:record.id,library:store.isCloud ? "icloud" : "local"),catalogueRoot:workspace?.notesRoot ?? StorageLocation.local().documentsURL)
                 failedSave = nil; await persistence.complete()
                 onSaved(.room(record))
                 dismiss()
@@ -249,6 +250,7 @@ struct ScanView: View {
                 let output = store.packageURL(for:package.record),finished = package
                 try await Task.detached(priority:.userInitiated) { try finished.write(to:output) }.value
                 let record = package.record; store.reload()
+                try await persistence.registerOrganization(for:.init(kind:.house,itemID:record.id,library:store.isCloud ? "icloud" : "local"),catalogueRoot:workspace?.notesRoot ?? StorageLocation.local().documentsURL)
                 failedSave = nil; await persistence.complete()
                 onSaved(.house(record))
                 dismiss()

@@ -7,7 +7,8 @@ final class ScanSessionIntegrationTests:XCTestCase {
         let root = root(),documents = self.root()
         defer { try? FileManager.default.removeItem(at:root); try? FileManager.default.removeItem(at:documents) }
         let disk = ScanSessionStore(root:root),project = UUID()
-        let session = try await disk.create(kind:.house,projectID:project)
+        let organization = ScanOrganization(level:-1,buildingName:"A",zoneName:"Kitchen",number:1,kind:.house)
+        let session = try await disk.create(kind:.house,projectID:project,organization:organization)
         let reference = ProjectReference(kind:.house,itemID:session.id,library:"local")
         var note = ARNote(projectID:project,reference:reference,number:1,level:0,roomID:nil,position:.init(x:1,y:2,z:3),planPosition:nil,language:"en")
         note.audioFileName = note.stem+".m4a"; note.audioDuration = 1
@@ -47,6 +48,7 @@ final class ScanSessionIntegrationTests:XCTestCase {
         XCTAssertEqual(first,second); XCTAssertEqual(try Data(contentsOf:target.appendingPathComponent("house.json")),original)
         let index = try ProjectIndexStore.read(root:documents)
         XCTAssertEqual(index.projects.first(where:{ $0.id == project })?.references,[first])
+        XCTAssertEqual(index.scanOrganization?[first.id],organization)
         let state = try await disk.read(session.id); XCTAssertEqual(state.state,.completed)
     }
     func testFailedPromotionKeepsDraftAndExistingLibraryBytes() async throws {

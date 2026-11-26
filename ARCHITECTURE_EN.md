@@ -293,3 +293,29 @@ rendering, contrast resolution, Apple build or Dynamic Type check occurred. No
 production line changes, removed component or dependency in S0. S1–S4 are pending;
 no app-wide token migration or visual quality claim is made. Physical checks are
 listed in `docs/DEVICE_TEST_CHECKLIST.md` as device validation pending.
+
+## UI redesign: scan organization (2026-11-26)
+
+`ScanOrganization` is optional Foundation-only catalogue metadata, keyed by the
+unchanged `ProjectReference.id` in `ProjectIndex.scanOrganization`. It contains a
+numeric or named level, building, zone, number, kind and optional detected-story
+to building-level mapping. Missing metadata means Unassigned, never level zero.
+Labels are derived; UUID package paths, raw story indices and geometry are not
+modified. Existing custom display names remain until organization is explicitly
+saved. Studio references inherit source-scan organization unless independently
+labelled. Project report inputs receive resolved catalogue names. Existing export
+filename sanitization remains in ExportService/ArchivePath; no second writer.
+
+The shared native setup Form prepares a CapturePersistence draft before either
+scanner is presented. The existing ScanSession manifest gains only an optional
+validated organization field; old manifests decode unchanged. Labels are copied
+to the catalogue before a newly saved scan is marked completed, and during the
+existing recovery catalogue transaction. No scan package format, AR lifecycle or
+checkpoint policy changes. The independent scanners still own their sessions.
+
+The fixed picker offers levels -3 through 20 plus a named Other level; validated
+imported numeric levels outside the picker are retained. Collision checks are
+scoped by project/building/level/zone/kind; Keep both never overwrites an item.
+Metadata editing includes optimistic conflict rejection and numeric story mapping.
+The redesigned dashboard, grouped libraries, artifact identity and project-scoped
+preference cleanup remain subsequent UI phases; this is not the completed redesign.

@@ -65,7 +65,7 @@ struct TechnicalRoomScanView: View {
     private let previousManifest: TechnicalRoomManifest?
     private let previousRecognition: TechnicalMEPReview
 
-    init(restoring package: TechnicalRoomPackage? = nil, voiceProjectID: UUID? = nil, workspace: RenovationWorkspace? = nil, onSaved: @escaping (UUID) -> Void) {
+    init(restoring package: TechnicalRoomPackage? = nil, voiceProjectID: UUID? = nil, workspace: RenovationWorkspace? = nil, preparedPersistence: CapturePersistence? = nil, onSaved: @escaping (UUID) -> Void) {
         let scanner = TechnicalRoomScanCoordinator()
         if let package {
             do { try scanner.restoreSurvey(package) }
@@ -80,7 +80,7 @@ struct TechnicalRoomScanView: View {
                 _threshold = State(initialValue: String(checkpoint.thresholdMm))
             }
         }
-        let draftID = package == nil ? scanner.captureID : UUID()
+        let draftID = preparedPersistence?.id ?? (package == nil ? scanner.captureID : UUID())
         if let package {
             var document = package.document; document.room.id = draftID
             _history = State(initialValue:TechnicalAnnotationHistory(document:document))
@@ -88,7 +88,7 @@ struct TechnicalRoomScanView: View {
             var room = TechnicalRoom.capturedShell(id:scanner.captureID,notes:""); room.id = draftID
             _history = State(initialValue:TechnicalAnnotationHistory(room:room))
         }
-        let disk = CapturePersistence(id:draftID,kind:.technical,projectID:voiceProjectID)
+        let disk = preparedPersistence ?? CapturePersistence(id:draftID,kind:.technical,projectID:voiceProjectID)
         scanner.persistence = disk
         _persistence = State(initialValue:disk)
         _scanner = State(initialValue: scanner)
@@ -606,6 +606,7 @@ struct TechnicalRoomScanView: View {
                     finalPackage.journal = compacted
                 }
                 try await TechnicalRoomLibraryStore().save(finalPackage)
+                try await persistence.registerOrganization(for:.init(kind:.technicalRoom,itemID:package.manifest.id,library:"local"),catalogueRoot:workspace?.notesRoot ?? StorageLocation.local().documentsURL)
                 await persistence.complete()
                 saving = false; onSaved(package.manifest.id); dismiss()
             } catch { saving = false; message = "Capture retained in memory; retry Save. \(error.localizedDescription)" }

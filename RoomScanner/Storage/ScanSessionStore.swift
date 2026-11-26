@@ -1,5 +1,11 @@
 import Foundation
 
+extension ScanSession.Kind {
+    var referenceKind: ProjectReference.Kind {
+        switch self { case .house: .house; case .room: .room; case .technical: .technicalRoom }
+    }
+}
+
 struct ScanSession: Codable, Equatable, Identifiable {
     enum Kind: String, Codable { case house, room, technical }
     enum State: String, Codable { case scanning, paused, finalizing, completed, failed }
@@ -10,6 +16,7 @@ struct ScanSession: Codable, Equatable, Identifiable {
     var state = State.scanning
     let created: Date
     var updated: Date
+    var organization: ScanOrganization? = nil
 }
 
 /// Serialized disk transactions. Index entries are immutable commit records;
@@ -65,17 +72,20 @@ actor ScanSessionStore {
     private func manifest(_ session:ScanSession) throws {
         try atomic(JSONEncoder().encode(session),to:directory(session.id).appendingPathComponent("session.json"))
     }
-    func create(kind:ScanSession.Kind,projectID:UUID?,id:UUID = UUID()) throws -> ScanSession {
+    func create(kind:ScanSession.Kind,projectID:UUID?,id:UUID = UUID(),organization:ScanOrganization? = nil) throws -> ScanSession {
+        try organization?.validate()
+        guard organization == nil || organization?.kind == kind.referenceKind else { throw CocoaError(.fileReadCorruptFile) }
         let folder = directory(id); try check(folder)
         if FileManager.default.fileExists(atPath:folder.path) {
             let existing = try read(id)
-            guard existing.kind == kind,existing.projectID == projectID else { throw CocoaError(.fileWriteFileExists) }
+            guard existing.kind == kind,existing.projectID == projectID,
+                  organization == nil || existing.organization == organization else { throw CocoaError(.fileWriteFileExists) }
             return existing
         }
         let staging = try PackageReplacement.staging(for:folder)
         defer { try? FileManager.default.removeItem(at:staging) }
         for name in ["segments","media","index"] { try FileManager.default.createDirectory(at:staging.appendingPathComponent(name),withIntermediateDirectories:true) }
-        let now = Date(),session = ScanSession(id:id,kind:kind,projectID:projectID,created:now,updated:now)
+        let now = Date(),session = ScanSession(id:id,kind:kind,projectID:projectID,created:now,updated:now,organization:organization)
         try JSONEncoder().encode(session).write(to:staging.appendingPathComponent("session.json"),options:.atomic)
         try PackageReplacement.commit(staging,to:folder)
         return session
@@ -87,6 +97,8 @@ actor ScanSessionStore {
         let data = try Data(contentsOf:target)
         guard data.count <= 16_384 else { throw CocoaError(.fileReadTooLarge) }
         let session = try JSONDecoder().decode(ScanSession.self,from:data)
+        try session.organization?.validate()
+        guard session.organization == nil || session.organization?.kind == session.kind.referenceKind else { throw CocoaError(.fileReadCorruptFile) }
         guard session.schemaVersion == 1,session.id == id,session.updated >= session.created else { throw CocoaError(.fileReadCorruptFile) }
         return session
     }

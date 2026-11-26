@@ -1,0 +1,98 @@
+#if os(iOS)
+import SwiftUI
+
+/// Prepared on disk before presenting either scanner. Does not own a camera/session.
+struct PreparedProjectCapture: Identifiable {
+    let mode: ScanMode
+    let projectID: UUID?
+    let persistence: CapturePersistence
+    var id: UUID { persistence.id }
+}
+
+struct ScanSetupSheet: View {
+    let workspace: RenovationWorkspace
+    let onPrepared: (PreparedProjectCapture) -> Void
+    @State private var projectID: UUID?
+    @State private var mode: ScanMode
+    @State private var organization: ScanOrganization
+    @State private var preparing = false
+    @State private var confirmingCollision = false
+    @State private var message: String?
+    @Environment(\.dismiss) private var dismiss
+
+    init(workspace: RenovationWorkspace, projectID: UUID?, mode: ScanMode, onPrepared: @escaping (PreparedProjectCapture) -> Void) {
+        self.workspace = workspace; self.onPrepared = onPrepared
+        _projectID = State(initialValue: projectID.flatMap { workspace.project($0)?.isUnsorted == true ? nil : $0 })
+        _mode = State(initialValue: mode)
+        _organization = State(initialValue: .init(kind: mode == .technicalRoom ? .technicalRoom : mode == .house ? .house : .room))
+    }
+    private var collisions: [ProjectReference] {
+        workspace.index.numberCollisions(for: organization, projectID: projectID ?? ProjectIndex.unsortedID)
+    }
+    private var nextNumber: Int? {
+        workspace.index.suggestedNumber(for: organization, projectID: projectID ?? ProjectIndex.unsortedID)
+    }
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Save to project") {
+                    Picker("Project", selection: $projectID) {
+                        Text("Unsorted").tag(UUID?.none)
+                        ForEach(workspace.index.projects.filter { !$0.isUnsorted }) { project in
+                            Text(project.name).tag(Optional(project.id))
+                        }
+                    }
+                    Picker("Scan", selection: $mode) {
+                        Text("House").tag(ScanMode.house)
+                        Text("Technik").tag(ScanMode.technicalRoom)
+                    }
+                }
+                ScanOrganizationFields(value: $organization)
+                if let nextNumber { Section { Button("Suggest next number") { organization.number = nextNumber } } }
+                Section("Before you start") {
+                    Text("Use good light. Clear access to walls and installations. Move slowly and avoid reflective surfaces.")
+                    Text("Device validation pending. Verify critical dimensions independently.").font(.caption)
+                    if !ScanCoordinator.isSupported { Text("LiDAR capture is unavailable on this device. You can still open saved projects and designs.") }
+                }
+                if preparing { ProgressView("Preparing scan…") }
+            }
+            .disabled(preparing)
+            .navigationTitle("New scan")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(preparing) }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Start") { if collisions.isEmpty { start() } else { confirmingCollision = true } }
+                        .disabled(preparing || !ScanCoordinator.isSupported || (try? organization.validate()) == nil)
+                }
+            }
+            .onChange(of: mode) { _, value in organization.kind = value == .technicalRoom ? .technicalRoom : value == .house ? .house : .room }
+            .confirmationDialog("This number is already used here", isPresented: $confirmingCollision, titleVisibility: .visible) {
+                if let nextNumber { Button("Use next available number") { organization.number = nextNumber; start() } }
+                Button("Keep both") { start() }
+                Button("Cancel", role: .cancel) {}
+            } message: { Text("Existing scans are kept. Choose another number or keep both labels.") }
+            .alert("New scan", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
+                Button("OK") { message = nil }
+            } message: { Text(message ?? "") }
+        }
+        .interactiveDismissDisabled(preparing)
+    }
+    private func start() {
+        guard !preparing else { return }
+        preparing = true
+        let mode = mode, projectID = projectID, organization = organization
+        Task {
+            defer { preparing = false }
+            do {
+                try organization.validate()
+                if let projectID, workspace.project(projectID) == nil { throw CocoaError(.fileNoSuchFile) }
+                let disk = CapturePersistence(kind: mode == .technicalRoom ? .technical : mode == .house ? .house : .room,
+                                              projectID: projectID, organization: organization)
+                try await disk.prepare()
+                onPrepared(.init(mode: mode, projectID: projectID, persistence: disk))
+                dismiss()
+            } catch { message = error.localizedDescription }
+        }
+    }
+}
+#endif

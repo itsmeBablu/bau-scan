@@ -1,6 +1,27 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Edit organization": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Edit organization"}},"de":{"stringUnit":{"state":"translated","value":"Organisation bearbeiten"}}}},
+    "Scan organization changed elsewhere. Reopen this editor before saving.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Scan organization changed elsewhere. Reopen this editor before saving."}},"de":{"stringUnit":{"state":"translated","value":"Die Scan-Organisation wurde an anderer Stelle geändert. Öffne diesen Editor vor dem Speichern erneut."}}}},
+    "Location": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Location"}},"de":{"stringUnit":{"state":"translated","value":"Standort"}}}},
+    "Other level": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Other level"}},"de":{"stringUnit":{"state":"translated","value":"Anderes Geschoss"}}}},
+    "Level name": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Level name"}},"de":{"stringUnit":{"state":"translated","value":"Geschossname"}}}},
+    "Building (optional)": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Building (optional)"}},"de":{"stringUnit":{"state":"translated","value":"Gebäude (optional)"}}}},
+    "Room or zone (optional)": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Room or zone (optional)"}},"de":{"stringUnit":{"state":"translated","value":"Raum oder Bereich (optional)"}}}},
+    "Number (optional)": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Number (optional)"}},"de":{"stringUnit":{"state":"translated","value":"Nummer (optional)"}}}},
+    "Name preview": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Name preview"}},"de":{"stringUnit":{"state":"translated","value":"Namensvorschau"}}}},
+    "Suggest next number": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Suggest next number"}},"de":{"stringUnit":{"state":"translated","value":"Nächste Nummer vorschlagen"}}}},
+    "Only project labels change. Scan geometry and detected stories stay unchanged.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Only project labels change. Scan geometry and detected stories stay unchanged."}},"de":{"stringUnit":{"state":"translated","value":"Nur Projektbezeichnungen ändern sich. Scan-Geometrie und erkannte Geschosse bleiben unverändert."}}}},
+    "Map detected stories": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Map detected stories"}},"de":{"stringUnit":{"state":"translated","value":"Erkannte Geschosse zuordnen"}}}},
+    "Scan organization": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Scan organization"}},"de":{"stringUnit":{"state":"translated","value":"Scan-Organisation"}}}},
+    "This number is already used here": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"This number is already used here"}},"de":{"stringUnit":{"state":"translated","value":"Diese Nummer wird hier bereits verwendet"}}}},
+    "Use next available number": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Use next available number"}},"de":{"stringUnit":{"state":"translated","value":"Nächste freie Nummer verwenden"}}}},
+    "Keep both": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Keep both"}},"de":{"stringUnit":{"state":"translated","value":"Beide behalten"}}}},
+    "Existing scans are kept. Choose another number or keep both labels.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Existing scans are kept. Choose another number or keep both labels."}},"de":{"stringUnit":{"state":"translated","value":"Vorhandene Scans bleiben erhalten. Wähle eine andere Nummer oder behalte beide Bezeichnungen."}}}},
+    "Preparing scan…": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Preparing scan…"}},"de":{"stringUnit":{"state":"translated","value":"Scan wird vorbereitet …"}}}},
+    "Start": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Start"}},"de":{"stringUnit":{"state":"translated","value":"Starten"}}}},
+    "story.lower %lld": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Basement %lld"}},"de":{"stringUnit":{"state":"translated","value":"UG %lld"}}}},
+    "Unassigned level": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Unassigned level"}},"de":{"stringUnit":{"state":"translated","value":"Nicht zugewiesenes Geschoss"}}}},
     "Dark mode": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Dark mode"}},"de":{"stringUnit":{"state":"translated","value":"Dunkler Modus"}}}},
     "Accessibility text size": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Accessibility text size"}},"de":{"stringUnit":{"state":"translated","value":"Textgröße für Bedienungshilfen"}}}},
     "Semantic colors": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Semantic colors"}},"de":{"stringUnit":{"state":"translated","value":"Semantische Farben"}}}},
@@ -3650,7 +3671,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Erdgeschoss"
+            "value": "EG"
           }
         }
       }
@@ -3667,7 +3688,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Geschoss %lld"
+            "value": "%lld. OG"
           }
         }
       }

@@ -6,20 +6,36 @@ import Observation
     let id: UUID
     let kind: ScanSession.Kind
     let projectID: UUID?
+    let organization: ScanOrganization?
     let store: ScanSessionStore?
     private(set) var savedAt: Date?
     private(set) var failure: String?
     private(set) var snapshotBytes = 0
     private(set) var snapshotMilliseconds = 0.0
     private(set) var completedRooms = 0
-    init(id:UUID = UUID(),kind:ScanSession.Kind,projectID:UUID?,root:URL? = nil) {
+    init(id:UUID = UUID(),kind:ScanSession.Kind,projectID:UUID?,root:URL? = nil,organization:ScanOrganization? = nil) {
         self.id = id; self.kind = kind; self.projectID = projectID
+        self.organization = organization
         do { if let root { store = ScanSessionStore(root:root) } else { store = try ScanSessionStore.local() } }
         catch { store = nil; failure = error.localizedDescription }
     }
     func prepare() async throws {
         guard let store else { throw CocoaError(.fileWriteUnknown) }
-        _ = try await store.create(kind:kind,projectID:projectID,id:id)
+        _ = try await store.create(kind:kind,projectID:projectID,id:id,organization:organization)
+    }
+    /// Commit catalogue metadata before marking a newly saved package complete.
+    /// The catalogue owns labels; no native package format is changed.
+    func registerOrganization(for reference:ProjectReference,catalogueRoot:URL) async throws {
+        guard let organization else { return }
+        let projectID = projectID
+        try await Task.detached(priority:.utility) {
+            _ = try ProjectIndexStore.update(root:catalogueRoot) { index in
+                if let projectID, index.projects.contains(where:{ $0.id == projectID }) {
+                    try index.assign(reference,to:projectID)
+                } else { index.reconcile([reference]) }
+                if index.scanOrganization?[reference.id] == nil { try index.setOrganization(organization,for:reference) }
+            }
+        }.value
     }
     func write<T:Encodable>(_ value:T,key:String,latest:Bool = true,media:Bool = false) async throws {
         let start = Date()

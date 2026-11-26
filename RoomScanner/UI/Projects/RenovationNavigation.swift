@@ -10,8 +10,9 @@ struct RenovationNavigation: View {
     @State private var workspace = RenovationWorkspace()
     @State private var settings = false
     @State private var scan = false
-    @State private var scanMode: ScanMode?
-    @State private var requestedScan: ScanMode?
+    @State private var requestedScan = ScanMode.house
+    @State private var pendingCapture: PreparedProjectCapture?
+    @State private var activeCapture: PreparedProjectCapture?
     @State private var creating = false
     @State private var projectName = ""
     @State private var projectQuery = ""
@@ -30,9 +31,12 @@ struct RenovationNavigation: View {
         .onChange(of:store.location.documentsURL) { _,_ in refresh() }
         .sheet(isPresented:$settings,onDismiss:refresh) { SettingsView(includesProfile:true).environment(store) }
         .sheet(isPresented:$guide) { onboarding }
-        .sheet(isPresented:$scan,onDismiss:{ if let requestedScan { self.requestedScan = nil; scanMode = requestedScan } }) { scanChoices.presentationDetents([.medium,.large]) }
-        .fullScreenCover(item:$scanMode,onDismiss:refresh) { mode in
-            ProjectCaptureView(mode:mode,projectID:activeCaptureProject,store:store,workspace:workspace,onSaved:attach)
+        .sheet(isPresented:$scan,onDismiss:{ activeCapture = pendingCapture; pendingCapture = nil }) {
+            ScanSetupSheet(workspace:workspace,projectID:activeCaptureProject,mode:requestedScan) { pendingCapture = $0 }
+                .presentationDetents([.medium,.large])
+        }
+        .fullScreenCover(item:$activeCapture,onDismiss:refresh) { capture in
+            ProjectCaptureView(mode:capture.mode,projectID:capture.projectID,store:store,workspace:workspace,preparedPersistence:capture.persistence,onSaved:attach)
         }
         .alert("New project",isPresented:$creating) {
             TextField("Project name",text:$projectName)
@@ -46,7 +50,7 @@ struct RenovationNavigation: View {
     }
     private func refresh() { Task { await workspace.reload(location:store.location) } }
     private func attach(_ kind: ProjectReference.Kind,id: UUID,library: String) {
-        let projectID = activeCaptureProject
+        let projectID = activeCapture?.projectID
         Task {
             await workspace.reload(location:store.location)
             if let projectID { workspace.assign(.init(kind:kind,itemID:id,library:library),to:projectID) }
@@ -79,10 +83,10 @@ struct RenovationNavigation: View {
                     guard store.isCloud else { workspace.error = AppLanguage.text("Connect iCloud in App settings before scanning into it."); return }
                 }
             }
-            scanMode = mode
+            requestedScan = mode; scan = true
         }
     }
-    private func beginScan() { activeCaptureProject = workspace.currentProjectID; scan = true }
+    private func beginScan() { activeCaptureProject = workspace.currentProjectID; requestedScan = .house; scan = true }
     private var projects: some View {
         ScrollView {
             VStack(spacing:16) { UnfinishedScansView()
@@ -98,30 +102,6 @@ struct RenovationNavigation: View {
                 Menu("Sort",systemImage:"arrow.up.arrow.down") { Toggle("Newest first",isOn:$sortNewest) }
             } }
             .refreshable { await workspace.reload(location:store.location) }
-    }
-    private var scanChoices: some View {
-        NavigationStack {
-            List {
-                Section("Save to project") {
-                    Picker("Project",selection: Binding(get: { workspace.currentProject?.isUnsorted == true ? nil : workspace.currentProjectID },set: { workspace.currentProjectID = $0 })) {
-                        Text("Unsorted").tag(UUID?.none)
-                        ForEach(workspace.index.projects.filter { !$0.isUnsorted }) { project in Text(project.name).tag(Optional(project.id)) }
-                    }.pickerStyle(.menu)
-                }
-                Section("Scan") {
-                    scanChoice(.house,"Scan a house","house")
-                    scanChoice(.technicalRoom,"Utility room","wrench.and.screwdriver")
-                }
-                Section("Before you start") {
-                    Text("Use good light. Clear access to walls and installations. Move slowly and avoid reflective surfaces.")
-                    Text("Device validation pending. Verify critical dimensions independently.").font(.caption)
-                    if !ScanCoordinator.isSupported { Text("LiDAR capture is unavailable on this device. You can still open saved projects and designs.") }
-                }
-            }.navigationTitle("New scan").toolbar { ToolbarItem(placement:.confirmationAction) { Button("Done") { scan = false } } }
-        }
-    }
-    private func scanChoice(_ mode: ScanMode,_ name: LocalizedStringKey,_ icon: String) -> some View {
-        Button { activeCaptureProject = workspace.currentProjectID; requestedScan = mode; scan = false } label: { Label(name,systemImage:icon) }.disabled(!ScanCoordinator.isSupported)
     }
     private var onboarding: some View {
         NavigationStack {
@@ -144,13 +124,14 @@ struct ProjectCaptureView: View {
     let projectID: UUID?
     let store: RoomStore
     let workspace: RenovationWorkspace
+    var preparedPersistence: CapturePersistence? = nil
     let onSaved: (ProjectReference.Kind,UUID,String) -> Void
     var body: some View {
         Group {
             if mode == .technicalRoom {
-                TechnicalRoomScanView(voiceProjectID:projectID,workspace:workspace,onSaved:{ onSaved(.technicalRoom,$0,"local") })
+                TechnicalRoomScanView(voiceProjectID:projectID,workspace:workspace,preparedPersistence:preparedPersistence,onSaved:{ onSaved(.technicalRoom,$0,"local") })
             } else {
-                ScanView(mode:mode,voiceProjectID:projectID,workspace:workspace,onSaved:{ onSaved(mode == .house ? .house : .room,$0.id,store.isCloud ? "icloud" : "local") })
+                ScanView(mode:mode,voiceProjectID:projectID,workspace:workspace,preparedPersistence:preparedPersistence,onSaved:{ onSaved(mode == .house ? .house : .room,$0.id,store.isCloud ? "icloud" : "local") })
             }
         }
         .environment(store)
@@ -216,6 +197,7 @@ struct ProjectEntryRow: View {
     var card = false
     @Environment(RenovationWorkspace.self) private var workspace
     @State private var renaming = false
+    @State private var organizing = false
     @State private var name = ""
     var body: some View {
         NavigationLink(value:openAsDesign ? designReference : entry.reference) {
@@ -235,6 +217,7 @@ struct ProjectEntryRow: View {
             }
         }
         .contextMenu {
+            if !entry.isDesign { Button("Edit organization",systemImage:"building.2") { organizing = true } }
             Button("Rename") { name = workspace.title(entry); renaming = true }
             Button("Duplicate") { Task { await workspace.duplicate(entry) } }
             NavigationLink("Open in Studio",value:designReference)
@@ -246,6 +229,9 @@ struct ProjectEntryRow: View {
             Button("Save") { workspace.rename(entry,to:name) }
             Button("Cancel",role:.cancel) {}
         } message: { Text("This name is stored in the project index. The original scan stays unchanged.") }
+        .sheet(isPresented:$organizing) {
+            ScanOrganizationEditor(entry:entry,organization:workspace.index.scanOrganization?[entry.id]).environment(workspace)
+        }
     }
     private var coverURL:URL {
         if !entry.isDesign { return entry.url.appendingPathComponent("thumbnail.png") }

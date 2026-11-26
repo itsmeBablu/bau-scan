@@ -29,8 +29,15 @@ struct StoryDetector {
 
 /// Story names ('Ground floor', 'Floor 1'...), localized keys.
 enum StoryNaming {
-    static func localizationKey(for index: Int) -> String { index == 0 ? "story.ground" : "story.upper %lld" }
-    static func localizedName(for index: Int) -> String {
-        index == 0 ? AppLanguage.text("story.ground") : String(localized:"story.upper \(index)",locale:AppLanguage.locale)
+    static func localizationKey(for index: Int) -> String {
+        index == 0 ? "story.ground" : index < 0 ? "story.lower %lld" : "story.upper %lld"
+    }
+    static func localizedName(for index: Int, locale: Locale = AppLanguage.locale) -> String {
+        if index == 0 { return String(localized: "story.ground", locale: locale) }
+        if index < 0 {
+            let basement = index == Int.min ? Int.max : -index
+            return String(localized: "story.lower \(basement)", locale: locale)
+        }
+        return String(localized: "story.upper \(index)", locale: locale)
     }
 }

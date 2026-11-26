@@ -23,6 +23,9 @@ actor ScanSessionRecovery {
             _ = try ProjectIndexStore.update(root:documents) { index in
                 if !index.projects.contains(where:{ $0.id == owner }) { index.projects.append(.init(id:owner,name:owner == ProjectIndex.unsortedID ? "Unsorted" : AppLanguage.text("Recovered project"),isUnsorted:owner == ProjectIndex.unsortedID)) }
                 try index.assign(reference,to:owner)
+                if let organization = session.organization, index.scanOrganization?[reference.id] == nil {
+                    try index.setOrganization(organization,for:reference)
+                }
             }
             for entry in entries where entry.key.hasPrefix("voice-") || entry.key.hasPrefix("note-") {
                 let value = try JSONDecoder().decode(ScanVoiceMedia.self,from:await store.payload(session.id,entry:entry))

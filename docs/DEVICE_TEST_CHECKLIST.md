@@ -75,3 +75,16 @@ merge. It must be followed by independently checking a known point.
 - [ ] Check waveform, release-to-save and slide-left cancellation over live camera.
 - [ ] Check project cards on small iPhones/iPad, five tabs, editable parties/defaults,
   ZIP opt-in privacy and the top-right Technik visibility menus.
+
+### UI redesign — scan organization (device validation pending)
+
+- Open a legacy project: scans show Unassigned until explicitly organized; no scan
+  file is renamed or moved. Change organization, reopen, and inspect Studio/report
+  names. Map a multi-storey house's detected stories without changing geometry.
+- Start House and Technik independently through setup; cancel setup without camera
+  access, then Start. Force quit after capture begins and recover the draft: project,
+  floor/building/zone/number and stable identity must survive. Check iCloud/local.
+- Duplicate a number in the same scope: verify alternative and Keep both preserve
+  both scan packages. Move a scan to another project; verify labels remain.
+- Test EN/DE, small iPhone, iPad, Mac organization editor, large text, dark mode,
+  VoiceOver and save errors. These checks have not been run on this Windows host.

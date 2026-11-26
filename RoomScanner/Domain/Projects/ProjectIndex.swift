@@ -28,6 +28,7 @@ struct ProjectIndex: Codable, Equatable {
     var schemaVersion = 1
     var projects: [RenovationProject] = []
     var displayNames: [String: String]? = nil
+    var scanOrganization: [String: ScanOrganization]? = nil
     var pins: [ProjectPin]? = nil
     var distanceChecks: [ProjectDistanceCheck]? = nil
     static let unsortedID = UUID(uuidString: "95B5DAB3-9B80-49D7-945B-C9B6B4B18791")!
@@ -79,6 +80,13 @@ struct ProjectIndex: Codable, Equatable {
         }
         guard (pins ?? []).count <= 100_000,Set((pins ?? []).map(\.id)).count == (pins ?? []).count else { throw CocoaError(.fileReadCorruptFile) }
         let refs = projects.flatMap(\.references)
+        let referencesByID = Dictionary(grouping: refs, by: \.id)
+        guard (scanOrganization?.count ?? 0) <= 100_000 else { throw CocoaError(.fileReadCorruptFile) }
+        for (key, value) in scanOrganization ?? [:] {
+            try value.validate()
+            guard key.count <= 150, let references = referencesByID[key], references.count == 1,
+                  references[0].kind == value.kind else { throw CocoaError(.fileReadCorruptFile) }
+        }
         guard schemaVersion == 1, projects.count <= 10_000,
               Set(projects.map(\.id)).count == projects.count,
               projects.filter(\.isUnsorted).count <= 1,

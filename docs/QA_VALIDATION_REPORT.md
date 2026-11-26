@@ -144,3 +144,34 @@ tests/scripts/docs are excluded. Reused existing native controls; no new depende
 Existing service, JSON, source-route, localization and plist checks remain required.
 No CI execution or device appearance/interaction evidence exists. S2–S4 remain
 pending, with device validation pending in DEVICE_TEST_CHECKLIST.md.
+
+## UI organization implementation checkpoint — 2026-11-26
+
+Reused ProjectIndex, StoryNaming, ProjectIndexStore coordinated transactions,
+CapturePersistence, ScanSessionStore and recovery's existing catalogue update.
+Added Foundation ScanOrganization, shared native organization fields/editor and
+scan setup sheet. Removed the old scan-choice List/button helper; the setup now
+writes a durable draft before either camera view is constructed. Existing scan
+constructors keep their default path when no prepared draft is supplied.
+
+Production Swift: +422/-51 (net +371; excludes tests/catalog/docs). New files:
+Domain/Projects/ScanOrganization.swift, UI/Projects/ScanOrganizationEditor.swift,
+UI/Projects/ScanSetupSheet.swift. Existing catalogue, naming, capture presentation,
+metadata persistence/recovery and project privacy cleanup were adapted. Package
+serialization, AR coordinators, native geometry and checkpoint policy are unchanged.
+
+Seven shared Swift tests plus one iOS-only Swift test were added, covering legacy
+catalogue/draft decode, explicit EN/DE labels, numbering scopes and keep-both,
+validation bounds, story mapping, reference reassignment and durable metadata.
+The existing recovery integration test additionally checks recovered organization.
+All Swift tests are UNRUN here. Source localization, style and seven Node checks
+passed on the working tree; these do not compile Swift or validate navigation.
+Exact-commit local evidence is recorded separately after committing. XcodeGen and
+both Apple test schemes remain UNRUN because this host is Windows. Camera launch,
+tracking, recovery and appearance are device validation pending.
+
+Assumptions: fixed picker levels -3...20, named Other and legacy Unassigned;
+number scope compares trimmed case/diacritic-insensitive building/zone labels;
+existing custom names are retained until the user saves organization. Remaining
+work: project dashboard/navigation, grouped libraries/capture layout, media, artifact
+reuse/library, Studio/settings and Apple/device verification. No push/CI was run.

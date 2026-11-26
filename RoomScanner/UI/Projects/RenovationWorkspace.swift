@@ -3,7 +3,8 @@ import Observation
 
 @MainActor @Observable final class RenovationWorkspace {
     private(set) var index = ProjectIndex()
-    private(set) var entries: [ProjectLibraryEntry] = []
+    private var libraryEntries: [ProjectLibraryEntry] = []
+    var entries: [ProjectLibraryEntry] { libraryEntries.map(resolvedEntry) }
     var currentProjectID: UUID?
     var error: String?
     private(set) var loading = false
@@ -12,7 +13,37 @@ import Observation
     private var ready = false
     private var pendingReload: StorageLocation?
     var currentProject: RenovationProject? { index.projects.first { $0.id == currentProjectID } }
-    func title(_ entry: ProjectLibraryEntry) -> String { index.displayNames?[entry.id] ?? entry.title }
+    func title(_ entry: ProjectLibraryEntry) -> String {
+        index.displayNames?[entry.id] ?? organization(for:entry.reference)?.displayName(locale:AppLanguage.locale) ?? entry.title
+    }
+    func organization(for reference: ProjectReference) -> ScanOrganization? {
+        if let value = index.scanOrganization?[reference.id] { return value }
+        let sourceKind: ProjectReference.Kind
+        switch reference.kind {
+        case .designHouse: sourceKind = .house
+        case .designRoom: sourceKind = .room
+        case .designTechnical: sourceKind = .technicalRoom
+        default: return nil
+        }
+        return index.scanOrganization?[ProjectReference(kind:sourceKind,itemID:reference.itemID,library:reference.library).id]
+    }
+    private func resolvedEntry(_ entry: ProjectLibraryEntry) -> ProjectLibraryEntry {
+        .init(reference:entry.reference,title:title(entry),date:entry.date,area:entry.area,roomCount:entry.roomCount,root:entry.root,url:entry.url)
+    }
+    @discardableResult func organize(_ value:ScanOrganization, reference:ProjectReference, expected:ScanOrganization?) -> Bool {
+        guard ready else { error = AppLanguage.text("Wait for the project catalogue to finish loading."); return false }
+        do {
+            index = try ProjectIndexStore.update(root:catalogueRoot) { current in
+                guard current.scanOrganization?[reference.id] == expected else { throw OrganizationConflict() }
+                try current.setOrganization(value,for:reference)
+                current.displayNames?.removeValue(forKey:reference.id)
+            }
+            error = nil; return true
+        } catch { self.error = error.localizedDescription; return false }
+    }
+    private struct OrganizationConflict: LocalizedError {
+        var errorDescription:String? { AppLanguage.text("Scan organization changed elsewhere. Reopen this editor before saving.") }
+    }
     func rename(_ entry: ProjectLibraryEntry, to name: String) {
         let clean = name.trimmingCharacters(in:.whitespacesAndNewlines); guard !clean.isEmpty else { return }
         change { if $0.displayNames == nil { $0.displayNames = [:] }; $0.displayNames?[entry.id] = clean }
@@ -48,7 +79,7 @@ import Observation
     }
     func project(_ id: UUID) -> RenovationProject? { index.projects.first { $0.id == id } }
     func entry(_ reference: ProjectReference) -> ProjectLibraryEntry? {
-        entries.first { $0.reference == reference }
+        libraryEntries.first { $0.reference == reference }.map(resolvedEntry)
     }
     func destination(_ reference: ProjectReference) -> ProjectLibraryEntry? {
         if let saved = entries.first(where:{ $0.reference == reference }) { return saved }
@@ -120,7 +151,7 @@ import Observation
                 if let owner = updated.projects.first(where:{ !$0.isUnsorted && $0.references.contains(scan) }) { try updated.assign(design.reference,to:owner.id) }
             }
             }
-            index = updated; entries = result.1.filter { FileManager.default.fileExists(atPath:$0.url.path) }; ready = true
+            index = updated; libraryEntries = result.1.filter { FileManager.default.fileExists(atPath:$0.url.path) }; ready = true
             if currentProjectID == nil || !index.projects.contains(where:{ $0.id == currentProjectID }) { currentProjectID = index.projects.first(where:{ !$0.isUnsorted })?.id ?? index.projects.first?.id }
             error = result.2.isEmpty ? nil : AppLanguage.text("Some library items could not be read")+": " + result.2.joined(separator:", ")
         } catch { self.error = error.localizedDescription }
