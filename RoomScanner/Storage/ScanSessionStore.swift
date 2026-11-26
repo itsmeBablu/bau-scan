@@ -22,6 +22,12 @@ struct ScanSession: Codable, Equatable, Identifiable {
 /// Serialized disk transactions. Index entries are immutable commit records;
 /// payloads become visible only after their index record is committed.
 actor ScanSessionStore {
+    // Actor isolation covers one instance, but recovery/tests/forced roots can
+    // create several instances for the same local session. All transaction bodies
+    // below are synchronous (no await while locked). Recursive acquisition allows
+    // public reads inside a write without exposing a half-committed index.
+    // This process-local lock is not an iCloud/cross-process coordination claim.
+    private static let transactions = NSRecursiveLock()
     struct Entry: Codable, Equatable, Identifiable {
         let id: UUID
         let sequence: Int
@@ -73,6 +79,7 @@ actor ScanSessionStore {
         try atomic(JSONEncoder().encode(session),to:directory(session.id).appendingPathComponent("session.json"))
     }
     func create(kind:ScanSession.Kind,projectID:UUID?,id:UUID = UUID(),organization:ScanOrganization? = nil) throws -> ScanSession {
+        Self.transactions.lock(); defer { Self.transactions.unlock() }
         try organization?.validate()
         guard organization == nil || organization?.kind == kind.referenceKind else { throw CocoaError(.fileReadCorruptFile) }
         let folder = directory(id); try check(folder)
@@ -91,6 +98,7 @@ actor ScanSessionStore {
         return session
     }
     func read(_ id:UUID) throws -> ScanSession {
+        Self.transactions.lock(); defer { Self.transactions.unlock() }
         let target = directory(id).appendingPathComponent("session.json")
         try check(target); try PackageReplacement.recover(target)
         guard (try target.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? Int.max) <= 16_384 else { throw CocoaError(.fileReadTooLarge) }
@@ -103,12 +111,14 @@ actor ScanSessionStore {
         return session
     }
     func setState(_ id:UUID,_ state:ScanSession.State) throws {
+        Self.transactions.lock(); defer { Self.transactions.unlock() }
         var value = try read(id)
         guard value.state != .completed || state == .completed else { throw CocoaError(.fileWriteNoPermission) }
         if state == .completed { guard value.state == .finalizing || value.state == .completed else { throw CocoaError(.fileWriteNoPermission) } }
         value.state = state; value.updated = Date(); try manifest(value)
     }
     @discardableResult func write(_ id:UUID,key:String,data:Data,media:Bool = false,metadata:[String:String] = [:]) throws -> Entry {
+        Self.transactions.lock(); defer { Self.transactions.unlock() }
         var session = try read(id)
         guard session.state != .completed,!key.isEmpty,key.count <= 200,data.count <= 64*1_048_576,
               metadata.count <= 32,metadata.allSatisfy({ $0.key.count <= 100 && $0.value.count <= 2000 }) else { throw CocoaError(.fileWriteNoPermission) }
@@ -123,6 +133,7 @@ actor ScanSessionStore {
         return entry
     }
     func entries(_ id:UUID) throws -> [Entry] {
+        Self.transactions.lock(); defer { Self.transactions.unlock() }
         _ = try read(id)
         let folder = directory(id).appendingPathComponent("index"); try check(folder)
         let urls = try FileManager.default.contentsOfDirectory(at:folder,includingPropertiesForKeys:nil,options:.skipsHiddenFiles).filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
@@ -141,11 +152,13 @@ actor ScanSessionStore {
         }
     }
     func latest(_ id:UUID,key:String) throws -> Data? {
+        Self.transactions.lock(); defer { Self.transactions.unlock() }
         guard let entry = try entries(id).last(where:{ $0.key == key }) else { return nil }
         return try Data(contentsOf:directory(id).appendingPathComponent(entry.path))
     }
     struct LatestValue: Codable { let key:String; let data:Data; let metadata:[String:String] }
     func writeLatest(_ id:UUID,key:String,data:Data,metadata:[String:String] = [:]) throws {
+        Self.transactions.lock(); defer { Self.transactions.unlock() }
         var session = try read(id)
         guard session.state != .completed,key.count <= 100,!key.isEmpty,
               key.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }),
@@ -156,6 +169,7 @@ actor ScanSessionStore {
         session.updated = Date(); try manifest(session)
     }
     func latestValues(_ id:UUID,prefix:String) throws -> [LatestValue] {
+        Self.transactions.lock(); defer { Self.transactions.unlock() }
         _ = try read(id)
         let folder = directory(id).appendingPathComponent("latest")
         guard FileManager.default.fileExists(atPath:folder.path) else { return [] }
@@ -180,6 +194,7 @@ actor ScanSessionStore {
         }
     }
     func payload(_ id:UUID,entry:Entry) throws -> Data {
+        Self.transactions.lock(); defer { Self.transactions.unlock() }
         _ = try read(id)
         guard (1...100_000).contains(entry.sequence),entry.bytes >= 0,entry.bytes <= 64*1_048_576,
               entry.path == "segments/"+entry.id.uuidString+".data" || entry.path == "media/"+entry.id.uuidString+".data" else { throw CocoaError(.fileReadNoPermission) }
@@ -193,6 +208,7 @@ actor ScanSessionStore {
         return data
     }
     func unfinished() throws -> [ScanSession] {
+        Self.transactions.lock(); defer { Self.transactions.unlock() }
         guard FileManager.default.fileExists(atPath:root.path) else { return [] }
         return try FileManager.default.contentsOfDirectory(at:root,includingPropertiesForKeys:nil,options:.skipsHiddenFiles).compactMap { url in
             guard let id = UUID(uuidString:url.lastPathComponent) else { return nil }
@@ -203,6 +219,7 @@ actor ScanSessionStore {
     /// Unindexed payloads and temporary files cannot belong to a committed note
     /// or segment. Retain committed versions, including previous audio clips.
     func removeOrphans(_ id:UUID) throws {
+        Self.transactions.lock(); defer { Self.transactions.unlock() }
         let retained = Set(try entries(id).map(\.path))
         let latest = directory(id).appendingPathComponent("latest")
         if FileManager.default.fileExists(atPath:latest.path) {
@@ -226,6 +243,7 @@ actor ScanSessionStore {
         }
     }
     func discard(_ id:UUID) throws {
+        Self.transactions.lock(); defer { Self.transactions.unlock() }
         _ = try read(id)
         try FileManager.default.removeItem(at:directory(id))
     }

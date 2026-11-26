@@ -2,6 +2,48 @@ import XCTest
 @testable import RoomScanner
 
 final class ScanSessionStoreTests: XCTestCase {
+    func testIndependentStoresCannotOverwriteEachOthersCommittedIndex() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let first = ScanSessionStore(root: root), second = ScanSessionStore(root: root)
+        let session = try await first.create(kind: .technical, projectID: nil)
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for index in 0..<24 {
+                group.addTask {
+                    let store = index.isMultiple(of: 2) ? first : second
+                    _ = try await store.write(session.id, key: "sample-\(index)", data: Data("payload-\(index)".utf8))
+                }
+            }
+            try await group.waitForAll()
+        }
+        let reopened = ScanSessionStore(root: root)
+        let entries = try await reopened.entries(session.id)
+        XCTAssertEqual(entries.count, 24)
+        XCTAssertEqual(entries.map(\.sequence), Array(1...24))
+        XCTAssertEqual(Set(entries.map(\.key)), Set((0..<24).map { "sample-\($0)" }))
+        for entry in entries {
+            let data = try await reopened.payload(session.id, entry: entry)
+            XCTAssertEqual(String(decoding: data, as: UTF8.self), entry.key.replacingOccurrences(of: "sample-", with: "payload-"))
+        }
+    }
+
+    func testConcurrentCreationPreservesOneSessionIdentity() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let id = UUID(), project = UUID()
+        let stores = [ScanSessionStore(root: root), ScanSessionStore(root: root)]
+        let created = try await withThrowingTaskGroup(of: ScanSession.self) { group in
+            for store in stores { group.addTask { try await store.create(kind: .house, projectID: project, id: id) } }
+            var results: [ScanSession] = []
+            for try await value in group { results.append(value) }
+            return results
+        }
+        XCTAssertEqual(created.count, 2)
+        XCTAssertEqual(created[0], created[1])
+        let loaded = try await stores[0].read(id)
+        XCTAssertEqual(loaded, created[0])
+    }
+
     enum Injected: Error { case crash }
     func testCrashPointsPreserveCommittedPayloadAndAllowRetry() async throws {
         for point in ScanSessionStore.CrashPoint.allCases {

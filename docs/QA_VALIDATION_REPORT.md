@@ -830,3 +830,20 @@ Production +78/-52; tests +62/-2. Ten Node regressions, localization, style and
 whitespace passed. Swift tests, iCloud offline behavior and catalogue timings are
 UNVERIFIED. This shares metadata authority; it does not claim one global store or
 complete targeted-invalidation/performance acceptance.
+
+## Phase 1, part 2 — cross-instance checkpoint transactions, 2026-11-26
+
+ScanSessionStore actor isolation previously serialized one instance only. Separate
+instances could calculate the same next index sequence against one local root.
+Public synchronous transaction/read/recovery methods now share a process-local
+recursive lock, so nested reads and independent instances cannot observe or replace
+each other's intermediate index/manifest operations. No lock spans an `await`.
+This is not cross-process or iCloud coordination. No capture engine, package layout,
+session schema or media retention policy changed.
+
+Two regressions create concurrent stores: 24 writes must retain every payload with
+contiguous sequence numbers, and simultaneous creation must return one identical
+session. Production +18/-0; tests +42/-0. Whitespace passed; Swift tests UNRUN.
+The lock serializes synchronous transactions across local roots in this process;
+its contention cost must be measured on Mac/device. No performance gain is claimed.
+The original fault-injection/recovery tests remain required and unchanged.
