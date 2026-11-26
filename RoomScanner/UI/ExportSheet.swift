@@ -176,14 +176,13 @@ struct ExportSheet: View {
         }
     }
 
-    private func runExport(_ work:@escaping () throws -> URL) {
+    private func runExport(_ work:@escaping @Sendable () throws -> URL) {
         guard !working else { return }
         let request = UUID(); requestID = request
         working = true; result = nil; error = nil; savedToExports = false
         generationTask = Task {
-            let worker = Task.detached(priority:.userInitiated,operation:work)
             do {
-                let url = try await withTaskCancellationHandler(operation:{ try await worker.value },onCancel:{ worker.cancel() })
+                let url = try await BackgroundWork.run(work)
                 guard !Task.isCancelled,requestID == request else { return }
                 result = url; working = false; generationTask = nil
             } catch {

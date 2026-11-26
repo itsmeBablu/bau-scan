@@ -37,7 +37,7 @@ struct InlineVoiceNoteRow: View {
         request = token
         Task {
             do {
-                let data = try await Task.detached(priority:.userInitiated) { try ARNoteStore.audio(for:note,root:root) }.value
+                let data = try await BackgroundWork.run { try ARNoteStore.audio(for:note,root:root) }
                 guard active,request == token,enabled else { return }
                 guard NotePlayback.isCurrentRequest(intent) else { loading = false; return }
                 playback.load(data); playback.toggle(); loading = false

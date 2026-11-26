@@ -121,13 +121,12 @@ struct ProjectDeliverablesView: View {
         }
     }
     private func cancelGeneration() { requestID = UUID(); generationTask?.cancel(); generationTask = nil; busy = false }
-    private func runGeneration(_ work:@escaping () async throws -> ProjectArtifactGenerator.Result) {
+    private func runGeneration(_ work:@escaping @Sendable () async throws -> ProjectArtifactGenerator.Result) {
         guard !busy else { return }
         let request = UUID(); requestID = request; busy = true; error = nil; generationMessage = nil; generatedURL = nil
         generationTask = Task {
-            let worker = Task.detached(priority:.userInitiated,operation:work)
             do {
-                let result = try await withTaskCancellationHandler(operation:{ try await worker.value },onCancel:{ worker.cancel() })
+                let result = try await BackgroundWork.run(work)
                 guard !Task.isCancelled,requestID == request else { return }
                 generatedURL = result.url
                 generationMessage = AppLanguage.text(result.reused ? "Reused unchanged export" : "Created a new export revision",locale:locale)

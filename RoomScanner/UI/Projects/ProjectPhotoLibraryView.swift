@@ -216,13 +216,12 @@ struct ProjectPhotosView: View {
         let request = UUID(),organization = workspace.index.scanOrganization ?? [:],summaries = workspace.scanSummaries,locale = locale
         exportRequest = request; exporting = true; exportURL = nil
         exportTask = Task {
-            let worker = Task.detached(priority:.userInitiated) {
-                let target = try ExportService.scratchDirectory().appendingPathComponent(ArchivePath.component(project.name)+"-Selected-Photos.zip")
-                try SelectedPhotosExporter.export(project:project,assets:chosen,organization:organization,summaries:summaries,locale:locale,to:target)
-                return target
-            }
             do {
-                let result = try await withTaskCancellationHandler(operation:{ try await worker.value },onCancel:{ worker.cancel() })
+                let result = try await BackgroundWork.run {
+                    let target = try ExportService.scratchDirectory().appendingPathComponent(ArchivePath.component(project.name)+"-Selected-Photos.zip")
+                    try SelectedPhotosExporter.export(project:project,assets:chosen,organization:organization,summaries:summaries,locale:locale,to:target)
+                    return target
+                }
                 guard !Task.isCancelled,exportRequest == request else { return }
                 exportURL = result; exporting = false; exportTask = nil
             } catch {

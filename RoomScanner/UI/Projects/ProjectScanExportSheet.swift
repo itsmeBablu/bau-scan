@@ -75,13 +75,12 @@ private struct TechnicalScanExportPanel:View {
         guard !working else { return }; working = true; result = nil; error = nil
         let token = UUID(),package = package,format = format,name = name; request = token
         task = Task {
-            let worker = Task.detached(priority:.userInitiated) {
-                let file = try ExportService.scratchDirectory().appendingPathComponent(ArchivePath.component(name)+"."+format.rawValue)
-                try Task.checkCancellation(); try TechnicalMeshExporter.write(package,format:format,to:file); try Task.checkCancellation()
-                return file
-            }
             do {
-                let url = try await withTaskCancellationHandler(operation:{ try await worker.value },onCancel:{ worker.cancel() })
+                let url = try await BackgroundWork.run {
+                    let file = try ExportService.scratchDirectory().appendingPathComponent(ArchivePath.component(name)+"."+format.rawValue)
+                    try Task.checkCancellation(); try TechnicalMeshExporter.write(package,format:format,to:file); try Task.checkCancellation()
+                    return file
+                }
                 guard !Task.isCancelled,request == token else { return }; result = url; working = false; task = nil
             } catch {
                 guard !Task.isCancelled,request == token else { return }; self.error = error.localizedDescription; working = false; task = nil

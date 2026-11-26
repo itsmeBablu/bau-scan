@@ -1,7 +1,7 @@
 import Foundation
 
 enum ProjectArtifactGenerator {
-    struct Result { let url:URL; let reused:Bool }
+    struct Result: Sendable { let url:URL; let reused:Bool }
     struct SourceChanged:LocalizedError {
         var errorDescription:String? { AppLanguage.text("Project sources changed while exporting. No new artifact was saved. Review the project and generate again.") }
     }

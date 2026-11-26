@@ -785,3 +785,25 @@ retains the backup. No recovery data was removed during implementation.
 Production +13/-9; tests +34/-0. Whitespace passed; all Swift tests and both schemes
 remain UNRUN. This consolidates replacement steps, not all storage/catalogue policy
 or Phase 2 acceptance. Recovery compatibility still requires the Mac suite.
+
+## Phases 3a/4, part 1 — shared cancellable work, 2026-11-26
+
+Added Foundation-only `BackgroundWork` as the shared owner of explicitly detached
+encoding/I/O jobs. Existing Studio worker API delegates to it; room/house export,
+project deliverables, selected photo export, technical mesh export and inline audio
+loading use the same cancellation forwarding. Every screen retains its request,
+visibility and scope guards. A post-worker cancellation check rejects late successful
+results even when a blocking operation itself did not throw. This does not forcibly
+interrupt Foundation I/O or roll back an already committed publication.
+
+Three async Swift regressions cover returned bytes/original errors, cancellation
+reaching a running worker, and a worker swallowing cancellation not publishing late
+success. All UNRUN. Existing Node cancellation assertion follows the shared helper
+and additionally checks the post-result cancellation guard; request-identity and
+disappearance cancellation assertions are retained. No assertion was disabled.
+
+Ten Node tests, localization, style and whitespace passed during this part. No new
+runtime dependencies, persistent formats, AR/capture lifecycle or audio-session
+policies changed. Consolidation remains partial: raw frame adapters, recorder
+recovery policies, catalogue ownership, detail actions, Studio state and measured
+optimization require further evidence/review. Both Apple schemes remain UNRUN.

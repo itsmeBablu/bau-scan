@@ -16,8 +16,6 @@ enum StudioExportPreparation {
         return try exporter.data(for:shown,format:type,title:document.title+" · "+AppLanguage.text(document.engineering?.view.rawValue ?? "all")+" · "+AppLanguage.text("Edited design"))
     }
     static func worker<T: Sendable>(_ operation: @escaping @Sendable () throws -> T) async throws -> T {
-        try Task.checkCancellation()
-        let task = Task.detached(priority:.userInitiated) { try Task.checkCancellation(); return try operation() }
-        return try await withTaskCancellationHandler(operation:{ try await task.value },onCancel:{ task.cancel() })
+        try await BackgroundWork.run(operation)
     }
 }

@@ -21,7 +21,10 @@ test('export format selection configures a request without creating files', () =
 test('export generation checks request identity and cancels its worker', () => {
     const source = fs.readFileSync(path.join(__dirname,'../RoomScanner/UI/ExportSheet.swift'),'utf8');
     assert.match(source,/requestID == request/);
-    assert.match(source,/onCancel:\s*\{ worker\.cancel\(\) \}/);
+    assert.match(source,/BackgroundWork\.run\(work\)/);
+    const worker = fs.readFileSync(path.join(__dirname,'../RoomScanner/Storage/BackgroundWork.swift'),'utf8');
+    assert.match(worker,/onCancel:\s*\{ worker\.cancel\(\) \}/);
+    assert.match(worker,/try Task\.checkCancellation\(\)\s*\n\s*return result/);
     assert.match(source,/onDisappear[^\n]*generationTask\?\.cancel\(\)/);
 });
 
