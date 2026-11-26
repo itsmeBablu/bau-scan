@@ -16,7 +16,7 @@ struct ScanRelocalizationProbe: View {
             ZStack(alignment:.bottom) {
                 if let map { RelocalizationCamera(map:map,status:$status).ignoresSafeArea() }
                 else { Color.black.ignoresSafeArea() }
-                Text(status).padding().background(.regularMaterial,in:RoundedRectangle(cornerRadius:16)).padding()
+                Text(status).padding().dsMaterial(in:RoundedRectangle(cornerRadius:DS.Radius.floating)).padding()
             }.navigationTitle("Alignment prototype")
                 .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Done") { dismiss() } } }
         }.task {

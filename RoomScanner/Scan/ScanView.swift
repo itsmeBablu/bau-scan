@@ -109,13 +109,13 @@ struct ScanView: View {
                 let _ = scanner.previewRevision
                 ForEach(Array(radiators.suffix(12))) { radiator in
                     if let rect = scanner.bodyRect(for: radiator,in: geometry.size) {
-                        RoundedRectangle(cornerRadius: 6).stroke(.green,lineWidth: 2)
+                        RoundedRectangle(cornerRadius: DS.Radius.compact).stroke(.green,lineWidth: 2)
                             .frame(width: rect.width,height: rect.height).position(x: rect.midX,y: rect.midY)
                     }
                 }
                 if let rect = scanner.bodyRect(in: geometry.size) {
                     ZStack {
-                    RoundedRectangle(cornerRadius: 6).stroke(.cyan,lineWidth: 3)
+                    RoundedRectangle(cornerRadius: DS.Radius.compact).stroke(.cyan,lineWidth: 3)
                         .frame(width: rect.width,height: rect.height).position(x: rect.midX,y: rect.midY)
                     }
                 }
@@ -137,9 +137,9 @@ struct ScanView: View {
                 Button("Retry finishing") { coordinator.retryFinish() }.dsProminentControl()
             }
             if let diagnostic = coordinator.cameraDiagnostic {
-                Text(diagnostic).font(.callout).padding().background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))
+                Text(diagnostic).font(.callout).padding().dsMaterial(in:RoundedRectangle(cornerRadius:DS.Radius.panel))
             }
-            if persistence.failure != nil { Label("Saving failed · draft retained",systemImage:"exclamationmark.triangle").font(.caption).padding(8).background(.regularMaterial,in:Capsule()) }
+            if persistence.failure != nil { Label("Saving failed · draft retained",systemImage:"exclamationmark.triangle").font(.caption).padding(8).dsMaterial(in:Capsule()) }
             HStack {
                 if workspace?.project(voiceProjectID ?? UUID())?.details?.preferences?.voice != false { VoiceNoteHUD(reference:captureReference,persistence:persistence,workspace:workspace,projectID:voiceProjectID,
                     position:{ coordinator.noteSurface() },pose:{ coordinator.notePose() },roomID:{ mode == .house ? coordinator.liveRoomID : captureID },level:{ coordinator.liveLevel },borrowCaptureAudioSession:true,nearbyPin:{ pins.nearest(to:$0) },selectedPin:pins.selection,onPin:{ pins.put($0) })
@@ -155,7 +155,7 @@ struct ScanView: View {
                 Text(coordinator.state == .merging ? "scan.merging" : "scan.processing")
             }
             .padding(24)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .dsMaterial(in:RoundedRectangle(cornerRadius: DS.Radius.floating))
         default:
             EmptyView()
         }

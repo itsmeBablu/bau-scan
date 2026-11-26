@@ -49,32 +49,32 @@ struct LiveScanNotes: View {
                     pin = point; capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level(); text = ""
                     do { let owner = try owner(); var value = ARNote(projectID:owner,reference:reference,number:1,level:capturedLevel,roomID:capturedRoom,position:point,planPosition:nil,language:Locale.current.identifier); value.cameraPosition = cameraPoint(); value.title = AppLanguage.text("Pinned note"); pendingText = value; onPin(value); saveText() } catch { message = error.localizedDescription }
                 } label: { Image(systemName:pin == nil ? "mappin" : "mappin.circle.fill").frame(width:48,height:48) }
-                    .background(.regularMaterial,in:Circle()).accessibilityLabel("Pin a note to this surface")
+                    .dsMaterial(in:Circle()).accessibilityLabel("Pin a note to this surface")
                     .disabled(holding || recorder.recording || recorder.preparing || pending != nil)
             }.disabled(busy)
         }.frame(width:112,height:48)
         .overlay(alignment:.trailing) {
             if pending != nil,!recorder.recording,!busy {
                 Button("Retry saving") { if let pending { saveAudio(pending) } }
-                    .font(.caption).padding(8).background(.regularMaterial,in:Capsule()).offset(x:110)
+                    .font(.caption).padding(8).dsMaterial(in:Capsule()).offset(x:110)
             }
         }
         .overlay(alignment:.top) {
             if recorder.recording {
                 HStack(spacing:2) { ForEach(Array(recorder.levels.suffix(20).enumerated()),id:\.offset) { _,level in
                     Capsule().fill(.red).frame(width:3,height:max(2,level*22))
-                } }.frame(width:100,height:24).background(.regularMaterial,in:Capsule()).offset(y:-32).allowsHitTesting(false)
+                } }.frame(width:100,height:24).dsMaterial(in:Capsule()).offset(y:-32).allowsHitTesting(false)
             }
         }
         .overlay(alignment:.bottomLeading) {
-            if let error = recorder.error ?? message { Text(error).font(.caption2).lineLimit(2).frame(width:220,alignment:.leading).padding(6).background(.regularMaterial,in:Capsule()).offset(y:45).allowsHitTesting(false) }
+            if let error = recorder.error ?? message { Text(error).font(.caption2).lineLimit(2).frame(width:220,alignment:.leading).padding(6).dsMaterial(in:Capsule()).offset(y:45).allowsHitTesting(false) }
         }
         .overlay(alignment:.topLeading) {
             if let selectedPin,!recorder.recording {
                 HStack {
                     TextField("Note",text:$text).textFieldStyle(.roundedBorder)
                     Button { pendingText = selectedPin; saveText() } label: { Image(systemName:"checkmark.circle.fill") }.accessibilityLabel("Save note")
-                }.padding(8).frame(width:260).background(.regularMaterial,in:RoundedRectangle(cornerRadius:14)).offset(y:-60)
+                }.padding(8).frame(width:260).dsMaterial(in:RoundedRectangle(cornerRadius:DS.Radius.card)).offset(y:-60)
             }
         }
         .onChange(of:selectedPin) { _,value in text = value?.text ?? "" }

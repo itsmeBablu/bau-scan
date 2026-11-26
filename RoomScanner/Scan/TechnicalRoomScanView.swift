@@ -103,7 +103,7 @@ struct TechnicalRoomScanView: View {
         NavigationStack {
             ZStack {
                 TechnicalCaptureCamera(scanner: scanner, viewport: $viewport,showMesh: showMesh,showCeiling: showCeiling,showRoomSurfaces:showRoomSurfaces)
-                    .overlay { Image(systemName: "plus").font(.title).foregroundStyle(.white).shadow(color: .black,radius: 1).allowsHitTesting(false) }
+                    .overlay { Image(systemName: "plus").font(.title).foregroundStyle(DS.ColorToken.onAccent.color).shadow(color: .black,radius: 1).allowsHitTesting(false) }
                     .overlay {
                         if let selectedPoints, let viewport, scanner.state.canAnnotate, let reference = scanner.referenceFrame {
                             TechnicalControlPointOverlay(points: history.document.points(for: selectedPoints), reference: reference, viewport: viewport) { index, location in
@@ -124,9 +124,9 @@ struct TechnicalRoomScanView: View {
                                     if let url = URL(string:UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                                 }
                             }
-                        }.padding(12).background(.regularMaterial,in: RoundedRectangle(cornerRadius: 14))
+                        }.padding(12).dsMaterial(in:RoundedRectangle(cornerRadius: DS.Radius.card))
                     }
-                    if showingControls { surveyControls.frame(maxHeight: max(80,min(340,captureHeight-300))).clipShape(RoundedRectangle(cornerRadius: 24)) }
+                    if showingControls { surveyControls.frame(maxHeight: max(80,min(340,captureHeight-300))).clipShape(RoundedRectangle(cornerRadius: DS.Radius.large)) }
                     if showingControls { ScrollView(.horizontal) {
                         HStack(spacing: 12) {
                             Label("\(scanner.liveMeshSnapshot?.capturedFaceCount ?? 0) preview faces",systemImage: "cube.transparent")
@@ -138,12 +138,12 @@ struct TechnicalRoomScanView: View {
                             if scanner.liveMeshSnapshot?.truncated == true { Text("Partial live preview") }
                         }.font(.caption.weight(.medium)).padding(10)
                     }.scrollIndicators(.hidden).fixedSize(horizontal: false,vertical: true)
-                        .background(.regularMaterial,in: Capsule()) }
+                        .dsMaterial(in:Capsule()) }
                     ScanSaveStatus(persistence:persistence)
                     HStack(spacing: 12) {
                         Button { showingControls.toggle() } label: {
                             Image(systemName: "slider.horizontal.3").frame(width: 44,height: 44)
-                        }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
+                        }.buttonStyle(.plain).dsMaterial(in:Circle())
                             .accessibilityLabel("Survey tools")
                         if showAudio { VoiceNoteHUD(reference:.init(kind:.technicalRoom,itemID:persistence.id,library:"local"),
                             persistence:persistence,workspace:workspace,projectID:voiceProjectID,
@@ -153,7 +153,7 @@ struct TechnicalRoomScanView: View {
                             },nearbyPin:{ pins.nearest(to:$0) },selectedPin:pins.selection,onPin:{ pins.put($0) }).frame(width:112).disabled(saving || !scanner.hasLiveFrames) }
                         Button { showMesh.toggle() } label: {
                             Image(systemName: showMesh ? "cube.fill" : "cube").frame(width: 44,height: 44)
-                        }.buttonStyle(.plain).background(.regularMaterial,in: Circle())
+                        }.buttonStyle(.plain).dsMaterial(in:Circle())
                             .accessibilityLabel(showMesh ? "Hide captured mesh" : "Show captured mesh")
                         Spacer(minLength:80)
                     }.padding(.bottom, 26)
@@ -241,7 +241,7 @@ struct TechnicalRoomScanView: View {
                 Section("Capture") {
                 Text(message).font(.callout)
                 if let error = scanner.errorMessage {
-                    Label(error,systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.red)
+                    Label(error,systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(DS.ColorToken.error.color)
                     if AVCaptureDevice.authorizationStatus(for: .video) == .denied {
                         Button("Open camera settings") {
                             if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
@@ -268,7 +268,7 @@ struct TechnicalRoomScanView: View {
                     Text("Image budget reached: \(scanner.evidence.droppedKeyframes) older viewpoints replaced.").font(.caption).foregroundStyle(.secondary)
                 }
                 ForEach(scanner.healthWarnings, id: \.self) { warning in
-                    Label(warning, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
+                    Label(warning, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(DS.ColorToken.warning.color)
                 }
                 }
                 DisclosureGroup("Manual survey tools") {
@@ -285,7 +285,7 @@ struct TechnicalRoomScanView: View {
                 }
                 if scanner.recovering {
                     Text(scanner.recoveryTrackingReady ? "Map tracking recovered — verify the independent checkpoint" : "Relocalising — annotations remain locked")
-                        .font(.caption).foregroundStyle(.orange)
+                        .font(.caption).foregroundStyle(DS.ColorToken.warning.color)
                 }
                 Button("Pipe annotation") { showingPipeTool = true }
                     .disabled(!scanner.state.canAnnotate)
@@ -309,7 +309,7 @@ struct TechnicalRoomScanView: View {
                 Text("Journal: \(scanner.journal.frames.count) frames · \(scanner.journal.depths.count) depth · \(scanner.journal.meshes.count) mesh snapshots").font(.caption)
                 Text("Saved viewpoints are coverage evidence, not a percentage of room completeness.").font(.caption).foregroundStyle(.secondary)
                 if scanner.journal.retentionLimited {
-                    Text("Retention limit reached: \(scanner.journal.droppedFrames) old frames and \(scanner.journal.droppedSnapshots) snapshots were discarded.").font(.caption).foregroundStyle(.orange)
+                    Text("Retention limit reached: \(scanner.journal.droppedFrames) old frames and \(scanner.journal.droppedSnapshots) snapshots were discarded.").font(.caption).foregroundStyle(DS.ColorToken.warning.color)
                 }
                 Toggle("Show captured mesh", isOn: $showMesh)
                 Toggle("Show ceiling mesh",isOn: $showCeiling)
@@ -463,7 +463,7 @@ struct TechnicalRoomScanView: View {
                     TextField("Height (m)", text: $equipmentHeight)
                     TextField("Rotation around +Y (degrees)", text: $equipmentYaw)
                     Button("Place at crosshair") { placeEquipment() }.disabled(!scanner.state.canAnnotate)
-                    if let equipmentError { Text(equipmentError).foregroundStyle(.red) }
+                    if let equipmentError { Text(equipmentError).foregroundStyle(DS.ColorToken.error.color) }
                 }
                 Section("Unsaved equipment") {
                     ForEach(equipment, id: \.id) { item in Text(item.name.value) }

@@ -12,14 +12,3 @@
 # RoomScanner/TechnicalRoom/Capture/TechnicalRoomScanCoordinator.swift: RealityKit annotation materials
 RoomScanner/HouseRadiators/Capture/HouseRadiatorScanView.swift|named|1
 RoomScanner/HouseRadiators/HouseRadiatorViews.swift|named|1
-RoomScanner/Scan/LiveScanNotes.swift|material|5
-RoomScanner/Scan/LiveScanNotes.swift|radius|1
-RoomScanner/Scan/ScanRelocalizationProbe.swift|material|1
-RoomScanner/Scan/ScanRelocalizationProbe.swift|radius|1
-RoomScanner/Scan/ScanSaveStatus.swift|material|1
-RoomScanner/Scan/ScanSaveStatus.swift|named|1
-RoomScanner/Scan/ScanView.swift|material|3
-RoomScanner/Scan/ScanView.swift|radius|4
-RoomScanner/Scan/TechnicalRoomScanView.swift|material|4
-RoomScanner/Scan/TechnicalRoomScanView.swift|named|6
-RoomScanner/Scan/TechnicalRoomScanView.swift|radius|2
