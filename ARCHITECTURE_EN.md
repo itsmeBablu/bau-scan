@@ -388,3 +388,10 @@ remain visible. ProjectArtifactGenerator rechecks source/catalogue revision afte
 generation and publishes through a coordinated index transaction. Missing, modified
 or renamed exports are handled without overwriting user files; index failure rolls
 back the new file where possible. Crash leftovers are retained for manual review.
+
+Export filenames now derive from real project/source names, with numeric versions
+for changed content; request digests stay internal to the artifact index. Publication
+also compares byte size and SHA-256 against existing same-extension exports so a
+new logical label cannot duplicate identical data. Shared-file records are updated
+together on rename/delete. RoomStore's export-only save path similarly deduplicates
+and preserves changed versions through SavedExportFiles, without changing capture.

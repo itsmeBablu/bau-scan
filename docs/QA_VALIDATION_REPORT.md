@@ -477,3 +477,29 @@ This covers project-level requests. Room/house ExportSheet has explicit Generate
 and stale-result protection but its separate RoomStore save path is not yet indexed.
 Remaining work includes note actions/scopes, final cleanup/visual comparison and
 Apple/device builds/tests. No claim of complete redesign or successful Apple build.
+
+## Real export names and content deduplication — 2026-11-26
+
+Applied the user's naming correction: new project filenames use the actual project
+and source floor-plan/scan display names followed by the output type, with no hash/
+UUID labels. Multiple source names are included within filesystem byte limits.
+Existing saved names are not automatically renamed. Same request reuses its verified
+file; additionally, identical content with a different request/name reuses the
+existing same-extension file by byte count and SHA-256, including legacy files.
+Only changed content receives a numbered suffix. Index rename/delete handles all
+requests that share one artifact. No duplicate is created merely for another label.
+
+The legacy room/house Save to exports path now uses SavedExportFiles: same-byte
+files keep their existing path; changed content is atomically saved as a numbered
+version, preserving prior bytes. Source files and native scan formats remain
+unchanged. This is the user's explicitly requested export-save behavior change;
+House capture is not affected.
+
+Production Swift +79/-16 (net +63). Added one project content-deduplication test,
+two saved-export tests, and updated the existing CloudStorage save test to assert
+version retention/reuse rather than destructive replacement. All Swift tests are
+UNRUN. Local Node/localization/style/whitespace checks passed on the working tree;
+Apple builds, actual filesystem coordination/iCloud save behavior remain UNRUN and
+device validation pending. Byte-identical deduplication does not equate PDFs/ZIPs
+with different embedded timestamps; request reuse avoids regenerating unchanged
+requests in the first place. No files were pushed or user exports renamed.

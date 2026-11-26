@@ -55,41 +55,64 @@ enum ProjectArtifactIndex {
         guard info.isRegularFile == true,info.isSymbolicLink != true,info.fileSize == record.bytes else { return nil }
         return try ExportChecksum.sha256(file) == record.sha256 ? file : nil
     }
-    static func publish(_ source:URL,request:ProjectExportRequest,projectName:String,root:URL) throws -> URL {
+    struct Publication { let url:URL; let reused:Bool }
+    static func publish(_ source:URL,request:ProjectExportRequest,projectName:String,sourceNames:[String] = [],root:URL) throws -> URL {
+        try publishResult(source,request:request,projectName:projectName,sourceNames:sourceNames,root:root).url
+    }
+    static func publishResult(_ source:URL,request:ProjectExportRequest,projectName:String,sourceNames:[String],root:URL) throws -> Publication {
         try request.validate(); try Task.checkCancellation()
         let folder = try ProjectArtifacts.prepareDirectory(root:root,projectID:request.projectID)
         try ProjectArtifacts.checkFolders(root:root,projectID:request.projectID)
-        var result:URL?
+        var result:Publication?
         try RoomPackage.coordinatedWrite(at:folder,options:.forMerging) { directory in
             var index = try read(directory)
-            if let existing = try reusable(request,index:index,folder:directory) { result = existing; return }
+            if let existing = try reusable(request,index:index,folder:directory) { result = .init(url:existing,reused:true); return }
             let info = try source.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey])
             guard info.isRegularFile == true,info.isSymbolicLink != true,let bytes = info.fileSize,
                   (0...1_073_741_824).contains(bytes),source.pathExtension == request.kind.suffix else { throw CocoaError(.fileReadCorruptFile) }
-            let key = try request.key(),base = ArchivePath.component(projectName)+"-"+request.kind.fileStem+"-rev-"+key.prefix(12)
+            let key = try request.key(),checksum = try ExportChecksum.sha256(source)
+            let candidates = try ProjectArtifacts.files(root:root,projectID:request.projectID).filter { $0.pathExtension == request.kind.suffix }
+            guard candidates.count <= 10_000 else { throw CocoaError(.fileReadTooLarge) }
+            for candidate in candidates {
+                try Task.checkCancellation()
+                let size = try candidate.resourceValues(forKeys:[.fileSizeKey]).fileSize
+                if size == bytes,try ExportChecksum.sha256(candidate) == checksum {
+                    index.records.removeAll { $0.id == key }
+                    index.records.append(.init(id:key,request:request,filename:candidate.lastPathComponent,created:Date(),bytes:bytes,sha256:checksum))
+                    try write(index,folder:directory); result = .init(url:candidate,reused:true); return
+                }
+            }
+            let actualNames = sourceNames.filter { !$0.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty }.reduce(into:[String]()) { names,name in
+                if !names.contains(name) && name != projectName { names.append(name) }
+            }
+            let detail = ([projectName]+actualNames).map { ArchivePath.component($0) }.joined(separator:" - ")
+            var readable = String(detail.prefix(170))
+            while readable.utf8.count > 180 { readable.removeLast() }
+            let base = readable+" - "+request.kind.fileStem
             var name = base+"."+request.kind.suffix,number = 2
             while FileManager.default.fileExists(atPath:directory.appendingPathComponent(name).path) {
-                name = base+"-\(number)."+request.kind.suffix; number += 1
+                name = base+" - \(number)."+request.kind.suffix; number += 1
                 guard number <= 10_000 else { throw CocoaError(.fileWriteFileExists) }
             }
             let target = directory.appendingPathComponent(name),staging = try PackageReplacement.staging(for:target)
             defer { try? FileManager.default.removeItem(at:staging) }
             try FileManager.default.copyItem(at:source,to:staging)
-            let checksum = try ExportChecksum.sha256(staging)
+            guard try ExportChecksum.sha256(staging) == checksum else { throw CocoaError(.fileReadCorruptFile) }
             try Task.checkCancellation()
             try PackageReplacement.commit(staging,to:target)
             index.records.removeAll { $0.id == key }
             index.records.append(.init(id:key,request:request,filename:name,created:Date(),bytes:bytes,sha256:checksum))
             do { try write(index,folder:directory) }
             catch { try? FileManager.default.removeItem(at:target); throw error }
-            result = target
+            result = .init(url:target,reused:false)
         }
         guard let result else { throw CocoaError(.fileWriteUnknown) }; return result
     }
     static func renamed(_ old:String,to new:String,folder:URL) throws {
         var index = try read(folder)
-        guard let i = index.records.firstIndex(where:{ $0.filename == old }) else { return }
-        index.records[i].filename = new; try write(index,folder:folder)
+        guard index.records.contains(where:{ $0.filename == old }) else { return }
+        for i in index.records.indices where index.records[i].filename == old { index.records[i].filename = new }
+        try write(index,folder:folder)
     }
     static func removed(_ name:String,folder:URL) throws {
         var index = try read(folder)

@@ -27,7 +27,9 @@ enum ProjectArtifactGenerator {
         let latest = try await ProjectExportRequest.make(project:project,index:index,entries:entries,kind:kind,locale:locale,unit:unit,includeDetails:includeDetails,wastePercent:wastePercent)
         guard latest == request else { throw SourceChanged() }
         try checkMetadata(request,root:root)
-        return Result(url:try ProjectArtifactIndex.publish(file,request:request,projectName:project.name,root:root),reused:false)
+        let sourceNames = project.references.filter { !$0.kind.rawValue.hasPrefix("design") }.compactMap { reference in entries.first { $0.reference == reference }?.title }
+        let publication = try ProjectArtifactIndex.publishResult(file,request:request,projectName:project.name,sourceNames:sourceNames,root:root)
+        return Result(url:publication.url,reused:publication.reused)
     }
     private static func checkMetadata(_ request:ProjectExportRequest,root:URL) throws {
         let current = try ProjectIndexStore.read(root:root)

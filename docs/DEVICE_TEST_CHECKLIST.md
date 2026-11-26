@@ -178,3 +178,9 @@ merge. It must be followed by independently checking a known point.
   preserve modified bytes and create/recover an artifact. Exercise concurrent windows,
   cancellation, unavailable sources, iCloud sync and low disk/index-write failure.
   Legacy UUID files must remain; inspect .artifact-index-v1.json and SHA-256 records.
+
+- Real names/deduplication (device validation pending): export a named floor plan and
+  verify its actual name in the filename. Repeat with identical content under a
+  different label: same saved file/path, no second copy. Change content: retain old
+  file and add numbered version. Repeat in room/house Save to exports and iCloud.
+  Check Unicode/long/unsafe names and indexed rename/delete shared by two requests.

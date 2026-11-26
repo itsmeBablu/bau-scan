@@ -18,7 +18,7 @@ final class ProjectArtifactReuseTests:XCTestCase {
         }
         let first = try await generate(),second = try await generate()
         XCTAssertFalse(first.reused); XCTAssertTrue(second.reused); XCTAssertEqual(first.url,second.url)
-        XCTAssertTrue(first.url.lastPathComponent.hasPrefix("Renovation-Quantities-rev-"))
+        XCTAssertEqual(first.url.lastPathComponent,"Renovation - A - Quantities.csv")
         package.plan.name = "Changed room"; try package.write(to:source)
         let changed = try await generate()
         XCTAssertFalse(changed.reused); XCTAssertNotEqual(changed.url,first.url)
@@ -53,6 +53,22 @@ final class ProjectArtifactReuseTests:XCTestCase {
         XCTAssertNotEqual(try first.key(),try alternate.key())
         var invalid = first; invalid.schemaVersion = 42
         XCTAssertThrowsError(try invalid.validate())
+    }
+    func testIdenticalContentUnderDifferentRequestAndNamesReusesOneFile() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let source = root.appendingPathComponent("source.csv"),firstRequest = request()
+        try Data("identical schedule".utf8).write(to:source)
+        let first = try ProjectArtifactIndex.publishResult(source,request:firstRequest,projectName:"Musterstraße 5",sourceNames:["EG · Building A · Reception"],root:root)
+        let otherRequest = ProjectExportRequest(projectID:firstRequest.projectID,kind:firstRequest.kind,metadataDigest:String(repeating:"c",count:64),sourceRevision:firstRequest.sourceRevision,locale:"de",unit:.meters,includeDetails:false,wastePercent:10)
+        let second = try ProjectArtifactIndex.publishResult(source,request:otherRequest,projectName:"Changed label",sourceNames:["Other name"],root:root)
+        XCTAssertTrue(second.reused); XCTAssertEqual(first.url,second.url)
+        XCTAssertEqual(first.url.lastPathComponent,"Musterstraße 5 - EG · Building A · Reception - Quantities.csv")
+        XCTAssertEqual(try ProjectArtifacts.files(root:root,projectID:firstRequest.projectID).count,1)
+        let renamed = try ProjectArtifacts.rename(first.url,to:"Reception schedule",root:root,projectID:firstRequest.projectID)
+        XCTAssertEqual(try ProjectArtifactIndex.lookup(firstRequest,root:root),renamed)
+        XCTAssertEqual(try ProjectArtifactIndex.lookup(otherRequest,root:root),renamed)
     }
     func testConcurrentPublishDeduplicatesUnderCoordinatedTransaction() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

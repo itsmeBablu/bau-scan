@@ -199,14 +199,14 @@ final class RoomStore {
 
     @discardableResult
     func saveExport(_ fileURL: URL, folderName: String) throws -> URL {
+        guard !folderName.isEmpty,!folderName.hasPrefix("."),!folderName.contains("/"),!folderName.contains("\\"),!folderName.contains(":") else { throw CocoaError(.fileWriteInvalidFileName) }
+        if FileManager.default.fileExists(atPath:location.exportsURL.path) {
+            let info = try location.exportsURL.resourceValues(forKeys:[.isDirectoryKey,.isSymbolicLinkKey])
+            guard info.isDirectory == true,info.isSymbolicLink != true else { throw CocoaError(.fileWriteNoPermission) }
+        }
         let folder = location.exportsURL.appendingPathComponent(folderName, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let dest = folder.appendingPathComponent(fileURL.lastPathComponent)
-        try RoomPackage.coordinatedWrite(at: dest, options: .forReplacing) { target in
-            if FileManager.default.fileExists(atPath: target.path) { try FileManager.default.removeItem(at: target) }
-            try FileManager.default.copyItem(at: fileURL, to: target)
-        }
-        return dest
+        return try SavedExportFiles.store(fileURL,in:folder)
     }
 
     /// Reloads list from disk (sorted newest to oldest).
