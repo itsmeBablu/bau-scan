@@ -2,6 +2,40 @@ import XCTest
 @testable import RoomScanner
 
 final class PackageReplacementTests: XCTestCase {
+    func testPreparedReplacementRejectsExistingRecoveryCopyWithoutTouchingAnything() throws {
+        let fm = FileManager.default, root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: root) }
+        try fm.createDirectory(at: root, withIntermediateDirectories: true)
+        let target = root.appendingPathComponent("survey.technicalroom")
+        let stage = root.appendingPathComponent(".technical-writing-test")
+        let backup = root.appendingPathComponent(".technical-backup-test")
+        for (url, text) in [(target, "current"), (stage, "pending"), (backup, "recovery")] {
+            try Data(text.utf8).write(to: url)
+        }
+        XCTAssertThrowsError(try PackageReplacement.commitPrepared(stage, to: target, backup: backup))
+        XCTAssertEqual(try Data(contentsOf: target), Data("current".utf8))
+        XCTAssertEqual(try Data(contentsOf: stage), Data("pending".utf8))
+        XCTAssertEqual(try Data(contentsOf: backup), Data("recovery".utf8))
+    }
+
+    func testPreparedReplacementPreservesTechnicalBackupConventionOnFailure() throws {
+        let fm = FileManager.default, root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: root) }
+        try fm.createDirectory(at: root, withIntermediateDirectories: true)
+        let target = root.appendingPathComponent("survey.technicalroom")
+        let stage = root.appendingPathComponent(".technical-writing-test")
+        let backup = root.appendingPathComponent(".technical-backup-test")
+        try Data("original".utf8).write(to: target)
+        try Data("pending".utf8).write(to: stage)
+        XCTAssertThrowsError(try PackageReplacement.commitPrepared(stage, to: target, backup: backup, move: { from, to in
+            if from == stage { throw CocoaError(.fileWriteOutOfSpace) }
+            try fm.moveItem(at: from, to: to)
+        }))
+        XCTAssertEqual(try Data(contentsOf: target), Data("original".utf8))
+        XCTAssertEqual(try Data(contentsOf: stage), Data("pending".utf8))
+        XCTAssertFalse(fm.fileExists(atPath: backup.path))
+    }
+
     func testOutOfSpaceDuringPublicationPreservesOriginalAndRetry() throws {
         let fm = FileManager.default, root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? fm.removeItem(at: root) }

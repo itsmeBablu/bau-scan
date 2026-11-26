@@ -110,13 +110,7 @@ struct TechnicalRoomPackage {
         var writeError: Error?
         NSFileCoordinator().coordinate(writingItemAt: target, options: .forReplacing, error: &coordinationError) { destination in
             do {
-                if fm.fileExists(atPath: destination.path) { try fm.moveItem(at: destination, to: backup) }
-                do { try fm.moveItem(at: staging, to: destination) }
-                catch {
-                    if fm.fileExists(atPath: backup.path) { try fm.moveItem(at: backup, to: destination) }
-                    throw error
-                }
-                try? fm.removeItem(at: backup)
+                try PackageReplacement.commitPrepared(staging, to: destination, backup: backup, fm: fm)
             } catch { writeError = error }
         }
         if let coordinationError { throw coordinationError }

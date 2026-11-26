@@ -766,3 +766,22 @@ Localization (1367 keys), style and whitespace passed. Swift tests, real slow-sa
 navigation, live recording and device capture remain unverified. No persistent
 formats changed. This fixes source-level ownership paths; it is not a claim that
 the entire concurrency/error audit or Phase 1 acceptance is complete.
+
+## Phase 2, part 1 — shared publication primitive, 2026-11-26
+
+TechnicalRoomPackage and existing room/house/session replacement now share
+`PackageReplacement.commitPrepared` for original-to-backup, stage-to-target and
+rollback. Callers retain their existing coordination, validation and recovery
+policies. Technical random backup/staging names and room/house target-specific
+backup names are unchanged; no package/schema migration is needed. Safe reads
+already shared `SafePackageRead` and were not rewritten.
+
+The primitive refuses a pre-existing supplied backup rather than overwriting it.
+Added two regressions for this collision and technical-style publication failure.
+Existing swap, rollback, disk-full-injection and interrupted-recovery tests remain
+intact. Successful-replacement cleanup keeps the prior behavior; failed rollback
+retains the backup. No recovery data was removed during implementation.
+
+Production +13/-9; tests +34/-0. Whitespace passed; all Swift tests and both schemes
+remain UNRUN. This consolidates replacement steps, not all storage/catalogue policy
+or Phase 2 acceptance. Recovery compatibility still requires the Mac suite.

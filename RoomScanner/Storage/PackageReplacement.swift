@@ -20,9 +20,19 @@ enum PackageReplacement {
                        move: ((URL,URL) throws -> Void)? = nil) throws {
         let interval = PerformanceTrace.begin("PackageReplacement")
         defer { interval.end() }
-        let rename = move ?? { try fm.moveItem(at:$0,to:$1) }
         try recover(target,fm:fm)
-        let old = backup(for:target),existed = fm.fileExists(atPath:target.path)
+        try commitPrepared(staging, to: target, backup: backup(for: target), fm: fm, move: move)
+    }
+
+    /// Common rename/rollback primitive. Caller owns coordination, validation and
+    /// recovery policy. Technical packages keep their existing random backup names;
+    /// room/house/session writers keep their target-specific backup convention.
+    static func commitPrepared(_ staging: URL, to target: URL, backup old: URL,
+                               fm: FileManager = .default, move: ((URL,URL) throws -> Void)? = nil) throws {
+        // Never overwrite a recovery copy supplied by a caller.
+        guard !fm.fileExists(atPath: old.path) else { throw CocoaError(.fileWriteFileExists) }
+        let rename = move ?? { try fm.moveItem(at:$0,to:$1) }
+        let existed = fm.fileExists(atPath:target.path)
         if existed { try rename(target,old) }
         do { try rename(staging,target) }
         catch {
