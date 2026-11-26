@@ -323,11 +323,11 @@ struct RadiatorBodyOverlay: View {
         GeometryReader { proxy in
             let _ = scanner.previewRevision
             if let rect = scanner.bodyRect(in: proxy.size) {
-                RoundedRectangle(cornerRadius: 6).stroke(.blue,lineWidth: 2)
+                RoundedRectangle(cornerRadius: DS.Radius.compact).stroke(.blue,lineWidth: 2)
                     .frame(width: rect.width,height: rect.height)
                     .position(x: rect.midX,y: rect.midY)
                 Text(scanner.geometry == nil ? "Radiator candidate" : "Radiator close-up")
-                    .font(.caption.weight(.semibold)).padding(6).background(.regularMaterial,in: Capsule())
+                    .font(.caption.weight(.semibold)).padding(6).dsMaterial(in:Capsule())
                     .position(x: rect.midX,y: max(18,rect.minY-18))
             }
         }.allowsHitTesting(false)
