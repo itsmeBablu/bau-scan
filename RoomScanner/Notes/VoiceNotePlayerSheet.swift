@@ -16,7 +16,7 @@ struct VoiceNotePlayerSheet:View {
     var body:some View {
         NavigationStack {
             VStack(spacing:16) {
-                Image(systemName:"mic.circle.fill").font(.largeTitle).foregroundStyle(.purple)
+                Image(systemName:"mic.circle.fill").font(.largeTitle).foregroundStyle(DS.ColorToken.info.color)
                 Text(note.title ?? "Pinned note").font(.headline)
                 TextField("Write a note",text:$text,axis:.vertical).textFieldStyle(.roundedBorder).lineLimit(2...5)
                 Button("Save text") { saveText() }.disabled(saving)
