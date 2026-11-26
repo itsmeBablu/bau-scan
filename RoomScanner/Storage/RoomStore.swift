@@ -398,4 +398,16 @@ final class RoomStore {
     func delete(_ item: LibraryItem) throws {
         switch item { case .room(let r): try delete(r); case .house(let h): try delete(h) }
     }
+
+    /// Dispatch existing package operations once. Catalogue-only labels deliberately
+    /// remain in RenovationWorkspace, since they do not rename a source package.
+    func rename(_ item:LibraryItem,to name:String) throws {
+        switch item { case .room(let record): try rename(record,to:name); case .house(let record): try rename(record,to:name) }
+    }
+    func exportSubject(for item:LibraryItem) throws -> ExportSubject {
+        switch item {
+        case .room(let record): return ExportSubject(record:record,plan:try plan(for:record),packageURL:packageURL(for:record))
+        case .house(let record): return ExportSubject(record:record,house:try house(for:record),packageURL:packageURL(for:record))
+        }
+    }
 }

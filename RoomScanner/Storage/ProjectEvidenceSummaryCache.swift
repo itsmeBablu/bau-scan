@@ -13,21 +13,20 @@ actor ProjectEvidenceSummaryCache {
     }
     private struct Revision:Equatable {
         let path:String
-        let date:Date?
-        let bytes:Int?
+        let file:SavedFileRevision?
         let label:String
     }
     private struct Cached { let revision:[Revision]; let summary:Summary }
     private var values:[String:Cached] = [:]
     private var order:[String] = []
     func summary(projectID:UUID,entries:[ProjectLibraryEntry],notesRoot:URL,summaries:[String:ProjectScanSummary]) throws -> Summary {
+        try Task.checkCancellation()
         let interval = PerformanceTrace.begin("DashboardEvidenceLoad")
         defer { interval.end() }
         let entries = entries.filter { !$0.isDesign }.sorted { $0.id < $1.id }
         let notes = ARNoteStore.url(root:notesRoot,projectID:projectID)
         func revision(_ file:URL,label:String) -> Revision {
-            let info = try? file.resourceValues(forKeys:[.contentModificationDateKey,.fileSizeKey])
-            return Revision(path:file.path,date:info?.contentModificationDate,bytes:info?.fileSize,label:label)
+            Revision(path:file.path,file:try? SavedFileRevision(file),label:label)
         }
         let revisions = entries.map { entry in
             revision(entry.url.appendingPathComponent(entry.reference.kind == .technicalRoom ? "evidence.json" : "survey-photos.json"),
@@ -49,7 +48,8 @@ actor ProjectEvidenceSummaryCache {
                     }
                     if result.photos.count > 6 { result.photos.removeLast() }
                 }
-            } catch { result.warnings.append(entry.title+": "+error.localizedDescription) }
+            } catch is CancellationError { throw CancellationError() }
+            catch { result.warnings.append(entry.title+": "+error.localizedDescription) }
         }
         do {
             let allowed = Set(entries.map(\.reference))
@@ -61,7 +61,9 @@ actor ProjectEvidenceSummaryCache {
             }
             result.voices = Array(voices.prefix(3)); result.voiceCount = voices.count
             result.writtenCount = notes.filter { !$0.text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty }.count
-        } catch { result.warnings.append(error.localizedDescription) }
+        } catch is CancellationError { throw CancellationError() }
+        catch { result.warnings.append(error.localizedDescription) }
+        try Task.checkCancellation()
         values[key] = Cached(revision:revisions,summary:result)
         order.removeAll { $0 == key }; order.append(key)
         if order.count > 16 { values.removeValue(forKey:order.removeFirst()) }

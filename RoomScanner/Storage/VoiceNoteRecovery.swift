@@ -2,6 +2,12 @@ import Foundation
 
 /// Uses the approved notes format for a local durable outbox, separate from scans.
 enum VoiceNoteRecovery {
+    enum Failure:LocalizedError {
+        case supersededAudio
+        var errorDescription:String? {
+            AppLanguage.text("A newer recording is already saved. Your recording was not applied. Reload before retrying.")
+        }
+    }
     static func root() throws -> URL {
         try FileManager.default.url(for:.applicationSupportDirectory,in:.userDomainMask,appropriateFor:nil,create:true)
             .appendingPathComponent(Bundle.main.bundleIdentifier ?? "dWalkScan")
@@ -17,13 +23,14 @@ enum VoiceNoteRecovery {
             copy.audioFileName = copy.stem+".m4a"; index.notes.append(copy)
         }
     }
-    static func recover(projectID: UUID,from recoveryRoot: URL,to destination: URL,references: [ProjectReference]) throws {
+    static func recover(projectID: UUID,from recoveryRoot: URL,to destination: URL,references: [ProjectReference],noteIDs:Set<UUID>? = nil) throws {
         let library = try ARNoteStore.read(root:recoveryRoot,projectID:projectID),allowed = Set(references)
-        for original in library.index.notes where allowed.contains(original.reference) {
+        for original in library.index.notes where allowed.contains(original.reference) && (noteIDs?.contains(original.id) ?? true) {
             try Task.checkCancellation()
             guard let audio = library.audio[original.id] else { throw CocoaError(.fileNoSuchFile) }
             if original.audioRevision == true {
-                _ = try ARNoteStore.upsertAudio(original,audio:audio,root:destination)
+                let saved = try ARNoteStore.upsertAudio(original,audio:audio,root:destination)
+                try verifyAudio(original,bytes:audio,saved:saved,root:destination)
             } else {
             try ARNoteStore.update(root:destination,projectID:projectID,audio:[original.id:audio],replaceAudio:false) { index in
                 if let existing = index.notes.first(where:{ $0.id == original.id }) {
@@ -47,8 +54,20 @@ enum VoiceNoteRecovery {
         try stageRevision(note,audio:audio,at:outbox)
         let library = try ARNoteStore.read(root:outbox,projectID:note.projectID)
         guard let revision = library.index.notes.first(where:{ $0.id == note.id }),let bytes = library.audio[note.id] else { throw CocoaError(.fileNoSuchFile) }
+        // Staging may have rejected an older revision. Never publish another
+        // recording under the current caller's successful-save response.
+        guard revision.audioModifiedAt == (note.audioModifiedAt ?? note.modifiedAt ?? note.createdAt),bytes == audio else { throw Failure.supersededAudio }
         let saved = try ARNoteStore.upsertAudio(revision,audio:bytes,root:destination)
+        try verifyAudio(revision,bytes:bytes,saved:saved,root:destination)
         try ARNoteStore.update(root:outbox,projectID:note.projectID) { $0.notes.removeAll { $0.id == revision.id && $0.modifiedAt == revision.modifiedAt && $0.audioModifiedAt == revision.audioModifiedAt } }
         return saved
+    }
+
+    private static func verifyAudio(_ requested:ARNote,bytes:Data,saved:ARNote,root:URL) throws {
+        let expectedDate = requested.audioModifiedAt ?? requested.modifiedAt ?? requested.createdAt
+        guard saved.audioModifiedAt == expectedDate,
+              let current = try ARNoteStore.index(root:root,projectID:requested.projectID).notes.first(where:{ $0.id == requested.id }),
+              current.reference == requested.reference,current.audioModifiedAt == expectedDate,
+              try ARNoteStore.audio(for:current,root:root) == bytes else { throw Failure.supersededAudio }
     }
 }

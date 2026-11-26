@@ -256,7 +256,7 @@ struct ProjectVoiceNotesView: View {
         let root = workspace.notesRoot
         var updated = note; updated.modifiedAt = Date()
         do {
-            _ = try await Task.detached { try ARNoteStore.upsertText(updated,root:root,expected:expected) }.value
+            _ = try await NoteSaveWorker.text(updated,expected:expected,root:root)
             await reload()
         } catch { await reload(); throw error }
     }
@@ -290,13 +290,9 @@ struct ProjectVoiceNotesView: View {
         Task { @MainActor in
             defer { operation.finish(request) }
             do {
-                try await Task.detached {
-                    var note = ARNote(id:id,projectID:projectID,reference:reference,number:1,level:nil,roomID:reference.itemID,position:nil,planPosition:nil,language:language)
-                    note.audioFileName = note.stem+".m4a"; note.audioDuration = clip.duration; note.partial = clip.partial
-                    try VoiceNoteRecovery.stage(note,audio:clip.data,at:VoiceNoteRecovery.root())
-                }.value
-                if visible,root == workspace.notesRoot { staged = true }
-                try await Task.detached { try VoiceNoteRecovery.recover(projectID:projectID,from:VoiceNoteRecovery.root(),to:root,references:[reference]) }.value
+                var note = ARNote(id:id,projectID:projectID,reference:reference,number:1,level:nil,roomID:reference.itemID,position:nil,planPosition:nil,language:language)
+                note.audioFileName = note.stem+".m4a"; note.audioDuration = clip.duration; note.partial = clip.partial
+                _ = try await NoteSaveWorker.newRecording(note,audio:clip.data,root:root,outbox:VoiceNoteRecovery.root())
                 guard visible,root == workspace.notesRoot else { return }
                 failedClip = nil; pendingID = nil; staged = false; await reload()
             } catch { if visible,root == workspace.notesRoot { self.error = error.localizedDescription } }

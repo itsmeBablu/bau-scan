@@ -28,9 +28,9 @@ struct Plan2DView: View {
     @State private var selectedNote:ARNote?
     @State private var showNotes = true
     @State private var noteError:String?
-    @State private var photos: [SurveyPhotoImage] = []
+    @State private var photos: [ProjectPhotoAsset] = []
     @State private var showPhotos = true
-    @State private var selectedPhoto: SurveyPhotoImage?
+    @State private var selectedPhoto: ProjectPhotoAsset?
 
     @Environment(\.displayScale) private var displayScale
 
@@ -126,17 +126,23 @@ struct Plan2DView: View {
         }
         .accessibilityLabel(Text("plan.accessibility"))
         .task(id: packageURL) {
+            notes = []; photos = []; selectedNote = nil; selectedPhoto = nil; noteError = nil
             guard let url = packageURL else { return }
-            do { notes = try await Task.detached { try ScanVoiceNoteLibrary.registeredNotes(packageURL:url,house:house) }.value; noteError = nil }
-            catch { noteError = error.localizedDescription }
-            photos = (try? await Task.detached { try SurveyPhotoStore.images(from: url, house: house) }.value) ?? []
+            let house = house, root = ScanVoiceNoteLibrary.root
+            do {
+                let loaded = try await BackgroundWork.run { try SavedScanEvidence.load(packageURL:url,house:house,notesRoot:root) }
+                guard !Task.isCancelled else { return }
+                notes = loaded.notes; photos = loaded.photos
+                noteError = [loaded.noteFailure,loaded.photoFailure].compactMap { $0 }.joined(separator:"\n")
+                if noteError?.isEmpty == true { noteError = nil }
+            } catch { if !Task.isCancelled { noteError = error.localizedDescription } }
         }
         .overlay(alignment:.topLeading) { if let noteError { Text(noteError).font(.caption).padding().dsMaterial(in:Capsule()) } }
         .sheet(item:$selectedNote) { note in VoiceNotePlayerSheet(note:note) { saved in
             if let i = notes.firstIndex(where:{ $0.id == saved.id }) { var value = saved; value.displayPosition = notes[i].displayPosition; notes[i] = value }
         } }
         .sheet(item: $selectedPhoto) { photo in
-            SurveyPhotoGallery(photos: photos, initial: photo.id)
+            ProjectPhotoGallery(assets: photos, initial: photo.id,compactPresentation:true)
         }
         .safeAreaInset(edge: .bottom) {
             ScrollView(.horizontal) {

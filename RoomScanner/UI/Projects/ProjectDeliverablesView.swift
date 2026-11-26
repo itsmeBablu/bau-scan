@@ -9,7 +9,10 @@ struct ProjectDeliverablesView: View {
     @Environment(\.locale) private var locale
     @State private var files: [ProjectArtifactFile] = []
     @State private var records:[ProjectArtifactIndex.Record] = []
-    @State private var busy = false
+    @State private var reloadRequest = UUID()
+    @State private var editOperation = OperationLifetime()
+    @State private var visible = false
+    private var busy: Bool { editOperation.isRunning || generationTask != nil }
     @State private var includeDetails = false
     @AppStorage(PDFPhotoPolicy.preferenceKey) private var pdfPhotos = PDFPhotoPolicy.defaultValue
     @State private var error: String?
@@ -80,7 +83,8 @@ struct ProjectDeliverablesView: View {
             }.disabled(busy)
         }.navigationTitle("Exports")
             .task(id: projectID.uuidString+root.path) { await reload() }
-            .onDisappear { cancelGeneration() }
+            .onAppear { visible = true }
+            .onDisappear { visible = false; reloadRequest = UUID(); cancelGeneration() }
             .onChange(of:workspace.catalogueRevision) { _,_ in cancelGeneration(); generatedURL = nil; generationMessage = nil }
             .quickLookPreview($preview)
             .fileExporter(isPresented:$savingFile,items:fileToSave.map { [$0] } ?? [],contentTypes:[fileToSave.flatMap { UTType(filenameExtension:$0.pathExtension) } ?? .data]) { result in
@@ -106,36 +110,47 @@ struct ProjectDeliverablesView: View {
             .alert("Report",isPresented:Binding(get:{ error != nil },set:{ if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
     }
     private func reload() async {
-        let root = root
+        let root = root,projectID = projectID,request = UUID()
+        reloadRequest = request
         do {
-            let result = try await Task.detached(priority:.utility) {
+            let result = try await BackgroundWork.run(priority:.utility) {
                 (try ProjectArtifacts.inspect(root:root,projectID:projectID),try ProjectArtifactIndex.records(root:root,projectID:projectID))
-            }.value
-            guard !Task.isCancelled,root == self.root else { return }; files = result.0; records = result.1
-        } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
+            }
+            guard !Task.isCancelled,root == self.root,reloadRequest == request else { return }; files = result.0; records = result.1
+        } catch { if !Task.isCancelled,root == self.root,reloadRequest == request { self.error = error.localizedDescription } }
     }
     private func edit(_ work:@escaping () throws -> Void) {
-        guard !busy else { return }; busy = true
-        Task {
-            defer { busy = false }
-            do { try await Task.detached(priority:.utility,operation:work).value; await reload() }
-            catch { self.error = error.localizedDescription }
+        guard !busy,let request = editOperation.begin() else { return }
+        let root = root,project = projectID
+        Task { @MainActor in
+            defer { editOperation.finish(request) }
+            do {
+                // Durable rename/delete finishes even when the screen closes.
+                try await Task.detached(priority:.utility,operation:work).value
+                guard visible,root == self.root,project == projectID else { return }
+                generatedURL = nil; generationMessage = nil
+                await reload()
+            }
+            catch {
+                guard visible,root == self.root,project == projectID else { return }
+                self.error = error.localizedDescription
+            }
         }
     }
-    private func cancelGeneration() { requestID = UUID(); generationTask?.cancel(); generationTask = nil; busy = false }
+    private func cancelGeneration() { requestID = UUID(); generationTask?.cancel(); generationTask = nil }
     private func runGeneration(_ work:@escaping @Sendable () async throws -> ProjectArtifactGenerator.Result) {
         guard !busy else { return }
-        let request = UUID(); requestID = request; busy = true; error = nil; generationMessage = nil; generatedURL = nil
+        let request = UUID(); requestID = request; error = nil; generationMessage = nil; generatedURL = nil
         generationTask = Task {
             do {
                 let result = try await BackgroundWork.run(work)
                 guard !Task.isCancelled,requestID == request else { return }
                 generatedURL = result.url
                 generationMessage = AppLanguage.text(result.reused ? "Reused unchanged export" : "Created a new export revision",locale:locale)
-                busy = false; generationTask = nil; await reload()
+                generationTask = nil; await reload()
             } catch {
                 guard !Task.isCancelled,requestID == request else { return }
-                self.error = error.localizedDescription; busy = false; generationTask = nil
+                self.error = error.localizedDescription; generationTask = nil
             }
         }
     }

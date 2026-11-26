@@ -57,8 +57,7 @@ struct ProjectExportRequest:Codable,Equatable {
 /// Enumerate revisions for every request; only changed files are hashed again.
 private actor ProjectExportSourceHashes {
     static let shared = ProjectExportSourceHashes()
-    private struct Revision:Equatable { let modified:Date?; let bytes:Int; let fileID:String }
-    private struct Cached { let revision:Revision; let hash:String }
+    private struct Cached { let revision:SavedFileRevision; let hash:String }
     private var values:[String:Cached] = [:]
     private var order:[String] = []
     func files(_ source:URL) throws -> [String:String] {
@@ -79,17 +78,12 @@ private actor ProjectExportSourceHashes {
         var result:[String:String] = [:]
         for file in urls {
             try Task.checkCancellation()
-            func revision() throws -> Revision {
-                let attrs = try FileManager.default.attributesOfItem(atPath:file.path)
-                guard attrs[.type] as? FileAttributeType == .typeRegular else { throw CocoaError(.fileReadCorruptFile) }
-                return Revision(modified:attrs[.modificationDate] as? Date,bytes:(attrs[.size] as? NSNumber)?.intValue ?? -1,fileID:String(describing:attrs[.systemFileNumber]))
-            }
-            let before = try revision(),hash:String
+            let before = try SavedFileRevision(file),hash:String
             guard before.bytes >= 0,before.bytes <= 2_147_483_648 else { throw CocoaError(.fileReadTooLarge) }
             if let cached = values[file.path],cached.revision == before { hash = cached.hash }
             else {
                 hash = try ExportChecksum.sha256(file)
-                guard try revision() == before else { throw CocoaError(.fileReadUnknown) }
+                guard try SavedFileRevision(file) == before else { throw CocoaError(.fileReadUnknown) }
                 values[file.path] = Cached(revision:before,hash:hash)
                 order.removeAll { $0 == file.path }; order.append(file.path)
                 if order.count > 2048 { values.removeValue(forKey:order.removeFirst()) }

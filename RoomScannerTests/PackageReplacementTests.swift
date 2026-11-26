@@ -2,6 +2,29 @@ import XCTest
 @testable import RoomScanner
 
 final class PackageReplacementTests: XCTestCase {
+    func testExistingTargetDoesNotCauseRecoveryBackupToBeDeleted() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let target = root.appendingPathComponent("survey.roomscan"), backup = PackageReplacement.backup(for:target)
+        let staging = try PackageReplacement.staging(for:target)
+        try Data("possibly incomplete current".utf8).write(to:target)
+        try Data("last good recovery".utf8).write(to:backup)
+        try Data("new attempted save".utf8).write(to:staging)
+        try PackageReplacement.recover(target)
+        XCTAssertEqual(try Data(contentsOf:target),Data("possibly incomplete current".utf8))
+        XCTAssertEqual(try Data(contentsOf:backup),Data("last good recovery".utf8))
+        XCTAssertThrowsError(try PackageReplacement.commit(staging,to:target)) { error in
+            guard case PackageReplacement.RecoveryConflict.existingBackup = error else { return XCTFail("Unexpected error: \(error)") }
+        }
+        XCTAssertEqual(try Data(contentsOf:backup),Data("last good recovery".utf8))
+        XCTAssertEqual(try Data(contentsOf:staging),Data("new attempted save".utf8))
+        // Explicit resolution outside the library can remove the current item;
+        // the existing recovery path then restores exactly the backup bytes.
+        try FileManager.default.removeItem(at:target)
+        try PackageReplacement.recover(target)
+        XCTAssertEqual(try Data(contentsOf:target),Data("last good recovery".utf8))
+    }
     func testPreparedReplacementRejectsExistingRecoveryCopyWithoutTouchingAnything() throws {
         let fm = FileManager.default, root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? fm.removeItem(at: root) }

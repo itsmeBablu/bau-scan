@@ -37,6 +37,7 @@ struct TechnicalAnnotationEditor: View {
     @State private var referenceLength = 1.0
     @State private var note = ""
     @State private var photo: PhotosPickerItem?
+    @State private var photoRequest = UUID()
 
     var body: some View {
         NavigationStack {
@@ -99,21 +100,25 @@ struct TechnicalAnnotationEditor: View {
             if !verified { ductPoints = []; measurementStart = nil }
         }
         .onChange(of: photo) { _, item in
+            let request = UUID(); photoRequest = request
+            guard let item else { return }
             Task { @MainActor in
                 do {
-                    guard let raw = try await item?.loadTransferable(type: Data.self), raw.count <= 20 * 1_048_576,
-                          let source = CGImageSourceCreateWithData(raw as CFData, nil),
-                          let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true,
-                              kCGImageSourceThumbnailMaxPixelSize: 1600, kCGImageSourceCreateThumbnailWithTransform: true] as CFDictionary),
-                          let jpeg = UIImage(cgImage: image).jpegData(compressionQuality: 0.8) else { error = "Choose an image smaller than 20 MiB."; return }
+                    guard let raw = try await item.loadTransferable(type: Data.self),raw.count <= 20*1_048_576 else {
+                        if photoRequest == request { error = "Choose an image smaller than 20 MiB." }; return
+                    }
+                    guard !Task.isCancelled,photoRequest == request else { return }
+                    let jpeg = try await BackgroundWork.run { try PhotoImageProcessor.jpeg(raw) }
+                    guard !Task.isCancelled,photoRequest == request else { return }
                     let id = UUID()
                     change {
                         $0.photoAssets.append(.init(id: id, jpegData: jpeg))
                         $0.room.photos.append(.init(id: id, reference: .init(value: "photos/\(id.uuidString).jpg", unit: "text", source: .entered, method: "userSelectedSurveyPhoto", accuracyMm: nil)))
                     }
-                } catch { self.error = error.localizedDescription }
+                } catch { if !Task.isCancelled,photoRequest == request { self.error = error.localizedDescription } }
             }
         }
+        .onDisappear { photoRequest = UUID() }
     }
 
     private var pipeSection: some View {

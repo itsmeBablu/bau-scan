@@ -56,15 +56,18 @@ enum ProjectArtifactIndex {
         return try ExportChecksum.sha256(file) == record.sha256 ? file : nil
     }
     struct Publication { let url:URL; let reused:Bool }
+    enum PublicationStage:CaseIterable { case beforeCopy, afterCopy, afterPublication, beforeIndexWrite }
     static func publish(_ source:URL,request:ProjectExportRequest,projectName:String,sourceNames:[String] = [],root:URL) throws -> URL {
         try publishResult(source,request:request,projectName:projectName,sourceNames:sourceNames,root:root).url
     }
-    static func publishResult(_ source:URL,request:ProjectExportRequest,projectName:String,sourceNames:[String],root:URL) throws -> Publication {
+    static func publishResult(_ source:URL,request:ProjectExportRequest,projectName:String,sourceNames:[String],root:URL,
+                              fault:(PublicationStage) throws -> Void = { _ in }) throws -> Publication {
         try request.validate(); try Task.checkCancellation()
         let folder = try ProjectArtifacts.prepareDirectory(root:root,projectID:request.projectID)
         try ProjectArtifacts.checkFolders(root:root,projectID:request.projectID)
         var result:Publication?
         try RoomPackage.coordinatedWrite(at:folder,options:.forMerging) { directory in
+            try Task.checkCancellation()
             var index = try read(directory)
             if let existing = try reusable(request,index:index,folder:directory) { result = .init(url:existing,reused:true); return }
             let info = try source.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey])
@@ -79,6 +82,7 @@ enum ProjectArtifactIndex {
                 if size == bytes,try ExportChecksum.sha256(candidate) == checksum {
                     index.records.removeAll { $0.id == key }
                     index.records.append(.init(id:key,request:request,filename:candidate.lastPathComponent,created:Date(),bytes:bytes,sha256:checksum))
+                    try Task.checkCancellation(); try fault(.beforeIndexWrite)
                     try write(index,folder:directory); result = .init(url:candidate,reused:true); return
                 }
             }
@@ -96,13 +100,20 @@ enum ProjectArtifactIndex {
             }
             let target = directory.appendingPathComponent(name),staging = try PackageReplacement.staging(for:target)
             defer { try? FileManager.default.removeItem(at:staging) }
+            try fault(.beforeCopy)
             try FileManager.default.copyItem(at:source,to:staging)
+            try fault(.afterCopy)
             guard try ExportChecksum.sha256(staging) == checksum else { throw CocoaError(.fileReadCorruptFile) }
             try Task.checkCancellation()
             try PackageReplacement.commit(staging,to:target)
-            index.records.removeAll { $0.id == key }
-            index.records.append(.init(id:key,request:request,filename:name,created:Date(),bytes:bytes,sha256:checksum))
-            do { try write(index,folder:directory) }
+            do {
+                try fault(.afterPublication)
+                try Task.checkCancellation()
+                index.records.removeAll { $0.id == key }
+                index.records.append(.init(id:key,request:request,filename:name,created:Date(),bytes:bytes,sha256:checksum))
+                try fault(.beforeIndexWrite)
+                try write(index,folder:directory)
+            }
             catch { try? FileManager.default.removeItem(at:target); throw error }
             result = .init(url:target,reused:false)
         }

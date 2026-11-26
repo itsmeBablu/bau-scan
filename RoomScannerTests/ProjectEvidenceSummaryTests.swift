@@ -2,6 +2,47 @@ import XCTest
 @testable import RoomScanner
 
 final class ProjectEvidenceSummaryTests: XCTestCase {
+    func testSameSizeSameDatePhotoMetadataReplacementInvalidatesDashboardPreview() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let roomID = UUID(), package = root.appendingPathComponent("\(roomID.uuidString).roomscan")
+        let photo = SurveyPhoto(id:UUID(),roomID:roomID,number:1,pose:SyntheticWorkload.pose,timestamp:1)
+        try FileManager.default.createDirectory(at:package,withIntermediateDirectories:true)
+        try SurveyPhotoStore.write([photo],assets:[photo.id:Data([0xff,0xd8])],to:package)
+        let file = package.appendingPathComponent("survey-photos.json"), date = Date(timeIntervalSince1970:1_700_000_000)
+        try FileManager.default.setAttributes([.modificationDate:date],ofItemAtPath:file.path)
+        let entry = ProjectLibraryEntry(reference:.init(kind:.room,itemID:roomID,library:"local"),title:"Room",date:date,area:nil,roomCount:1,root:root,url:package)
+        let cache = ProjectEvidenceSummaryCache(), project = UUID()
+        let first = try await cache.summary(projectID:project,entries:[entry],notesRoot:root,summaries:[:])
+        XCTAssertEqual(first.photos.first?.photo.number,1)
+        let before = try SavedFileRevision(file)
+        var updated = photo; updated.number = 2
+        try RoomPackage.encoder.encode([updated]).write(to:file,options:.atomic)
+        try FileManager.default.setAttributes([.modificationDate:date],ofItemAtPath:file.path)
+        let after = try SavedFileRevision(file)
+        XCTAssertEqual(before.bytes,after.bytes); XCTAssertEqual(before.modified,after.modified)
+        let next = try await cache.summary(projectID:project,entries:[entry],notesRoot:root,summaries:[:])
+        XCTAssertEqual(next.photos.first?.photo.number,2)
+        XCTAssertEqual(next.photoCount,1)
+    }
+    func testCancelledDashboardReadCannotReturnCachedSuccess() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let cache = ProjectEvidenceSummaryCache(), project = UUID()
+        _ = try await cache.summary(projectID:project,entries:[],notesRoot:root,summaries:[:])
+        let gate = AsyncStream<Void>.makeStream()
+        let job = Task {
+            var iterator = gate.stream.makeAsyncIterator()
+            _ = await iterator.next()
+            return try await cache.summary(projectID:project,entries:[],notesRoot:root,summaries:[:])
+        }
+        job.cancel()
+        gate.continuation.finish()
+        do { _ = try await job.value; XCTFail("Cancelled dashboard lookup returned success") }
+        catch is CancellationError {} catch { throw error }
+        let reopened = try await cache.summary(projectID:project,entries:[],notesRoot:root,summaries:[:])
+        XCTAssertEqual(reopened.photoCount,0)
+    }
     func testLocalAndCloudPhotoTwinsKeepTheirIndependentSourceIdentities() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at:root) }

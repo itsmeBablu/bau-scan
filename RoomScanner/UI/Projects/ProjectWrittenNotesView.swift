@@ -103,7 +103,7 @@ struct ProjectWrittenNotesView:View {
         guard workspace.project(projectID)?.references.contains(note.reference) == true else { throw CocoaError(.fileNoSuchFile) }
         var changed = note; changed.modifiedAt = Date()
         do {
-            _ = try await Task.detached(priority:.utility) { try ARNoteStore.upsertText(changed,root:root,expected:expected) }.value
+            _ = try await NoteSaveWorker.text(changed,expected:expected,root:root)
             await reload()
         } catch { await reload(); throw error }
     }

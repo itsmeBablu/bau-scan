@@ -4,14 +4,8 @@ import Foundation
 /// dashboard onAppear. Decode only the changed plan/house, never raw capture/media.
 actor ProjectScanSummaryCache {
     static let shared = ProjectScanSummaryCache()
-    private struct Revision: Equatable {
-        let path: String
-        let modified: Date?
-        let bytes: Int
-        let fileID: String
-    }
     private struct Cached {
-        let revision: Revision
+        let revision: SavedFileRevision
         let summary: ProjectScanSummary
         var accessed: UInt64
     }
@@ -25,11 +19,7 @@ actor ProjectScanSummaryCache {
             try Task.checkCancellation()
             let file = entry.url.appendingPathComponent(entry.reference.kind == .house ? "house.json" : "plan.json")
             do {
-                let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
-                guard attributes[.type] as? FileAttributeType == .typeRegular else { throw CocoaError(.fileReadCorruptFile) }
-                let revision = Revision(path: file.standardizedFileURL.path, modified: attributes[.modificationDate] as? Date,
-                                        bytes: (attributes[.size] as? NSNumber)?.intValue ?? -1,
-                                        fileID: String(describing: attributes[.systemFileNumber]))
+                let revision = try SavedFileRevision(file)
                 counter &+= 1
                 if var cached = values[entry.id], cached.revision == revision {
                     cached.accessed = counter; values[entry.id] = cached; result[entry.id] = cached.summary

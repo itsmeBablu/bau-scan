@@ -1040,3 +1040,485 @@ No persistent fields or formats changed. Existing reference, note and quantity
 tests remain required. Swift tests are UNRUN; source/backend checks and exact tree
 evidence are reported at the final checkpoint. Full per-site concurrency audit and
 physical-device/iCloud verification remain outstanding, not implied by these fixes.
+
+## Phase 3a, part 3 — shared image processor and off-main imported photos, 2026-11-26
+
+Thumbnail cache and manually selected Technik photos now share PhotoImageProcessor,
+a Foundation/ImageIO decoder/encoder. The editor forwards JPEG conversion to the
+common background worker rather than decoding/encoding on MainActor. Selection
+identity guards prevent a prior Photos picker result or closed editor from applying
+late annotations. Existing photo IDs, reference paths, entered provenance and null
+accuracy are preserved. No ARFrame/ARSession or capture-coordinator code changed.
+
+Processing accepts at most 20 MiB input, normalizes orientation, resizes to 1600
+pixels for imports, writes a fresh JPEG without source GPS/EXIF, and caps output
+at 4 MiB. The source file is unchanged. Two tests cover a genuinely GPS-bearing
+fixture, output size/dimensions/unchanged input and rejection of bad data/quality.
+Both UNRUN. Existing preview decoding uses the same implementation; no parallel
+image decoder or runtime dependency was added. Capture-derived data remains device
+validation pending and no accuracy is inferred from image processing.
+
+Production +45/-12; tests +34/-0. Strict localization, style and whitespace passed;
+Apple builds, Swift tests and picker/annotation behavior remain UNVERIFIED.
+
+## Lifecycle coverage extension — 2026-11-26
+
+Added three weak-reference checks for an inactive playback instance, a detached
+Studio view/controller, and iOS recorder notification observers. They deliberately
+do not start audio, request permission or create an AR session. These extend the
+existing store/checkpoint release checks, not active capture/recording coverage.
+All new Swift tests remain UNRUN; device validation pending for active lifetimes.
+
+Local commit of the preceding image-processing part was not executed: automatic
+approval review could not complete because its usage limit was reached. This was
+an approval-service failure, not a determination that the action was unsafe. Files
+remain in the working tree. No alternate Git write path or remote mutation was used.
+
+## Dashboard cancellation and latest local checks — 2026-11-26
+
+ProjectEvidenceSummaryCache now checks cancellation before a cached return and
+before publishing a newly computed summary. Cancellation thrown by photo/note
+loading is propagated rather than converted into an availability warning and
+cached as a partial summary. One regression covers a cancelled cache hit followed
+by a valid read. This is source-level cancellation protection, not evidence that
+all dashboard races are fixed. Swift test UNRUN.
+
+Updated both architecture documents and the Mac handoff to identify shared storage,
+work, photo and detail-control authorities, Studio incremental updates and their
+limits. Added image/lifecycle/dashboard tests are included in the requested Mac run.
+No device, compliance or measured optimization claim is made.
+
+Latest actual Windows source checks: 10 Node regressions passed; localization
+passed (1380 keys, no German gaps or unextracted literals); style passed (zero
+violations); whitespace passed. A fresh local-baseline run reached no final report
+and was interrupted after remaining stalled; backend status for this run is
+INCOMPLETE, not passed. No `.worktrees/core-local-image-lifecycle.json` evidence
+file was produced. Earlier 13-test backend results remain historical only.
+XcodeGen, both Apple schemes, all newly written Swift tests, performance and device
+validation remain unrun. Current implementation edits are not committed because
+the automatic commit approval service hit its usage limit; branding changes remain
+separate and untouched. Original plan acceptance remains incomplete.
+
+## Bounded validation runner — 2026-11-26
+
+The existing local-quality runner now persists each check's RUNNING/result state,
+applies a configurable per-subprocess timeout (120 seconds by default), records
+partial timeout output and continues subsequent checks. Process-start failures
+are BLOCKED rather than a pass. This changes tooling only; no app or backend test
+is skipped or weakened. A new two-test standard-library Python harness verifies
+timeout evidence/continuation and denied process starts. Both tests actually passed
+locally. The service/localization workflow now runs that harness; not dispatched.
+
+A bounded local run at HEAD `014b60eb2f375991da790b6c49e04567c272e9aa` with the
+current dirty working tree produced `.worktrees/core-local-bounded-checks.json`.
+Localization, JSON/UI/design Node checks, style, plist syntax and whitespace passed.
+The backend subprocess exceeded its explicitly selected 30-second deadline and is
+recorded FAILED by timeout, with no output; its root cause is not established.
+Apple schemes remain BLOCKED. The overall exit code was 1. The two passing tooling
+unit tests are not backend tests or evidence of an Apple build.
+
+Latest uncommitted implementation comprises shared image processing/import work,
+three inactive lifecycle checks, dashboard cancellation protection, runner hardening
+and documentation/workflow updates. Approval service usage exhaustion still prevents
+the requested local commit; no attempt was made to bypass that review. Remaining
+consolidation and device/performance/golden acceptance are still incomplete.
+
+## Phase 3a/4, part 4 — shared saved-view evidence and native actions, 2026-11-26
+
+Saved 2D/3D views now use SavedScanEvidence for independent note/photo reads and
+PhotoAsset metadata references. Photo bytes are loaded only by lazy gallery pages;
+markers and camera navigation use the original poses/UUIDs without JPEG arrays.
+The shared gallery retains compact presentation for legacy evidence sheets, normal
+project-gallery presentation elsewhere, full-screen viewing and Go to camera.
+Cancelled package loads cannot apply stale results; clearing an absent/new source
+also clears previous notes/photos/errors. Photo-read failures are surfaced in 2D
+rather than silently producing an empty collection.
+
+Two regressions cover corrupt-note/valid-photo and valid-note/corrupt-photo cases,
+including registered note position and local source identity. Production +79/-20;
+tests +47/-0. Swift tests, marker selection/highlight, camera placement and gallery
+interactions remain UNRUN / device validation pending. This removes duplicated
+loading responsibility; it does not establish measured memory/performance gains.
+
+RoomStore now dispatches native LibraryItem rename and export-subject preparation
+once; list, detail and Mac adapters reuse it. Project catalogue labels remain
+separate because they intentionally do not rename original packages. Existing
+typed storage methods, recovery and migrations are retained. One regression checks
+room/house IDs, names, actual URLs and raw scan/structure preservation. Production
++17/-8; tests +31/-0. Swift regression UNRUN; no delete behavior or schemas changed.
+
+## Traceable concurrency inventory and backend diagnosis — 2026-11-26
+
+Added a standard-library source inventory script with three passing Python tests.
+It masks comments/literals while preserving line/column positions and emits all
+detached-task, optional-try and MainActor sites into an ignored JSON artifact.
+Every site starts as review-required with unknown ownership/policy; counts are not
+automatic defect findings. Interpolation and Swift regex-literal limitations are
+documented. This makes the outstanding per-site review reproducible, not complete.
+Regenerate after edits with the command in runChecks.md. CI runs the three tooling
+tests, but no workflow has been dispatched.
+
+Actual Windows checks for this part: 10 Node regressions, two runner tests, three
+inventory tests, strict localization, style and whitespace passed. Backend collected
+13 tests but its first HTTP test stalled while Python asyncio constructed a local
+socketpair. A focused faulthandler run showed the portal thread blocked in
+`socket._fallback_socketpair`/`accept`, called from asyncio's Windows loop setup,
+before entering application endpoint logic. The diagnostic was interrupted; no
+HTTP/backend pass is asserted and no backend code/assertions were changed. This is
+evidence narrowing the timeout to test-client loop setup, not proof of its underlying
+cause. The runner now captures thread stacks at half the subprocess timeout to aid
+future investigation. All Swift/Apple/device/performance acceptance remains pending.
+
+Latest edits remain local and uncommitted; the earlier approval-service usage-limit
+failure has not been bypassed. Separate branding edits remain untouched. Full v2
+acceptance is still incomplete; the report does not equate source implementation
+with a verified release.
+
+## Phase 0B, part 2 — pre-publication staging boundaries, 2026-11-26
+
+Three further Swift tests inject out-of-space failure when creating a new staging
+directory for room, house and technical packages. Complete original file snapshots
+must remain byte-identical and nonempty; independent room recovery data remains;
+normal retry succeeds and raw room/house input is preserved. The helper uses each
+writer's existing FileManager seam and does not change production transaction code.
+Snapshots canonicalize temporary roots to handle Apple's /var aliases consistently.
+
+Production +0/-0; tests +95/-0. These are explicit injected errors, not a genuine
+full filesystem or process kill. All three tests remain UNRUN. Golden approval,
+cross-process crash recovery, sync/offline conditions and actual disk pressure are
+still separate acceptance work, not implied by these tests.
+
+Current local tooling: 10 Node tests, 2 evidence-runner tests and 3 concurrency-
+inventory tests passed. Localization/style/whitespace passed. The backend HTTP
+test diagnostic described above remains blocked/stalled at asyncio socket setup;
+no new backend pass is asserted. All Apple builds, Swift tests and physical-device
+capture/audio/iCloud checks remain unverified. No push, pull or approval bypass.
+
+## Phase 2, part 4 — shared file revision identity, 2026-11-26
+
+SavedFileRevision now supplies one regular-file metadata identity to geometry
+summaries, evidence summaries, thumbnail caching and export source hashing. It
+validates file type/size and includes inode/file identity, date, length and path.
+Existing safe-path checks, data budgets and before/after export-hash checks remain
+with their callers. No content is persisted and no source package or index schema
+changes. This removes repeated metadata readers rather than creating a new cache.
+
+Evidence summary revisions previously used only path/date/size; they now invalidate
+on an atomic replacement with preserved timestamp and byte count. Three Swift
+regressions cover same-size/date replacement identity, directory/symlink rejection,
+and a real dashboard photo-number change under equal size/date. All UNRUN. The
+inode guarantee and thumbnail/export/cache suites require the Mac filesystem run.
+No latency/memory improvement or complete cache-coherency guarantee is claimed.
+
+Local source checks remain passing; exact counts/results are recorded by the latest
+tooling invocation. Remaining concurrency-site ownership review, approved output
+goldens, capture/device policies and measured performance acceptance are still
+outstanding. Pending local commits remain blocked by the earlier approval-service
+usage-limit failure, which has not been bypassed.
+
+## Phase 0A, part 3 — warning and coverage evidence, 2026-11-26
+
+Manual core diagnostics now extracts an xccov JSON report from its result bundle
+and records a visible failure when coverage cannot be produced. Warning counting
+is shared with a dependency-free script: repeated diagnostics are deduplicated,
+Swift warnings and all-build warnings are counted separately, and only explicitly
+supplied measured ceilings are enforced. Blank inputs record a baseline; no budget
+is invented. Three Python tests for classification/deduplication and independent
+ceilings actually passed locally. No Xcode workflow or coverage extraction ran.
+
+The local quality runner now includes all three tooling suites (eight tests total)
+without replacing the app/backend checks. Latest direct checks: 10 Node regressions,
+8 Python tooling tests, localization/style/whitespace passed. These are not Swift
+tests or a backend pass. Apple build/sanitizer/coverage/performance output is still
+UNRUN; the backend HTTP loop setup diagnosis remains unresolved on Windows.
+
+## Latest reproducible local checkpoint — 2026-11-26
+
+`.worktrees/core-local-current.json` records HEAD
+`014b60eb2f375991da790b6c49e04567c272e9aa` with `dirty: true`, including the current
+implementation and separate branding edits. Ten Node tests, eight Python tooling
+tests, strict localization (1380 keys), style, plist syntax and whitespace passed.
+The backend check exceeded the explicitly chosen 15-second subprocess deadline;
+its captured faulthandler output includes the asyncio socketpair/accept stack.
+It is FAILED by timeout, not passed. Apple schemes are BLOCKED; overall exit is 1.
+No Swift/Apple/device/performance test passed in this environment.
+
+Current uncommitted Swift diff, excluding separate AppTheme/branding changes:
+production +178/-71 and tests +320/-0. This includes earlier image/lifecycle work
+and the saved-view, native-action, stage-boundary and revision-identity parts just
+documented; it is not all attributable to a single phase. Tooling, workflows,
+localization and documentation are separate. The current inventory lists 72
+detached-task sites, 120 optional-try sites and 112 MainActor sites under its
+documented masking rules. Review-required entries still need semantic ownership
+review; no automatic race/performance conclusion follows from those counts.
+
+Completed local implementation parts are distinguished from remaining acceptance
+in `docs/CORE_REFACTOR_PLAN.md`. Full approved export goldens, the exhaustive site
+review, real crash/offline failure matrix, capture-policy/device work and measured
+optimization are not finished. No obsolete/recovery code was deleted to reduce
+line count. Pending Git writes still require the unavailable approval service;
+no push/pull or bypass occurred.
+
+## Phase 3a/1, part 5 — durable note save/recovery authority, 2026-11-26
+
+NoteSaveWorker is the shared asynchronous durable-save boundary for saved-note
+editors, the project voice library, project written notes and live text/audio notes.
+Text saves return a reloaded disk value and reject stale text/title/status. Audio
+revision saves compare requested revision and bytes with the destination before
+reporting success. New recordings stage and recover only their own note ID, so an
+unrelated conflicting outbox revision does not prevent the new save. Once started,
+these durable writes intentionally finish independently of UI cancellation; owners
+keep existing pending/retry state. This differs deliberately from disposable export
+preview work. No microphone policy, AR session or capture-engine lifecycle changed.
+
+VoiceNoteRecovery verifies destination revision/bytes before removing a revision
+from the outbox. A newer destination recording now produces a typed conflict and
+retains the unapplied recording for explicit recovery. Staging that returns a newer
+existing revision cannot be silently reported as the current caller's successful
+save. Existing low-level stale-audio behavior stays compatible; the save/recovery
+boundary supplies the explicit conflict and preservation guarantee. No persisted
+note/scan schema, IDs, paths or null accuracy fields changed.
+
+Eight additional Swift methods cover durable text/audio reload, stale editors,
+superseded recordings, retained recovery/retry after failure, targeted recovery
+beside an unrelated conflict, simultaneous text/audio changes and competing text
+editors. Export-library reads also use the common cancellable worker and fence
+success/error by request/root identity. Production +82/-25; tests +163/-0 for this
+part (localization separate). All eight Swift methods UNRUN; actual capture audio
+and interruptions remain device validation pending. They do not establish universal
+race freedom or replace the full concurrency-site audit.
+
+Latest direct checks: 10 Node tests and 8 Python tooling tests passed, strict
+localization passed (1381 keys), style/whitespace passed. New Swift code is unbuilt
+on Windows. The backend socketpair timeout remains unresolved; no new backend pass
+or performance improvement is claimed. Local commit approval still unavailable at
+the last attempt; changes remain in the working tree without an approval bypass.
+
+### Capture-boundary reuse and backend subset check
+
+Source trace confirms both capture adapters already use CapturePersistence,
+ScanCheckpointPolicy, CaptureBackgroundFlush and VoiceNoteHUD (the LiveScanNotes
+alias). House explicitly borrows the RoomPlan audio session; technical capture
+keeps its separate ARSession and media/depth adapter. The note-save consolidation
+reuses that shared control and does not introduce a second recorder/session family.
+This is a source ownership observation, not physical-device validation or completion
+of the full capture hot-path audit. Existing partial/failed-checkpoint status stays
+with CapturePersistence; a secondary checkpoint is distinct from the already durable
+project note sidecar.
+
+An explicitly targeted backend run (`pytest services/technical-google-ai -q -k
+'not http' -p no:cacheprovider` with a fresh workspace-local basetemp) actually
+completed: 11 passed, 2 deselected, one existing Starlette/httpx deprecation warning.
+The two HTTP cases were deliberately excluded only for diagnosis; the full runner
+and CI retain them. This is not a 13-test suite pass. HTTP test-client loop setup
+remains stalled on this Windows host and must be verified in the Mac/CI run.
+
+## Phase 2/1, part 6 — preserve unresolved backups and ordered completion, 2026-11-26
+
+PackageReplacement.recover no longer deletes an existing backup merely because
+the target also exists. Both are retained; a subsequent commit returns a localized
+RecoveryConflict instead of overwriting the recovery copy. A missing target still
+restores from the existing backup path. Successful new transactions retain their
+existing temporary-backup cleanup. No new backup naming, migration or package
+schema is introduced. This conservative conflict intentionally blocks another save
+until existing copies are reviewed; it does not choose the valid version by guessing.
+
+ARNoteStore now uses the common guarded rename/rollback primitive and does not
+pre-delete an unresolved `.ARNotes-backup`. Session orphan cleanup removes only
+recognized staging files and unindexed UUID payloads; unknown hidden files and
+recovery backups are preserved. No real user files were manipulated in this work.
+
+CapturePersistence completion now awaits finalizing then completed in one ordered
+error path, stops if the first write fails, and treats an already completed session
+as success. It does not change scan acquisition, AR sessions, coordinate alignment,
+audio policy or native formats. Four Swift regressions cover dual-copy preservation,
+notes conflict preservation, conservative orphan cleanup and idempotent/failed
+completion. Completion test is iOS-only because macOS excludes Scan sources.
+
+Production +30/-14; tests +81/-0 for this part (localization separate). Swift tests
+UNRUN; on-device recovery/save/error presentation and both Apple schemes remain
+unverified. Source localization (1382 keys), style and whitespace passed. Existing
+rollback/stage-failure/golden/legacy tests remain required; no assertions were weakened.
+
+Manual unresolved-copy check on Mac: use disposable fixtures, retain/export both
+current and backup versions before any resolution, inspect their contents and
+choose explicitly. Do not delete a real backup to make a test green. The app does
+not automatically merge or discard ambiguous recovery data.
+
+## Phase 4/0B, part 7 — export publication boundaries and reuse validation, 2026-11-26
+
+ProjectArtifactGenerator now shares its final request/source/metadata validation
+between new generation and the existing-file reuse path. A lookup/hash operation
+is no longer followed by an immediate success without that recheck. This reduces
+the unguarded reuse window; it does not lock user source packages against all later
+external modifications or claim a cross-file snapshot transaction.
+
+ProjectArtifactIndex checks cancellation inside coordinated publication and before
+writing a deduplicated request record. Its existing copied-file checksum validation
+and prior-file preservation remain. Cancellation/error after a new file is published
+but before its index write follows the same rollback path as an index failure.
+Rollback only targets the newly allocated export filename, never a reused/prior
+artifact. Cleanup failure remains best-effort and cannot guarantee that a new
+unindexed file is absent under an additional filesystem failure; the operation
+still reports failure. No package/export-index schema or filenames were changed.
+
+Four added Swift methods exercise injected failure at before-copy, after-copy,
+after-publication and before-index boundaries; failure while reusing identical
+bytes; cancellation after publication; and source replacement during copying.
+They check old export/source/index bytes, retry, no false index association and
+preservation of reused files. Fault hooks default to no-op and do not run in normal
+UI use. These are injected filesystem/cancellation cases, not process-kill tests.
+
+Production +28/-9; tests +85/-0. Swift tests UNRUN. Ten Node checks, eight Python
+tooling checks, localization (1382 keys), style and whitespace passed. Apple builds,
+real file-coordination/cancellation behavior and performance costs remain unverified.
+No performance improvement or full consolidation-completion claim is made.
+
+## Phase 4/0B, part 8 — legacy scan export reuse boundaries, 2026-11-26
+
+SavedExportFiles checks cancellation before coordinated work, while inspecting
+candidates and before returning reused bytes. SavedFileRevision is captured before
+hashing and checked before reuse, copying and publication. The existing staging
+checksum check remains. This revision guard is not a cross-file lock or proof
+against every in-place mutation. Names, deduplication and package formats remain.
+
+Three added Swift tests cover a cancelled task with an existing export, atomic
+source replacement after hashing, and injected out-of-space/cancellation after
+copying. They check prior bytes, cleanup under normal filesystem conditions and
+retry. Fault hooks default to no-op. Production +19/-3; tests +57/-0.
+
+Swift tests UNRUN on Windows. Ten Node checks, strict localization (1382 keys),
+style and whitespace passed. Both Apple schemes, file coordination and device
+behavior remain unverified. Full consolidation is not complete.
+
+## Phase 4/0B, part 9 — streaming checksum boundaries, 2026-11-26
+
+Audit confirmed ExportChecksum already streams in 1 MiB chunks and checks task
+cancellation per read. It now also checks before opening a file and before
+returning the digest. No hashing algorithm, chunk size or export format changed.
+
+Three new Swift test methods exercise a 3 MiB plus tail reference vector generated
+independently with Python hashlib; one byte below, at and above the 1 MiB boundary;
+a pre-cancelled request using a nonexistent path; and missing-file failure followed
+by successful retry. They do not demonstrate cancellation during a blocking read,
+bounded process memory, device throughput or interruption behavior.
+
+Production +2/-0; tests +38/-0. The Python reference digest was generated here.
+Ten Node checks, strict localization (1382 keys), style and whitespace checks
+passed. Swift tests remain UNRUN; both Apple schemes and device validation are
+pending. No measured performance improvement is claimed.
+
+## Phase 4/0B, part 10 — export edit ownership, 2026-11-26
+
+ProjectDeliverablesView previously used the same mutable busy flag for generation
+and durable rename/delete. cancelGeneration cleared that flag even when an edit
+was still running. Busy is now derived from the generation task and an independent
+OperationLifetime for edits. Cancelling generation cannot release edit ownership.
+Rename/delete still finish off the main actor after navigation; completion/error
+presentation checks visibility, root and project. Leaving invalidates pending list
+reloads. A successful visible edit clears the potentially stale generated-file link.
+No capture behavior or persistent format changed.
+
+One new Swift test exercises both rename and deletion against a corrupt export
+index. It checks rollback, unchanged source and index bytes, no leftover renamed
+or hidden deleted file under normal filesystem conditions, then restores only the
+disposable fixture's index and verifies retry/lookup. Existing OperationLifetimeTests
+cover exclusivity and stale completions; they do not validate SwiftUI navigation.
+
+This part: production +24/-10, tests +36/-0. Ten Node checks, localization (1382
+keys), style and whitespace passed. All Swift tests remain UNRUN. Mac/iPhone UI,
+filesystem coordination and full consolidation acceptance remain unverified.
+
+## Phase 2/5, part 11 — Studio destination identity, 2026-11-26
+
+Source review found SceneEditStore.read validates source type and sourceID, while
+write validated the existing document and compared only revision/date. A caller
+passing the wrong existing destination could overwrite it when those values match,
+or produce an unrelated conflict copy when they differ. No user data-loss incident
+was observed; this describes the reachable API behavior before the guard.
+
+write now checks the existing design's source and sourceID before conflict handling
+or publication. It uses the existing wrongSource error. Native formats, revisions
+and normal same-source conflict recovery are unchanged. One added Swift method
+covers different source types and different IDs, each with matching and stale
+revision/date, checking original bytes, absence of a spurious conflict copy and a
+valid subsequent save. Existing legacy/stale-writer tests remain required.
+
+Production +3/-0; tests +28/-0. Ten Node checks, localization (1382 keys), style and
+whitespace passed. The Swift regression and both Apple schemes remain UNRUN on
+Windows; Studio saving, real coordination and device behavior remain unverified.
+
+## Phase 1/2, part 12 — Mac design catalogue request ownership, 2026-11-26
+
+MacRootView.loadDesigns previously checked only cancellation and the primary
+documents URL before applying detached results. Same-root overlapping refreshes
+could apply an older list last; secondary-root changes were not checked. It now
+uses a request UUID plus both roots for success/error presentation. Disappearance
+invalidates the current request. Cancellation is silently discarded; a current
+non-cancellation read error still reaches the existing error presentation.
+
+The loader reuses BackgroundWork for cancellation forwarding, checks cancellation
+between roots/files and sorts filenames before the existing 200-file limit. The
+limit remains; this is not a claim of support for arbitrarily many saved designs.
+Existing document validation, source deduplication and primary-root precedence
+remain. No persisted catalogue, schema or capture policy was added.
+
+Production net +15 lines, including the existing block's indentation adjustment;
+no new tests added for private SwiftUI composition. Existing BackgroundWorkTests
+remain UNRUN and do not prove the Mac view's request behavior. Ten Node checks,
+localization (1382 keys), style and whitespace passed. Both Apple schemes and
+the overlapping-refresh/storage-switch manual checks remain unverified.
+
+## Phase 1/2, part 13 — workspace reconciliation after async work, 2026-11-26
+
+RenovationWorkspace.reload formerly reconciled/read its project index before
+awaiting scan summaries and published that earlier value afterwards. An edit
+while awaiting could remain durable on disk yet be replaced by stale in-memory
+state. Reconciliation now follows summary loading and the final suspension point,
+with no subsequent await before publishing the index. Cancellation or a queued
+newer reload prevents this pass from reconciling/publishing. Stale/cancelled errors
+are not presented, and cancelled design enumeration is not treated as corruption.
+
+Catalogue reads reuse BackgroundWork, including cancellation forwarding. A new
+root is assigned to notesRoot only when its index is ready to publish; mutations
+are disabled while switching catalogue roots. Existing pending-reload coalescing,
+package formats, discovery and source-design association policies remain.
+
+The workspace initializer accepts an optional local-root override and an optional
+async pre-publication checkpoint. Defaults preserve app root selection and do not
+pause. Tests use these to avoid global preferences/real Documents and deterministically
+exercise a concurrent project-note edit and cancellation before reconciliation.
+They assert memory/disk notes, unchanged cancelled index bytes, no root publication,
+no cancellation alert and released loading ownership.
+
+Production +23/-8; tests +55/-0 (two methods). Ten Node checks, localization (1382
+keys), style and whitespace passed. Swift tests UNRUN; both Apple schemes, UI,
+offline/iCloud transitions and real filesystem coordination remain unverified.
+
+## Phase 1/4/5, part 14 — duplication revisions and deletion completion, 2026-11-26
+
+Studio duplication copied a saved document's revision/modifiedAt to a fresh source
+destination. SceneEditStore.write interpreted that absent destination as a stale
+revision and produced a conflict copy instead of the intended new design. A shared
+SceneEditStore.duplicate now changes sourceID and clears only transient revision
+metadata before the normal writer; workspace duplication uses it. It rejects the
+same sourceID. Original content and existing format fields remain unchanged.
+
+Workspace removal previously assigned the index returned by its detached durable
+transaction, even if project metadata changed while awaiting completion. It now
+reads the current persisted index after that await, with no further suspension
+before presentation, and checks catalogue readiness/root for success and error.
+The removal transaction still finishes after navigation. A default-nil async
+pre-publication hook supports deterministic tests; no capture policy is affected.
+
+Two added Swift methods cover duplication of room/house/technical designs (fresh
+revision, independent subsequent edit, no conflict extra and untouched original)
+and a note edit between durable removal and UI completion (latest memory/disk note,
+removed reference and source no longer visible). Existing dependency/stale-index/
+trash-retention and real-conflict tests remain required. General asynchronous
+duplication/root-switch and full cross-entry-point review remain outstanding.
+
+This part: production +15/-7; tests +51/-0. Ten Node checks, strict localization
+(1382 keys), style and whitespace passed. All Swift tests remain UNRUN. Apple
+builds, duplication/deletion UI, filesystem coordination and physical-device
+behavior remain unverified. Full consolidation acceptance remains pending.

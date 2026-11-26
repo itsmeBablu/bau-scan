@@ -183,7 +183,7 @@ struct HouseDetailView: View {
     }
 
     private func rename() {
-        do { try store.rename(currentRecord, to: newName); load() } catch { actionError = error.localizedDescription }
+        do { try store.rename(.house(currentRecord), to: newName); load() } catch { actionError = error.localizedDescription }
     }
 }
 

@@ -21,11 +21,11 @@ struct ViewerView: View {
     @State private var selectedNote:ARNote?
     @State private var noteRoot:URL?
     @State private var markerRoot = Entity()
-    @State private var photos: [SurveyPhotoImage] = []
+    @State private var photos: [ProjectPhotoAsset] = []
     @State private var showPhotos = true
-    @State private var selectedPhoto: SurveyPhotoImage?
+    @State private var selectedPhoto: ProjectPhotoAsset?
     @State private var photoError: String?
-    @State private var pendingPhoto: SurveyPhotoImage?
+    @State private var pendingPhoto: ProjectPhotoAsset?
     @AppStorage("measurementUnit") private var appUnit: MeasurementUnit = .both
     @Environment(\.projectPreferences) private var projectPreferences
     @Environment(\.locale) private var locale
@@ -53,12 +53,18 @@ struct ViewerView: View {
         #endif
         }
         .task(id:photoPackageURL) {
+            notes = []; photos = []; selectedNote = nil; selectedPhoto = nil; pendingPhoto = nil
+            noteError = nil; photoError = nil
             guard let url = photoPackageURL else { return }
-            noteRoot = ScanVoiceNoteLibrary.root
-            do { notes = try await Task.detached { try ScanVoiceNoteLibrary.registeredNotes(packageURL:url,house:house) }.value; noteError = nil }
-            catch { notes = []; noteError = AppLanguage.text("Could not open voice notes")+": "+error.localizedDescription }
-            do { photos = try await Task.detached { try SurveyPhotoStore.images(from:url,house:house) }.value }
-            catch { photos = []; photoError = "Survey photos could not be loaded: "+error.localizedDescription }
+            let house = house, root = ScanVoiceNoteLibrary.root
+            noteRoot = root
+            do {
+                let loaded = try await BackgroundWork.run { try SavedScanEvidence.load(packageURL:url,house:house,notesRoot:root) }
+                guard !Task.isCancelled else { return }
+                notes = loaded.notes; photos = loaded.photos
+                noteError = loaded.noteFailure.map { AppLanguage.text("Could not open voice notes")+": "+$0 }
+                photoError = loaded.photoFailure
+            } catch { if !Task.isCancelled { noteError = error.localizedDescription } }
         }
         .overlay(alignment:.topLeading) {
             if !photos.isEmpty || !notes.isEmpty || photoError != nil || noteError != nil {
@@ -99,7 +105,7 @@ struct ViewerView: View {
             if let i = notes.firstIndex(where:{ $0.id == saved.id }) { var value = saved; value.displayPosition = notes[i].displayPosition; notes[i] = value }
         } }
         .sheet(item:$selectedPhoto) { photo in
-            SurveyPhotoGallery(photos:photos,initial:photo.id) { flyToPhoto($0) }
+            ProjectPhotoGallery(assets:photos,initial:photo.id,flyTo:flyToPhoto,compactPresentation:true)
         }
         .onChange(of:selectedPhoto?.id) { _,_ in updateMarkers() }
     }
@@ -189,7 +195,7 @@ struct ViewerView: View {
             }
             guard entity.name.hasPrefix(SurveyPhotoMarkers.prefix),
                   let id = UUID(uuidString:String(entity.name.dropFirst(SurveyPhotoMarkers.prefix.count))) else { return }
-            selectedPhoto = photos.first { $0.id == id }
+            selectedPhoto = photos.first { $0.photo.id == id }
     }
 
     private func makeLineEntity(from p1: SIMD3<Float>, to p2: SIMD3<Float>) -> Entity {
@@ -236,7 +242,7 @@ struct ViewerView: View {
     }
 
     private func selectNote(_ id:UUID) { selectedNote = notes.first { $0.id == id } }
-    private func selectPhoto(_ id:UUID) { selectedPhoto = photos.first { $0.id == id } }
+    private func selectPhoto(_ id:UUID) { selectedPhoto = photos.first { $0.photo.id == id } }
     private func updateMarkers() {
         markerRoot.children.removeAll()
         if showPhotos { for photo in photos.suffix(200) {
@@ -251,7 +257,7 @@ struct ViewerView: View {
         sceneRoot.addChild(markerRoot)
     }
 
-    private func flyToPhoto(_ photo: SurveyPhotoImage) {
+    private func flyToPhoto(_ photo: ProjectPhotoAsset) {
         if state.mode != .threeD {
             pendingPhoto = photo
             state.mode = .threeD
@@ -260,7 +266,7 @@ struct ViewerView: View {
         applyPhotoCamera(photo)
     }
 
-    private func applyPhotoCamera(_ photo: SurveyPhotoImage) {
+    private func applyPhotoCamera(_ photo: ProjectPhotoAsset) {
         let m = photo.photo.viewingPose
         guard m.count == 16 else { return }
         camera.transform = Transform(matrix:simd_float4x4(columns:(

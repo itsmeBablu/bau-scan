@@ -121,7 +121,7 @@ struct LiveScanNotes: View {
                 let value = media.note
                 let root = workspace?.notesRoot ?? ScanVoiceNoteLibrary.root
                 let outbox = try VoiceNoteRecovery.root()
-                let saved = try await Task.detached(priority:.utility) { try VoiceNoteRecovery.publishRevision(value,audio:clip.data,to:root,outbox:outbox) }.value
+                let saved = try await NoteSaveWorker.audioRevision(value,audio:clip.data,root:root,outbox:outbox)
                 onPin(saved)
                 pending = nil; pendingMedia = nil; message = AppLanguage.text("Voice note saved")
                 // The project sidecar is already durable. A checkpoint must never
@@ -138,9 +138,7 @@ struct LiveScanNotes: View {
                 let owner = try owner()
                 var value = pendingText ?? note(owner:owner); value.text = text; value.modifiedAt = Date()
                 let root = workspace?.notesRoot ?? ScanVoiceNoteLibrary.root
-                let saved = try await Task.detached(priority:.utility) {
-                    try ARNoteStore.upsertText(value,root:root)
-                }.value
+                let saved = try await NoteSaveWorker.text(value,root:root)
                 onPin(saved)
                 pendingText = nil; message = AppLanguage.text("Pinned note saved")
                 let media = ScanVoiceMedia(note:saved,audio:nil,pose:capturedPose,capturedAt:Date())

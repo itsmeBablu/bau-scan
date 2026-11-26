@@ -12,10 +12,9 @@ actor PhotoThumbnailCache {
     func image(_ asset: ProjectPhotoAsset, maximumPixelSize: Int = 400) throws -> CGImage {
         try Task.checkCancellation()
         let file = try SafePackageRead.fileURL(asset.url,root:asset.root)
-        let info = try FileManager.default.attributesOfItem(atPath: file.path)
-        guard info[.type] as? FileAttributeType == .typeRegular,
-              let bytes = info[.size] as? NSNumber, (0...4*1_048_576).contains(bytes.intValue) else { throw CocoaError(.fileReadTooLarge) }
-        let key = "file|\(asset.url.path)|\(String(describing: info[.modificationDate]))|\(String(describing: info[.size]))|\(String(describing: info[.systemFileNumber]))|\(maximumPixelSize)" as NSString
+        let revision = try SavedFileRevision(file)
+        guard revision.bytes <= 4*1_048_576 else { throw CocoaError(.fileReadTooLarge) }
+        let key = "file|\(revision.path)|\(String(describing:revision.modified))|\(revision.bytes)|\(revision.fileID)|\(maximumPixelSize)" as NSString
         try validateSize(maximumPixelSize)
         if let image = cache.object(forKey: key) { return image }
         return try decode(asset.image().jpegData, maximumPixelSize: maximumPixelSize, key: key)
@@ -36,12 +35,7 @@ actor PhotoThumbnailCache {
     }
     private func decode(_ data: Data, maximumPixelSize: Int, key: NSString) throws -> CGImage {
         try Task.checkCancellation()
-        guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
-              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceThumbnailMaxPixelSize: maximumPixelSize] as CFDictionary)
-        else { throw CocoaError(.fileReadCorruptFile) }
+        let image = try PhotoImageProcessor.thumbnail(data,maximumPixelSize:maximumPixelSize)
         try Task.checkCancellation()
         cache.setObject(image, forKey: key, cost: image.bytesPerRow * image.height)
         return image

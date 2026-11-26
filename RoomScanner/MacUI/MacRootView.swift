@@ -7,6 +7,7 @@ struct MacRootView: View {
     @Environment(RoomStore.self) private var store
     @State private var technicalStore = TechnicalRoomLibraryStore()
     @State private var designs: [SceneEditDocument] = []
+    @State private var designLoadRequest = UUID()
     @State private var designRoots: [UUID: URL] = [:]
     @State private var appState = MacAppState()
     @State private var pendingDeletion: MacItem?
@@ -154,6 +155,7 @@ struct MacRootView: View {
             do { try technicalStore.reload(); try await loadDesigns(); refreshSelection() } catch { errorMessage = error.localizedDescription }
         }
         .onChange(of:technicalStore.records) { _,_ in refreshSelection() }
+        .onDisappear { designLoadRequest = UUID() }
         .onChange(of: store.records) { _, _ in refreshSelection() }
         .onChange(of: store.houseRecords) { _, _ in refreshSelection() }
         .onChange(of: appState.selected, initial: true) { _, item in
@@ -271,8 +273,8 @@ struct MacRootView: View {
     /// Export subject for selected item (reloaded from package).
     private func subject(for item: MacItem) throws -> ExportSubject? {
         switch item {
-        case .room(let r): ExportSubject(record:r,plan:try store.plan(for:r),packageURL:store.packageURL(for:r))
-        case .house(let h): ExportSubject(record:h,house:try store.house(for:h),packageURL:store.packageURL(for:h))
+        case .room(let r): try store.exportSubject(for:.room(r))
+        case .house(let h): try store.exportSubject(for:.house(h))
         case .technicalRoom, .design: nil
         }
     }
@@ -350,26 +352,39 @@ struct MacRootView: View {
         let primary = store.location.documentsURL
         let local = technicalStore.root.deletingLastPathComponent()
         let roots = primary.standardizedFileURL == local.standardizedFileURL ? [primary] : [primary, local]
-        let loaded = try await Task.detached {
-            var results: [(SceneEditDocument, URL)] = []
-            for documents in roots {
-                let root = documents.appendingPathComponent("SceneEdits", isDirectory: true)
-                guard FileManager.default.fileExists(atPath: root.path) else { continue }
-                let files = try FileManager.default.contentsOfDirectory(at:root,includingPropertiesForKeys:nil).filter { $0.pathExtension == "json" }.prefix(200)
-                for file in files {
-                    let name = file.deletingPathExtension().lastPathComponent
-                    guard let separator = name.firstIndex(of: "-"),
-                          let source = SceneEditDocument.Source(rawValue: String(name[..<separator])),
-                          let id = UUID(uuidString: String(name[name.index(after: separator)...])) else { continue }
-                    if let value = try SceneEditStore.read(file, source: source, id: id),
-                       !results.contains(where: { $0.0.source == source && $0.0.sourceID == id }) {
-                        results.append((value, documents))
+        let request = UUID(); designLoadRequest = request
+        let loaded: [(SceneEditDocument, URL)]
+        do {
+            loaded = try await BackgroundWork.run(priority:.utility) {
+                var results: [(SceneEditDocument, URL)] = []
+                for documents in roots {
+                    try Task.checkCancellation()
+                    let root = documents.appendingPathComponent("SceneEdits", isDirectory: true)
+                    guard FileManager.default.fileExists(atPath: root.path) else { continue }
+                    let files = try FileManager.default.contentsOfDirectory(at:root,includingPropertiesForKeys:nil)
+                        .filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }.prefix(200)
+                    for file in files {
+                        try Task.checkCancellation()
+                        let name = file.deletingPathExtension().lastPathComponent
+                        guard let separator = name.firstIndex(of: "-"),
+                              let source = SceneEditDocument.Source(rawValue: String(name[..<separator])),
+                              let id = UUID(uuidString: String(name[name.index(after: separator)...])) else { continue }
+                        if let value = try SceneEditStore.read(file, source: source, id: id),
+                           !results.contains(where: { $0.0.source == source && $0.0.sourceID == id }) {
+                            results.append((value, documents))
+                        }
                     }
                 }
+                return results.sorted { $0.0.title.localizedStandardCompare($1.0.title) == .orderedAscending }
             }
-            return results.sorted { $0.0.title.localizedStandardCompare($1.0.title) == .orderedAscending }
-        }.value
-        guard !Task.isCancelled,primary == store.location.documentsURL else { return }
+        } catch is CancellationError { return }
+        catch {
+            guard !Task.isCancelled,designLoadRequest == request,primary == store.location.documentsURL,
+                  local == technicalStore.root.deletingLastPathComponent() else { return }
+            throw error
+        }
+        guard !Task.isCancelled,designLoadRequest == request,primary == store.location.documentsURL,
+              local == technicalStore.root.deletingLastPathComponent() else { return }
         designs = loaded.map { $0.0 }
         designRoots = Dictionary(loaded.map { ($0.0.sourceID, $0.1) }, uniquingKeysWith: { first, _ in first })
     }

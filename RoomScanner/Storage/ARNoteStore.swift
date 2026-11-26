@@ -158,15 +158,9 @@ enum ARNoteStore {
             }
             try indexData.write(to:staging.appendingPathComponent("index-v1.json"),options:.atomic)
             try SafePackageRead.validate(staging,entries:30_001,total:128*1_048_576)
-            let existed = fm.fileExists(atPath:target.path)
-            if fm.fileExists(atPath:backup.path) { try fm.removeItem(at:backup) }
-            if existed { try fm.moveItem(at:target,to:backup) }
-            do { try fm.moveItem(at:staging,to:target) }
-            catch {
-                if existed { try fm.moveItem(at:backup,to:target) }
-                throw error
-            }
-            if existed { try? fm.removeItem(at:backup) }
+            // Keep an unresolved pre-existing backup. Notes share the same
+            // guarded rename/rollback primitive as native scan packages.
+            try PackageReplacement.commitPrepared(staging,to:target,backup:backup,fm:fm)
             result = library.index
         }
         return result

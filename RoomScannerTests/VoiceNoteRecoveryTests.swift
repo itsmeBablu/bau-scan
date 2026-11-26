@@ -2,6 +2,25 @@ import XCTest
 @testable import RoomScanner
 
 final class VoiceNoteRecoveryTests: XCTestCase {
+    func testSupersededRecoveryRevisionRetainsBothDestinationAndOutboxBytes() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let outbox = root.appendingPathComponent("outbox"), destination = root.appendingPathComponent("library")
+        var note = ARNote(projectID:UUID(),reference:.init(kind:.technicalRoom,itemID:UUID(),library:"local"),
+                          number:1,level:nil,roomID:nil,position:nil,planPosition:nil,language:"en")
+        note.createdAt = Date(timeIntervalSince1970:1)
+        note.audioFileName = note.stem+".m4a"; note.audioDuration = 1
+        note.audioModifiedAt = Date(timeIntervalSince1970:5)
+        let old = Data([0,0,0,16])+Data("ftypM4A ".utf8), newest = old+Data([1])
+        try VoiceNoteRecovery.stageRevision(note,audio:old,at:outbox)
+        var replacement = note; replacement.audioModifiedAt = Date(timeIntervalSince1970:10)
+        let saved = try ARNoteStore.upsertAudio(replacement,audio:newest,root:destination)
+        XCTAssertThrowsError(try VoiceNoteRecovery.recover(projectID:note.projectID,from:outbox,to:destination,references:[note.reference])) { error in
+            guard case VoiceNoteRecovery.Failure.supersededAudio = error else { return XCTFail("Unexpected error: \(error)") }
+        }
+        XCTAssertEqual(try ARNoteStore.audio(for:saved,root:destination),newest)
+        XCTAssertEqual(try ARNoteStore.read(root:outbox,projectID:note.projectID).audio[note.id],old)
+    }
     func testConflictingAudioNeverOverwritesDestinationOrDeletesRecoveryCopy() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at:root) }

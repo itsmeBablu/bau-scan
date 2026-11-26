@@ -1,7 +1,7 @@
 import Foundation
 
 /// A lazy source reference, never an image-byte collection or a persisted format.
-struct ProjectPhotoAsset: Identifiable {
+struct ProjectPhotoAsset: Identifiable, Equatable {
     let reference: ProjectReference
     let photo: SurveyPhoto
     let roomName: String

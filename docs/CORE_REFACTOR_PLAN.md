@@ -2,6 +2,13 @@
 
 ## Local execution and handoff status
 
+Latest local review parts also address Studio destination identity/fresh duplicate
+revisions, Mac design-load request ownership, project-refresh reconciliation after
+awaits, and deletion completion preserving newer project notes. See QA parts 11–14.
+These implementations and Swift regressions are UNVERIFIED on Apple platforms;
+the full concurrency/action audit and asynchronous duplication/root-switch review
+remain unfinished. No whole phase is accepted from these source checks alone.
+
 - User override: implement locally; do not pull, push, open a PR, or trigger remote changes. The original remote instructions below are retained as the supplied plan, not executed.
 - Working branch: `codex/core-consolidation`, based on `015dbdb81e57d74fa959348162cca7f95cae70e5`.
 - Phase G remains UNVERIFIED. The user explicitly revised the implementation gate on 2026-11-26: "Yes—implement locally; Mac verification later". Local implementation may proceed; this does not waive Mac, CI or device acceptance checks.
@@ -9,6 +16,7 @@
 - Follow `runChecks.md` at the repository root on the Mac. Keep full logs and exact checkout identity; local Mac results must not be described as GitHub CI.
 - The read-only inventory below records the unchanged base. Subsequent implementation is recorded separately in this plan and the QA report; do not interpret the inventory's +0/-0 as the final diff.
 - Resume Phase G verification with Mac results. No passing Apple build, CI or device result is asserted for the local implementation.
+- Later local parts share saved-photo processing/lazy House galleries and detail controls, add incremental Studio object updates, preserve scoped photo identity and guard dashboard cancellation. See the dated QA entries for evidence and unverified items. Some latest edits remain uncommitted because the commit approval service reached its usage limit; no approval bypass is authorized.
 
 ---
 
@@ -187,14 +195,14 @@ for changed files/counts and local commit history):
 | Phase | Local implementation | Acceptance still pending |
 | --- | --- | --- |
 | G | Mac handoff and read-only CI lookup prepared; implementation gate explicitly revised by user | Both Apple schemes and final-SHA CI |
-| 0A | Static diagnostics, six performance workloads, manual sanitizer/coverage/warning workflow, three lifecycle tests | Measured baselines/budgets, executed diagnostics and live lifecycle checks |
-| 0B | Existing coverage mapped; four additional failure tests | Reviewed complete export goldens, real process-kill/disk-full and legacy recovery matrix |
+| 0A | Static diagnostics, six performance workloads, manual sanitizer/coverage/warning workflow, six lifecycle tests, tested warning reporting | Measured baselines/budgets, executed diagnostics and live lifecycle checks |
+| 0B | Existing coverage mapped; publication/rollback/stage-creation failure regressions | Reviewed complete export goldens, real process-kill/disk-full and legacy recovery matrix |
 | 1 | Voice operation ownership/stale results, shared cancellation, cross-instance local checkpoint transactions with regressions | Full per-site concurrency audit and executed UI/race/device tests |
-| 2 | Shared publication/rollback primitive, shared metadata enumeration in three consumers | Offline/iCloud and recovery execution; targeted invalidation measurements |
-| 3a | Shared cancellable media work; existing playback, thumbnail, glyph and archive authorities preserved | Recorder/photo adapter consolidation requires capture/audio-policy validation |
+| 2 | Shared publication/rollback, common metadata enumeration, shared file revisions and scoped source identity | Offline/iCloud and recovery execution; targeted invalidation measurements |
+| 3a | Shared image processing/thumbnail cache, lazy saved-view galleries/evidence, durable NoteSaveWorker, conflict-preserving recovery; existing recorder/playback/glyph/archive authorities reused | Recorder/raw-frame adapters require capture/audio-policy validation |
 | 3b | Not started; ARKit and RoomPlan lifecycles remain separate | Explicit capture-change review and device validation |
-| 4 | Export worker ownership shared; existing preference resolver/request publication reused | Common item/detail actions and full pipeline acceptance |
-| 5 | Existing Studio/geometry authorities preserved; no new geometry engine | Duplication/incremental scene work and actual portrait/landscape validation |
+| 4 | Shared Room/House controls, native action adapters and export work; existing preference resolver/request publication reused | Complete cross-entry-point item contracts and full pipeline acceptance |
+| 5 | Incremental object-node updates with full-build fallback; existing Studio/geometry authorities preserved | Executed scene/geometry regressions, measured latency and portrait/landscape validation |
 | 6 | No speculative optimization | Same-dataset before/after measurements; no invented budgets |
 | 7 | Local source/backend checks and handoff updated | Final Apple/golden/sanitizer/leak/performance/device verification; no unverified cleanup |
 

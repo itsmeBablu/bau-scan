@@ -2,6 +2,24 @@ import XCTest
 @testable import RoomScanner
 
 final class ScanSessionStoreTests: XCTestCase {
+    func testOrphanCleanupRetainsUnknownHiddenFilesAndRecoveryBackups() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let store = ScanSessionStore(root:root), session = try await store.create(kind:.technical,projectID:nil)
+        _ = try await store.write(session.id,key:"committed",data:Data("saved".utf8))
+        let folder = root.appendingPathComponent(session.id.uuidString+"/segments")
+        let backup = folder.appendingPathComponent(".payload.package-backup"), unknown = folder.appendingPathComponent(".manual-recovery")
+        let orphan = folder.appendingPathComponent(UUID().uuidString+".data")
+        try Data("recovery".utf8).write(to:backup)
+        try Data("manual".utf8).write(to:unknown)
+        try Data("uncommitted".utf8).write(to:orphan)
+        try await store.removeOrphans(session.id)
+        XCTAssertEqual(try Data(contentsOf:backup),Data("recovery".utf8))
+        XCTAssertEqual(try Data(contentsOf:unknown),Data("manual".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath:orphan.path))
+        let saved = try await store.latest(session.id,key:"committed")
+        XCTAssertEqual(saved,Data("saved".utf8))
+    }
     func testIndependentStoresCannotOverwriteEachOthersCommittedIndex() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

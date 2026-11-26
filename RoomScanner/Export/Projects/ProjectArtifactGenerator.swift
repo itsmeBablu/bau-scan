@@ -10,7 +10,18 @@ enum ProjectArtifactGenerator {
         defer { interval.end() }
         let request = try await ProjectExportRequest.make(project:project,index:index,entries:entries,kind:kind,locale:locale,unit:unit,includeDetails:includeDetails,wastePercent:wastePercent,includePhotos:includePhotos)
         try checkMetadata(request,root:root)
-        if let existing = try ProjectArtifactIndex.lookup(request,root:root) { return Result(url:existing,reused:true) }
+        // Reuse also performs I/O and hashing. Source/project edits during that
+        // lookup must not return a previously valid file as the current result.
+        let verifyCurrentSources: () async throws -> Void = {
+            try Task.checkCancellation(); try checkMetadata(request,root:root)
+            let latest = try await ProjectExportRequest.make(project:project,index:index,entries:entries,kind:kind,locale:locale,unit:unit,includeDetails:includeDetails,wastePercent:wastePercent,includePhotos:includePhotos)
+            guard latest == request else { throw SourceChanged() }
+            try checkMetadata(request,root:root)
+        }
+        if let existing = try ProjectArtifactIndex.lookup(request,root:root) {
+            try await verifyCurrentSources()
+            return Result(url:existing,reused:true)
+        }
         let scratch = try ExportService.scratchDirectory(),file = scratch.appendingPathComponent(kind.fileStem+"."+kind.suffix)
         defer { try? FileManager.default.removeItem(at:scratch) }
         switch kind {
@@ -25,10 +36,7 @@ enum ProjectArtifactGenerator {
         case .complete:
             try await ProjectBundleExporter.write(project:project,index:index,entries:entries,locale:locale,to:file,includeDetails:includeDetails,unit:unit,wastePercent:wastePercent,includePhotos:includePhotos)
         }
-        try Task.checkCancellation(); try checkMetadata(request,root:root)
-        let latest = try await ProjectExportRequest.make(project:project,index:index,entries:entries,kind:kind,locale:locale,unit:unit,includeDetails:includeDetails,wastePercent:wastePercent,includePhotos:includePhotos)
-        guard latest == request else { throw SourceChanged() }
-        try checkMetadata(request,root:root)
+        try await verifyCurrentSources()
         let sourceNames = project.references.filter { !$0.kind.rawValue.hasPrefix("design") }.compactMap { reference in entries.first { $0.reference == reference }?.title }
         let publication = try ProjectArtifactIndex.publishResult(file,request:request,projectName:project.name,sourceNames:sourceNames,root:root)
         return Result(url:publication.url,reused:publication.reused)

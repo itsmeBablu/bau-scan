@@ -242,10 +242,7 @@ struct RoomListView: View {
     private func renameItem() {
         guard let itemToRename else { return }
         do {
-            switch itemToRename {
-            case .room(let record): try store.rename(record, to: proposedName)
-            case .house(let record): try store.rename(record, to: proposedName)
-            }
+            try store.rename(itemToRename,to:proposedName)
         } catch { actionError = error.localizedDescription }
         self.itemToRename = nil
     }

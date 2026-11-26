@@ -113,7 +113,7 @@ struct VoiceNotePlayerSheet:View {
         Task { @MainActor in
             defer { saving = false }
             do {
-                let saved = try await Task.detached { try ARNoteStore.upsertText(value,root:root,expected:expected) }.value
+                let saved = try await NoteSaveWorker.text(value,expected:expected,root:root)
                 current = saved; textBaseline = saved; onSave(saved); error = nil
                 if close { dismiss() }
             } catch { self.error = error.localizedDescription }
@@ -133,9 +133,7 @@ struct VoiceNotePlayerSheet:View {
         Task { @MainActor in
             defer { saving = false }
             do {
-                let saved = try await Task.detached {
-                    try VoiceNoteRecovery.publishRevision(value,audio:clip.data,to:root,outbox:VoiceNoteRecovery.root())
-                }.value
+                let saved = try await NoteSaveWorker.audioRevision(value,audio:clip.data,root:root,outbox:VoiceNoteRecovery.root())
                 // Audio replacement must not silently save an unsaved text draft.
                 current = saved; onSave(saved); pendingClip = nil; pendingRevision = nil; error = nil
             } catch { self.error = error.localizedDescription }

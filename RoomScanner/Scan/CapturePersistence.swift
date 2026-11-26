@@ -67,6 +67,16 @@ import Observation
     func complete() async {
         let interval = PerformanceTrace.begin("ScanCompletionStateWrite")
         defer { interval.end() }
-        await state(.finalizing); await state(.completed)
+        do {
+            try await prepare()
+            guard let store else { throw CocoaError(.fileWriteUnknown) }
+            // Repeated finalization is idempotent. Do not attempt to reopen a
+            // completed session, or advance after a failed finalizing write.
+            if try await store.read(id).state != .completed {
+                try await store.setState(id,.finalizing)
+                try await store.setState(id,.completed)
+            }
+            failure = nil
+        } catch { failure = error.localizedDescription }
     }
 }

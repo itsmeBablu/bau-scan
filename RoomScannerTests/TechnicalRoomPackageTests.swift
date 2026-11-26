@@ -108,6 +108,20 @@ final class TechnicalRoomPackageTests: XCTestCase {
         XCTAssertThrowsError(try package.write(to: target))
         XCTAssertEqual(try Data(contentsOf: target.appendingPathComponent("manifest.json")), original)
     }
+    func testStagingFailurePreservesEveryTechnicalEvidenceByteAndRetry() throws {
+        var value = try package()
+        let target = root.appendingPathComponent(value.manifest.id.uuidString+".technicalroom")
+        try value.write(to:target)
+        let original = try PackageTestSnapshot.files(target)
+        XCTAssertFalse(original.isEmpty)
+        value.manifest.name = "Unsaved"
+        XCTAssertThrowsError(try value.write(to:target,fileManager:StageCreationOutOfSpaceFileManager())) { error in
+            XCTAssertEqual((error as? CocoaError)?.code,.fileWriteOutOfSpace)
+        }
+        XCTAssertEqual(try PackageTestSnapshot.files(target),original)
+        try value.write(to:target)
+        XCTAssertEqual(try TechnicalRoomPackage.read(from:target).manifest.name,"Unsaved")
+    }
     func testFailedAtomicSwapRestoresOriginalPackage() throws {
         var package = try package()
         let target = root.appendingPathComponent("survey.technicalroom")

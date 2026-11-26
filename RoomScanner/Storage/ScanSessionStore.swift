@@ -238,7 +238,12 @@ actor ScanSessionStore {
             let folder = directory(id).appendingPathComponent(name)
             for url in try FileManager.default.contentsOfDirectory(at:folder,includingPropertiesForKeys:nil) {
                 let relative = name+"/"+url.lastPathComponent
-                if url.lastPathComponent.hasPrefix(".") || (name != "index" && !retained.contains(relative)) { try check(url); try FileManager.default.removeItem(at:url) }
+                let staging = url.lastPathComponent.hasPrefix(".package-writing-")
+                let uncommittedPayload = name != "index" && url.pathExtension == "data" &&
+                    UUID(uuidString:url.deletingPathExtension().lastPathComponent) != nil && !retained.contains(relative)
+                // Unknown hidden files and recovery backups are not disposable
+                // orphans merely because they are absent from the current index.
+                if staging || uncommittedPayload { try check(url); try FileManager.default.removeItem(at:url) }
             }
         }
     }

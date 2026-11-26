@@ -631,6 +631,12 @@ enum SceneEditStore {
             try document.validate(); return document
         }
     }
+    @discardableResult static func duplicate(_ document:SceneEditDocument,sourceID:UUID,root:URL) throws -> SceneEditDocument {
+        guard sourceID != document.sourceID else { throw SceneEditDocument.Failure.wrongSource }
+        var copy = document
+        copy.sourceID = sourceID; copy.revision = nil; copy.modifiedAt = nil
+        return try write(copy,to:url(root:root,source:copy.source,id:sourceID))
+    }
     @discardableResult static func write(_ document: SceneEditDocument,to url: URL) throws -> SceneEditDocument {
         try document.validate()
         var committed = document
@@ -648,6 +654,9 @@ enum SceneEditStore {
                 guard info.isRegularFile == true,(info.fileSize ?? Int.max) <= 12*1_048_576 else { throw SceneEditDocument.Failure.oversized }
                 latest = try JSONDecoder().decode(SceneEditDocument.self,from:Data(contentsOf:file))
                 try latest?.validate()
+                guard latest?.source == document.source,latest?.sourceID == document.sourceID else {
+                    throw SceneEditDocument.Failure.wrongSource
+                }
             }
             if (latest?.revision ?? 0) != (document.revision ?? 0) || latest?.modifiedAt != document.modifiedAt {
                 var copy = document; copy.sourceID = UUID(); copy.revision = nil; copy.modifiedAt = nil

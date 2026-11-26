@@ -113,7 +113,7 @@ struct RoomDetailView: View {
 
     private func rename() {
         do {
-            try store.rename(currentRecord, to: newName)
+            try store.rename(.room(currentRecord), to: newName)
             load()
         } catch {
             actionError = error.localizedDescription

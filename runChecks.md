@@ -1,9 +1,45 @@
-# Mac handoff: build and regression checks
+# Mac handoff: verification and remaining consolidation
+
+## Current handoff — 2026-11-26
+
+Publication update: after preparing this handoff, the user explicitly authorized
+pushing the consolidation work to `itsmeBablu/bau-scan` main. The snapshot below
+describes the pre-publication Windows tree. On Mac, inspect the actual checkout
+and verify the latest source/test files are present; do not assume the older HEAD
+below is the published tip. A successfully published checkout contains the code
+needed for these checks without copying Windows build caches. Separate local
+AppTheme/icon/logo edits were excluded from the consolidation publication.
+The Mac continuation itself remains local unless the user authorizes remote work.
+
+The user requested that remaining work continue on the Mac. This section and the
+prompt below supersede the older verification-only restriction. Work locally;
+no pull, push, remote workflow run or dependency update is authorized by this file.
+
+Windows checkout: `C:\Users\kanala\Desktop\color\d-walk-scan`.
+Branch: `codex/core-consolidation`. HEAD when handed over:
+`014b60eb2f375991da790b6c49e04567c272e9aa`.
+The latest work is **not all committed**. HEAD alone, a GitHub download, or copying
+only this Markdown file will omit implementations and tests. Transfer the current
+working checkout, including new/untracked source, test and documentation files.
+Preserve unrelated AppTheme/icon/logo edits. Do not transfer `.env`, credentials,
+Windows virtual environments, DerivedData or generated `.worktrees` test outputs.
+Git history may be transferred with the checkout; do not overwrite another Mac
+checkout or resolve its differences by reset/clean. Compare first and preserve both.
+
+No XcodeGen generation, Apple compilation, Swift test, simulator/device validation
+or performance measurement was performed for these changes on Windows. Ten Node
+checks, localization, style and whitespace passed in the latest local pass. Earlier
+Python tooling tests passed; the full backend suite stalled on Windows, while its
+11 non-HTTP tests passed with two HTTP tests deselected. Run the full suite on Mac.
+Historical results are not evidence for a different checkout or later fixes.
 
 ## Prompt to paste into Codex on the Mac
 
-Read `runChecks.md` in this repository and execute its verification plan locally.
-First read `ARCHITECTURE_EN.md`, `.github/workflows/tests.yml`, and any applicable
+Read `runChecks.md` in this repository, verify the Windows consolidation work,
+then continue the unfinished consolidation locally on this Mac. First read
+`ARCHITECTURE_EN.md`, `docs/CORE_REFACTOR_PLAN.md`,
+`docs/QA_VALIDATION_REPORT.md`, `docs/DEVICE_TEST_CHECKLIST.md`,
+`.github/workflows/tests.yml`, and any applicable
 `AGENTS.md`. Preserve all existing changes. Do not pull, push, reset, clean, switch
 branches, or update dependencies. Inspect the current branch, commit, and dirty
 diff before running anything. The Windows handoff used branch
@@ -20,14 +56,14 @@ exit codes, `.xcresult` bundles, toolchain versions, simulator identity, commit,
 and dirty diff in an ignored `.worktrees/mac-checks/<timestamp>/` folder.
 Do not print `.env`, signing credentials, API keys, or local secret configuration.
 
-Fix only small, demonstrated compilation or regression failures needed to make
-these checks pass, preserving feature behavior. Do not begin additional consolidation,
-redesign, performance refactoring, or new features. Local implementation after this
-handoff was explicitly approved with Mac verification deferred; inspect and test
-those changes too. Do not weaken tests. Re-run
-both schemes and affected checks after the final fix. Record changed files and
-added/removed lines. Stop if a fix would change persistent formats, capture
-behavior, dependencies, or require destructive recovery; explain the blocker.
+First fix demonstrated compilation/regression failures, preserving feature behavior.
+After both schemes pass, continue the remaining work listed below in small,
+testable parts. Give a short report after each part: findings, changed files,
+production/test lines, checks actually run and remaining limitations. Do not
+weaken tests or add unrelated features/redesign. Re-run both schemes and affected
+checks after final changes. Stop the affected change if it would alter persistent
+formats, capture behavior or dependencies, or require destructive recovery; explain
+the blocker and continue independent authorized work. Never delete real recovery data.
 
 Keep House Scanner behavior and `.roomscan`, `.housescan`, `.technicalroom`, and
 Technical Room v1 formats unchanged. New domain logic must remain Foundation-only.
@@ -38,7 +74,63 @@ Report each check as passed, failed, blocked, or unrun with evidence. Separate
 simulator/macOS tests from physical-device validation. Do not call local Mac tests
 GitHub CI, and do not mark the original consolidation CI gate complete without a
 successful CI run at the exact final commit. End with a short report and paths to
-the logs so I can return the results to the Windows chat. Do not start later phases.
+the logs. Work through the remaining authorized parts until completed or blocked;
+do not label the whole consolidation finished while required evidence is missing.
+
+## Remaining work, in execution order
+
+1. **Establish the actual Mac baseline.** Inspect tracked/untracked changes and
+   toolchain, generate with XcodeGen, run both full schemes and all local checks.
+   Fix demonstrated failures before further refactoring. Inspect `project.yml` so
+   new shared test files are included in both test targets and iOS-only capture
+   tests remain excluded from Mac. Retain logs before and after fixes.
+2. **Complete the concurrency/error review.** Regenerate the source inventory;
+   review each relevant detached task, optional try and main-actor operation for
+   ownership, lifetime, cancellation, error presentation and late-result identity.
+   Record an explicit decision per site; a lexical report is not a completed audit.
+   Prioritize asynchronous duplication/root changes in RenovationWorkspace,
+   written-note mutation lifetime, Mac import/design refresh callers and remaining
+   saved-item/export entry points. Preserve intentional durable writes that finish
+   after navigation. Add regression tests for demonstrated risks, not mirrored code.
+3. **Finish shared action/media contracts.** Check Room/House/Technik/Studio rename,
+   duplicate, delete, export, photo selection and note save/recovery across all
+   entry points. Preserve full identity including source kind and local/iCloud root.
+   Reuse existing authorities. Keep native deletion/trash and project-label semantics
+   distinct when their contracts differ. Recorder/raw-frame adapters and Phase 3b
+   remain unvalidated: do not merge the independent capture engines or change AR,
+   RoomPlan or audio-session policy as routine consolidation.
+4. **Review export baselines.** Execute structural/deterministic/round-trip tests
+   and generate representative PDF/PNG, DXF/SVG, OBJ/STL/PLY, JSON/resolved geometry,
+   IFC, raw USDZ-copy and ZIP outputs from existing fixtures. Review full output and
+   visual golden gaps. Never silently regenerate an existing baseline to accept a
+   regression; present changed/new golden artifacts for review. Verify room heights,
+   hosted windows, PDF-photo toggle, floor/room photo folders, numbering and no
+   duplicate renamed exports. Revit interoperability remains unverified until opened.
+5. **Exercise recovery and lifecycle.** Run rollback, stage/publication failure,
+   legacy package, dual-backup, note/outbox and checkpoint tests. Use disposable
+   isolated fixtures for real process-kill/disk-full experiments; injected errors
+   do not prove them. Verify offline/iCloud state and ambiguous backups on suitable
+   environments. Never erase or auto-resolve real recovery copies.
+6. **Measure before optimizing.** Run the existing synthetic workloads, warning/
+   coverage reporting, sanitizers and lifecycle/leak checks. Record dataset, toolchain,
+   hardware, exact tested tree and baseline. Set budgets from measured/reviewed data;
+   optimize only demonstrated bottlenecks and compare the same workload afterwards.
+   Verify Studio incremental-update fallback, camera/floor preservation, portrait/
+   landscape and large photo libraries. Do not claim improved performance from LOC.
+7. **Physical-device validation.** Use `docs/DEVICE_TEST_CHECKLIST.md` on iPhone
+   14 Pro where available: separate House/Technik sessions, long scans, checkpoints,
+   background/foreground, interruption/relocalisation, photos, recording/playback,
+   reopening saved data, markers and exports. If no device is available, leave
+   these pending and complete independent Mac work. No invented accuracy/DIN claims.
+8. **Final cleanup and report.** Remove only proven dead/duplicate code after
+   verification, preserve unrelated changes and formats, rerun both schemes and
+   affected checks, and update the plan/QA report. List completed, failed, blocked,
+   unrun and device-pending items separately. GitHub CI stays unverified without an
+   actual successful final-commit run; do not push or trigger it without authorization.
+
+All steps above are unfinished acceptance work, not a statement that each needs
+new production code. Stop speculative refactoring when evidence supports keeping
+an existing implementation. Preserve the latest Windows fixes, detailed below.
 
 ## Execution notes
 
@@ -180,3 +272,134 @@ appendix; and six Studio tile presets plus wall-aligned wood. Execute
 Check that the capture-persistence lifecycle test is iOS-only. See the dated
 `docs/QA_VALIDATION_REPORT.md` entries for exact limits and outstanding work.
 Do not overwrite unrelated branding/icon changes if the Mac checkout includes them.
+
+The later consolidation also shares thumbnail/image processing, uses lazy House
+photo references, shares Room/House controls and patches object-only Studio edits.
+Run `PhotoThumbnailCacheTests`, `PhotoImageProcessorTests`, `CoreLifecycleTests`,
+`ProjectEvidenceSummaryTests`, and the complete `SceneStudioTests`. Review the
+guarded full-scene fallback and actual floor/camera/unaffected-node preservation.
+Manually verify photo orientation, large galleries, rapid photo selection/closing,
+Room/House toolbar shortcuts, rename-error alerts and Studio add/move/delete/undo.
+Inactive recorder lifecycle tests must never request microphone permission.
+
+Also run `python3 Scripts/test_local_quality_baseline.py` for the runner's own two
+evidence-handling tests. The baseline tool now supports `--timeout SECONDS` (default
+120 per subprocess) and saves partial progress. Windows' latest bounded backend
+check timed out at 30 seconds; investigate the actual backend on Mac and attach
+its full result. Do not interpret passing runner unit tests as a backend pass.
+
+Run `python3 Scripts/test_swift_concurrency_audit.py` and regenerate the source
+inventory with `python3 Scripts/audit_swift_concurrency.py --output
+.worktrees/core-concurrency-mac.json` (one shell line). This masks comments/literals
+and preserves locations, with documented interpolation/regex limitations. Sites
+marked `review-required` are not an exhaustive completed concurrency review.
+
+New saved-view work: run `SavedScanEvidenceTests` and `LibraryItemOperationTests`.
+Verify 2D/3D markers still open the correct photo, the camera button preserves its
+pose behavior, gallery sheets retain their compact style where previously used,
+and independent corrupt-note/photo cases leave the other evidence visible. Full
+JPEGs should only be opened for gallery pages, not to populate marker metadata.
+
+Also run `PackageTransactionBoundaryTests` and the added technical staging-failure
+case. They inject stage-creation errors and compare every pre-existing package file,
+including nested room/raw evidence, before checking retry. They do not simulate a
+real full disk or killed process. Full test schemes must retain all prior tests.
+
+Latest Windows backend diagnosis: pytest collected all 13 cases but stalled on the
+first TestClient HTTP case during asyncio Windows event-loop socketpair creation;
+the faulthandler stack reached `socket.accept` before endpoint logic. Do not change
+or skip backend assertions to manufacture green results. The updated baseline
+runner emits thread stacks before its deadline; return them if Mac also stalls.
+
+Run `SavedFileRevisionTests` and the evidence-summary test for atomic replacement
+with unchanged byte count/timestamp. Check that inode/file identity changes are
+observed and stale previews are not returned. These checks share the same metadata
+reader with thumbnail caches and export hashing; retain all their regression suites.
+
+Run `python3 Scripts/test_compiler_warning_report.py` (three tooling tests).
+The manual diagnostics workflow now extracts coverage JSON and independently
+records/enforces supplied Swift and all-build warning ceilings. Leave ceilings
+blank for the first measured baseline; do not choose an invented budget. Local
+warning reporting can be run on the captured compiler logs using
+`python3 Scripts/compiler_warning_report.py --log <tests.log> --output <warnings.json>`.
+
+Run `NoteSaveWorkerTests`, `NoteTransactionRaceTests`, and the added superseded-audio
+case in `VoiceNoteRecoveryTests`. Verify actual destination bytes before a success
+message/outbox removal, stale edit conflicts, two concurrent text editors, concurrent
+text/audio saves, failed-save retries and recovery limited to one new note ID.
+An older unapplied recording must stay in the outbox when a newer recording exists.
+Live notes use the same durable-write boundary; microphone/AR session policies must
+remain unchanged during House and Technik device tests. Durable writes are not
+cancelled merely because the editor closes; pending failure state must remain clear.
+
+Diagnostic Windows subset: 11 non-HTTP backend tests passed, with the two HTTP
+tests deselected. This does not replace the required full 13-test suite. Run the
+full suite on Mac; preserve the HTTP authentication/contract assertions unchanged.
+
+Run the new dual-copy backup cases in `PackageReplacementTests` / `ARNoteTests`,
+the conservative orphan-cleanup case in `ScanSessionStoreTests`, and the iOS
+completion test in `CoreLifecycleTests`. If current and recovery files coexist,
+both must remain and saving must report an explicit conflict. Missing-target
+recovery must still work. Repeated checkpoint completion must be idempotent and
+a failed finalizing write must not advance to completed. Use disposable fixtures;
+never delete real recovery data just to pass the checks.
+
+Run `ArtifactPublicationBoundaryTests` plus all existing artifact-reuse, saved-file,
+export-service and ZIP tests. Failure before/after staging or before the index must
+keep old exports and their index associations; reused bytes must never be removed
+on an index error. Changed source during copying must fail checksum validation.
+Validate cancellation and normal retry with the same destination folder. Reuse now
+also rechecks source/request identity before returning; measure its cost on Mac.
+
+Some image/lifecycle/documentation edits may be uncommitted because local commit
+approval failed at the approval service's usage limit. Inspect the actual working
+tree rather than assuming HEAD contains those changes. Do not bypass approvals
+or include separate branding edits in a consolidation commit without authorization.
+
+Run the three additional SavedExportFilesTests covering cancelled reuse, source
+replacement after hashing and copy failure/cancellation with retry. Verify prior
+exports remain and no staging file remains under normal filesystem conditions.
+These Swift tests were written on Windows and have not been run. Measure the
+revision-check overhead on Mac; no performance improvement is claimed.
+
+Run ExportChecksumTests including the independent multi-chunk reference vector,
+1 MiB boundary cases, pre-cancellation and missing-file retry. These tests remain
+unrun on Windows. The implementation still uses 1 MiB reads; assess actual memory,
+throughput and cancellation latency on Mac without inferring them from source.
+
+Run ProjectArtifactLibraryTests including rename/delete rollback with a corrupt
+index and retry after restoring that disposable fixture. Run OperationLifetimeTests.
+Manually delay a rename/delete, trigger catalogue refresh or navigate away/back,
+and verify generation cancellation cannot enable another action while the edit
+is running. Verify late errors do not appear on a closed/different project and
+the generated-file share link is cleared after a successful rename/delete.
+This UI behavior and the added Swift test have not been verified on Windows.
+
+Run StudioConflictTests: wrong existing destination source/type or ID must reject
+before overwrite or conflict-copy creation, regardless of matching/stale revision.
+Keep the existing legacy and genuine same-source stale-writer recovery tests green.
+This added destination-identity test remains unrun on Windows.
+
+Mac design catalogue: delay a load, start a second refresh, and verify the older
+result/error cannot replace the newer request. Repeat across primary and secondary
+storage-root changes and window disappearance. Verify cancellation produces no
+error alert, current corrupt-design errors remain visible, and root precedence is
+unchanged. With over 200 disposable design files, verify a repeatable sorted subset;
+the existing 200-per-root limit remains. This Mac UI change is unverified here.
+
+Run WorkspaceReloadTests on both schemes. A project note saved while catalogue
+refresh is suspended must remain current in memory and on disk. Cancellation at
+the publication boundary must leave the original index bytes, notes root and
+catalogue revision unchanged without an error alert. Tests use an injected local
+root and a checkpoint; they must not modify real Documents or global root defaults.
+Manually verify queued refreshes and local/iCloud root changes, including failure:
+mutations remain blocked until the new catalogue is published. All remain unverified
+on this Windows host.
+
+Run StudioConflictTests and WorkspaceReloadTests additions for duplication and
+removal. Duplicating an already saved room/house/technical Studio design must start
+at revision 1 at the intended new source ID, preserve original bytes and allow an
+independent revision 2 edit. Removal completion must preserve an intervening project
+note in memory and on disk. Retain ProjectScanRemovalTests for dependencies, stale
+catalogues and retained trash. Manually test root switches during these operations;
+the broader asynchronous duplication/root-switch review remains outstanding.

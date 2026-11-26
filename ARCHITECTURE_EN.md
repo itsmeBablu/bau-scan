@@ -425,3 +425,74 @@ one exact source/design item is moved to sibling hidden trash, dependent Studio
 sources are protected, and notes/shared artifacts remain. Catalogue failure rolls
 back the move. Trash is retained rather than purged. No native scan schema or
 capture/session lifecycle changes are part of these library actions.
+
+## Core consolidation checkpoint — 2026-11-26 (Apple verification pending)
+
+The following shared authorities replace duplicated plumbing while native package
+schemas and independent House/Technical Room capture lifecycles remain unchanged:
+
+- `PackageReplacement.commitPrepared`: rename/rollback primitive. Each package
+  keeps its existing validation, file coordination and backup recovery convention.
+- `PackageCatalogue`: room/house/technical metadata enumeration and identity/version
+  diagnostics. Stores retain library-root selection, migration and presentation;
+  this is not a second persistent catalogue or an iCloud availability cache.
+- `BackgroundWork`: detached encoding/I/O ownership with cancellation forwarding
+  and a final cancellation check. Durable note saves retain their existing recovery
+  policy; cancellation is not a rollback guarantee for blocking Foundation calls.
+- `PhotoImageProcessor` and `PhotoThumbnailCache`: bounded, orientation-aware image
+  processing and one actor-owned thumbnail cache. House photos use lazy source
+  references and the existing project gallery. Raw frame/depth capture adapters
+  remain separate and imported-photo processing does not control an AR session.
+- `OperationLifetime`: transient voice-library operation identity. A slow-write
+  warning never releases writer ownership or permits an overlapping retry.
+- `ScanDetailControls`: shared Room/House toolbar, tab picker and Mac shortcuts.
+  House-only levels, radiators and per-room actions stay in the House adapter.
+- `StudioSceneController`: still the viewport authority. Object-only changes patch
+  affected nodes when all non-object state is equal; other changes use the existing
+  full scene builder. No new geometry engine or persistence format is introduced.
+
+`PerformanceTrace`, the iOS MetricKit receipt subscriber, synthetic performance
+workloads and manual diagnostics workflow prepare measurement. No measured speed,
+memory, accuracy or standards-compliance result has been established on Windows.
+Source/backend checks cannot substitute for both Xcode schemes or physical-device
+capture/audio/iCloud testing. See `docs/QA_VALIDATION_REPORT.md` and `runChecks.md`.
+
+Requested output/presentation additions: min/max room height in Excel-readable CSV;
+window symbols projected onto resolved host walls without rewriting raw openings;
+an explicit PDF-photo option participating in export reuse identity; and Studio
+tile presets/wood direction using existing design fields. Export generator revision
+2 accepts legacy revision 1; native scan schema versions remain unchanged.
+
+Saved 2D/3D views also share `SavedScanEvidence`: notes and photo metadata fail
+independently, cancellation propagates, and gallery pages load image bytes lazily.
+`RoomStore` owns native `LibraryItem` rename/export preparation; project-index labels
+remain separate from package renaming. `Scripts/audit_swift_concurrency.py` supplies
+a reproducible, explicitly unreviewed source-site inventory for the remaining audit.
+
+`SavedFileRevision` is the shared regular-file metadata identity for geometry and
+evidence summaries, file thumbnails and export hashes. It includes path, byte
+count, modification date and file identity so atomic replacements can invalidate
+caches even when size/date are preserved. Callers retain safe-path checks, budgets
+and coordination; revision metadata is not a content hash or a persistence format.
+
+`NoteSaveWorker` is the common durable note-write boundary for saved and live note
+controls. It deliberately awaits a write independent of view cancellation, reloads
+the destination before success, and preserves pending drafts on failure. Audio
+revision recovery checks the actual destination revision/bytes before outbox cleanup;
+superseded audio stays available and reports a conflict. Targeted new-recording
+recovery touches only its note ID. Existing recorder/audio-session and AR ownership
+remain unchanged. Swift/device validation for these local changes is pending.
+
+Unresolved dual-copy recovery is conservative: when target and backup both exist,
+PackageReplacement keeps both and refuses a new replacement with a localized
+conflict. Notes use the same guarded publication primitive. Session orphan cleanup
+preserves unknown hidden/recovery files. Capture completion states are ordered and
+idempotent, without changing either capture engine. Legacy backup paths and native
+schemas are unchanged; recovery/device validation remains pending.
+
+Artifact generation revalidates source/request identity for both reuse and fresh
+publication. The coordinated artifact writer checks cancellation before index
+updates and uses the existing new-file rollback path for pre-index failure.
+`ArtifactPublicationBoundaryTests` injects faults without changing production
+defaults. Existing files and schema versions are preserved; cross-file snapshot
+atomicity and rollback under additional cleanup failures are not guaranteed.

@@ -219,6 +219,8 @@ struct ProjectPhotosView: View {
 struct ProjectPhotoGallery: View {
     let assets:[ProjectPhotoAsset]
     let initial:String
+    var flyTo: ((ProjectPhotoAsset) -> Void)? = nil
+    var compactPresentation = false
     @State private var selected = ""
     @State private var fullScreen = false
     @Environment(\.dismiss) private var dismiss
@@ -245,6 +247,7 @@ struct ProjectPhotoGallery: View {
                     Button("Next",systemImage:"chevron.right") { selected = assets[index+1].id }.disabled(index+1 >= assets.count)
                     if let current { ShareLink(item:current.url) { Label("Share",systemImage:"square.and.arrow.up") } }
                     Button("Full screen",systemImage:"arrow.up.left.and.arrow.down.right") { fullScreen = true }
+                    if let flyTo,let current { Button("Go to camera",systemImage:"viewfinder") { flyTo(current); dismiss() } }
                 }
             }
         }.onAppear { selected = initial }
@@ -254,6 +257,20 @@ struct ProjectPhotoGallery: View {
                         .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Done") { fullScreen = false } } } }
                 }
             }
+        .modifier(EvidenceGalleryPresentation(compact:compactPresentation))
+    }
+}
+
+private struct EvidenceGalleryPresentation: ViewModifier {
+    let compact:Bool
+    @ViewBuilder func body(content:Content) -> some View {
+        if compact {
+            #if os(iOS)
+            content.presentationDetents([.fraction(0.5),.large]).presentationDragIndicator(.visible)
+            #else
+            content.frame(minWidth:600,minHeight:480)
+            #endif
+        } else { content }
     }
 }
 

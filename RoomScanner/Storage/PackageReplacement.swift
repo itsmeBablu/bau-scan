@@ -2,6 +2,12 @@ import Foundation
 
 /// Same-volume staging with a recoverable original until the final rename succeeds.
 enum PackageReplacement {
+    enum RecoveryConflict:LocalizedError {
+        case existingBackup
+        var errorDescription:String? {
+            AppLanguage.text("A recovery copy already exists. Both versions were kept. Review recovery data before saving again.")
+        }
+    }
     static func staging(for target: URL, fm: FileManager = .default) throws -> URL {
         let parent = target.deletingLastPathComponent()
         try fm.createDirectory(at:parent,withIntermediateDirectories:true)
@@ -13,8 +19,9 @@ enum PackageReplacement {
     static func recover(_ target: URL, fm: FileManager = .default) throws {
         let old = backup(for:target)
         guard fm.fileExists(atPath:old.path) else { return }
-        if fm.fileExists(atPath:target.path) { try fm.removeItem(at:old) }
-        else { try fm.moveItem(at:old,to:target) }
+        // Existing target bytes are not proof that publication finished. Keep
+        // both versions for inspection instead of deleting the last good backup.
+        if !fm.fileExists(atPath:target.path) { try fm.moveItem(at:old,to:target) }
     }
     static func commit(_ staging: URL, to target: URL, fm: FileManager = .default,
                        move: ((URL,URL) throws -> Void)? = nil) throws {
@@ -30,7 +37,7 @@ enum PackageReplacement {
     static func commitPrepared(_ staging: URL, to target: URL, backup old: URL,
                                fm: FileManager = .default, move: ((URL,URL) throws -> Void)? = nil) throws {
         // Never overwrite a recovery copy supplied by a caller.
-        guard !fm.fileExists(atPath: old.path) else { throw CocoaError(.fileWriteFileExists) }
+        guard !fm.fileExists(atPath: old.path) else { throw RecoveryConflict.existingBackup }
         let rename = move ?? { try fm.moveItem(at:$0,to:$1) }
         let existed = fm.fileExists(atPath:target.path)
         if existed { try rename(target,old) }

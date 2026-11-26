@@ -1,6 +1,8 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "A recovery copy already exists. Both versions were kept. Review recovery data before saving again.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"A recovery copy already exists. Both versions were kept. Review recovery data before saving again."}},"de":{"stringUnit":{"state":"translated","value":"Eine Wiederherstellungskopie ist bereits vorhanden. Beide Versionen bleiben erhalten. Prüfe die Wiederherstellungsdaten vor dem erneuten Speichern."}}}},
+    "A newer recording is already saved. Your recording was not applied. Reload before retrying.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"A newer recording is already saved. Your recording was not applied. Reload before retrying."}},"de":{"stringUnit":{"state":"translated","value":"Eine neuere Aufnahme ist bereits gespeichert. Deine Aufnahme wurde nicht übernommen. Lade den aktuellen Stand vor einem erneuten Versuch."}}}},
     "Tile presets": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Tile presets"}},"de":{"stringUnit":{"state":"translated","value":"Fliesenvorlagen"}}}},
     "Wood follows the longest wall on each floor.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Wood follows the longest wall on each floor."}},"de":{"stringUnit":{"state":"translated","value":"Holzdielen folgen der längsten Wand jeder Etage."}}}},
     "Porcelain · ivory": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Porcelain · ivory"}},"de":{"stringUnit":{"state":"translated","value":"Feinsteinzeug · Elfenbein"}}}},

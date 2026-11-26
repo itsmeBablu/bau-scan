@@ -2,6 +2,42 @@ import XCTest
 @testable import RoomScanner
 
 final class ProjectArtifactLibraryTests:XCTestCase {
+    func testRenameAndDeleteRollBackWhenTheirIndexCannotBeRead() throws {
+        for rename in [true,false] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at:root) }
+            try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+            let project = UUID(),source = root.appendingPathComponent("source.csv"),bytes = Data("survey quantities".utf8)
+            try bytes.write(to:source)
+            let request = ProjectExportRequest(projectID:project,kind:.quantities,metadataDigest:String(repeating:"a",count:64),sourceRevision:String(repeating:"b",count:64),locale:"en",unit:.meters,includeDetails:false,wastePercent:10)
+            let saved = try ProjectArtifactIndex.publish(source,request:request,projectName:"Survey",root:root)
+            let folder = ProjectArtifacts.directory(root:root,projectID:project)
+            let index = folder.appendingPathComponent(".artifact-index-v1.json")
+            let valid = try Data(contentsOf:index),corrupt = Data("interrupted or unavailable index".utf8)
+            try corrupt.write(to:index,options:.atomic)
+            if rename {
+                XCTAssertThrowsError(try ProjectArtifacts.rename(saved,to:"Updated schedule",root:root,projectID:project))
+            } else {
+                XCTAssertThrowsError(try ProjectArtifacts.remove(saved,root:root,projectID:project))
+            }
+            XCTAssertEqual(try Data(contentsOf:saved),bytes)
+            XCTAssertEqual(try Data(contentsOf:source),bytes)
+            XCTAssertEqual(try Data(contentsOf:index),corrupt)
+            XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath:folder.path)),Set([saved.lastPathComponent,index.lastPathComponent]))
+            // Restoring only this disposable fixture's index permits a normal retry.
+            try valid.write(to:index,options:.atomic)
+            if rename {
+                let revised = try ProjectArtifacts.rename(saved,to:"Updated schedule",root:root,projectID:project)
+                XCTAssertEqual(try ProjectArtifactIndex.lookup(request,root:root),revised)
+                XCTAssertEqual(try Data(contentsOf:revised),bytes)
+            } else {
+                try ProjectArtifacts.remove(saved,root:root,projectID:project)
+                XCTAssertFalse(FileManager.default.fileExists(atPath:saved.path))
+                XCTAssertNil(try ProjectArtifactIndex.lookup(request,root:root))
+            }
+        }
+    }
+
     func testCategoriesAndSupportedFilesPreserveLegacyExports() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at:root) }

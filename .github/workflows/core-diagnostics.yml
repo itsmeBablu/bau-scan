@@ -6,6 +6,10 @@ on:
         description: Optional measured compiler-warning ceiling; blank records the first baseline
         required: false
         type: string
+      build_warning_budget:
+        description: Optional measured ceiling for all unique build warnings; blank records a baseline
+        required: false
+        type: string
 permissions:
   contents: read
 jobs:
@@ -73,22 +77,21 @@ jobs:
         if: always()
         env:
           WARNING_BUDGET: ${{ inputs.warning_budget }}
+          BUILD_WARNING_BUDGET: ${{ inputs.build_warning_budget }}
         run: |
-          python3 - <<'PY'
-          import json, os, pathlib, re
-          log = pathlib.Path('build-logs/tests.log')
-          if not log.exists():
-              raise SystemExit('No compiler log; warning baseline unavailable')
-          diagnostics = sorted(set(re.findall(r'^.*\.swift:\d+:\d+: warning:.*$', log.read_text(errors='replace'), re.M)))
-          budget = os.environ.get('WARNING_BUDGET', '').strip()
-          if budget and not budget.isdecimal():
-              raise SystemExit('Warning budget must be a nonnegative measured integer')
-          result = {'uniqueSwiftWarnings': len(diagnostics), 'budget': int(budget) if budget else None,
-                    'status': 'checked' if budget else 'baseline-only', 'diagnostics': diagnostics}
-          pathlib.Path('build-logs/warnings.json').write_text(json.dumps(result, indent=2) + '\n')
-          if budget and len(diagnostics) > int(budget):
-              raise SystemExit('Compiler warning budget exceeded')
-          PY
+          python3 Scripts/compiler_warning_report.py --log build-logs/tests.log \
+            --output build-logs/warnings.json --swift-budget "$WARNING_BUDGET" \
+            --build-budget "$BUILD_WARNING_BUDGET"
+      - name: Export coverage report
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -d "$RUNNER_TEMP/CoreDiagnostics.xcresult" ]; then
+            xcrun xccov view --report --json "$RUNNER_TEMP/CoreDiagnostics.xcresult" > build-logs/coverage.json
+          else
+            printf '%s\n' 'Coverage unavailable: no result bundle was produced.' > build-logs/coverage-unavailable.txt
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

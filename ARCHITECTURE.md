@@ -175,6 +175,64 @@ D18 auto-update Sparkle sur Mac, D19 dépôt public + branche par phase + landin
 
 ## Préparation v2 (maison entière)
 
+### Consolidation locale — 26 novembre 2026 (validation Apple en attente)
+
+Les responsabilités communes sont maintenant portées par
+`PackageReplacement.commitPrepared` (publication et rollback), `PackageCatalogue`
+(lecture des métadonnées), `BackgroundWork` (annulation des tâches),
+`PhotoImageProcessor` / `PhotoThumbnailCache` (images bornées), `OperationLifetime`
+(exclusion des écritures vocales concurrentes) et `ScanDetailControls` (commandes
+de détail). Chaque magasin conserve ses racines, migrations et conventions de
+récupération. Les schémas natifs et les sessions House/Technical Room restent séparés.
+
+La galerie House utilise des références paresseuses. Le contrôleur Studio met à
+jour les seuls objets modifiés quand l'état non-objet est identique; sinon il garde
+la reconstruction complète existante. Aucun nouveau moteur géométrique n'est ajouté.
+Les intervalles de diagnostic, MetricKit iOS, tests de performance synthétiques et
+workflow manuel préparent les mesures sans démontrer une amélioration.
+
+Ajouts demandés : hauteurs minimale/maximale dans le CSV compatible Excel, fenêtres
+affichées au centre du mur résolu, photos PDF optionnelles, six préréglages de
+carrelage et orientation du bois selon le mur principal. Les champs de conception
+existants sont réutilisés; la révision du générateur d'export passe à 2 et accepte
+la révision 1. Les schémas de scan restent inchangés. Les deux suites Xcode, les
+tests Swift et la validation appareil restent non exécutés sur Windows. Voir
+`docs/QA_VALIDATION_REPORT.md` et `runChecks.md` pour les limites et contrôles restants.
+
+Les vues sauvegardées 2D/3D partagent `SavedScanEvidence` : notes et métadonnées
+photo échouent indépendamment, l'annulation est propagée et les images sont chargées
+à la demande par la galerie. `RoomStore` centralise les opérations natives
+`LibraryItem` de renommage/préparation d'export; les noms du catalogue restent
+distincts. Le script d'inventaire de concurrence signale les sites à examiner sans
+prétendre remplacer l'analyse Swift ou les tests d'exécution.
+
+`SavedFileRevision` centralise l'identité des fichiers réguliers pour les caches
+de résumés, vignettes et empreintes d'export : chemin, taille, date et identifiant
+de fichier. Le remplacement atomique peut ainsi invalider un cache même à taille
+et date identiques. Les contrôles de chemin, budgets et coordinations restent
+chez l'appelant; il ne s'agit ni d'un hash de contenu ni d'un format persistant.
+
+`NoteSaveWorker` centralise les écritures durables des notes sauvegardées et en
+capture. Il attend la transaction indépendamment de l'annulation de la vue et
+relit la destination avant d'annoncer le succès. La récupération audio vérifie
+révision et octets avant de retirer la copie de secours; une révision remplacée
+reste disponible et produit un conflit explicite. La récupération d'une nouvelle
+note cible uniquement son ID. Les propriétaires AR/audio restent inchangés;
+validation Swift et appareil en attente.
+
+Si cible et sauvegarde de récupération coexistent, PackageReplacement conserve
+les deux et refuse une nouvelle publication avec un conflit explicite. Les notes
+utilisent la même primitive; le nettoyage des sessions conserve les fichiers
+cachés inconnus et les copies de récupération. Les états de fin sont ordonnés et
+idempotents, sans modifier les moteurs de capture, chemins hérités ou schémas natifs.
+
+La génération d'artefacts revérifie l'identité des sources/requêtes pour la
+réutilisation comme pour une nouvelle publication. L'écriture coordonnée vérifie
+l'annulation avant l'index et conserve le rollback du seul nouveau fichier.
+Les tests injectent des fautes sans changer les valeurs de production; fichiers
+existants et schémas restent préservés. Aucune atomicité globale entre tous les
+fichiers ni récupération garantie sous une seconde erreur de nettoyage n'est affirmée.
+
 - Flux de scan v2 (fait, validation device en attente) : `ScanCoordinator(mode: .house)` conserve une seule `ARSession` entre les pièces (`RoomCaptureView(frame:arSession:)`, `stop(pauseARSession: false)`), accumule les `CapturedRoom`, puis `StructureBuilder(options: [.beautifyObjects]).capturedStructure(from:)` → `CapturedStructure` → `CapturedStructureAdapter` → `StructureInput` → `HouseBuilder` → `HousePackage.assemble` → `.housescan`. `ScanView` pilote avec « Pièce terminée » / « Pièce suivante » / « Terminer la maison » ; la barre d'outils propose « Scanner une pièce / une maison » (`ScanMode`).
 - En aval : `PlanRenderer`, `PlanSceneBuilder` et tous les exporteurs itèrent sur `house.allRooms`. Une maison produit une page PDF par niveau (`PlanRenderer.pages(of:)`, pages PNG empilées) et une teinte de sol pastel par pièce (`PlanRenderer.roomPalette`, plan 2D et texture du sol 3D) ; `HouseDetailView` filtre plan, visualiseur et mesures par niveau.
 - Stockage v2 (fait) : paquets `Documents/Houses/<uuid>.housescan/` (`HousePackage`, `HouseRecord`) ; `RoomStore` expose `houseRecords`, `saveHouse`, `house(for:)`, `importAny` ; `LibraryItem` (pièce | maison) pilote la bibliothèque à deux sections iOS et la barre latérale Mac ; `ExportSubject` (pièce | maison) est l'entrée unique d'`ExportService`, `ExportSheet`, `DragExportProvider` et du README d'archive. Reste : capture multi-pièces sur iPhone (`CapturedStructureAdapter`), dédoublonnage du mur mitoyen, résolution de conflits `.housescan`.

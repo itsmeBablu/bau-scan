@@ -14,6 +14,11 @@ import Observation
     var notesRoot: URL { catalogueRoot }
     private var ready = false
     private var pendingReload: StorageLocation?
+    private let localRoot: URL?
+    private let beforeCataloguePublication: (@MainActor () async -> Void)?
+    init(localRoot:URL? = nil,beforeCataloguePublication:(@MainActor () async -> Void)? = nil) {
+        self.localRoot = localRoot; self.beforeCataloguePublication = beforeCataloguePublication
+    }
     var currentProject: RenovationProject? { index.projects.first { $0.id == currentProjectID } }
     func title(_ entry: ProjectLibraryEntry) -> String {
         title(entry,locale:AppLanguage.locale)
@@ -74,9 +79,8 @@ import Observation
             }
             if entry.isDesign {
                 let source: SceneEditDocument.Source = sourceKind == .house ? .house : sourceKind == .room ? .room : .technical
-                guard var copy = try SceneEditStore.read(entry.url,source:source,id:entry.reference.itemID) else { throw CocoaError(.fileNoSuchFile) }
-                copy.sourceID = newID
-                try SceneEditStore.write(copy,to:SceneEditStore.url(root:entry.root,source:source,id:newID))
+                guard let copy = try SceneEditStore.read(entry.url,source:source,id:entry.reference.itemID) else { throw CocoaError(.fileNoSuchFile) }
+                try SceneEditStore.duplicate(copy,sourceID:newID,root:entry.root)
             }
             await reload(location:location)
             if let owner {
@@ -98,6 +102,7 @@ import Observation
     }
 
     func reload(location: StorageLocation) async {
+        guard !Task.isCancelled else { return }
         guard !loading else { pendingReload = location; return }; loading = true
         let interval = PerformanceTrace.begin("CatalogueLoad")
         defer { interval.end() }
@@ -105,13 +110,14 @@ import Observation
             loading = false
             if let next = pendingReload { pendingReload = nil; Task { await reload(location:next) } }
         }
-        let local = RootView.hasForcedRoot ? location.documentsURL : StorageLocation.local().documentsURL
-        catalogueRoot = local
+        let local = localRoot ?? (RootView.hasForcedRoot ? location.documentsURL : StorageLocation.local().documentsURL)
+        if local != catalogueRoot { ready = false }
         let roots: [(String, URL)] = location.kind == .iCloud ? [("icloud",location.documentsURL),("local",local)] : [("local",local)]
         do {
-            let result = try await Task.detached(priority: .userInitiated) {
+            let result = try await BackgroundWork.run(priority: .userInitiated) {
                 var found: [ProjectLibraryEntry] = [], warnings: [String] = []
                 for (library, root) in roots {
+                    try Task.checkCancellation()
                     func files(_ directory: String, _ suffix: String) throws -> [URL] {
                         let url = root.appendingPathComponent(directory)
                         guard FileManager.default.fileExists(atPath: url.path) else { return [] }
@@ -136,6 +142,7 @@ import Observation
                         found.append(.init(reference:.init(kind:.technicalRoom,itemID:r.id,library:library),title:r.name,date:r.modifiedAt,area:nil,roomCount:1,root:root,url:url))
                     }
                     for url in try files("SceneEdits", "json") {
+                        try Task.checkCancellation()
                         do {
                             let name = url.deletingPathExtension().lastPathComponent
                             guard let split = name.firstIndex(of:"-"), let source = SceneEditDocument.Source(rawValue:String(name[..<split])),
@@ -144,11 +151,18 @@ import Observation
                             let kind: ProjectReference.Kind = source == .house ? .designHouse : source == .room ? .designRoom : .designTechnical
                             let date = (try url.resourceValues(forKeys:[.contentModificationDateKey])).contentModificationDate ?? .distantPast
                             found.append(.init(reference:.init(kind:kind,itemID:id,library:library),title:doc.title,date:date,area:nil,roomCount:doc.shell.allRooms.count,root:root,url:url))
-                        } catch { warnings.append(url.lastPathComponent) }
+                        } catch is CancellationError { throw CancellationError() }
+                        catch { warnings.append(url.lastPathComponent) }
                     }
                 }
                 return (try ProjectIndexStore.read(root:local),found.sorted { $0.date > $1.date },warnings)
-            }.value
+            }
+            let available = result.1.filter { FileManager.default.fileExists(atPath:$0.url.path) }
+            let summaries = try await ProjectScanSummaryCache.shared.summaries(for:available)
+            if let beforeCataloguePublication { await beforeCataloguePublication() }
+            guard !Task.isCancelled,pendingReload == nil else { return }
+            // Re-read and reconcile after the final await so an intervening edit
+            // cannot be replaced in memory by an earlier project-index snapshot.
             let updated = try ProjectIndexStore.update(root:local) { updated in
             let discovered = result.1.filter { FileManager.default.fileExists(atPath:$0.url.path) }.map(\.reference)
             updated.reconcile(discovered)
@@ -159,13 +173,13 @@ import Observation
                 if let owner = updated.projects.first(where:{ !$0.isUnsorted && $0.references.contains(scan) }) { try updated.assign(design.reference,to:owner.id) }
             }
             }
-            let available = result.1.filter { FileManager.default.fileExists(atPath:$0.url.path) }
-            let summaries = try await ProjectScanSummaryCache.shared.summaries(for:available)
+            catalogueRoot = local
             index = updated; libraryEntries = available; scanSummaries = summaries; ready = true
             catalogueRevision &+= 1
             if currentProjectID == nil || !index.projects.contains(where:{ $0.id == currentProjectID }) { currentProjectID = index.projects.first(where:{ !$0.isUnsorted })?.id ?? index.projects.first?.id }
             error = result.2.isEmpty ? nil : AppLanguage.text("Some library items could not be read")+": " + result.2.joined(separator:", ")
-        } catch { self.error = error.localizedDescription }
+        } catch is CancellationError { return }
+        catch { if !Task.isCancelled,pendingReload == nil { self.error = error.localizedDescription } }
     }
     func change(_ edit: (inout ProjectIndex) throws -> Void) {
         guard ready else { error = AppLanguage.text("Wait for the project catalogue to finish loading."); return }
@@ -179,13 +193,16 @@ import Observation
         if index.projects.contains(where:{ $0.id == project.id }) { currentProjectID = project.id }
     }
     func assign(_ reference: ProjectReference, to id: UUID) { change { try $0.assign(reference,to:id) } }
-    func remove(_ entry:ProjectLibraryEntry) async {
+    func remove(_ entry:ProjectLibraryEntry,beforePublication:(@MainActor () async -> Void)? = nil) async {
         guard ready else { error = AppLanguage.text("Wait for the project catalogue to finish loading."); return }
         let expected = index,root = catalogueRoot
         do {
-            let updated = try await Task.detached(priority:.utility) { try ProjectScanRemoval.remove(entry,expected:expected,catalogueRoot:root) }.value
-            index = updated; libraryEntries.removeAll { $0.reference == entry.reference }; scanSummaries.removeValue(forKey:entry.id); catalogueRevision &+= 1
-        } catch { self.error = error.localizedDescription }
+            _ = try await Task.detached(priority:.utility) { try ProjectScanRemoval.remove(entry,expected:expected,catalogueRoot:root) }.value
+            if let beforePublication { await beforePublication() }
+            guard ready,root == catalogueRoot else { return }
+            index = try ProjectIndexStore.read(root:root)
+            libraryEntries.removeAll { $0.reference == entry.reference }; scanSummaries.removeValue(forKey:entry.id); catalogueRevision &+= 1
+        } catch { if ready,root == catalogueRoot { self.error = error.localizedDescription } }
     }
     func saveDetails(_ details:ProjectDetails,projectID:UUID,expected:ProjectDetails?) throws {
         guard ready else { throw CocoaError(.fileReadUnknown) }

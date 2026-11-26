@@ -2,6 +2,21 @@ import XCTest
 @testable import RoomScanner
 
 final class ARNoteTests: XCTestCase {
+    func testWriteKeepsUnresolvedExistingNotesBackupAndCurrentText() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString),project = UUID()
+        defer { try? FileManager.default.removeItem(at:root) }
+        var original = note(projectID:project); original.text = "Current text"
+        _ = try ARNoteStore.upsertText(original,root:root)
+        let target = ARNoteStore.url(root:root,projectID:project), backup = target.deletingLastPathComponent().appendingPathComponent(".ARNotes-backup")
+        try FileManager.default.copyItem(at:target,to:backup)
+        let before = try PackageTestSnapshot.files(backup)
+        var edited = original; edited.text = "Attempted edit"; edited.modifiedAt = Date().addingTimeInterval(1)
+        XCTAssertThrowsError(try ARNoteStore.upsertText(edited,root:root,expected:original)) { error in
+            guard case PackageReplacement.RecoveryConflict.existingBackup = error else { return XCTFail("Unexpected error: \(error)") }
+        }
+        XCTAssertEqual(try PackageTestSnapshot.files(backup),before)
+        XCTAssertEqual(try ARNoteStore.index(root:root,projectID:project).notes.first?.text,"Current text")
+    }
     func testDirectScanNotesKeepExistingProjectAndLibraryIdentity() throws {
         let id = UUID(),local = ProjectReference(kind: .house,itemID: id,library: "local")
         let cloud = ProjectReference(kind: .house,itemID: id,library: "icloud")
