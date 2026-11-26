@@ -136,10 +136,14 @@ enum StudioCameraFraming {
         self.rotating = rotating && selectedIDs.count <= 1
         view.allowsCameraControl = !manipulating
         let rendering = document.renderingSnapshot
-        if dragNode == nil && (view.scene == nil || previousRendering != rendering || previousStory != story || previousCutaway != cutaway || previousDimensions != showDimensions || (showDimensions && previousDimensionSelection != selected)) {
-            let scene = StudioSceneBuilder.scene(document,story: story,cutaway: cutaway,showDimensions: showDimensions,dimensionSelection: selected)
-            scene.rootNode.addChildNode(camera); view.scene = scene; view.pointOfView = camera
-            if previous == nil || previousStory != story { frame(document,story: story) }
+        let layoutChanged = view.scene == nil || previousStory != story || previousCutaway != cutaway || previousDimensions != showDimensions || (showDimensions && previousDimensionSelection != selected)
+        if dragNode == nil && (previousRendering != rendering || layoutChanged) {
+            let patched = !layoutChanged && !showDimensions && patchObjects(document, rendering:rendering, story:story)
+            if !patched {
+                let scene = StudioSceneBuilder.scene(document,story: story,cutaway: cutaway,showDimensions: showDimensions,dimensionSelection: selected)
+                scene.rootNode.addChildNode(camera); view.scene = scene; view.pointOfView = camera
+                if previous == nil || previousStory != story { frame(document,story: story) }
+            }
             previousRendering = rendering; previousStory = story; previousCutaway = cutaway
             previousDimensions = showDimensions; previousDimensionSelection = selected
         }
@@ -150,6 +154,29 @@ enum StudioCameraFraming {
         self.selected = selected; highlight(selected)
         applyCameraAppearance(document)
         viewportDidLayout()
+    }
+    /// Patch only object changes when the complete non-object rendering state is
+    /// identical. Architecture, templates, lighting, floors and dimensions keep
+    /// their established full-build path. Drag callbacks still own active gestures.
+    private func patchObjects(_ document:SceneEditDocument,rendering:SceneEditDocument,story:Int) -> Bool {
+        guard let before = previousRendering,let root = view?.scene?.rootNode else { return false }
+        var oldShell = before,newShell = rendering
+        oldShell.objects = []; newShell.objects = []
+        guard oldShell == newShell else { return false }
+        let old = Dictionary(grouping:before.presentationObjects.filter { $0.story == story },by:\.id)
+        let new = Dictionary(grouping:rendering.presentationObjects.filter { $0.story == story },by:\.id)
+        guard old.values.allSatisfy({ $0.count == 1 }),new.values.allSatisfy({ $0.count == 1 }) else { return false }
+        // Refuse partial scene state; the caller will rebuild deterministically.
+        guard old.keys.allSatisfy({ root.childNode(withName:"object:"+$0.uuidString,recursively:false) != nil }) else { return false }
+        let interval = PerformanceTrace.begin("StudioObjectUpdate")
+        defer { interval.end() }
+        for id in old.keys where new[id] == nil { root.childNode(withName:"object:"+id.uuidString,recursively:false)?.removeFromParentNode() }
+        for item in document.presentationObjects where item.story == story && old[item.id]?.first != new[item.id]?.first {
+            root.childNode(withName:"object:"+item.id.uuidString,recursively:false)?.removeFromParentNode()
+            root.addChildNode(StudioSceneBuilder.model(item,technical:document.source == .technical,
+                                                      refinedTechnical:document.technicalTemplate != nil && document.technicalTemplate != .captured))
+        }
+        return true
     }
     private func applyCameraAppearance(_ document: SceneEditDocument) {
         camera.camera?.screenSpaceAmbientOcclusionIntensity = document.source == .technical ? 0 : 0.55

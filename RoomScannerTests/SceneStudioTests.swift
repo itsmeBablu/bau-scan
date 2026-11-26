@@ -9,6 +9,40 @@ import UIKit
 @testable import RoomScanner
 
 final class SceneStudioTests: XCTestCase {
+    @MainActor func testObjectEditPreservesStudioSceneShellCameraAndOtherObjects() throws {
+        var document = seed()
+        let original = try XCTUnwrap(document.objects.first)
+        var other = original; other.id = UUID(); other.position.x += 2
+        document.objects.append(other)
+        let controller = StudioSceneController(), view = SCNView()
+        controller.view = view
+        controller.configure(document,story:0,cutaway:false,selected:nil,moving:false,reset:0)
+        let scene = try XCTUnwrap(view.scene)
+        let floor = try XCTUnwrap(scene.rootNode.childNode(withName:"shell:floor",recursively:false))
+        let unchanged = try XCTUnwrap(scene.rootNode.childNode(withName:"object:"+other.id.uuidString,recursively:false))
+        let camera = view.pointOfView
+        document.objects[0].position.x += 0.5
+        controller.configure(document,story:0,cutaway:false,selected:original.id,moving:false,reset:0)
+        XCTAssertTrue(view.scene === scene)
+        XCTAssertTrue(scene.rootNode.childNode(withName:"shell:floor",recursively:false) === floor)
+        XCTAssertTrue(scene.rootNode.childNode(withName:"object:"+other.id.uuidString,recursively:false) === unchanged)
+        XCTAssertTrue(view.pointOfView === camera)
+        XCTAssertEqual(scene.rootNode.childNode(withName:"object:"+original.id.uuidString,recursively:false)?.simdPosition.x,
+                       Float(document.objects[0].position.x))
+        document.objects.removeAll { $0.id == original.id }
+        controller.configure(document,story:0,cutaway:false,selected:nil,moving:false,reset:0)
+        XCTAssertTrue(view.scene === scene)
+        XCTAssertNil(scene.rootNode.childNode(withName:"object:"+original.id.uuidString,recursively:false))
+        XCTAssertTrue(scene.rootNode.childNode(withName:"object:"+other.id.uuidString,recursively:false) === unchanged)
+        var added = other; added.id = UUID(); document.objects.append(added)
+        controller.configure(document,story:0,cutaway:false,selected:nil,moving:false,reset:0)
+        XCTAssertTrue(view.scene === scene)
+        XCTAssertNotNil(scene.rootNode.childNode(withName:"object:"+added.id.uuidString,recursively:false))
+        document.floorColor.x = 0.25
+        controller.configure(document,story:0,cutaway:false,selected:nil,moving:false,reset:0)
+        XCTAssertFalse(view.scene === scene,"A material/architecture change must take the complete-build path")
+    }
+
     @MainActor func testMultiSelectionDeleteIsOneUndoableEditForBothStudios() throws {
         for source in [SceneEditDocument.Source.house,.technical] {
             var document = seed()

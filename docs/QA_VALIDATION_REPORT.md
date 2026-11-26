@@ -998,7 +998,24 @@ different persistence semantics and must not be silently merged. No package or
 project schema changed. No test was added that merely mirrors SwiftUI composition;
 existing package-rename tests plus manual detail/shortcut checks remain required.
 
-Production +78/-60 (shared controls included); tests +0/-0. Localization/style and
+Production +77/-60 (shared controls included); tests +0/-0. Localization/style and
 whitespace passed. Apple compilation, toolbar rendering, Mac commands and failed
 rename alert/retry behavior are UNVERIFIED. Broader item-operation consolidation
 still needs the distinct rename/delete/design ownership contracts preserved.
+
+## Phase 5, part 1 — incremental Studio object scene updates, 2026-11-26
+
+StudioSceneController remains the sole viewport owner. When the complete non-object
+rendering snapshot is unchanged, dimensions are off and no gesture is active, object
+add/edit/delete now updates only those object nodes. Existing floor/wall nodes,
+camera, lights and other objects remain. Architecture, floor/material/template,
+story/cutaway/dimension changes and unexpected scene state fall back to the existing
+complete scene builder. Duplicate IDs do not trap; they reject the patch path.
+No new geometry engine, snapshot persistence or capture behavior was introduced.
+
+One regression checks scene/floor/camera/unaffected-node identity during a move,
+delete and add, then verifies a floor-material edit still causes a full rebuild.
+Production +31/-4; tests +34/-0. This is a structural scene-lifecycle change, not
+evidence of faster rendering. Apple tests and actual gestures, shadows, dimensions,
+orientation and memory/latency measurements remain UNRUN / device validation pending.
+The existing engineering-metadata and Studio placement/export tests remain required.
