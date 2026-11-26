@@ -87,6 +87,23 @@ enum ARNoteStore {
             return try load(!FileManager.default.fileExists(atPath:target.path) && FileManager.default.fileExists(atPath:backup.path) ? backup : target,projectID:projectID)
         }
     }
+    /// Read only the requested clip; unrelated audio is not loaded for inline playback.
+    static func audio(for expected:ARNote,root:URL) throws -> Data {
+        try validateParents(root:root,projectID:expected.projectID)
+        let directory = url(root:root,projectID:expected.projectID)
+        return try RoomPackage.coordinatedRead(at:directory.deletingLastPathComponent()) { parent in
+            let target = parent.appendingPathComponent(directory.lastPathComponent)
+            let backup = parent.appendingPathComponent(".ARNotes-backup")
+            let source = !FileManager.default.fileExists(atPath:target.path) && FileManager.default.fileExists(atPath:backup.path) ? backup : target
+            let library = try load(source,projectID:expected.projectID,includeAudio:false)
+            guard let current = library.index.notes.first(where:{ $0.id == expected.id }),
+                  current.reference == expected.reference,current.audioModifiedAt == expected.audioModifiedAt,
+                  current.audioFileName == expected.audioFileName,let path = current.audioPath else { throw CocoaError(.fileNoSuchFile) }
+            let bytes = try SafePackageRead.data(source.appendingPathComponent(path),root:source,maximum:ARNoteIndex.maximumClipBytes,preflight:false)
+            guard bytes.count >= 12,bytes.subdata(in:4..<8) == Data("ftyp".utf8) else { throw CocoaError(.fileReadCorruptFile) }
+            return bytes
+        }
+    }
     /// Re-read/edit/replace in one coordinated operation to prevent lost updates.
     /// Audio is keyed by note ID; callers cannot supply an arbitrary file path.
     @discardableResult static func update(root: URL,projectID: UUID,audio: [UUID:Data] = [:],

@@ -14,6 +14,8 @@ struct ProjectVoiceNotesView: View {
     @State private var deleting: ARNote?
     @State private var editing: ARNote?
     @State private var playback = NotePlayback()
+    @State private var playingID: UUID?
+    @State private var waveforms: [UUID:[Double]] = [:]
     @State private var includeAudio = false
     @State private var exportURL: URL?
     @State private var recoveryCount = 0
@@ -77,12 +79,16 @@ struct ProjectVoiceNotesView: View {
             Section("Voice notes") {
                 ForEach(notes) { note in
                     VStack(alignment:.leading,spacing:8) {
-                        Text(note.title ?? note.stem).font(.headline)
+                        if note.audioFileName == nil { Text(note.title ?? note.stem).font(.headline) }
                         if !note.text.isEmpty { Text(note.text).textSelection(.enabled) }
                         Text(note.createdAt,format:.dateTime).font(.caption).foregroundStyle(.secondary)
                         if let duration = note.audioDuration {
-                            Text(Duration.seconds(duration).formatted(.time(pattern:.minuteSecond))).monospacedDigit()
-                            Button("Play recording",systemImage:"play.fill") { play(note) }.disabled(busy || audioActive)
+                            DSInlineAudioRow(title:note.title ?? note.stem,
+                                subtitle:workspace.entry(note.reference).map { workspace.title($0) } ?? note.reference.itemID.uuidString,
+                                time:Duration.seconds(playingID == note.id ? playback.time : 0).formatted(.time(pattern:.minuteSecond))+" / "+Duration.seconds(duration).formatted(.time(pattern:.minuteSecond)),
+                                playing:playingID == note.id && playback.playing,waveform:waveforms[note.id] ?? [],
+                                progress:Binding(get:{ playingID == note.id && playback.duration > 0 ? playback.time/playback.duration : 0 },set:{ if playingID == note.id { playback.seek($0*playback.duration) } }),
+                                toggle:{ play(note) }).disabled(busy || audioActive)
                         }
                         HStack {
                             Button("Edit") { editing = note }.disabled(busy || audioActive)
@@ -95,14 +101,6 @@ struct ProjectVoiceNotesView: View {
                 Toggle("Include voice audio in export",isOn:$includeAudio).disabled(busy)
                 Button("Export voice notes ZIP") { exportNotes() }.disabled(busy || audioActive)
                 if let exportURL { ShareLink(item:exportURL) }
-            }
-            if playback.duration > 0 {
-                Section("Playback") {
-                    Button(playback.playing ? "Pause playback" : "Resume playback") { playback.toggle() }
-                    Slider(value:Binding(get:{ playback.time },set:{ playback.seek($0) }),in:0...max(0.1,playback.duration))
-                        .accessibilityLabel("Playback position")
-                    Text(Duration.seconds(playback.time).formatted(.time(pattern:.minuteSecond))).monospacedDigit()
-                }
             }
         }
         .navigationTitle("Voice notes")
@@ -181,14 +179,20 @@ struct ProjectVoiceNotesView: View {
         } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
     }
     private func play(_ note: ARNote) {
+        if playingID == note.id,playback.duration > 0 { playback.toggle(); return }
         let root = workspace.notesRoot; busy = true
         Task { @MainActor in
             defer { busy = false }
             do {
-                let data = try await Task.detached { try ARNoteStore.read(root:root,projectID:projectID).audio[note.id] }.value
+                let data = try await Task.detached { try ARNoteStore.audio(for:note,root:root) }.value
                 guard visible,root == workspace.notesRoot else { return }
-                guard let data else { throw CocoaError(.fileNoSuchFile) }
-                playback.load(data); playback.toggle()
+                playback.load(data); playingID = note.id; playback.toggle()
+                Task {
+                    if let peaks = try? await AudioWaveformCache.shared.peaks(for:data),visible,playingID == note.id {
+                        if waveforms.count >= 32,let old = waveforms.keys.first(where:{ $0 != note.id }) { waveforms.removeValue(forKey:old) }
+                        waveforms[note.id] = peaks
+                    }
+                }
             } catch { self.error = error.localizedDescription }
         }
     }

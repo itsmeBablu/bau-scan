@@ -2,6 +2,7 @@ import AVFoundation
 import Observation
 
 @MainActor @Observable final class NotePlayback {
+    private static weak var active: NotePlayback?
     private(set) var playing = false
     private(set) var time = 0.0
     private(set) var duration = 0.0
@@ -23,6 +24,8 @@ import Observation
         guard let player else { return }
         if playing { player.pause(); playing = false; releaseAudio(); return }
         do {
+            if let other = Self.active,other !== self { other.stop() }
+            Self.active = self
             #if os(iOS)
             let audio = AVAudioSession.sharedInstance()
             category = audio.category; mode = audio.mode; options = audio.categoryOptions
@@ -42,7 +45,10 @@ import Observation
         } catch { self.error = error.localizedDescription; releaseAudio() }
     }
     func seek(_ time: Double) { self.time = min(duration,max(0,time)); player?.currentTime = self.time }
-    func stop() { tick?.cancel(); tick = nil; player?.stop(); player = nil; playing = false; time = 0; duration = 0; releaseAudio() }
+    func stop() {
+        tick?.cancel(); tick = nil; player?.stop(); player = nil; playing = false; time = 0; duration = 0; releaseAudio()
+        if Self.active === self { Self.active = nil }
+    }
     private func releaseAudio() {
         #if os(iOS)
         if let category,let mode,let options {

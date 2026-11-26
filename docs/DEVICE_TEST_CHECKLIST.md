@@ -115,3 +115,9 @@ merge. It must be followed by independently checking a known point.
   large text. Open Technik tools/display menu and return to camera. Verify hold,
   slide-cancel, VoiceOver tap start/stop, photo capture, warnings, retry and Finish.
   Confirm tracking/session continuity is unchanged by opening tools or display menus.
+
+- Inline voice (device validation pending): play/pause/seek several clips; starting
+  another must stop the first, including another open note player. Verify real
+  waveforms after loading, text size/VoiceOver and elapsed/total. Test an unavailable
+  or replaced clip, recording after playback, audio route interruptions, leaving
+  the screen and memory during repeated playback. No playback test ran on Windows.

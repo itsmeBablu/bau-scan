@@ -107,6 +107,7 @@ struct DSInlineAudioRow: View {
     var subtitle: String
     var time: String
     var playing: Bool
+    var waveform: [Double] = []
     @Binding var progress: Double
     var toggle:()->Void
     var body: some View {
@@ -116,6 +117,16 @@ struct DSInlineAudioRow: View {
             VStack(alignment:.leading,spacing:DS.Spacing.xs) {
                 Text(title).font(DS.Typography.headline)
                 Text(subtitle).font(DS.Typography.caption).foregroundStyle(DS.ColorToken.textSecondary.color)
+                if !waveform.isEmpty {
+                    GeometryReader { geometry in
+                        HStack(alignment:.center,spacing:DS.Spacing.xs/2) {
+                            ForEach(waveform.indices,id:\.self) { index in
+                                Capsule().fill(DS.ColorToken.accent.color.opacity(Double(index)/Double(waveform.count) <= progress ? 1 : 0.35))
+                                    .frame(height:max(DS.Spacing.xs,geometry.size.height*min(1,max(0,waveform[index]))))
+                            }
+                        }.frame(height:geometry.size.height)
+                    }.frame(height:DS.Spacing.xl).accessibilityHidden(true)
+                }
                 Slider(value:$progress,in:0...1).accessibilityLabel("Playback position")
                 Text(time).font(DS.Typography.caption).monospacedDigit()
             }

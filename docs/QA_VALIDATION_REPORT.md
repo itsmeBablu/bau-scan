@@ -236,3 +236,24 @@ actual safe-area layout, touch/hold/cancel/VoiceOver, rotation, interrupted reco
 photo capture and Finish are device validation pending. Neither Apple scheme nor
 SwiftUI previews were run on this Windows host. Remaining Phase 3 work includes
 additional card export/report actions and physical-device interaction validation.
+
+## Inline voice checkpoint — 2026-11-26
+
+Reused NotePlayback, DSInlineAudioRow and ARNoteStore. Existing voice-library rows
+now own inline play/pause, seeking, elapsed/total and source label; removed the
+separate duplicate Playback section. Starting playback stops the previous app note
+player through weak main-actor ownership. A bounded 32-entry actor cache computes
+64 real sample-peak bars off-main after a clip is loaded, keyed by audio SHA-256;
+it never draws invented audio peaks. UI peak arrays are also bounded to 32 clips.
+The new coordinated single-clip reader revalidates note/reference/audio revision
+and reads only that audio asset, rather than loading every project clip.
+
+Production Swift +92/-15 (net +77), including new Notes/AudioWaveformCache.swift.
+Two shared Swift storage tests cover corrupt unrelated audio, selected corrupt
+clip, stale audio revisions and foreign reference rejection; UNRUN. Waveform decode,
+actual playback/exclusivity, audio-session restoration, seek accessibility and
+performance are unverified on Mac/iPhone. Seven Node checks plus localization,
+style and whitespace passed on the working tree; no Apple tests were run.
+This does not finish the media phase: recent dashboard media, photo lazy loading,
+voice actions/re-record UI and written-note scopes are still pending. Formats,
+recording/recovery writes and accuracy/provenance fields are unchanged.
