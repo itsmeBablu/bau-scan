@@ -28,7 +28,7 @@ struct OrganisedExportSheet: View {
         VStack(spacing: 18) {
             HStack {
                 Image(systemName: photosOnly ? "photo.stack" : "archivebox")
-                    .font(.system(size: 32))
+                    .dsIcon(.medium)
                     .foregroundStyle(Color.accentColor)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(photosOnly ? "Export Photos Archive" : "Organised Project Package")

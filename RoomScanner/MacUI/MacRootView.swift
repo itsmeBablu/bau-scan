@@ -383,7 +383,7 @@ private struct TechnicalRoomRow: View {
             Image(systemName: "cube.transparent").font(.title2).foregroundStyle(.tint)
                 .frame(width: 48, height: 48)
                 .background(.quaternary)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
             VStack(alignment: .leading, spacing: 2) {
                 Text(manifest.name).font(.headline)
                 Text(manifest.modifiedAt, format: .dateTime.day().month().year())
@@ -402,7 +402,7 @@ private struct DesignRow: View {
             Image(systemName: "square.stack.3d.up").font(.title2).foregroundStyle(.tint)
                 .frame(width: 48, height: 48)
                 .background(.quaternary)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
             VStack(alignment: .leading, spacing: 2) {
                 Text(document.title).font(.headline)
                 Text(document.source == .house ? "House" : (document.source == .technical ? "Utility room" : "Room"))
