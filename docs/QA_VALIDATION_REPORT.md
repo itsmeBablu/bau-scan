@@ -732,3 +732,17 @@ strict localization (1366 keys), style and whitespace checks passed locally.
 XcodeGen, Apple builds/tests, sanitizer execution, coverage, actual MetricKit
 delivery and performance baselines remain UNRUN. Phase 0A is implemented in part,
 not verified or complete. No native package formats or capture lifecycle changed.
+
+## Phase 0B, part 1 — transaction failure coverage, 2026-11-26
+
+Added four Swift regressions: out-of-space publication preserves an existing house
+and allows retry; a rollback failure retains the room backup for reopen; failure
+before the original move preserves both inputs; and technical-room out-of-space
+publication preserves manifest/room bytes and allows retry. These use injected
+Foundation errors, not a genuinely full disk or killed process. No existing golden
+expectations, assertions, formats or production transaction behavior were changed.
+
+Production +0/-0; tests +83/-0. Whitespace check passed. All four Swift tests UNRUN
+on this Windows host. Full golden coverage, actual crash/ENOSPC/device/iCloud checks
+and both Apple schemes remain pending. This is partial safety-net implementation,
+not completion of Phase 0B acceptance.

@@ -116,6 +116,20 @@ final class TechnicalRoomPackageTests: XCTestCase {
         XCTAssertThrowsError(try package.write(to: target, fileManager: FailingSwapFileManager()))
         XCTAssertEqual(try TechnicalRoomPackage.read(from: target).manifest.name, "Boiler room")
     }
+    func testOutOfSpacePublicationPreservesSavedSurveyBytes() throws {
+        var value = try package()
+        let target = root.appendingPathComponent("survey.technicalroom")
+        try value.write(to: target)
+        let manifest = try Data(contentsOf: target.appendingPathComponent("manifest.json"))
+        let room = try Data(contentsOf: target.appendingPathComponent("technical-room.json"))
+        value.manifest.name = "Unsaved edit"
+        XCTAssertThrowsError(try value.write(to: target, fileManager: OutOfSpacePublicationFileManager()))
+        XCTAssertEqual(try Data(contentsOf: target.appendingPathComponent("manifest.json")), manifest)
+        XCTAssertEqual(try Data(contentsOf: target.appendingPathComponent("technical-room.json")), room)
+        XCTAssertEqual(try TechnicalRoomPackage.read(from: target).manifest.name, "Boiler room")
+        try value.write(to: target)
+        XCTAssertEqual(try TechnicalRoomPackage.read(from: target).manifest.name, "Unsaved edit")
+    }
     func testUnknownVersionsAreRejectedWithoutChangingSource() throws {
         let package = try package(), target = root.appendingPathComponent("survey.technicalroom")
         try package.write(to: target)
@@ -215,6 +229,13 @@ private final class FailingSwapFileManager: FileManager, @unchecked Sendable {
         if shouldFail, source.lastPathComponent.hasPrefix(".technical-writing-") {
             shouldFail = false; throw CocoaError(.fileWriteUnknown)
         }
+        try super.moveItem(at: source, to: destination)
+    }
+}
+
+private final class OutOfSpacePublicationFileManager: FileManager, @unchecked Sendable {
+    override func moveItem(at source: URL, to destination: URL) throws {
+        if source.lastPathComponent.hasPrefix(".technical-writing-") { throw CocoaError(.fileWriteOutOfSpace) }
         try super.moveItem(at: source, to: destination)
     }
 }
