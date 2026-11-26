@@ -61,11 +61,6 @@ struct ScanView: View {
         .onAppear { photoCapture.persistence = persistence }
         .onDisappear { radiatorScanner?.stop(); coordinator.stop() }
         .modifier(ScanPhotoFeedback(count:photoCapture.completed))
-        .overlay(alignment:.bottomTrailing) {
-            if ScanPhotoPolicy.buttonVisible(enabled:cameraPhotos,cameraRunning:cameraLive) {
-                ScanPhotoButton(busy:photoCapture.busy) { Task { await photoCapture.capture(session:coordinator.arSession,roomID:mode == .house ? coordinator.liveRoomID : captureID,level:coordinator.liveLevel) } }.padding(20)
-            }
-        }
         .alert("Survey photo",isPresented:Binding(get:{ photoCapture.error != nil },set:{ if !$0 { photoCapture.error = nil } })) {
             Button("OK") { photoCapture.error = nil }
         } message: { Text(photoCapture.error ?? "") }
@@ -123,8 +118,11 @@ struct ScanView: View {
         }
         VStack {
             HStack {
-                Button(role: .cancel) { coordinator.cancel(); dismiss() } label: { Text("common.cancel") }
+                Button(role: .cancel) { coordinator.cancel(); dismiss() } label: { Text("Close") }
                     .buttonStyle(.bordered)
+                Spacer()
+                Text(persistence.organization?.displayName(locale:AppLanguage.locale) ?? AppLanguage.text(mode == .house ? "House" : "Room"))
+                    .font(.headline).lineLimit(1).minimumScaleFactor(0.8)
                 Spacer()
                 Button { Task { await finishScan() } } label: { Text(mode == .house ? "scan.finishHouse" : "scan.finish") }
                     .dsProminentControl()
@@ -145,6 +143,9 @@ struct ScanView: View {
                     position:{ coordinator.noteSurface() },pose:{ coordinator.notePose() },roomID:{ mode == .house ? coordinator.liveRoomID : captureID },level:{ coordinator.liveLevel },borrowCaptureAudioSession:true,nearbyPin:{ pins.nearest(to:$0) },selectedPin:pins.selection,onPin:{ pins.put($0) })
                     .disabled(coordinator.state != .scanning) }
                 Spacer()
+                if ScanPhotoPolicy.buttonVisible(enabled:cameraPhotos,cameraRunning:cameraLive) {
+                    ScanPhotoButton(busy:photoCapture.busy) { Task { await photoCapture.capture(session:coordinator.arSession,roomID:mode == .house ? coordinator.liveRoomID : captureID,level:coordinator.liveLevel) } }
+                }
             }.padding(.horizontal,20).padding(.bottom,20)
 
         }

@@ -139,53 +139,45 @@ struct TechnicalRoomScanView: View {
                         }.font(.caption.weight(.medium)).padding(10)
                     }.scrollIndicators(.hidden).fixedSize(horizontal: false,vertical: true)
                         .dsMaterial(in:Capsule()) }
-                    ScanSaveStatus(persistence:persistence)
+                    if persistence.failure != nil { ScanSaveStatus(persistence:persistence) }
                     HStack(spacing: 12) {
-                        Button { showingControls.toggle() } label: {
-                            Image(systemName: "slider.horizontal.3").frame(width: 44,height: 44)
-                        }.buttonStyle(.plain).dsMaterial(in:Circle())
-                            .accessibilityLabel("Survey tools")
                         if showAudio { VoiceNoteHUD(reference:.init(kind:.technicalRoom,itemID:persistence.id,library:"local"),
                             persistence:persistence,workspace:workspace,projectID:voiceProjectID,
                             position:{ CaptureSurfacePoint.center(session:scanner.session) },pose:{
                                 guard let m = scanner.session.currentFrame?.camera.transform else { return nil }
                                 return (0..<4).flatMap { c in (0..<4).map { Double(m[c][$0]) } }
                             },nearbyPin:{ pins.nearest(to:$0) },selectedPin:pins.selection,onPin:{ pins.put($0) }).frame(width:112).disabled(saving || !scanner.hasLiveFrames) }
-                        Button { showMesh.toggle() } label: {
-                            Image(systemName: showMesh ? "cube.fill" : "cube").frame(width: 44,height: 44)
-                        }.buttonStyle(.plain).dsMaterial(in:Circle())
-                            .accessibilityLabel(showMesh ? "Hide captured mesh" : "Show captured mesh")
-                        Spacer(minLength:80)
+                        Menu {
+                            Button("Survey tools") { showingControls.toggle() }
+                            Toggle("Show captured mesh",isOn:$showMesh)
+                            Toggle("Room surfaces",isOn:$showRoomSurfaces)
+                            Toggle("Ceiling",isOn:$showCeiling)
+                            Toggle("Photos",isOn:$cameraPhotos)
+                            Toggle("Voice notes",isOn:$showAudio)
+                        } label: {
+                            Image(systemName:"ellipsis").frame(width:DS.Size.minimumTouchTarget,height:DS.Size.minimumTouchTarget)
+                        }.buttonStyle(.plain).dsMaterial(in:Circle()).accessibilityLabel("Survey tools")
+                        Spacer(minLength:0)
+                        if ScanPhotoPolicy.buttonVisible(enabled:cameraPhotos,cameraRunning:scenePhase == .active && scanner.hasLiveFrames && scanner.state.trackingNormal && !saving) {
+                            ScanPhotoButton(busy:scanner.takingPhoto) { scanner.takeSurveyPhoto() }
+                        }
                     }.padding(.bottom, 26)
                 }.padding(.horizontal)
 
             }
             .disabled(saving)
-            .overlay(alignment:.bottomTrailing) {
-                if ScanPhotoPolicy.buttonVisible(enabled:cameraPhotos,cameraRunning:scenePhase == .active && scanner.hasLiveFrames && scanner.state.trackingNormal && !saving) {
-                    ScanPhotoButton(busy:scanner.takingPhoto) { scanner.takeSurveyPhoto() }.padding(20)
-                }
-            }
             .modifier(ScanPhotoFeedback(count:scanner.photoCompleted))
-            .navigationTitle("Utility room")
+            .navigationTitle(persistence.organization?.displayName(locale:AppLanguage.locale) ?? AppLanguage.text("Utility room"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden,for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement:.topBarTrailing) {
-                    Menu {
-                        Toggle("Room surfaces",isOn:$showRoomSurfaces)
-                        Toggle("Ceiling",isOn:$showCeiling)
-                        Toggle("Photos",isOn:$cameraPhotos)
-                        Toggle("Voice notes",isOn:$showAudio)
-                    } label: { Image(systemName:"ellipsis") }.accessibilityLabel("3D display options")
-                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") {
                         if scanner.journal.frames.isEmpty { scanner.stop(); dismiss() } else { confirmingClose = true }
                     }.disabled(saving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(saving ? "Saving…" : "Save") { Task { await saveSurvey() } }
+                    Button(saving ? "Saving…" : "Finish") { Task { await saveSurvey() } }
                         .disabled(saving || !pipeHits.isEmpty || (saveThumbnail == nil && !scanner.hasLiveFrames))
                 }
             }

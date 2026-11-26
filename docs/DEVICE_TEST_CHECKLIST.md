@@ -109,3 +109,9 @@ merge. It must be followed by independently checking a known point.
   Unassigned, named floors stay named. Switch list/grid and tabs; inspect large text
   and narrow iPhone disclosure controls. House room labels reflect explicit story
   mappings; mapping never changes scan coordinates or raw story indices.
+
+- Capture controls (device validation pending): check Close/name/Finish on iPhone
+  portrait/landscape and iPad; microphone/pin left, shutter right, no overlap at
+  large text. Open Technik tools/display menu and return to camera. Verify hold,
+  slide-cancel, VoiceOver tap start/stop, photo capture, warnings, retry and Finish.
+  Confirm tracking/session continuity is unchanged by opening tools or display menus.

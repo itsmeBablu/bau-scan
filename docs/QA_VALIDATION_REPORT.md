@@ -219,3 +219,20 @@ and input-order independence. These and both Apple schemes are UNRUN on Windows.
 Localization (1283 keys), style-ratchet and whitespace checks passed on the working
 tree. Capture-layout and the remaining library actions/media work are still pending;
 this is not completion of all Phase 3 acceptance criteria.
+
+## Capture control layout checkpoint — 2026-11-26
+
+Reused LiveScanNotes/HoldMicrophoneControl, ScanPhotoButton, existing finish/close
+handlers and survey controls. House header now has Close/name/Finish. The shutter
+sits in the same bottom row as microphone/pin controls rather than an independent
+overlay. Technik moves secondary display/tools actions into one bottom menu;
+Close/name/Finish remains above. Routine success timestamps are hidden in the
+Technik camera; save failure stays visible. No AR callbacks, lifecycle, recording,
+checkpoint, raycast, annotation, save actions or package formats were changed.
+
+Production Swift +24/-31 (net -7), two existing capture view files. No low-value
+layout-mirroring tests added. Source localization/style/whitespace checks passed;
+actual safe-area layout, touch/hold/cancel/VoiceOver, rotation, interrupted recording,
+photo capture and Finish are device validation pending. Neither Apple scheme nor
+SwiftUI previews were run on this Windows host. Remaining Phase 3 work includes
+additional card export/report actions and physical-device interaction validation.
