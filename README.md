@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/ibv.svg" width="96" height="96" alt="dWalkScan bau-scan logo" />
+  <img src="docs/assets/dwalkscan-logo.png" width="128" height="128" alt="dWalkScan bau-scan logo" />
 </p>
 
 <h1 align="center">dWalkScan (bau-scan)</h1>
@@ -206,7 +206,7 @@ d-walk-scan/
 │   ├── TechnicalRoom/       # MEP review UI, German equipment catalogue, Google AI
 │   ├── UI/                  # Liquid Glass theme, RenovationNavigation, 2D plan view, 3D viewer
 │   ├── MacUI/               # macOS native menus, print controllers, drag & drop
-│   └── Resources/           # ibv.svg brand asset, Localizable strings (EN/DE), PrivacyInfo
+│   └── Resources/           # AppIcon/AppLogo assets, Localizable strings (EN/DE), PrivacyInfo
 ├── RoomScannerTests/        # Comprehensive unit & integration test suite
 ├── services/                # Cloud microservices (technical-google-ai)
 ├── docs/                    # Architectural specs, planning roadmaps & brand assets
@@ -219,7 +219,7 @@ d-walk-scan/
 ## 🔒 Branding & Upstream Alignment
 
 This repository includes an automated compliance engine in [`.agents/skills/sync-upstream-features`](.agents/skills/sync-upstream-features) to selectively synchronize algorithmic improvements and bug fixes from upstream while safeguarding local brand identity:
-* **Brand Identity:** **`dWalkScan`** by **`BabuReddy`** with the official **`ibv.svg`** vector logo.
+* **Brand Identity:** **`dWalkScan`** by **`BabuReddy`** with the official **`dwalkscan-logo`** isometric LiDAR house logo ([PNG](docs/assets/dwalkscan-logo.png) / [SVG](docs/assets/dwalkscan-logo.svg)).
 * **Palette:** Brand Yellow (`#facc15`), Soft Yellow (`#fef08a`), and Charcoal (`#111110`).
 * **Standards:** Metric units (`mm` and `meters`) and Liquid Glass visual styling.
 
