@@ -9,7 +9,7 @@ struct ScanPhotoButton: View {
                 Circle().fill(.white)
                 Circle().stroke(.gray,lineWidth:2).padding(5)
                 if busy { ProgressView().dsCameraIndicatorTint() }
-                else { Image(systemName:"camera.fill").foregroundStyle(.black) }
+                else { Image(systemName:"camera.fill").foregroundStyle(DS.ColorToken.onBrand.color) }
             }.frame(width:52,height:52)
         }.buttonStyle(.plain).accessibilityLabel("Take survey photo").disabled(busy)
     }

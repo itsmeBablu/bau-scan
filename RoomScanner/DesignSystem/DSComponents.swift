@@ -25,12 +25,16 @@ struct DSButtonStyle: ButtonStyle {
 /// The sole material decision, also used by the legacy liquidGlass API.
 struct DSFloatingSurface: ViewModifier {
     var radius: CGFloat = DS.Radius.floating
+    func body(content:Content) -> some View { content.modifier(DSMaterialSurface(shape:RoundedRectangle(cornerRadius:radius))) }
+}
+private struct DSMaterialSurface<S:Shape>: ViewModifier {
+    var shape: S
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @ViewBuilder func body(content:Content) -> some View {
-        if reduceTransparency { content.background(DS.ColorToken.card.color,in:RoundedRectangle(cornerRadius:radius)) }
+        if reduceTransparency { content.background(DS.ColorToken.card.color,in:shape) }
         else {
             #if compiler(>=6.2)
-            if #available(iOS 26,macOS 26,*) { content.glassEffect(.regular,in:RoundedRectangle(cornerRadius:radius)) }
+            if #available(iOS 26,macOS 26,*) { content.glassEffect(.regular,in:shape) }
             else { legacy(content) }
             #else
             legacy(content)
@@ -38,11 +42,13 @@ struct DSFloatingSurface: ViewModifier {
         }
     }
     private func legacy(_ content:Content) -> some View {
-        content.background(.regularMaterial,in:RoundedRectangle(cornerRadius:radius))
+        content.background(.regularMaterial,in:shape)
     }
 }
 
 extension View {
+    func dsMaterial<S:Shape>(in shape:S) -> some View { modifier(DSMaterialSurface(shape:shape)) }
+    func dsMaterial() -> some View { dsMaterial(in:Rectangle()) }
     func dsCard() -> some View {
         padding(DS.Spacing.l).background(DS.ColorToken.card.color,in:RoundedRectangle(cornerRadius:DS.Radius.card))
     }

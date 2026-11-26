@@ -91,7 +91,7 @@ struct ExportSheet: View {
                 Spacer()
             }
             .font(.callout)
-            if let error { Text(error).foregroundStyle(.red).font(.footnote) }
+            if let error { Text(error).foregroundStyle(DS.ColorToken.error.color).font(.footnote) }
             HStack {
                 if let result, !working {
                     ShareLink(item: result) { Label("export.share", systemImage: "square.and.arrow.up") }
@@ -209,7 +209,7 @@ private struct RevitExportPanel: View {
                     Button("Generate IFC") { generate() }.disabled(working || (!architecture && !mep))
                     if working { ProgressView() }
                     if let result { ShareLink("Save or share IFC",item:result) }
-                    if let error { Text(error).foregroundStyle(.red) }
+                    if let error { Text(error).foregroundStyle(DS.ColorToken.error.color) }
                     Text("Capture-derived data: device validation pending. Storey elevations use retained floor evidence when available; otherwise they are labelled estimates.").font(.caption)
                 }
             }.formStyle(.grouped).disabled(working).navigationTitle("IFC (Revit)")

@@ -22,7 +22,7 @@ struct ProjectScanPreview: View {
             if let house,house.stories.count > 1 {
                 Picker("Level",selection:$story) { ForEach(house.stories,id:\.index) { Text(StoryNaming.localizedName(for:$0.index)).tag(Optional($0.index)) } }
             }
-            if let error { Text(error).foregroundStyle(.red) }
+            if let error { Text(error).foregroundStyle(DS.ColorToken.error.color) }
             switch mode {
             case .plan:
                 if let shown { Plan2DView(house:shown).frame(height:320) }

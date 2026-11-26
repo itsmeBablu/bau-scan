@@ -54,7 +54,7 @@ struct ProjectPinsView: View {
                     }
                 }.frame(maxHeight:200)
             } else { ContentUnavailableView("No floor plan available",systemImage:"square.dashed",description:Text("Add a room or whole-home scan to place renovation pins.")) }
-            if let error { Text(error).foregroundStyle(.red).font(.caption) }
+            if let error { Text(error).foregroundStyle(DS.ColorToken.error.color).font(.caption) }
         }.navigationTitle("Notes & task pins")
             .task { if selected == nil { selected = sources.first?.reference } }
             .task(id:selected) { await load() }

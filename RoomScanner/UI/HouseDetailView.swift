@@ -37,7 +37,7 @@ struct HouseDetailView: View {
                 ProgressView()
             }
         }
-        .safeAreaInset(edge:.top) { if currentRecord.incomplete == true { Text("Partial scan · not fully scanned").font(.caption).padding(8).frame(maxWidth:.infinity).background(.regularMaterial) } }
+        .safeAreaInset(edge:.top) { if currentRecord.incomplete == true { Text("Partial scan · not fully scanned").font(.caption).padding(8).frame(maxWidth:.infinity).dsMaterial() } }
         .navigationTitle(currentRecord.name)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -272,7 +272,7 @@ struct HouseRow: View {
             }
             .frame(width: 64, height: 64)
             .background(.quaternary)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.thumbnail))
             .task(id: record.id) { thumbnail = await loadThumbnail() }
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.name).font(.headline)

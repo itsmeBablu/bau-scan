@@ -55,8 +55,8 @@ struct Plan2DView: View {
                                 Circle().fill(.yellow).frame(width: 22, height: 22)
                                 Circle().stroke(.black.opacity(0.4), lineWidth: 1).frame(width: 22, height: 22)
                                 Text("\(photo.photo.number)")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(.black)
+                                    .font(DS.Typography.caption2.weight(.bold))
+                                    .foregroundStyle(DS.ColorToken.onBrand.color)
                             }
                         }
                         .buttonStyle(.plain)
@@ -72,8 +72,8 @@ struct Plan2DView: View {
                             if note.anchorPinID != nil { Path { path in path.move(to:anchor); path.addLine(to:label) }.stroke(.indigo,lineWidth:1).allowsHitTesting(false) }
                             Button { selectedNote = note } label: {
                                 Image(systemName:note.audioFileName == nil ? "mappin" : "mic.fill")
-                                    .font(.system(size:12,weight:.semibold)).foregroundStyle(.white)
-                                    .frame(width:28,height:28).background(.indigo,in:Circle()).frame(width:44,height:44).contentShape(Rectangle())
+                                    .font(DS.Typography.caption.weight(.semibold)).foregroundStyle(DS.ColorToken.onAccent.color)
+                                    .frame(width:28,height:28).background(DS.ColorToken.info.color,in:Circle()).frame(width:44,height:44).contentShape(Rectangle())
                             }.buttonStyle(.plain).accessibilityLabel(note.title ?? AppLanguage.text("Voice note"))
                                 .position(label)
                         }
@@ -131,7 +131,7 @@ struct Plan2DView: View {
             catch { noteError = error.localizedDescription }
             photos = (try? await Task.detached { try SurveyPhotoStore.images(from: url, house: house) }.value) ?? []
         }
-        .overlay(alignment:.topLeading) { if let noteError { Text(noteError).font(.caption).padding().background(.regularMaterial,in:Capsule()) } }
+        .overlay(alignment:.topLeading) { if let noteError { Text(noteError).font(.caption).padding().dsMaterial(in:Capsule()) } }
         .sheet(item:$selectedNote) { note in VoiceNotePlayerSheet(note:note) { saved in
             if let i = notes.firstIndex(where:{ $0.id == saved.id }) { var value = saved; value.displayPosition = notes[i].displayPosition; notes[i] = value }
         } }
@@ -176,7 +176,7 @@ struct Plan2DView: View {
             .labelStyle(.iconOnly)
             .buttonStyle(.bordered)
             .padding(12)
-            .background(.regularMaterial)
+            .dsMaterial()
         }
         .toolbar {
             ToolbarItem(placement: .secondaryAction) {

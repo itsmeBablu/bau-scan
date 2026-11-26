@@ -35,7 +35,7 @@ struct RoomListView: View {
                                 ForEach(technicalRooms.records.filter { matches($0.name) }) { record in
                                     Button { savedTechnicalID = record.id; showTechnicalLibrary = true } label: {
                                         HStack(spacing: 12) {
-                                            Image(systemName: "cube.transparent").font(.title2).foregroundStyle(.tint).frame(width: 64,height: 64).background(.quaternary,in: RoundedRectangle(cornerRadius: 10))
+                                            Image(systemName: "cube.transparent").font(.title2).foregroundStyle(.tint).frame(width: 64,height: 64).background(.quaternary,in: RoundedRectangle(cornerRadius: DS.Radius.thumbnail))
                                             VStack(alignment: .leading) {
                                                 Text(record.name).font(.headline)
                                                 Text("Open saved 3D scan").font(.caption).foregroundStyle(.secondary)
@@ -171,7 +171,7 @@ struct RoomListView: View {
         if scanSupported {
             ContentUnavailableView {
                 VStack(spacing: 16) {
-                    Image(systemName: "square.stack").font(.system(size: 48,weight: .light)).foregroundStyle(.secondary)
+                    Image(systemName: "square.stack").dsIcon(.large,weight:.light).foregroundStyle(.secondary)
                     Text("list.empty.title").font(.title2.bold())
                 }
             } description: {
@@ -267,9 +267,9 @@ struct RoomRow: View {
             }
             .frame(width: 64, height: 64)
             .background(.quaternary)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.thumbnail, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: DS.Radius.thumbnail, style: .continuous)
                     .stroke(.primary.opacity(0.08), lineWidth: 0.5)
             }
             .task(id: record.id) { thumbnail = await loadThumbnail() }

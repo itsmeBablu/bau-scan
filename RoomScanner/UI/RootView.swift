@@ -74,7 +74,7 @@ private struct CaptureHomeView: View {
             List {
                 Section {
                     VStack(alignment: .leading,spacing: 12) {
-                        Image(systemName: "viewfinder").font(.system(size: 38,weight: .light)).foregroundStyle(.tint)
+                        Image(systemName: "viewfinder").dsIcon(.capture,weight:.light).foregroundStyle(.tint)
                         Text("Start with your space").font(.title2.bold())
                         Text("Capture the existing building, then explore changes in Studio.").foregroundStyle(.secondary)
                     }.padding(.vertical,16)

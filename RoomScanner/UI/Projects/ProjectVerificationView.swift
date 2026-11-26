@@ -41,7 +41,7 @@ struct ProjectVerificationView: View {
                     }.swipeActions { Button("Delete",role:.destructive) { workspace.change { $0.distanceChecks?.removeAll { $0.id == check.id } } } }
                 }
             }
-            if let error { Text(error).foregroundStyle(.red) }
+            if let error { Text(error).foregroundStyle(DS.ColorToken.error.color) }
         }.navigationTitle("Distance check").task { await load() }
     }
     private func load() async {

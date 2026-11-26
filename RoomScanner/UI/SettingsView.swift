@@ -76,7 +76,7 @@ struct SettingsView: View {
             if includesProfile {
                 Section {
                     VStack(spacing: 10) {
-                        Image(systemName: "person.crop.circle.fill").font(.system(size: 64,weight: .light)).foregroundStyle(.secondary)
+                        Image(systemName: "person.crop.circle.fill").dsIcon(.hero,weight:.light).foregroundStyle(.secondary)
                         Text(displayName.isEmpty ? "Your workspace" : displayName).font(.title2.bold())
                         if !organisation.isEmpty { Text(organisation).font(.subheadline).foregroundStyle(.secondary) }
                     }.frame(maxWidth: .infinity).padding(.vertical,16)

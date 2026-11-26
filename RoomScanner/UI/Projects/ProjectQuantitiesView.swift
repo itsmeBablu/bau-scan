@@ -32,7 +32,7 @@ struct ProjectQuantitiesView: View {
                 }
             }
             if let report { ForEach(report.unresolved,id:\.self) { Text($0).foregroundStyle(.secondary) } }
-            if let error { Text(error).foregroundStyle(.red) }
+            if let error { Text(error).foregroundStyle(DS.ColorToken.error.color) }
         }.navigationTitle("Quantities").task {
             if !wastePercent.isFinite { wastePercent = 10 }
             guard let project = workspace.project(projectID) else { return }

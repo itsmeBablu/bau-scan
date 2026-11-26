@@ -24,7 +24,7 @@ struct HousePhotosTabView: View {
                                 VStack(alignment: .leading, spacing: 6) {
                                     SurveyPhotoThumbnailView(data: photo.jpegData)
                                         .frame(height: 140)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
                                     Text(photo.title)
                                         .font(.subheadline)
                                         .lineLimit(1)

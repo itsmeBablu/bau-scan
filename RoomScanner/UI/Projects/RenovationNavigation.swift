@@ -126,7 +126,7 @@ struct RenovationNavigation: View {
     private var onboarding: some View {
         NavigationStack {
             VStack(spacing:24) {
-                Image(systemName:["folder","viewfinder","ruler"][guidePage]).font(.system(size:64)).accessibilityHidden(true)
+                Image(systemName:["folder","viewfinder","ruler"][guidePage]).dsIcon(.hero).accessibilityHidden(true)
                 Text(LocalizedStringKey(["Create a project","Scan your space","Review and verify"][guidePage])).font(.title).multilineTextAlignment(.center)
                 Text(LocalizedStringKey(["Group a building's scans, designs, photos and notes in one place.","Choose House or Technik room. Your original scan stays separate from design edits.","Check important dimensions before sharing a report. Capture-derived data is device validation pending."][guidePage])).multilineTextAlignment(.center)
                 Button(guidePage == 2 ? "Get started" : "Next") { if guidePage < 2 { guidePage += 1 } else { onboarded = true; guide = false } }.dsProminentControl()
@@ -173,7 +173,7 @@ struct ProjectSummary: View {
         Group {
             if card {
                 VStack(alignment:.leading,spacing:10) { cover; labels }
-                    .padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Color.secondary.opacity(0.08),in:RoundedRectangle(cornerRadius:22))
+                    .padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Color.secondary.opacity(0.08),in:RoundedRectangle(cornerRadius:DS.Radius.project))
             } else { HStack { cover; labels } }
         }
     }
@@ -198,7 +198,7 @@ struct ProjectCover: View {
         Group {
             if let image { Image(decorative:image,scale:1).resizable().scaledToFit() }
             else { Image(systemName:"square.split.bottomrightquarter").font(.title2).foregroundStyle(.secondary) }
-        }.frame(maxWidth:size).frame(height:size).background(.quaternary,in:RoundedRectangle(cornerRadius:8))
+        }.frame(maxWidth:size).frame(height:size).background(.quaternary,in:RoundedRectangle(cornerRadius:DS.Radius.small))
             .task(id:url) {
                 image = nil
                 guard let url else { return }
@@ -226,7 +226,7 @@ struct ProjectEntryRow: View {
                     Text(String(entry.roomCount)+" "+AppLanguage.text("Rooms")).font(.caption).foregroundStyle(.secondary)
                     if let area = entry.area { Text(MeasurementFormat.squareMeters(area)).font(.caption).foregroundStyle(.secondary) }
                     Text(entry.date,style:.date).font(.caption2).foregroundStyle(.tertiary)
-                }.padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Color.secondary.opacity(0.08),in:RoundedRectangle(cornerRadius:22))
+                }.padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Color.secondary.opacity(0.08),in:RoundedRectangle(cornerRadius:DS.Radius.project))
             } else {
             HStack {
                 Image(systemName:entry.isDesign ? "square.stack.3d.up" : entry.reference.kind == .technicalRoom ? "wrench.and.screwdriver" : "house")

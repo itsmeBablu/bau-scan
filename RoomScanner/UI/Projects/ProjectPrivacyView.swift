@@ -18,7 +18,7 @@ struct ProjectPrivacyView: View {
             }.disabled(busy || workspace.loading)
             if busy { ProgressView("Deleting project data…") }
             if let result { Text(result) }
-            if let error = workspace.error { Text(error).foregroundStyle(.red) }
+            if let error = workspace.error { Text(error).foregroundStyle(DS.ColorToken.error.color) }
         }.navigationTitle("Project privacy").task { await workspace.reload(location:store.location) }
             .confirmationDialog("Permanently delete project data?",isPresented:$confirming,titleVisibility:.visible) {
                 Button("Delete permanently",role:.destructive) { remove() }

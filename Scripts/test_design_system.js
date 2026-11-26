@@ -23,7 +23,7 @@ function luminance(color) {
         .reduce((sum,x,i) => sum+x*[0.2126,0.7152,0.0722][i],0);
 }
 test('every semantic token has four explicit appearance variants', () => {
-    assert.equal(names.length,20); assert.equal(new Set(names).size,names.length);
+    assert.equal(names.length,21); assert.equal(new Set(names).size,names.length);
     for (const name of names) {
         const colors = load(name).colors;
         assert.equal(colors.length,4,name);

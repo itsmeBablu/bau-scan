@@ -28,6 +28,7 @@ public enum DS {
         case brandSubtle = "BrandSubtle"
         case brandSurface = "BrandSurface"
         case brandInk = "BrandInk"
+        case mediaSurface = "MediaSurface"
         public var color: Color { Color(rawValue,bundle:.main) }
         public var platformColor: AppPlatformColor {
             #if canImport(UIKit)
@@ -45,10 +46,19 @@ public enum DS {
         public static let xl: CGFloat = 24
     }
     public enum Radius {
+        public static let compact: CGFloat = 6
         public static let small: CGFloat = 8
+        public static let thumbnail: CGFloat = 10
+        public static let panel: CGFloat = 12
         public static let card: CGFloat = 14
         public static let floating: CGFloat = 16
+        public static let inspector: CGFloat = 18
+        public static let toolbar: CGFloat = 20
+        public static let project: CGFloat = 22
+        public static let large: CGFloat = 24
     }
+    public enum IconSize: CGFloat { case small = 18,medium = 32,capture = 38,large = 48,hero = 64 }
+    static func materialPreviewColor(_ point:TechnicalPoint3) -> Color { Color(red:point.x,green:point.y,blue:point.z) }
     public enum Stroke {
         public static let separator: CGFloat = 0.5
         public static let emphasis: CGFloat = 1
@@ -90,6 +100,7 @@ public enum DS {
 }
 
 public extension View {
+    func dsIcon(_ size:DS.IconSize,weight:Font.Weight = .regular) -> some View { font(.system(size:size.rawValue,weight:weight)) }
     func dsAppTheme() -> some View { tint(DS.ColorToken.accent.color) }
     func dsRecordingTint() -> some View { tint(DS.ColorToken.recording.color) }
     func dsCameraIndicatorTint() -> some View { tint(DS.ColorToken.onBrand.color) }
