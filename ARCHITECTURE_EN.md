@@ -378,3 +378,13 @@ remain fallback values. A prepared capture includes its resolved library locatio
 a local override creates a separate RoomStore instead of changing the app's browsing
 store. Native format/AR state stays independent. Technical capture retains local
 storage; requesting iCloud for House requires an already connected app library.
+
+Project deliverable reuse is an export-only contract: ProjectExportRequest hashes a
+validated selected-project metadata subset and referenced source contents, with a
+bounded filesystem-revision hash cache. ProjectArtifactIndex is optional and lives
+under that project's Exports folder. It maps logical requests to checksum-verified
+readable revision files; native scan formats are unaffected. Existing UUID artifacts
+remain visible. ProjectArtifactGenerator rechecks source/catalogue revision after
+generation and publishes through a coordinated index transaction. Missing, modified
+or renamed exports are handled without overwriting user files; index failure rolls
+back the new file where possible. Crash leftovers are retained for manual review.

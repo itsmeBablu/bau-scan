@@ -170,3 +170,11 @@ merge. It must be followed by independently checking a known point.
   location stays unchanged. Request disconnected iCloud and verify setup explains
   the connection requirement without enabling it. Technical capture remains local.
   Test force-root fixtures, recovery, rotation and returning to global App Settings.
+
+- Project artifact reuse (device validation pending): Generate CSV/PDF twice with no
+  changes; second request must reuse the exact file. Edit geometry, notes, language,
+  units/options or a source photo; create a distinct labelled revision. Rename an
+  indexed file and reuse it. Modify/delete that file externally; regeneration must
+  preserve modified bytes and create/recover an artifact. Exercise concurrent windows,
+  cancellation, unavailable sources, iCloud sync and low disk/index-write failure.
+  Legacy UUID files must remain; inspect .artifact-index-v1.json and SHA-256 records.

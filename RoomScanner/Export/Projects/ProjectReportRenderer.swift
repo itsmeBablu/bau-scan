@@ -5,7 +5,7 @@ import ImageIO
 
 /// A report assembles independent surveys; it does not infer that repeated scans are disjoint.
 enum ProjectReportRenderer {
-    static func pdf(_ report: ProjectReport, locale: Locale) throws -> Data {
+    static func pdf(_ report: ProjectReport, locale: Locale, unit:MeasurementUnit = .both) throws -> Data {
         let data = NSMutableData(); var box = CGRect(x:0,y:0,width:595,height:842)
         guard let consumer = CGDataConsumer(data:data as CFMutableData),
               let ctx = CGContext(consumer:consumer,mediaBox:&box,[kCGPDFContextTitle:report.name,kCGPDFContextCreator:"dWalkScan"] as CFDictionary) else { throw CocoaError(.fileWriteUnknown) }
@@ -45,7 +45,7 @@ enum ProjectReportRenderer {
         }
         for scan in report.scans {
             if let house = scan.house {
-                var renderer = PlanRenderer(); renderer.options.locale = locale
+                var renderer = PlanRenderer(); renderer.options.locale = locale; renderer.options.unit = unit
                 let pdf = renderer.pdfData(house,title:scan.title)
                 if let provider = CGDataProvider(data:pdf as CFData),let source = CGPDFDocument(provider) {
                     for i in 1...max(1,source.numberOfPages) {

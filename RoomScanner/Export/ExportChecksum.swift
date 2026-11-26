@@ -2,6 +2,7 @@ import Foundation
 import CryptoKit
 
 enum ExportChecksum {
+    static func digest(_ data:Data) -> String { SHA256.hash(data:data).map { String(format:"%02x",$0) }.joined() }
     static func sha256(_ url: URL) throws -> String {
         let file = try FileHandle(forReadingFrom:url)
         defer { try? file.close() }

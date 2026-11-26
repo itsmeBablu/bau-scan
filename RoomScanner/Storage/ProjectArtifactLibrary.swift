@@ -27,6 +27,18 @@ struct ProjectArtifactFile:Identifiable {
 
 extension ProjectArtifacts {
     static let supportedExtensions:Set<String> = ["pdf","csv","zip","png","svg","dxf","ifc","json","usdz","obj","mtl","stl","ply","glb","gltf","jpg","jpeg","heic","m4a","aac","wav","mp3"]
+    static func prepareDirectory(root:URL,projectID:UUID) throws -> URL {
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        var folder = root
+        for component in ["Projects",projectID.uuidString,"Exports"] {
+            folder.appendPathComponent(component)
+            if FileManager.default.fileExists(atPath:folder.path) {
+                let info = try folder.resourceValues(forKeys:[.isDirectoryKey,.isSymbolicLinkKey])
+                guard info.isDirectory == true,info.isSymbolicLink != true else { throw CocoaError(.fileWriteNoPermission) }
+            } else { try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:false) }
+        }
+        return folder
+    }
     static func inspect(root:URL,projectID:UUID) throws -> [ProjectArtifactFile] {
         let dir = directory(root:root,projectID:projectID)
         guard FileManager.default.fileExists(atPath:dir.path) else { return [] }
@@ -48,14 +60,21 @@ extension ProjectArtifacts {
             if target.standardizedFileURL == file.standardizedFileURL { return }
             let used = try FileManager.default.contentsOfDirectory(atPath:folder.path)
             guard !used.contains(where:{ $0.compare(target.lastPathComponent,options:[.caseInsensitive,.diacriticInsensitive]) == .orderedSame }) else { throw CocoaError(.fileWriteFileExists) }
-            try FileManager.default.moveItem(at:file,to:target); result = target
+            try FileManager.default.moveItem(at:file,to:target)
+            do { try ProjectArtifactIndex.renamed(file.lastPathComponent,to:target.lastPathComponent,folder:folder) }
+            catch { try FileManager.default.moveItem(at:target,to:file); throw error }
+            result = target
         }
         return result
     }
     static func remove(_ file:URL,root:URL,projectID:UUID) throws {
-        try RoomPackage.coordinatedWrite(at:directory(root:root,projectID:projectID),options:.forMerging) { _ in
+        try RoomPackage.coordinatedWrite(at:directory(root:root,projectID:projectID),options:.forMerging) { folder in
             try checkFile(file,root:root,projectID:projectID)
-            try FileManager.default.removeItem(at:file)
+            let trash = folder.appendingPathComponent(".deleted-export-"+UUID().uuidString)
+            try FileManager.default.moveItem(at:file,to:trash)
+            do { try ProjectArtifactIndex.removed(file.lastPathComponent,folder:folder) }
+            catch { try FileManager.default.moveItem(at:trash,to:file); throw error }
+            try? FileManager.default.removeItem(at:trash)
         }
     }
     private static func checkFile(_ file:URL,root:URL,projectID:UUID) throws {
@@ -66,7 +85,7 @@ extension ProjectArtifacts {
         let info = try file.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey])
         guard info.isRegularFile == true,info.isSymbolicLink != true else { throw CocoaError(.fileWriteNoPermission) }
     }
-    private static func checkFolders(root:URL,projectID:UUID) throws {
+    static func checkFolders(root:URL,projectID:UUID) throws {
         var folder = root
         for component in ["Projects",projectID.uuidString,"Exports"] {
             folder.appendPathComponent(component)

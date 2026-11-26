@@ -63,8 +63,7 @@ enum ProjectArtifacts {
     }
     static func save(_ data: Data, extension suffix: String, root: URL, projectID: UUID) throws -> URL {
         guard supportedExtensions.contains(suffix) else { throw CocoaError(.fileWriteInvalidFileName) }
-        let directory = directory(root:root,projectID:projectID)
-        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        let directory = try prepareDirectory(root:root,projectID:projectID)
         let file = directory.appendingPathComponent(UUID().uuidString).appendingPathExtension(suffix)
         try data.write(to:file,options:.atomic); return file
     }

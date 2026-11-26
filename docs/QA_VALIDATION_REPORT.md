@@ -437,3 +437,43 @@ validation pending. Both Apple build/test schemes require a Mac and remain unrun
 Remaining: logical artifact request/revision reuse, note re-record/context actions
 and independent written-note scopes, final localization/visual cleanup and Apple/
 device regression verification. The redesign is not declared complete.
+
+## Project artifact reuse checkpoint — 2026-11-26
+
+Project deliverables now use one ProjectExportRequest/ProjectArtifactGenerator path
+for report PDF, quantities CSV, complete ZIP and photos ZIP. The logical key includes
+project identity and validated metadata subset, source file-content revision, output,
+locale/units, details option, waste allowance and generator revision. A bounded
+2048-file hash cache avoids hashing unchanged large assets on every request, using
+path/date/size/file identity invalidation. Source/package metadata is enumerated on
+workers; no source bytes are retained. This is additional export-time work only.
+
+New optional Exports/.artifact-index-v1.json records the request, readable revision
+filename, creation date, byte count and SHA-256. Native scan/project formats are
+unchanged. Unchanged requests reuse only a present regular file with matching size
+and checksum. Changed requests create a labelled revision; altered/missing artifacts
+are rebuilt without overwriting a user file. Coordinated publish deduplicates
+concurrent identical requests; rename/delete update the index with rollback on
+index failure. Legacy UUID exports remain untouched; the legacy save API intentionally
+retains its old contract for existing callers. The library shows indexed output and
+source revision, plus Generate current revision (current project locale/options).
+Source or catalogue changes detected during generation reject publication. A crash
+between artifact and index commit may leave an unindexed visible file; it is never
+automatically deleted. Filesystem revision caching is not a tamper-evident source
+snapshot; external in-place changes preserving all revision metadata need a fresh
+process/cache or explicit future deep verification.
+
+Production Swift +306/-55 (net +251). Five shared Swift tests added for reuse versus
+source change, preserving legacy bytes, deterministic/option-separated keys,
+rename/delete/tamper, stale metadata and concurrent publication; all UNRUN. Existing
+Phase 0 duplicate test still characterizes the retained legacy save API. Ten Node
+checks, localization (1336 keys), style and whitespace passed on the working tree.
+Actual Foundation coordination/ZIP generation, Swift concurrency compilation,
+source revision behavior on iCloud and both Apple schemes remain UNRUN/device
+validation pending. Project ZIP and report receive captured units/waste options;
+existing callers retain defaults.
+
+This covers project-level requests. Room/house ExportSheet has explicit Generate
+and stale-result protection but its separate RoomStore save path is not yet indexed.
+Remaining work includes note actions/scopes, final cleanup/visual comparison and
+Apple/device builds/tests. No claim of complete redesign or successful Apple build.

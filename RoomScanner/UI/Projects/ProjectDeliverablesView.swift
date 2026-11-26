@@ -8,11 +8,15 @@ struct ProjectDeliverablesView: View {
     @Environment(RoomStore.self) private var store
     @Environment(\.locale) private var locale
     @State private var files: [ProjectArtifactFile] = []
+    @State private var records:[ProjectArtifactIndex.Record] = []
     @State private var busy = false
     @State private var includeDetails = false
     @State private var error: String?
     @State private var category = ProjectArtifactCategory.all
-    @State private var output = Output.report
+    @State private var output = ProjectExportKind.report
+    @State private var generationMessage: String?
+    @State private var generatedURL: URL?
+    @Environment(\.projectPreferences) private var projectPreferences
     @State private var preview: URL?
     @State private var savingFile = false
     @State private var fileToSave: URL?
@@ -21,25 +25,16 @@ struct ProjectDeliverablesView: View {
     @State private var newName = ""
     @State private var requestID = UUID()
     @State private var generationTask: Task<Void,Never>?
-    private enum Output: String, CaseIterable, Identifiable {
-        case report = "Project report · PDF", quantities = "Quantities · CSV", complete = "Everything · organised ZIP", photos = "Photos · ZIP"
-        var id: String { rawValue }
-    }
     private var root: URL { RootView.hasForcedRoot ? store.location.documentsURL : StorageLocation.local().documentsURL }
     private var filtered: [ProjectArtifactFile] { files.filter { category == .all || $0.category == category } }
     var body: some View {
         List {
             Section("Create a report") {
-                Picker("Output", selection: $output) { ForEach(Output.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) } }.disabled(busy)
+                Picker("Output", selection: $output) { ForEach(ProjectExportKind.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) } }.disabled(busy)
                 if output == .complete { Toggle("Include project details in ZIP", isOn: $includeDetails).disabled(busy) }
-                Button("Generate", systemImage: "arrow.down.doc") {
-                    switch output {
-                    case .report: generatePDF()
-                    case .quantities: generatePDF(csv: true)
-                    case .complete: generateBundle()
-                    case .photos: generateBundle(photosOnly: true)
-                    }
-                }.disabled(busy)
+                Button("Generate or reuse", systemImage: "arrow.down.doc") { generate(output) }.disabled(busy)
+                if let generationMessage { Text(generationMessage).font(.caption).foregroundStyle(.secondary) }
+                if let generatedURL { ShareLink(item:generatedURL) { Label("Open or share export",systemImage:"square.and.arrow.up") } }
                 if busy {
                     ProgressView("Working…")
                     if generationTask != nil { Button("Cancel") { cancelGeneration() } }
@@ -56,6 +51,10 @@ struct ProjectDeliverablesView: View {
                                 Text(file.url.pathExtension.uppercased()+" · "+ByteCountFormatter.string(fromByteCount:file.bytes,countStyle:.file)).font(.caption).foregroundStyle(.secondary)
                                 Text(file.modified, style: .date).font(.caption).foregroundStyle(.secondary)
                                 if file.legacy { Text("Legacy filename").font(.caption).foregroundStyle(.secondary) }
+                                if let record = records.first(where:{ $0.filename == file.url.lastPathComponent }) {
+                                    Text(LocalizedStringKey(record.request.kind.rawValue)).font(.caption).foregroundStyle(.secondary)
+                                    Text(String(record.request.sourceRevision.prefix(12))).font(.caption2).monospaced().foregroundStyle(.secondary)
+                                }
                             }
                         }.buttonStyle(.plain)
                         Spacer()
@@ -64,6 +63,12 @@ struct ProjectDeliverablesView: View {
                             ShareLink(item: file.url) { Label("Share", systemImage: "square.and.arrow.up") }
                             Button("Save to Files", systemImage: "folder") { fileToSave = file.url; savingFile = true }
                             Button("Rename", systemImage: "pencil") { newName = file.url.deletingPathExtension().lastPathComponent; renaming = file }
+                            if let record = records.first(where:{ $0.filename == file.url.lastPathComponent }) {
+                                Button("Generate current revision",systemImage:"arrow.clockwise") {
+                                    includeDetails = record.request.includeDetails; output = record.request.kind
+                                    generate(record.request.kind)
+                                }
+                            }
                             Button("Delete", systemImage: "trash", role: .destructive) { deleting = file }
                         } label: { Image(systemName:"ellipsis.circle").frame(minWidth:DS.Size.minimumTouchTarget,minHeight:DS.Size.minimumTouchTarget) }
                             .accessibilityLabel("Export actions")
@@ -74,6 +79,7 @@ struct ProjectDeliverablesView: View {
         }.navigationTitle("Exports")
             .task(id: projectID.uuidString+root.path) { await reload() }
             .onDisappear { cancelGeneration() }
+            .onChange(of:workspace.catalogueRevision) { _,_ in cancelGeneration(); generatedURL = nil; generationMessage = nil }
             .quickLookPreview($preview)
             .fileExporter(isPresented:$savingFile,items:fileToSave.map { [$0] } ?? [],contentTypes:[fileToSave.flatMap { UTType(filenameExtension:$0.pathExtension) } ?? .data]) { result in
                 if case .failure(let failure) = result { error = failure.localizedDescription }
@@ -100,8 +106,10 @@ struct ProjectDeliverablesView: View {
     private func reload() async {
         let root = root
         do {
-            let result = try await Task.detached(priority:.utility) { try ProjectArtifacts.inspect(root:root,projectID:projectID) }.value
-            guard !Task.isCancelled,root == self.root else { return }; files = result
+            let result = try await Task.detached(priority:.utility) {
+                (try ProjectArtifacts.inspect(root:root,projectID:projectID),try ProjectArtifactIndex.records(root:root,projectID:projectID))
+            }.value
+            guard !Task.isCancelled,root == self.root else { return }; files = result.0; records = result.1
         } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
     }
     private func edit(_ work:@escaping () throws -> Void) {
@@ -113,14 +121,16 @@ struct ProjectDeliverablesView: View {
         }
     }
     private func cancelGeneration() { requestID = UUID(); generationTask?.cancel(); generationTask = nil; busy = false }
-    private func runGeneration(_ work:@escaping () async throws -> URL) {
+    private func runGeneration(_ work:@escaping () async throws -> ProjectArtifactGenerator.Result) {
         guard !busy else { return }
-        let request = UUID(); requestID = request; busy = true; error = nil
+        let request = UUID(); requestID = request; busy = true; error = nil; generationMessage = nil; generatedURL = nil
         generationTask = Task {
             let worker = Task.detached(priority:.userInitiated,operation:work)
             do {
-                _ = try await withTaskCancellationHandler(operation:{ try await worker.value },onCancel:{ worker.cancel() })
+                let result = try await withTaskCancellationHandler(operation:{ try await worker.value },onCancel:{ worker.cancel() })
                 guard !Task.isCancelled,requestID == request else { return }
+                generatedURL = result.url
+                generationMessage = AppLanguage.text(result.reused ? "Reused unchanged export" : "Created a new export revision",locale:locale)
                 busy = false; generationTask = nil; await reload()
             } catch {
                 guard !Task.isCancelled,requestID == request else { return }
@@ -128,29 +138,16 @@ struct ProjectDeliverablesView: View {
             }
         }
     }
-    private func generatePDF(csv: Bool = false) {
+    private func generate(_ kind:ProjectExportKind) {
         guard let project = workspace.project(projectID) else { return }
-        let entries = workspace.entries.map { workspace.localizedEntry($0,locale:self.locale) },root = root,locale = locale,pins = workspace.index.pins ?? [],checks = workspace.index.distanceChecks ?? []
+        let entries = workspace.entries.map { workspace.localizedEntry($0,locale:self.locale) }
+        let root = root,locale = locale,index = workspace.index,details = includeDetails
+        let appUnit = MeasurementUnit(rawValue:UserDefaults.standard.string(forKey:"measurementUnit") ?? "") ?? .both
+        let unit = ProjectPreferenceResolution.unit(projectPreferences,appDefault:appUnit)
+        let rawWaste = UserDefaults.standard.object(forKey:"renovation.wastePercent") as? Double ?? 10
+        let waste = rawWaste.isFinite ? min(100,max(0,rawWaste)) : 10
         runGeneration {
-            let waste = UserDefaults.standard.object(forKey:"renovation.wastePercent") as? Double ?? 10
-            let report = try ProjectReportLoader.load(project:project,entries:entries,locale:locale,pins:pins,checks:checks,wastePercent:waste)
-            let data:Data
-            if csv { data = ProjectQuantitiesCSV.data(report,locale:locale) }
-            else { data = try ProjectReportRenderer.pdf(report,locale:locale) }
-            try Task.checkCancellation()
-            return try ProjectArtifacts.save(data,extension:csv ? "csv" : "pdf",root:root,projectID:projectID)
-        }
-    }
-    private func generateBundle(photosOnly: Bool = false) {
-        guard let project = workspace.project(projectID) else { return }
-        let entries = workspace.entries.map { workspace.localizedEntry($0,locale:self.locale) },index = workspace.index,root = root,locale = locale,details = includeDetails
-        runGeneration {
-            let directory = ProjectArtifacts.directory(root:root,projectID:projectID)
-            try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
-            let file = directory.appendingPathComponent(ArchivePath.component(project.name)+(photosOnly ? "-Photos-" : "-Complete-")+UUID().uuidString.prefix(8)+".zip")
-            if photosOnly { try SurveyPhotoArchiveWriter.archive(project:project,entries:entries,locale:locale,to:file) }
-            else { try await ProjectBundleExporter.write(project:project,index:index,entries:entries,locale:locale,to:file,includeDetails:details) }
-            return file
+            try await ProjectArtifactGenerator.generate(kind:kind,project:project,index:index,entries:entries,locale:locale,unit:unit,includeDetails:details,wastePercent:waste,root:root)
         }
     }
 }
