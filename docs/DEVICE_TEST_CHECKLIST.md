@@ -133,3 +133,9 @@ merge. It must be followed by independently checking a known point.
   rapid succession while the first loads, then navigate or start recording; old
   results must not begin playback. Confirm only the selected clip is loaded and
   leaving a row/screen stops its player. Verify no export appears on dashboard entry.
+
+- Photo hierarchy (device validation pending): filter mixed building/floor/zone/room
+  collections, including Unassigned and duplicate room names. Changing a parent
+  clears child filters. Basement/upper floors sort numerically; multi-storey photos
+  require explicit story mappings. Export one project from a multi-project catalogue
+  and verify project-index.json validates and contains only that project's metadata.

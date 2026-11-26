@@ -40,15 +40,60 @@ struct ProjectPhotoThumbnail: View {
 struct ProjectPhotosView: View {
     let projectID:UUID
     @Environment(RenovationWorkspace.self) private var workspace
+    @Environment(\.locale) private var locale
     @State private var assets:[ProjectPhotoAsset] = []
     @State private var selected:ProjectPhotoAsset?
     @State private var referenceID = ""
     @State private var query = ""
     @State private var warning:String?
     @State private var loading = false
+    private struct NameKey:Hashable { let name:String? }
+    private struct RoomKey:Hashable { let reference:String; let room:UUID? }
+    @State private var building:NameKey?
+    @State private var level:ProjectScanGrouping.LevelKey?
+    @State private var zone:NameKey?
+    @State private var room:RoomKey?
     private var entries:[ProjectLibraryEntry] { workspace.project(projectID)?.references.compactMap(workspace.entry).filter { !$0.isDesign } ?? [] }
     private var filtered:[ProjectPhotoAsset] {
-        assets.filter { (referenceID.isEmpty || $0.reference.id == referenceID) && (query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)) }
+        assets.filter { asset in
+            (referenceID.isEmpty || asset.reference.id == referenceID) &&
+            (building == nil || NameKey(name:workspace.organization(for:asset.reference)?.buildingName) == building) &&
+            (level == nil || levelKey(asset) == level) &&
+            (zone == nil || NameKey(name:workspace.organization(for:asset.reference)?.zoneName) == zone) &&
+            (room == nil || RoomKey(reference:asset.reference.id,room:asset.photo.roomID) == room) &&
+            (query.isEmpty || asset.title.localizedCaseInsensitiveContains(query))
+        }
+    }
+    private var scoped:[ProjectPhotoAsset] { assets.filter { referenceID.isEmpty || $0.reference.id == referenceID } }
+    private var buildingAssets:[ProjectPhotoAsset] { scoped.filter { building == nil || NameKey(name:workspace.organization(for:$0.reference)?.buildingName) == building } }
+    private var levelAssets:[ProjectPhotoAsset] { buildingAssets.filter { level == nil || levelKey($0) == level } }
+    private var zoneAssets:[ProjectPhotoAsset] { levelAssets.filter { zone == nil || NameKey(name:workspace.organization(for:$0.reference)?.zoneName) == zone } }
+    private var roomOptions:[ProjectPhotoAsset] {
+        let groups = Dictionary(grouping:zoneAssets) { RoomKey(reference:$0.reference.id,room:$0.photo.roomID) }
+        return groups.values.compactMap(\.first).sorted {
+            let order = $0.roomName.localizedStandardCompare($1.roomName)
+            return order == .orderedSame ? $0.id < $1.id : order == .orderedAscending
+        }
+    }
+    private func names(_ values:[String?]) -> [NameKey] {
+        Array(Set(values.map { NameKey(name:$0) })).sorted {
+            switch ($0.name,$1.name) {
+            case let (a?,b?): return a.localizedStandardCompare(b) == .orderedAscending
+            case (_?,nil): return true
+            default: return false
+            }
+        }
+    }
+    private func levelKey(_ asset:ProjectPhotoAsset) -> ProjectScanGrouping.LevelKey {
+        let value = workspace.organization(for:asset.reference)
+        if let summary = workspace.scanSummaries[asset.reference.id],summary.stories > 1 {
+            let story = summary.roomDetails.first { $0.id == asset.photo.roomID }?.story
+            return .init(number:story.flatMap { value?.storyLevels?[$0] },otherName:nil)
+        }
+        return .init(number:value?.level,otherName:value?.otherLevelName)
+    }
+    private func levelTitle(_ key:ProjectScanGrouping.LevelKey) -> String {
+        key.number.map { StoryNaming.localizedName(for:$0,locale:locale) } ?? key.otherName ?? AppLanguage.text("Unassigned level",locale:locale)
     }
     var body:some View {
         ScrollView {
@@ -57,6 +102,34 @@ struct ProjectPhotosView: View {
                     Text("All").tag("")
                     ForEach(entries) { Text(workspace.title($0)).tag($0.id) }
                 }.pickerStyle(.menu)
+                DisclosureGroup("Filters") {
+                    Picker("Building",selection:$building) {
+                        Text("All").tag(NameKey?.none)
+                        ForEach(names(scoped.map { workspace.organization(for:$0.reference)?.buildingName }),id:\.self) { key in
+                            Text(key.name ?? AppLanguage.text("Unassigned building",locale:locale)).tag(Optional(key))
+                        }
+                    }
+                    Picker("Level",selection:$level) {
+                        Text("All").tag(ProjectScanGrouping.LevelKey?.none)
+                        ForEach(ProjectScanGrouping.orderedLevels(Array(Set(buildingAssets.map(levelKey))),locale:locale),id:\.self) { key in
+                            Text(levelTitle(key)).tag(Optional(key))
+                        }
+                    }
+                    Picker("Zone",selection:$zone) {
+                        Text("All").tag(NameKey?.none)
+                        ForEach(names(levelAssets.map { workspace.organization(for:$0.reference)?.zoneName }),id:\.self) { key in
+                            Text(key.name ?? AppLanguage.text("Unassigned zone",locale:locale)).tag(Optional(key))
+                        }
+                    }
+                    Picker("Room",selection:$room) {
+                        Text("All").tag(RoomKey?.none)
+                        ForEach(roomOptions) { asset in
+                            Text(asset.roomName+" · "+(workspace.entry(asset.reference).map { workspace.title($0) } ?? asset.reference.itemID.uuidString))
+                                .tag(Optional(RoomKey(reference:asset.reference.id,room:asset.photo.roomID)))
+                        }
+                    }
+                    Button("Reset filters") { referenceID = ""; building = nil; level = nil; zone = nil; room = nil; query = "" }
+                }
                 if loading { ProgressView("Loading photos…") }
                 if filtered.isEmpty && !loading { ContentUnavailableView("No project photos yet",systemImage:"photo.on.rectangle") }
                 LazyVGrid(columns:[GridItem(.adaptive(minimum:140))],spacing:DS.Spacing.l) {
@@ -92,6 +165,10 @@ struct ProjectPhotosView: View {
                 assets = result.0; warning = result.1.isEmpty ? nil : result.1.joined(separator:"\n"); loading = false
             }
             .sheet(item:$selected) { asset in ProjectPhotoGallery(assets:filtered,initial:asset.id) }
+            .onChange(of:referenceID) { _,_ in building = nil; level = nil; zone = nil; room = nil }
+            .onChange(of:building) { _,_ in level = nil; zone = nil; room = nil }
+            .onChange(of:level) { _,_ in zone = nil; room = nil }
+            .onChange(of:zone) { _,_ in room = nil }
     }
 }
 

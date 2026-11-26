@@ -132,7 +132,6 @@ struct ProjectVoiceNotesView: View {
         }
         .onDisappear {
             visible = false
-            NotePlayback.stopActive()
             #if os(iOS)
             recorder.stop(partial:true); recorder.onClip = nil
             #endif
@@ -145,7 +144,6 @@ struct ProjectVoiceNotesView: View {
         #if os(iOS)
         recorder.stop(cancel:true,reason:"Recording discarded"); failedClip = nil
         #endif
-        NotePlayback.stopActive()
         if let onClose { onClose() } else { dismiss() }
     }
     private var audioActive: Bool {
@@ -207,7 +205,7 @@ struct ProjectVoiceNotesView: View {
             await reload()
         } catch { await reload(); throw error }
     }
-    private func remove(_ note: ARNote) { NotePlayback.stopActive(); mutate { $0.notes.removeAll { $0.id == note.id } } }
+    private func remove(_ note: ARNote) { mutate { $0.notes.removeAll { $0.id == note.id } } }
     private func mutate(_ edit: @escaping (inout ARNoteIndex) throws -> Void) {
         let root = workspace.notesRoot; busy = true
         Task { @MainActor in

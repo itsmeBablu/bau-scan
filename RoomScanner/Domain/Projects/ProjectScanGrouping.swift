@@ -12,6 +12,23 @@ enum ProjectScanGrouping {
         let id: LevelKey
         let scans: [ProjectLibraryEntry]
     }
+    static func orderedLevels(_ keys:[LevelKey],locale:Locale) -> [LevelKey] {
+        keys.sorted { a,b in
+            switch (a.number,b.number) {
+            case let (x?,y?): return x < y
+            case (_?,nil): return true
+            case (nil,_?): return false
+            default:
+                switch (a.otherName,b.otherName) {
+                case let (x?,y?):
+                    let order = x.compare(y,options:[.caseInsensitive,.numeric],locale:locale)
+                    return order == .orderedSame ? x < y : order == .orderedAscending
+                case (_?,nil): return true
+                default: return false
+                }
+            }
+        }
+    }
     static func buildings(entries: [ProjectLibraryEntry], organization: [String: ScanOrganization], locale: Locale) -> [Building] {
         func compare(_ a: String, _ b: String) -> Bool {
             let order = a.compare(b, options: [.caseInsensitive, .numeric], locale: locale)
@@ -28,19 +45,7 @@ enum ProjectScanGrouping {
             let levels = Dictionary(grouping: grouped[building] ?? []) { entry in
                 LevelKey(number: organization[entry.id]?.level, otherName: organization[entry.id]?.otherLevelName)
             }
-            let ordered = levels.keys.sorted { a, b in
-                switch (a.number, b.number) {
-                case let (x?, y?): return x < y
-                case (_?, nil): return true
-                case (nil, _?): return false
-                default:
-                    switch (a.otherName, b.otherName) {
-                    case let (x?, y?): return compare(x, y)
-                    case (_?, nil): return true
-                    default: return false
-                    }
-                }
-            }
+            let ordered = orderedLevels(Array(levels.keys),locale:locale)
             return Building(id: building, levels: ordered.map { level in
                 Level(id: level, scans: (levels[level] ?? []).sorted { a, b in
                     let first = organization[a.id]?.number ?? Int.max, second = organization[b.id]?.number ?? Int.max

@@ -302,3 +302,22 @@ accessibility and Apple builds/tests remain UNRUN/device validation pending.
 Remaining media work: hierarchy filters, selection ZIP export, re-record/context
 menus and written-note scopes. Remaining app work: artifact reuse/library, Studio,
 project-scoped settings, cleanup and Apple/device verification. No push/CI occurred.
+
+## Photo hierarchy/integration checkpoint — 2026-11-26
+
+Photo filters now cascade source scan -> building -> numeric/named level -> zone ->
+room, retaining explicit Unassigned choices. Multi-storey photo levels use only the
+user's story mapping; no inferred ground-floor labels or geometry changes. Reused
+ProjectScanGrouping's extracted numeric level comparator and existing metadata.
+Filter changes reset invalid child selections. Closing/deleting on an unrelated
+voice screen no longer stops another window's player; each inline row owns its
+stop behavior, while recording still stops active note playback deliberately.
+
+Review found ProjectBundleExporter's project-index subset also needed the new
+organization map filtered to selected reference IDs. It now filters and validates
+the subset, with a shared Swift regression test for another project's metadata;
+UNRUN. Production Swift +99/-17 (net +82). Seven Node/source checks, localization
+(1294 keys), style and whitespace passed. Native filter/picker behavior and both
+Apple build/test schemes remain UNRUN. Selection ZIP export, voice re-record/actions,
+written-note scopes, artifact reuse/library, Studio/settings and final verification
+remain pending; this checkpoint does not complete the redesign.

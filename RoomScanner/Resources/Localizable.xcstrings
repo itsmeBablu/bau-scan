@@ -1,6 +1,11 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Filters": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Filters"}},"de":{"stringUnit":{"state":"translated","value":"Filter"}}}},
+    "Building": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Building"}},"de":{"stringUnit":{"state":"translated","value":"Gebäude"}}}},
+    "Zone": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Zone"}},"de":{"stringUnit":{"state":"translated","value":"Bereich"}}}},
+    "Unassigned zone": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Unassigned zone"}},"de":{"stringUnit":{"state":"translated","value":"Nicht zugewiesener Bereich"}}}},
+    "Reset filters": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Reset filters"}},"de":{"stringUnit":{"state":"translated","value":"Filter zurücksetzen"}}}},
     "Recent photos": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Recent photos"}},"de":{"stringUnit":{"state":"translated","value":"Neueste Fotos"}}}},
     "Recent voice notes": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Recent voice notes"}},"de":{"stringUnit":{"state":"translated","value":"Neueste Sprachnotizen"}}}},
     "No voice notes yet": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"No voice notes yet"}},"de":{"stringUnit":{"state":"translated","value":"Noch keine Sprachnotizen"}}}},

@@ -116,6 +116,8 @@ enum ProjectBundleExporter {
         try project.notes.write(to:directory("Notes").appendingPathComponent("project-notes.txt"),atomically:true,encoding:.utf8)
         var subset = index; subset.projects = [project]; subset.pins = subset.pins?.filter { $0.projectID == project.id }; subset.distanceChecks = subset.distanceChecks?.filter { $0.projectID == project.id }
         let referenceIDs = Set(project.references.map(\.id)); subset.displayNames = subset.displayNames?.filter { referenceIDs.contains($0.key) }
+        subset.scanOrganization = subset.scanOrganization?.filter { referenceIDs.contains($0.key) }
+        try subset.validate()
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted,.sortedKeys]
         try encoder.encode(subset).write(to:root.appendingPathComponent("project-index.json"))
         try encoder.encode(manifest).write(to:root.appendingPathComponent("manifest.json"))
