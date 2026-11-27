@@ -39,6 +39,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        Group {
         #if os(iOS)
         NavigationStack {
             form
@@ -49,6 +50,9 @@ struct SettingsView: View {
         #else
         NavigationStack { form }.frame(width: 480).frame(minHeight: 420)
         #endif
+        }
+        .environment(\.locale,(AppLanguage(rawValue:language) ?? .system).locale)
+        .dsAppTheme()
     }
 
     private var form: some View {

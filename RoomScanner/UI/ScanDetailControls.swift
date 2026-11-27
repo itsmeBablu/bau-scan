@@ -1,5 +1,15 @@
 import SwiftUI
 
+extension View {
+    @ViewBuilder func scanWorkspaceFocus() -> some View {
+        #if os(iOS)
+        self.toolbar(.hidden,for:.tabBar)
+        #else
+        self
+        #endif
+    }
+}
+
 /// Shared presentation only. Details retain their own loading, package and viewer.
 enum ScanDetailTab: Hashable { case plan, viewer, measures, photos }
 

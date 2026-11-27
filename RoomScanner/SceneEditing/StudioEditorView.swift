@@ -128,6 +128,7 @@ struct StudioEditorView: View {
     @State private var importing = false
     @State private var equipmentEditor: SceneEditObject?
     @State private var confirmClose = false
+    @State private var confirmRestore = false
     @FocusState private var viewportFocused: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var textSize
@@ -179,6 +180,10 @@ struct StudioEditorView: View {
             Button("Save and close") { save(close: true) }
             Button("Discard unsaved edits",role: .destructive) { dismiss() }
         }
+        .confirmationDialog("Restore design from scan?",isPresented:$confirmRestore,titleVisibility:.visible) {
+            Button("Restore from scan",role:.destructive) { restoreFromScan() }
+            Button("Cancel",role:.cancel) {}
+        } message: { Text("Replace design edits with the original saved scan. You can undo this change. Save to update the existing design.") }
         .sheet(isPresented: $showAppearance) { appearance }
         .sheet(isPresented: $showModelLibrary) { modelLibrary }
         #if os(macOS)
@@ -325,6 +330,7 @@ struct StudioEditorView: View {
                 Button { showEngineering = true } label: { Label("Engineering", systemImage: "hammer") }
                 Button { export3D(.usdz) } label: { Label("Export", systemImage: "square.and.arrow.up") }
                 Button { showInspector.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }
+                Button { confirmRestore = true } label: { Label("Restore from scan",systemImage:DS.Symbol.restoreScan) }
                 saveButton
             }
         }
@@ -374,7 +380,7 @@ struct StudioEditorView: View {
             HStack {
                 Picker("Interaction",selection: interaction) { Text("Orbit").tag("orbit"); Text("Move").tag("move"); Text("Rotate").tag("rotate") }.pickerStyle(.segmented).labelsHidden().frame(maxWidth: 260)
                 Spacer()
-                Button { showPlan.toggle() } label: { Label(showPlan ? "3D" : "2D",systemImage: showPlan ? "cube" : "square") }
+                Button { showPlan.toggle() } label: { Label(showPlan ? "3D" : "2D",systemImage:showPlan ? DS.Symbol.studio : DS.Symbol.floorPlan) }
                 Button { reset += 1 } label: { Label("Reset camera",systemImage: "scope") }.labelStyle(.iconOnly)
                 Button { showInspector.toggle() } label: { Label("Objects",systemImage: "slider.horizontal.3") }.labelStyle(.iconOnly)
             }.padding(10)
@@ -449,6 +455,8 @@ struct StudioEditorView: View {
                 }
                 .dsMaterial(in:Capsule())
                 saveButton.dsProminentControl().buttonBorderShape(.capsule)
+                Button { confirmRestore = true } label: { Label("Restore from scan",systemImage:DS.Symbol.restoreScan).labelStyle(.iconOnly) }
+                    .buttonStyle(DSCanvasToolStyle()).disabled(busy)
             }
         }
     }
@@ -564,9 +572,10 @@ struct StudioEditorView: View {
     }
     private var modelMenu: some View { ForEach(catalogue) { family in Button(family.title) { add(family) } }.disabled(session.document.objects.count >= 500) }
     private var designOptions: some View {
-        Menu { designActions } label: { Label("Design options",systemImage: "ellipsis.circle") }.disabled(busy)
+        Menu { designActions } label: { Label("Design options",systemImage:DS.Symbol.options) }.disabled(busy)
     }
     @ViewBuilder private var designActions: some View {
+                    Button { confirmRestore = true } label: { Label("Restore from scan",systemImage:DS.Symbol.restoreScan) }
                     undoButton
                     Button("Redo") { session.redo() }.disabled(session.redoStack.isEmpty)
                     Toggle("Multiple selection",isOn:$multipleSelection)
@@ -866,6 +875,20 @@ struct StudioEditorView: View {
             do {
                 try await persistDesign()
                 if close { dismiss() }
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+    private func restoreFromScan() {
+        guard !busy else { return }; busy = true
+        let source = session.document.source,id = session.document.sourceID
+        let root = storageURL.deletingLastPathComponent().deletingLastPathComponent()
+        Task { @MainActor in
+            defer { busy = false }
+            do {
+                let seed = try await BackgroundWork.run { try StudioScanSeed.load(source:source,id:id,root:root) }
+                try session.restoreFromScan(seed)
+                story = session.document.shell.stories.first?.index ?? 0
+                moving = false; rotating = false; reset += 1
             } catch { self.error = error.localizedDescription }
         }
     }

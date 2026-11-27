@@ -167,7 +167,7 @@ struct ViewerView: View {
             }
         }
         .onChange(of: state.resetToken) { _, _ in resetView() }
-        .background(AppTheme.darkCharcoal)
+        .background(DS.ColorToken.surface.color)
     }
 
     private func handleSceneTap(entity: Entity,worldPosition: SIMD3<Float>?) {

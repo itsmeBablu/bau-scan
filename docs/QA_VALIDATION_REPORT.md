@@ -1570,3 +1570,132 @@ Remaining gates, not represented as complete: physical iPhone capture/AR/audio/l
 ### User-authorized iPhone installation — 26 November 2026
 
 After local verification, the user explicitly requested installation. The signed device build succeeded with existing signing settings and dependency updates disabled. CoreDevice installed `io.github.itsmebablu.dwalkscan.t1` (display name dWalkScan) on the connected iPhone 14 Pro and the subsequent launch command succeeded. This updated the existing t1 app; no uninstall/data deletion or bundle-identifier change was performed. The separate localtest copy was left untouched. Logs: `iphone-install-build.log`, `iphone-install.log`, `iphone-launch.log` in the same ignored evidence directory. Installation/system launch is not physical camera/AR/audio/long-session or visual acceptance; those checks remain pending user verification.
+
+## Post-Mac follow-up — live preferences and unnamed rooms, 27 November 2026
+
+Baseline: local clean commit 2369a53. The user reported that an open screen did not
+follow appearance/language changes, requested larger House/Technik library action
+icons, and confirmed missing hallway name/area in both the plan and room list.
+Implementation was explicitly approved. No physical scan fixture was supplied;
+these fixes do not prove the cause in that particular scan.
+
+Settings now observes and applies its selected locale and theme within its own
+presentation. The fixed locale override on the project settings sheet was removed.
+Project preference scopes observe the app language directly, while explicit project
+language/system overrides retain their existing semantics. DSAppAppearance also
+updates the content color-scheme environment without using an identity reset, so
+navigation/editor state is not intentionally discarded. Native system-mode and
+sheet/navigation behavior still require device checks.
+
+Library plus/options glyphs use a shared 24 pt icon token and 48 pt target (previously
+default-sized glyphs in 44 pt targets). No other controls or capture UI are enlarged.
+Unnamed/whitespace names display localized Room/Raum, using the stored label if
+available. Custom names such as Flur remain unchanged. Project summaries retain
+the original name, polygon-derived area and label; no room classification, polygon
+or stored package is rewritten. Single-room entries now expose the room list too.
+Unavailable/nonpositive/nonfinite room areas display an explicit unavailable label
+in the affected room lists and plan labels. Existing area/provenance computation
+is unchanged; this is not an accuracy improvement or a reconstruction of a missing
+room. The user can rename an existing room Flur, but no hallway is guessed.
+
+Renderer review found a repeated per-room floor pass after the existing all-floor
+pass. That pass could cover previous graphics. Floors now draw once; room labels
+draw after all room objects/openings/dimensions in both plan and floor-texture
+rendering. Existing Room labels on/off preference remains respected. PDF/PNG and
+SVG fallback labels use the requested render locale rather than a global language.
+Visual outputs require review; no existing golden was regenerated.
+
+Five added Swift test methods cover fallback language/custom names, summary area
+and source preservation, SVG fallback/unavailable area, rendered label paint order,
+and a hosted iOS live preference scope with preserved view identity and explicit
+project-language override. They are UNRUN on Windows. The hosted test changes and
+restores app defaults; Mac compilation excludes its iOS-only body.
+
+Ten Node checks, strict localization (1399 keys, no German gaps), style and whitespace
+passed. The prior Mac results apply to the earlier tree, not this follow-up. Both
+full Apple schemes, screenshots/visual review and device behavior remain unverified.
+Capture sessions, native package/Technical Room v1 formats, dependencies and nullable
+accuracy fields are unchanged. Staircase recognition was not modified: the existing
+adapter preserves Apple's object category; detailed step/engineering reconstruction
+is not implemented or validated by this change.
+
+## Screenshot-driven UI and Studio follow-up — 27 November 2026
+
+The user approved the screenshot review plan. Earlier uncommitted preference/name
+fixes remain preserved. New work is local and has not been compiled on this Windows
+host. Previous Mac results do not validate this changed tree.
+
+Quantities now uses typed metric rows with SF Symbols, separate values and compact
+side insets in a plain full-width list. House metrics are no longer duplicated as
+both report text and an expandable copy. Technical report lines and project pins
+remain visible; CSV/PDF writers and measurement calculations are unchanged.
+
+scanWorkspaceFocus hides the project tab bar on Room/House/Technik saved-detail
+destinations and the shared project destination; the library root keeps its tabs.
+The preference applies to all detail sub-tabs, not just Floor plan. Studio already
+hid that bar. Both 2D and 3D controls use independent floating surfaces, centered
+when they fit and horizontally scrollable otherwise. 3D/2D/AR, voice, recenter,
+measurement and options share one row. AR measurement remains disabled as before;
+existing AR-session implementation and physical accuracy are unchanged. Large
+Dynamic Type and native tab restoration still require UI checks.
+
+Studio project cards suppress the source's start-design card when its corresponding
+saved design is present, matching source kind, UUID and library. The standalone
+Studio list also checks the actual storage root. No source or saved design is
+deleted, and distinct duplicates/conflict copies are retained. Ordinary saving
+already uses the canonical existing design URL; conflict protection is preserved.
+
+Restore from scan is exposed in Studio controls/options with confirmation. The
+new Foundation-only StudioScanSeed reader regenerates a seed from the original
+Room/House/Technical package, including existing radiator/survey annotations where
+supported. Missing/corrupt originals fail visibly rather than falling back to the
+edited shell. SceneEditSession restores through its undo history, keeps saved
+revision metadata/title, clears selection, and requires normal Save to replace
+the existing design. It never writes the source package. No package, v1 or Studio
+schema was changed and no new dependency was introduced.
+
+Three new StudioRestoreTests methods cover persisted-edit restore/undo/redo,
+same-file saving, original plan bytes, wrong/missing source rejection and card
+reference identity. Two ReportedGeometryRegressionTests methods check observed
+straight window-wall directions through resolution and retained unnamed-room
+identity/naming/area. All five are UNRUN here.
+
+Geometry investigation, not a repair claim: the last 23 November commit found in
+local history is bda846a (15:28:05 +01:00). FloorPlanBuilder has no diff against that
+commit. The adapter adds section positions but retains surface conversion; later
+HouseBuilder/RoomRegionBuilder partition continuous captures and HouseWallGraph
+resolves/merges walls. These are comparison candidates, not proof of which caused
+the screenshot. No capture/house builder/wall graph algorithm was changed in this
+follow-up. Need the affected .housescan (and the older counterpart if available)
+to compare identical stored input; screenshots alone cannot establish a straight
+wall or invent a missing corridor polygon/area. That reported geometry issue is
+still unresolved, with device validation pending.
+
+Ten Node checks, strict localization (1402 keys, no German gaps), style and
+whitespace passed. Both full Apple schemes, all new Swift tests, native screen
+layout/gesture/accessibility behavior and scan-specific geometry remain unverified.
+No push, capture format change, accuracy value or DIN claim was made.
+
+### Selected icons and waste explanation — 27 November 2026
+
+The user selected icon choices in the visual catalogue and requested a proper
+window glyph. Central DS.Symbol names now follow those choices; window uses
+window.vertical.closed. Canvas modes are labeled icon controls, voice uses waveform,
+measurement ruler (final confirmed selection), options ellipsis and scan restore clock.arrow.circlepath.
+Quantities exposes separate door/window/other-opening rows and the selected
+metric symbols. Main-tab names match the selected symbols. Existing calculations,
+counts, CSV/PDF outputs and capture behavior are unchanged. Waste allowance has
+an EN/DE explanation: extra material for cuts/offcuts without altering measurements.
+No new tests were added for these low-impact symbol/text substitutions. Node,
+localization, style and whitespace checks passed; Apple symbol availability,
+rendering and accessibility remain unverified until the Mac checks run.
+
+### Adaptive virtual 3D canvas — 27 November 2026
+
+The supplied screenshot showed a fixed dark background during light appearance.
+ViewerView's virtual branch now uses the existing DS Surface color: white in light
+mode and dark in dark mode, including its existing contrast variants. The existing
+light-grey wall material is unchanged, providing separation from the white canvas.
+AR is a separate camera-backed branch and is unchanged. This is a one-line
+presentation substitution; no new mirrored test was added. Native live switching,
+wall contrast, camera preservation and both Apple builds remain unverified here.

@@ -6153,6 +6153,41 @@
         }
       }
     },
+    "Restore design from scan?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Restore design from scan?" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Entwurf aus Scan wiederherstellen?" } }
+      }
+    },
+    "Restore from scan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Restore from scan" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Aus Scan wiederherstellen" } }
+      }
+    },
+    "Replace design edits with the original saved scan. You can undo this change. Save to update the existing design.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Replace design edits with the original saved scan. You can undo this change. Save to update the existing design." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Entwurfsänderungen durch den ursprünglichen gespeicherten Scan ersetzen. Diese Änderung kann rückgängig gemacht werden. Speichern aktualisiert den bestehenden Entwurf." } }
+      }
+    },
+    "Extra material for cuts and offcuts. Measured areas stay unchanged.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Extra material for cuts and offcuts. Measured areas stay unchanged." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Zusätzliches Material für Zuschnitt und Verschnitt. Gemessene Flächen bleiben unverändert." } }
+      }
+    },
+    "Area unavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Area unavailable" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Fläche nicht verfügbar" } }
+      }
+    },
     "Appearance": {
       "localizations": {
         "de": {

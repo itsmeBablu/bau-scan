@@ -6,41 +6,38 @@ struct ViewerControls: View {
     var usdzURL: URL?
     var onVoiceNote: (() -> Void)? = nil
     @State private var showQuickLook = false
-    @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
-        VStack(spacing: 8) {
-            if textSize.isAccessibilitySize {
-                modePicker.pickerStyle(.menu)
-            } else {
-                modePicker.pickerStyle(.segmented)
-            }
-            Group {
-                if textSize.isAccessibilitySize {
-                    VStack(spacing: 8) { tools }
-                } else {
-                    HStack(spacing: 8) { tools }
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .buttonStyle(.bordered)
-            .controlSize(.regular)
+        ViewThatFits(in:.horizontal) {
+            toolRow.fixedSize()
+            ScrollView(.horizontal) { toolRow }.scrollIndicators(.hidden)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .dsMaterial(in:RoundedRectangle(cornerRadius: DS.Radius.floating, style: .continuous))
-        .padding(.horizontal)
-        .padding(.vertical, 6)
-        .fixedSize(horizontal: false, vertical: true)
-        .onChange(of: state.mode) { _,mode in if mode == .ar { state.isMeasuring = false } }
+        .frame(maxWidth:.infinity)
+        .padding(.horizontal,12).padding(.vertical,8)
+        .fixedSize(horizontal:false,vertical:true)
+        .onChange(of:state.mode) { _,mode in if mode == .ar { state.isMeasuring = false } }
+    }
+    private var toolRow:some View {
+        HStack(spacing:6) {
+            ForEach(ViewerMode.available) { mode in
+                Button { state.mode = mode } label: {
+                    Label(LocalizedStringKey(mode.titleKey),systemImage:mode == .threeD ? DS.Symbol.studio : mode == .twoD ? DS.Symbol.floorPlan : DS.Symbol.ar).labelStyle(.iconOnly)
+                }
+                    .buttonStyle(DSCanvasToolStyle(selected:state.mode == mode))
+            }
+            tools
+        }
     }
     @ViewBuilder private var tools: some View {
         if let onVoiceNote {
-            Button(action: onVoiceNote) { Label("Voice note",systemImage: "mic.fill").font(.subheadline.weight(.semibold)).frame(minHeight: 32) }
+            Button(action:onVoiceNote) { controlLabel("Voice note",icon:DS.Symbol.voiceNote) }
+                .buttonStyle(DSCanvasToolStyle())
                 .accessibilityIdentifier("viewer.addVoiceNote")
         }
-        Button { state.resetToken += 1 } label: { controlLabel("viewer.recenter",icon: "scope") }
-            .help(Text("viewer.recenter"))
+        Button { state.resetToken += 1 } label: { controlLabel("viewer.recenter",icon:DS.Symbol.recenter) }
+            .buttonStyle(DSCanvasToolStyle()).help(Text("viewer.recenter"))
+        Button { state.isMeasuring.toggle() } label: { controlLabel("viewer.measure",icon:DS.Symbol.measure) }
+            .buttonStyle(DSCanvasToolStyle(selected:state.isMeasuring)).disabled(state.mode == .ar)
         Menu {
             if state.mode == .ar {
                 Picker("viewer.arScale",selection: $state.arScale) { ForEach(ARScale.allCases) { Text($0.label).tag($0) } }
@@ -52,14 +49,10 @@ struct ViewerControls: View {
             Toggle("Pins",isOn:$state.showPins)
             if state.mode != .ar { Toggle("viewer.measure",isOn: $state.isMeasuring) }
             if usdzURL != nil { Button("viewer.quicklook") { showQuickLook = true } }
-        } label: { controlLabel("Options",icon: "ellipsis.circle") }
+        } label: { controlLabel("Options",icon:DS.Symbol.options).frame(minWidth:DS.Size.libraryAction,minHeight:DS.Size.libraryAction).dsMaterial(in:Circle()) }
+            .buttonStyle(.plain)
             .accessibilityLabel("Viewer options")
             .background { if let usdzURL { Color.clear.quickLookPreview(usdzURL,isPresented: $showQuickLook) } }
-    }
-    private var modePicker: some View {
-        Picker("viewer.mode",selection: $state.mode) {
-            ForEach(ViewerMode.available) { mode in Text(LocalizedStringKey(mode.titleKey)).tag(mode) }
-        }.frame(maxWidth: .infinity)
     }
     private func controlLabel(_ title: LocalizedStringKey,icon: String) -> some View {
         Label(title,systemImage: icon).labelStyle(.iconOnly).frame(minWidth: 32,minHeight: 32)

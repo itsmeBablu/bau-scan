@@ -41,14 +41,16 @@ struct ProjectScanLibraryView: View {
         .safeAreaInset(edge:.bottom) {
             HStack {
                 Spacer()
-                if let onScan { Button(action:onScan) { Image(systemName:"plus").frame(width:44,height:44) }.accessibilityLabel(technical ? "Scan Technik room" : "Scan a house") }
+                if let onScan { Button(action:onScan) { Image(systemName:"plus").dsIcon(.libraryAction,weight:.semibold).frame(width:DS.Size.libraryAction,height:DS.Size.libraryAction).contentShape(Rectangle()) }.accessibilityLabel(technical ? "Scan Technik room" : "Scan a house") }
                 Menu {
                 Picker("Layout",selection:$layout) {
                     Label("List",systemImage:"list.bullet").tag("list")
                     Label("Grid",systemImage:"square.grid.2x2").tag("grid")
                 }.pickerStyle(.inline)
-                } label: { Label("View options",systemImage:"ellipsis.circle") }
-                    .labelStyle(.iconOnly).frame(width:44,height:44).accessibilityIdentifier("scan.library.options")
+                } label: {
+                    Label("View options",systemImage:"ellipsis.circle").labelStyle(.iconOnly).dsIcon(.libraryAction)
+                        .frame(width:DS.Size.libraryAction,height:DS.Size.libraryAction).contentShape(Rectangle())
+                }.accessibilityIdentifier("scan.library.options")
             }.buttonStyle(.plain).padding(.horizontal,12).padding(.vertical,4).dsMaterial(in:Capsule()).fixedSize().frame(maxWidth:.infinity,alignment:.trailing).padding(.horizontal).padding(.bottom,8)
         }
     }
@@ -84,18 +86,18 @@ struct ProjectScanLibraryView: View {
     private func scanCell(_ entry:ProjectLibraryEntry) -> some View {
         VStack(alignment:.leading,spacing:DS.Spacing.s) {
             ProjectEntryRow(entry:entry,card:layout == "grid").buttonStyle(.plain)
-            if entry.reference.kind == .house,let summary = workspace.scanSummaries[entry.id] {
+            if entry.reference.kind == .house || entry.reference.kind == .room,let summary = workspace.scanSummaries[entry.id] {
                 DisclosureGroup("Rooms") {
                     ForEach(summary.roomDetails) { room in
                         HStack(alignment:.top) {
                             VStack(alignment:.leading) {
-                                Text(room.name)
+                                Text(room.displayName(locale:locale))
                                 let mapped = workspace.organization(for:entry.reference)?.storyLevels?[room.story]
                                 Text(mapped.map { workspace.floorName($0,projectID:projectID,locale:locale) } ?? AppLanguage.text("Unassigned level",locale:locale))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()
-                            Text(MeasurementFormat.squareMeters(room.area,locale:locale)).font(.caption).foregroundStyle(.secondary)
+                            Text(room.area > 0 && room.area.isFinite ? MeasurementFormat.squareMeters(room.area,locale:locale) : AppLanguage.text("Area unavailable",locale:locale)).font(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }.font(.subheadline)

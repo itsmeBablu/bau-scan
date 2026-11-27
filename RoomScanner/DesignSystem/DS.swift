@@ -7,6 +7,19 @@ import AppKit
 
 /// Shared tokens. AppTheme remains the compatibility entry point, not a second palette.
 public enum DS {
+    /// User-selected native SF Symbols shared by navigation, canvas and quantities.
+    public enum Symbol {
+        public static let project = "building.2", house = "house", technical = "wrench.and.screwdriver"
+        public static let studio = "cube", settings = "gearshape", floorPlan = "square.split.2x2", ar = "viewfinder"
+        public static let voiceNote = "waveform", photo = "camera", pin = "mappin"
+        public static let measure = "ruler", recenter = "scope", options = "ellipsis"
+        public static let restoreScan = "clock.arrow.circlepath"
+        public static let floorArea = "square.dashed", wallArea = "rectangle", ceilingArea = "arrow.up.to.line"
+        public static let perimeter = "square.dashed", minimumHeight = "arrow.down.to.line", maximumHeight = "arrow.up.to.line"
+        public static let volume = "cube", door = "door.left.hand.closed", window = "window.vertical.closed"
+        public static let otherOpening = "square.dashed", unhostedOpening = "questionmark.circle"
+        public static let wasteAllowance = "arrow.3.trianglepath", flooring = "square.grid.3x3", paintArea = "paintbrush.pointed"
+    }
     public enum ColorToken: String, CaseIterable {
         case accent = "AccentColor"
         case brand = "Brand"
@@ -57,7 +70,7 @@ public enum DS {
         public static let project: CGFloat = 22
         public static let large: CGFloat = 24
     }
-    public enum IconSize: CGFloat { case small = 18,medium = 32,capture = 38,large = 48,hero = 64 }
+    public enum IconSize: CGFloat { case small = 18,libraryAction = 24,medium = 32,capture = 38,large = 48,hero = 64 }
     static func materialPreviewColor(_ point:TechnicalPoint3) -> Color { Color(red:point.x,green:point.y,blue:point.z) }
     public enum Stroke {
         public static let separator: CGFloat = 0.5
@@ -77,6 +90,7 @@ public enum DS {
     }
     public enum Size {
         public static let minimumTouchTarget: CGFloat = 44
+        public static let libraryAction: CGFloat = 48
         public static let thumbnail: CGFloat = 140
         public static let logo: CGFloat = 40
     }
@@ -115,10 +129,13 @@ public extension View {
 
 private struct DSAppAppearance:ViewModifier {
     @AppStorage("ui.appearance") private var appearance = "system"
+    @Environment(\.colorScheme) private var inheritedScheme
     private var scheme:ColorScheme? {
         switch appearance { case "light": .light; case "dark": .dark; default: nil }
     }
     func body(content:Content) -> some View {
-        content.tint(DS.ColorToken.accent.color).preferredColorScheme(scheme)
+        content.tint(DS.ColorToken.accent.color)
+            .preferredColorScheme(scheme)
+            .environment(\.colorScheme,scheme ?? inheritedScheme)
     }
 }

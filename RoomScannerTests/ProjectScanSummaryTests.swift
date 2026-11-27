@@ -2,6 +2,20 @@ import XCTest
 @testable import RoomScanner
 
 final class ProjectScanSummaryTests: XCTestCase {
+    func testUnnamedRoomKeepsItsGeometryAreaAndHasALocalizedDisplayFallback() throws {
+        var plan = FloorPlanBuilder().build(from:SyntheticRooms.rectangularRoom().scan,name:" \n")
+        plan.label = .unidentified
+        let original = plan
+        let room = try XCTUnwrap(ProjectScanSummary(house:House(room:plan)).roomDetails.first)
+        XCTAssertEqual(room.displayName(locale:Locale(identifier:"en_GB")),"Room")
+        XCTAssertEqual(room.displayName(locale:Locale(identifier:"de_DE")),"Raum")
+        XCTAssertEqual(room.area,Polygon2D.area(plan.floorPolygon),accuracy:0.000001)
+        XCTAssertGreaterThan(room.area,0)
+        XCTAssertEqual(plan,original)
+        plan.floorPolygon = []
+        XCTAssertEqual(ProjectScanSummary(house:House(room:plan)).roomDetails.first?.area,0)
+    }
+
     func testSummaryUsesHouseUnionAndNetRoomFaceQuantities() throws {
         let house = try HouseBuilder().build(from: SyntheticRooms.twoRoomApartment(), name: "A")
         let summary = ProjectScanSummary(house: house)

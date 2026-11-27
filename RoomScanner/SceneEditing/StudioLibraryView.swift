@@ -32,19 +32,19 @@ struct StudioLibraryView: View {
                 }
                 if mode == .house {
                     Section("Start from a House scan") {
-                        ForEach(store.houseRecords) { record in
+                        ForEach(store.houseRecords.filter { !hasDesign(.house,id:$0.id,root:store.location.documentsURL) }) { record in
                             projectButton(record.name,icon: "house") { openHouse(record) }
                         }
                         if store.houseRecords.isEmpty { Text("Saved House scans will appear here.").foregroundStyle(.secondary) }
                     }
                     Section("Start from a room scan") {
-                        ForEach(store.records) { record in
+                        ForEach(store.records.filter { !hasDesign(.room,id:$0.id,root:store.location.documentsURL) }) { record in
                             projectButton(record.name,icon: "square.dashed") { openRoom(record) }
                         }
                     }
                 } else {
                     Section("Start from a Technik Room survey") {
-                        ForEach(technical?.records ?? []) { record in
+                        ForEach((technical?.records ?? []).filter { !hasDesign(.technical,id:$0.id,root:technical?.root.deletingLastPathComponent() ?? store.location.documentsURL) }) { record in
                             projectButton(record.name,icon: "pipe.and.drop") { openTechnical(record.id) }
                         }
                         if technical?.records.isEmpty != false { Text("Save a Technik Room survey first. Accepted MEP suggestions and survey annotations can become editable models.").font(.callout).foregroundStyle(.secondary) }
@@ -77,6 +77,12 @@ struct StudioLibraryView: View {
         .alert("Studio",isPresented: Binding(get: { error != nil },set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
     }
     private var filteredDesigns: [SceneEditDocument] { designs.filter { mode == .technical ? $0.source == .technical : $0.source != .technical } }
+    private func hasDesign(_ source:SceneEditDocument.Source,id:UUID,root:URL) -> Bool {
+        designs.contains { design in
+            design.source == source && design.sourceID == id &&
+                designRoots[DesignRef(design).id]?.standardizedFileURL == root.standardizedFileURL
+        }
+    }
     private func projectButton(_ title: String,icon: String,action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {

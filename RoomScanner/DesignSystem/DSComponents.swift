@@ -1,5 +1,36 @@
 import SwiftUI
 
+/// Simple building window with four panes and a sill; original vector drawing.
+/// Decorative inside a Label so its text remains the accessibility description.
+struct DSWindowFrameIcon:View {
+    @ScaledMetric(relativeTo:.body) private var size:CGFloat = 18
+    var body:some View {
+        GeometryReader { geometry in
+            Path { path in
+                let width = geometry.size.width,height = geometry.size.height
+                path.addRoundedRect(in:CGRect(x:width*0.15,y:height*0.08,width:width*0.7,height:height*0.76),cornerSize:CGSize(width:width*0.04,height:height*0.04))
+                path.move(to:CGPoint(x:width*0.5,y:height*0.08)); path.addLine(to:CGPoint(x:width*0.5,y:height*0.84))
+                path.move(to:CGPoint(x:width*0.15,y:height*0.46)); path.addLine(to:CGPoint(x:width*0.85,y:height*0.46))
+                path.move(to:CGPoint(x:width*0.06,y:height*0.94)); path.addLine(to:CGPoint(x:width*0.94,y:height*0.94))
+            }.stroke(style:StrokeStyle(lineWidth:max(1,size/12),lineCap:.round,lineJoin:.round))
+        }.frame(width:size,height:size).accessibilityHidden(true)
+    }
+}
+
+/// Independent canvas tools: no enclosing panel, and full-size hit targets.
+struct DSCanvasToolStyle:ButtonStyle {
+    var selected = false
+    @Environment(\.isEnabled) private var enabled
+    func makeBody(configuration:Configuration) -> some View {
+        configuration.label.font(DS.Typography.subheadline.weight(.semibold))
+            .frame(minWidth:DS.Size.libraryAction,minHeight:DS.Size.libraryAction)
+            .foregroundStyle(selected ? DS.ColorToken.onAccent.color : DS.ColorToken.textPrimary.color)
+            .background(selected ? DS.ColorToken.accent.color : .clear,in:Circle())
+            .dsMaterial(in:Circle()).contentShape(Circle())
+            .opacity(enabled ? (configuration.isPressed ? 0.65 : 1) : 0.4)
+    }
+}
+
 struct DSButtonStyle: ButtonStyle {
     enum Kind: String,CaseIterable { case primary,secondary,plainRow,destructive,pill,floating,recording }
     var kind: Kind = .primary
