@@ -77,6 +77,9 @@ public enum DS {
     }
     public enum Size {
         public static let minimumTouchTarget: CGFloat = 44
+        public static let libraryCardMinimumWidth: CGFloat = 180
+        public static let projectCardMinimumWidth: CGFloat = 200
+        public static let statMinimumWidth: CGFloat = 130
         public static let thumbnail: CGFloat = 140
         public static let logo: CGFloat = 40
     }
@@ -96,7 +99,21 @@ public enum DS {
         public static let footnote = Font.footnote
         public static let caption = Font.caption
         public static let caption2 = Font.caption2
+        #if os(iOS)
+        public static let measurement = Font.title3.weight(.semibold).monospacedDigit()
+        #else
+        public static let measurement = Font.headline.monospacedDigit()
+        #endif
     }
+
+    #if os(iOS)
+    static func libraryColumns(compact: Bool, textSize: DynamicTypeSize,
+                               minimumWidth: CGFloat = Size.libraryCardMinimumWidth) -> [GridItem] {
+        if textSize.isAccessibilitySize || (compact && textSize >= .xxLarge) { return [GridItem(.flexible())] }
+        if compact { return [GridItem(.flexible()), GridItem(.flexible())] }
+        return [GridItem(.adaptive(minimum: minimumWidth))]
+    }
+    #endif
 }
 
 public extension View {

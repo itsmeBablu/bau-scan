@@ -34,7 +34,7 @@ struct RenovationProjectPage: View {
                     }
                     VStack(alignment: .leading, spacing: DS.Spacing.l) {
                         DSSectionHeader(title: "Overview", action: { showingStatistics = true })
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), alignment: .leading)], spacing: DS.Spacing.l) {
+                        DSStatGrid {
                             DSStatCell(title: "Scanned area (sum)", value: MeasurementFormat.squareMeters(summaries.reduce(0) { $0 + $1.floorArea }, locale: locale))
                             DSStatCell(title: "Wall area (net sum)", value: MeasurementFormat.squareMeters(summaries.reduce(0) { $0 + $1.wallAreaNet }, locale: locale))
                             DSStatCell(title: "Scanned floors (sum)", value: String(summaries.reduce(0) { $0 + $1.stories }))

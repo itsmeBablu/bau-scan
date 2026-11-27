@@ -5,6 +5,13 @@ struct DesignSystemGallery: View {
     @State private var dark = false
     @State private var largeText = false
     @State private var progress = 0.35
+    #if os(iOS)
+    @State private var language = AppLanguage.system
+    @Environment(\.locale) private var inheritedLocale
+    private var sampleLocale: Locale { language == .system ? inheritedLocale : language.locale }
+    #else
+    private var sampleLocale: Locale { AppLanguage.locale }
+    #endif
     init(dark:Bool = false,largeText:Bool = false) {
         _dark = State(initialValue:dark); _largeText = State(initialValue:largeText)
     }
@@ -13,6 +20,13 @@ struct DesignSystemGallery: View {
             Section("Appearance") {
                 Toggle("Dark mode",isOn:$dark)
                 Toggle("Accessibility text size",isOn:$largeText)
+                #if os(iOS)
+                Picker("Language", selection: $language) {
+                    Text("System").tag(AppLanguage.system)
+                    Text("English").tag(AppLanguage.english)
+                    Text("Deutsch").tag(AppLanguage.german)
+                }
+                #endif
             }
             Section("Semantic colors") {
                 ForEach(DS.ColorToken.allCases,id:\.rawValue) { token in
@@ -34,11 +48,23 @@ struct DesignSystemGallery: View {
             }
             Section("Components") {
                 DSSectionHeader(title:"Measurements") {}
+                #if os(iOS)
+                DSStatGrid {
+                    DSStatCell(title: "Scanned area (sum)", value: MeasurementFormat.squareMeters(86.4, locale: sampleLocale))
+                    DSStatCell(title: "Rooms", value: "6")
+                }.dsCard()
+                Button {} label: {
+                    DSThumbnailCard(title: AppLanguage.text("Floor plans", locale: sampleLocale)) {
+                        Image(systemName: "square.split.bottomrightquarter").accessibilityHidden(true)
+                    }.dsLibraryCard()
+                }.dsLibraryButton()
+                #else
                 DSStatCell(title:"Rooms",value:"6").dsCard()
+                #endif
                 DSStatusBadge(title:"Device validation pending",symbol:"exclamationmark.circle",role:.warning)
                 Text("Badge").dsBadge()
                 Label("Floating controls",systemImage:"slider.horizontal.3").dsFloatingBar()
-                DSInlineAudioRow(title:AppLanguage.text("Sample recording"),subtitle:AppLanguage.text("Sample data"),time:"0:12 / 0:38",playing:false,progress:$progress) {}
+                DSInlineAudioRow(title:AppLanguage.text("Sample recording",locale:sampleLocale),subtitle:AppLanguage.text("Sample data",locale:sampleLocale),time:"0:12 / 0:38",playing:false,progress:$progress) {}
                 DSEmptyState(title:"No photos yet",symbol:"photo",detail:"Photos appear here after capture.")
             }
         }
@@ -46,6 +72,9 @@ struct DesignSystemGallery: View {
         .preferredColorScheme(dark ? .dark : .light)
         .dynamicTypeSize(largeText ? .accessibility2 : .large)
         .dsAppTheme()
+        #if os(iOS)
+        .environment(\.locale, sampleLocale)
+        #endif
     }
 }
 #Preview("Light") { NavigationStack { DesignSystemGallery() }.preferredColorScheme(.light) }

@@ -7,6 +7,7 @@ struct RenovationNavigation: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(RoomStore.self) private var store
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var textSize
     @State private var workspace = RenovationWorkspace()
     @State private var openProjectID: UUID?
     @State private var savedReference: ProjectReference?
@@ -154,7 +155,8 @@ struct RenovationNavigation: View {
                 ScrollView {
                     VStack(spacing:DS.Spacing.l) {
                             if visibleProjects.isEmpty { projectEmptyState }
-                        LazyVGrid(columns:sizeClass == .compact ? [GridItem(.flexible()),GridItem(.flexible())] : [GridItem(.adaptive(minimum:200))],spacing:DS.Spacing.l) {
+                        LazyVGrid(columns: DS.libraryColumns(compact: sizeClass == .compact, textSize: textSize,
+                                                            minimumWidth: DS.Size.projectCardMinimumWidth), spacing: DS.Spacing.l) {
                             ForEach(visibleProjects) { projectLink($0,card:true) }
                         }
                     }.padding(DS.Spacing.l)
@@ -182,7 +184,7 @@ struct RenovationNavigation: View {
                 .contentShape(Rectangle())
         }
             .accessibilityIdentifier("project.open.\(project.id.uuidString)")
-            .buttonStyle(.plain)
+            .dsLibraryButton()
             .contextMenu {
                 if !project.isUnsorted {
                     Button("Rename",systemImage:"pencil") { renamingProject = project }
@@ -250,7 +252,7 @@ struct ProjectSummary: View {
         Group {
             if card {
                 VStack(alignment:.leading,spacing:10) { cover; labels }
-                    .padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Color.secondary.opacity(0.08),in:RoundedRectangle(cornerRadius:DS.Radius.project))
+                    .dsLibraryCard()
             } else { HStack { cover; labels } }
         }
     }
@@ -321,7 +323,7 @@ struct ProjectEntryRow: View {
                     Text(String(entry.roomCount)+" "+AppLanguage.text("Rooms")).font(.caption).foregroundStyle(.secondary)
                     if let area = entry.area { Text(MeasurementFormat.squareMeters(area)).font(.caption).foregroundStyle(.secondary) }
                     Text(entry.date,style:.date).font(.caption2).foregroundStyle(.tertiary)
-                }.padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Color.secondary.opacity(0.08),in:RoundedRectangle(cornerRadius:DS.Radius.project))
+                }.dsLibraryCard()
             } else {
             HStack {
                 Image(systemName:entry.isDesign ? "square.stack.3d.up" : entry.reference.kind == .technicalRoom ? "wrench.and.screwdriver" : "house")
@@ -375,6 +377,7 @@ struct ProjectEntryRow: View {
 /// A project owns independent navigation stacks for its five working areas.
 struct ProjectChatWorkspace: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var textSize
     @Environment(RoomStore.self) private var store
     @Environment(RenovationWorkspace.self) private var workspace
     let projectID: UUID
@@ -439,8 +442,8 @@ struct ProjectChatWorkspace: View {
         }
     }
     private func cards(_ values: [ProjectLibraryEntry], studio: Bool = false) -> some View {
-        LazyVGrid(columns: sizeClass == .compact ? [GridItem(.flexible()), GridItem(.flexible())] : [GridItem(.adaptive(minimum: 180))], spacing: DS.Spacing.l) {
-            ForEach(values) { ProjectEntryRow(entry: $0, openAsDesign: studio, card: true).buttonStyle(.plain) }
+        LazyVGrid(columns: DS.libraryColumns(compact: sizeClass == .compact, textSize: textSize), spacing: DS.Spacing.l) {
+            ForEach(values) { ProjectEntryRow(entry: $0, openAsDesign: studio, card: true).dsLibraryButton() }
         }
     }
     private func scanCards(mode: ScanMode) -> some View {

@@ -8,6 +8,17 @@ import AppKit
 @testable import RoomScanner
 
 final class DesignSystemTests: XCTestCase {
+    #if os(iOS)
+    func testLibraryCardsGiveAccessibilityTextAFullRow() {
+        XCTAssertEqual(DS.libraryColumns(compact: true, textSize: .large).count, 2)
+        XCTAssertEqual(DS.libraryColumns(compact: true, textSize: .xxLarge).count, 1)
+        for compact in [true, false] {
+            let columns = DS.libraryColumns(compact: compact, textSize: .accessibility2)
+            XCTAssertEqual(columns.count, 1)
+            guard case .flexible = columns.first?.size else { return XCTFail("Expected a full-width card") }
+        }
+    }
+    #endif
     @MainActor private func rgb(_ token:DS.ColorToken,dark:Bool,high:Bool) throws -> [Double] {
         #if os(iOS)
         let color = try XCTUnwrap(UIColor(named:token.rawValue,in:.main,compatibleWith:nil),token.rawValue)

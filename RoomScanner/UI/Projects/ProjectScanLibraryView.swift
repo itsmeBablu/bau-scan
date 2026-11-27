@@ -8,9 +8,10 @@ struct ProjectScanLibraryView: View {
     @Environment(\.locale) private var locale
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var sizeClass
-    private var compact: Bool { sizeClass == .compact }
+    @Environment(\.dynamicTypeSize) private var textSize
+    private var columns: [GridItem] { DS.libraryColumns(compact: sizeClass == .compact, textSize: textSize) }
     #else
-    private var compact: Bool { false }
+    private var columns: [GridItem] { [GridItem(.adaptive(minimum: DS.Size.libraryCardMinimumWidth))] }
     #endif
     @AppStorage private var layout:String
     init(projectID:UUID,technical:Bool,onScan:(()->Void)? = nil) {
@@ -76,14 +77,14 @@ struct ProjectScanLibraryView: View {
     }
     @ViewBuilder private func scanRows(_ scans:[ProjectLibraryEntry]) -> some View {
         if layout == "grid" {
-            LazyVGrid(columns:compact ? [GridItem(.flexible()),GridItem(.flexible())] : [GridItem(.adaptive(minimum:180))],spacing:DS.Spacing.l) {
+            LazyVGrid(columns: columns, spacing: DS.Spacing.l) {
                 ForEach(scans) { scanCell($0) }
             }
         } else { ForEach(scans) { scanCell($0) } }
     }
     private func scanCell(_ entry:ProjectLibraryEntry) -> some View {
         VStack(alignment:.leading,spacing:DS.Spacing.s) {
-            ProjectEntryRow(entry:entry,card:layout == "grid").buttonStyle(.plain)
+            ProjectEntryRow(entry:entry,card:layout == "grid").dsLibraryButton()
             if entry.reference.kind == .house,let summary = workspace.scanSummaries[entry.id] {
                 DisclosureGroup("Rooms") {
                     ForEach(summary.roomDetails) { room in
