@@ -62,6 +62,11 @@ struct DesignSystemGallery: View {
                                     confidence: .medium)
                 #endif
                 DSStatusBadge(title:"Device validation pending",symbol:"exclamationmark.circle",role:.warning)
+                DSFlowLayout {
+                    DSMetricBadge(title:"Layouts",value:"5",tone:.sky)
+                    DSMetricBadge(title:"Floors",value:"3",tone:.lavender)
+                    DSMetricBadge(title:"Approved",value:"2",tone:.mint)
+                }
                 Text("Badge").dsBadge()
                 Label("Floating controls",systemImage:"slider.horizontal.3").dsFloatingBar()
                 DSInlineAudioRow(title:AppLanguage.text("Sample recording",locale:sampleLocale),subtitle:AppLanguage.text("Sample data",locale:sampleLocale),time:"0:12 / 0:38",playing:false,progress:$progress) {}

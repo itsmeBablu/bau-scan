@@ -111,7 +111,7 @@ enum ProjectBundleExporter {
             }
         }
         let resolvedWaste = wastePercent ?? (UserDefaults.standard.object(forKey:"renovation.wastePercent") as? Double ?? 10)
-        let report = try ProjectReportLoader.load(project:project,entries:entries,locale:locale,pins:index.pins ?? [],checks:index.distanceChecks ?? [],wastePercent:resolvedWaste,includePhotos:includePhotos)
+        let report = try ProjectReportLoader.load(project:project,entries:entries,locale:locale,pins:index.pins ?? [],checks:index.distanceChecks ?? [],wastePercent:resolvedWaste,includePhotos:includePhotos,includeDetails:includeDetails)
         attempt(nil,path:"Reports/project-report.pdf") { try ProjectReportRenderer.pdf(report,locale:locale,unit:unit ?? .both).write(to:directory("Reports").appendingPathComponent("project-report.pdf")) }
         attempt(nil,path:"Quantities/quantities.csv") { try ProjectQuantitiesCSV.data(report,locale:locale).write(to:directory("Quantities").appendingPathComponent("quantities.csv")) }
         try project.notes.write(to:directory("Notes").appendingPathComponent("project-notes.txt"),atomically:true,encoding:.utf8)

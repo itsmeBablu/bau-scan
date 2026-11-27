@@ -2,8 +2,8 @@ import Foundation
 
 enum ProjectReportLoader {
     /// Runs on a worker. Every referenced source remains read-only.
-    static func load(project: RenovationProject, entries: [ProjectLibraryEntry], locale: Locale, generatedAt: Date = Date(), pins: [ProjectPin] = [], checks: [ProjectDistanceCheck] = [], wastePercent: Double = 0, includePhotos: Bool = true) throws -> ProjectReport {
-        var report = ProjectReport(name:project.name,generatedAt:generatedAt,notes:project.notes,scans:[],photos:[],unresolved:[])
+    static func load(project: RenovationProject, entries: [ProjectLibraryEntry], locale: Locale, generatedAt: Date = Date(), pins: [ProjectPin] = [], checks: [ProjectDistanceCheck] = [], wastePercent: Double = 0, includePhotos: Bool = true, includeDetails: Bool = true) throws -> ProjectReport {
+        var report = ProjectReport(name:project.name,generatedAt:generatedAt,notes:project.notes,details:includeDetails ? project.details : nil,scans:[],photos:[],unresolved:[])
         report.wastePercent = wastePercent.isFinite ? min(100,max(0,wastePercent)) : 0
         var photoIDs = Set<UUID>(), photoBytes = 0
         func appendPhotos(_ images: [SurveyPhotoImage]) {

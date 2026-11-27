@@ -101,6 +101,7 @@ public enum DS {
         public static let statMinimumWidth: CGFloat = 130
         public static let thumbnail: CGFloat = 140
         public static let logo: CGFloat = 40
+        public static let aboutLogo: CGFloat = 260
     }
     public struct ScaledSizes: DynamicProperty {
         @ScaledMetric(relativeTo:.body) public var thumbnail: CGFloat = Size.thumbnail

@@ -71,4 +71,26 @@ final class ProjectReportTests: XCTestCase {
         let pdf = try XCTUnwrap(CGPDFDocument(provider))
         XCTAssertEqual(pdf.numberOfPages,5) // cover, notes, plan, rooms, unresolved
     }
+
+    func testReportCoverIncludesProjectDetailsPartiesAndCustomFieldsOnFirstPage() throws {
+        var party = ProjectParty(
+            role: "Architect", name: "Anna", company: "Studio", branch: "Munich",
+            address: "Side St 2", website: "https://example.test", phone: "+49 123",
+            email: "a@example.test", notes: "Lead"
+        )
+        party.otherDetails = [.init(key: "Tax ID", value: "DE999"), .init(key: "  ", value: "")]
+        let details = ProjectDetails(street: "Hauptstraße 5", postcode: "80331", city: "Munich", notes: "Key at reception", parties: [party])
+        let lines = ProjectReportRenderer.coverDetailLines(for: details, locale: Locale(identifier: "en"))
+        let joined = lines.joined(separator: "\n")
+        XCTAssertTrue(joined.contains("Hauptstraße 5"))
+        XCTAssertTrue(joined.contains("80331 Munich"))
+        XCTAssertTrue(joined.contains("Key at reception"))
+        XCTAssertTrue(joined.contains("Architect — Anna"))
+        XCTAssertTrue(joined.contains("Tax ID: DE999"))
+
+        let report = ProjectReport(name: "Test", generatedAt: Date(), notes: "", details: details, scans: [], photos: [], unresolved: [])
+        let data = try ProjectReportRenderer.pdf(report, locale: Locale(identifier: "en"))
+        let pdf = try XCTUnwrap(CGPDFDocument(try XCTUnwrap(CGDataProvider(data: data as CFData))))
+        XCTAssertEqual(pdf.numberOfPages, 1)
+    }
 }

@@ -51,7 +51,11 @@ struct ProjectDetailsEditor:View {
                 }
                 Section("Project parties") {
                     ForEach(parties) { party in ProjectPartyEditor(party:party,expanded:$expandedParty) }.onDelete { details.parties?.remove(atOffsets:$0) }
-                    Button("Add party",systemImage:"person.badge.plus") { details.parties = (details.parties ?? [])+[ProjectParty()] }.disabled((details.parties?.count ?? 0) >= 100)
+                    Button("Add party",systemImage:"person.badge.plus") {
+                        let party = ProjectParty()
+                        details.parties = (details.parties ?? [])+[party]
+                        expandedParty = party.id
+                    }.disabled((details.parties?.count ?? 0) >= 100)
                 }
             }
             Section {
@@ -89,6 +93,9 @@ struct ProjectDetailsEditor:View {
 private struct ProjectPartyEditor:View {
     @Binding var party:ProjectParty
     @Binding var expanded:UUID?
+    private var otherDetails:Binding<[ProjectParty.CustomDetail]> {
+        Binding(get:{ party.otherDetails ?? [] },set:{ party.otherDetails = $0.isEmpty ? nil : $0 })
+    }
     var body:some View {
         DisclosureGroup(party.name.flatMap { $0.isEmpty ? nil : $0 } ?? party.role ?? AppLanguage.text("New party"),isExpanded:Binding(get:{ expanded == party.id },set:{ expanded = $0 ? party.id : nil })) {
             Picker("Role",selection:$party.role.text) { Text("Role").tag(""); ForEach(ProjectParty.roles,id:\.self) { Text(AppLanguage.text($0)).tag($0) } }
@@ -100,6 +107,35 @@ private struct ProjectPartyEditor:View {
             TextField("Phone",text:$party.phone.text)
             TextField("Email",text:$party.email.text)
             TextField("Notes",text:$party.notes.text,axis:.vertical)
+            Text("Other details")
+                .font(DS.Typography.caption)
+                .foregroundStyle(DS.ColorToken.textSecondary.color)
+            ForEach(otherDetails) { $detail in
+                HStack(alignment:.top,spacing:DS.Spacing.s) {
+                    VStack(alignment:.leading,spacing:DS.Spacing.xs) {
+                        TextField("Key",text:$detail.key)
+                            .font(DS.Typography.subheadline.weight(.medium))
+                        TextField("Value",text:$detail.value,axis:.vertical)
+                    }
+                    Button(role:.destructive) {
+                        let targetID = detail.id
+                        var updated = otherDetails.wrappedValue
+                        updated.removeAll { $0.id == targetID }
+                        otherDetails.wrappedValue = updated
+                    } label: {
+                        Label("Remove detail",systemImage:"minus.circle")
+                            .labelStyle(.iconOnly)
+                            .frame(minWidth:DS.Size.minimumTouchTarget,minHeight:DS.Size.minimumTouchTarget)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(DS.ColorToken.error.color)
+                }
+            }
+            Button("Add detail",systemImage:"plus.circle") {
+                otherDetails.wrappedValue.append(.init())
+            }
+            .disabled((party.otherDetails?.count ?? 0) >= 50)
         }
     }
 }

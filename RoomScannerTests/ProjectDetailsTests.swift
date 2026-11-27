@@ -65,6 +65,15 @@ final class ProjectDetailsTests:XCTestCase {
         details.floorNames?[1] = "Offices"
         details.parties?[0].website = String(repeating:"x",count:4001)
         XCTAssertFalse(details.valid)
+        details.parties?[0].website = "https://example.test"
+        details.parties?[0].otherDetails = [
+            .init(key: "Tax ID", value: "DE123456789"),
+            .init(key: "Access hours", value: "08:00 - 17:00")
+        ]
+        XCTAssertTrue(details.valid)
+        XCTAssertEqual(try JSONDecoder().decode(ProjectDetails.self,from:JSONEncoder().encode(details)),details)
+        details.parties?[0].otherDetails?.append(.init(key: String(repeating: "k", count: 241), value: "v"))
+        XCTAssertFalse(details.valid)
     }
 
 }

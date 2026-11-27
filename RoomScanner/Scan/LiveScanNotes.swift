@@ -72,7 +72,7 @@ struct LiveScanNotes: View {
         .overlay(alignment:.top) {
             if recorder.recording {
                 HStack(spacing:2) { ForEach(Array(recorder.levels.suffix(20).enumerated()),id:\.offset) { _,level in
-                    Capsule().fill(.red).frame(width:3,height:max(2,level*22))
+                    Capsule().fill(DS.ColorToken.recording.color).frame(width:3,height:max(2,level*22))
                 } }.frame(width:100,height:24).dsMaterial(in:Capsule()).offset(y:-32).allowsHitTesting(false)
             }
         }

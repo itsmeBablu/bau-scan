@@ -15,6 +15,12 @@ struct ProjectDetails:Codable,Equatable {
     }
 }
 struct ProjectParty:Codable,Equatable,Identifiable {
+    struct CustomDetail:Codable,Equatable,Identifiable {
+        var id = UUID()
+        var key:String = ""
+        var value:String = ""
+        var valid:Bool { key.count <= 240 && value.count <= 4000 }
+    }
     var id = UUID()
     var role:String?
     var name:String?
@@ -25,8 +31,12 @@ struct ProjectParty:Codable,Equatable,Identifiable {
     var phone:String?
     var email:String?
     var notes:String?
+    var otherDetails:[CustomDetail]? = nil
     static let roles = ["Client / Bauherr","Architect","Builder","Planner","Site manager","Renovation company","MEP planner","Other"]
-    var valid:Bool { [role,name,company,branch,address,website,phone,email,notes].allSatisfy { ($0?.count ?? 0) <= 4000 } }
+    var valid:Bool {
+        [role,name,company,branch,address,website,phone,email,notes].allSatisfy { ($0?.count ?? 0) <= 4000 } &&
+        (otherDetails?.count ?? 0) <= 50 && (otherDetails?.allSatisfy(\.valid) ?? true)
+    }
 }
 struct ProjectPreferences:Codable,Equatable {
     var language:String?

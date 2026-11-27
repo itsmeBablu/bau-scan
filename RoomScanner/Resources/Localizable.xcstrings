@@ -1,6 +1,27 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "AI AR mode": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"AI AR mode"}},"de":{"stringUnit":{"state":"translated","value":"KI-AR-Modus"}}}},
+    "AI AR mode will be added soon.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"AI AR mode will be added soon."}},"de":{"stringUnit":{"state":"translated","value":"Der KI-AR-Modus wird bald hinzugefügt."}}}},
+    "Accepted": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Accepted"}},"de":{"stringUnit":{"state":"translated","value":"Übernommen"}}}},
+    "Add detail": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Add detail"}},"de":{"stringUnit":{"state":"translated","value":"Angabe hinzufügen"}}}},
+    "Approved": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Approved"}},"de":{"stringUnit":{"state":"translated","value":"Geprüft"}}}},
+    "Babu Reddy Kanala": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Babu Reddy Kanala"}},"de":{"stringUnit":{"state":"translated","value":"Babu Reddy Kanala"}}}},
+    "Coming soon": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Coming soon"}},"de":{"stringUnit":{"state":"translated","value":"Demnächst"}}}},
+    "Enter the password to open the GitHub repository.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Enter the password to open the GitHub repository."}},"de":{"stringUnit":{"state":"translated","value":"Gib das Passwort ein, um das GitHub-Repository zu öffnen."}}}},
+    "Incorrect password": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Incorrect password"}},"de":{"stringUnit":{"state":"translated","value":"Falsches Passwort"}}}},
+    "Key": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Key"}},"de":{"stringUnit":{"state":"translated","value":"Feld"}}}},
+    "Layouts": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Layouts"}},"de":{"stringUnit":{"state":"translated","value":"Pläne"}}}},
+    "No projects yet": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"No projects yet"}},"de":{"stringUnit":{"state":"translated","value":"Noch keine Projekte"}}}},
+    "Open": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Open"}},"de":{"stringUnit":{"state":"translated","value":"Öffnen"}}}},
+    "Other details": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Other details"}},"de":{"stringUnit":{"state":"translated","value":"Weitere Angaben"}}}},
+    "Password": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Password"}},"de":{"stringUnit":{"state":"translated","value":"Passwort"}}}},
+    "Remove detail": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Remove detail"}},"de":{"stringUnit":{"state":"translated","value":"Angabe entfernen"}}}},
+    "Show all": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Show all"}},"de":{"stringUnit":{"state":"translated","value":"Alle anzeigen"}}}},
+    "Show less": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Show less"}},"de":{"stringUnit":{"state":"translated","value":"Weniger anzeigen"}}}},
+    "Total area": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Total area"}},"de":{"stringUnit":{"state":"translated","value":"Gesamtfläche"}}}},
+    "Value": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Value"}},"de":{"stringUnit":{"state":"translated","value":"Wert"}}}},
+    "Your workspace": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Your workspace"}},"de":{"stringUnit":{"state":"translated","value":"Dein Arbeitsbereich"}}}},
     "Tap a surface to place the pin": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Tap a surface to place the pin"}},"de":{"stringUnit":{"state":"translated","value":"Tippe auf eine Oberfläche, um die Markierung zu setzen."}}}},
     "Builder": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Builder"}},"de":{"stringUnit":{"state":"translated","value":"Bauunternehmen"}}}},
     "Planner": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Planner"}},"de":{"stringUnit":{"state":"translated","value":"Planer"}}}},
@@ -3492,13 +3513,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Project website"
+            "value": "Open website"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Projektwebsite"
+            "value": "Website öffnen"
           }
         }
       }

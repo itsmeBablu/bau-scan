@@ -183,4 +183,7 @@ final class TechnicalMEPRecognitionTests: XCTestCase {
         review.suggestions[0].status = .rejected
         XCTAssertTrue(try TechnicalMEPMeshBuilder.snapshot(review).patches.isEmpty)
     }
+    func testAIARModeFeatureFlagDefaultsOff() {
+        XCTAssertFalse(FeatureFlags.aiARMode)
+    }
 }

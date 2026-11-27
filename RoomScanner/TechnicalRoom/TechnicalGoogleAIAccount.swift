@@ -14,6 +14,7 @@ final class TechnicalGoogleAIAccount {
     static let shared = TechnicalGoogleAIAccount()
     private(set) var email: String?
     private(set) var displayName: String?
+    private(set) var avatarURL: URL?
     private(set) var busy = false
     var error: String?
     var signedIn: Bool { email != nil }
@@ -49,16 +50,27 @@ final class TechnicalGoogleAIAccount {
             }
         }
     }
+    func applyProfile(email: String?, displayName: String?, avatarURL: URL?) {
+        self.email = email
+        self.displayName = displayName
+        self.avatarURL = avatarURL
+    }
+    private func applyProfile(of user: GIDGoogleUser?) {
+        applyProfile(
+            email: user?.profile?.email,
+            displayName: user?.profile?.name,
+            avatarURL: user?.profile?.hasImage == true ? user?.profile?.imageURL(withDimension: 128) : nil
+        )
+    }
     func restore() async {
         guard Self.configured,!busy,!signedIn else { return }
         do {
             try configure()
             if GIDSignIn.sharedInstance.hasPreviousSignIn() {
                 let user = try await GIDSignIn.sharedInstance.restorePreviousSignIn()
-                email = user.profile?.email
-                displayName = user.profile?.name
+                applyProfile(of: user)
             }
-        } catch { email = nil; displayName = nil }
+        } catch { applyProfile(of: nil) }
     }
     func signIn() async {
         guard !busy else { return }; busy = true
@@ -75,8 +87,7 @@ final class TechnicalGoogleAIAccount {
             guard let window = NSApp.keyWindow else { throw AuthError.windowUnavailable }
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: window)
             #endif
-            email = result.user.profile?.email
-            displayName = result.user.profile?.name
+            applyProfile(of: result.user)
         } catch { self.error = error.localizedDescription }
     }
     func idToken() async throws -> String {
@@ -86,7 +97,7 @@ final class TechnicalGoogleAIAccount {
         guard let token = refreshed.idToken?.tokenString else { throw AuthError.signInRequired }
         return token
     }
-    func signOut() { GIDSignIn.sharedInstance.signOut(); email = nil; displayName = nil }
+    func signOut() { GIDSignIn.sharedInstance.signOut(); applyProfile(of: nil) }
     func photosAccessToken() async throws -> String {
         try configure()
         guard var user = GIDSignIn.sharedInstance.currentUser else { throw AuthError.signInRequired }
@@ -120,7 +131,12 @@ struct TechnicalGoogleAIConnection: View {
                     if let email = account.email { Text(email).font(.subheadline).textSelection(.enabled) }
                     else { Text("Use selected survey photos for MEP recognition or copy them to Google Photos.").font(.subheadline).foregroundStyle(.secondary) }
                 }
-            } icon: { Image(systemName: account.signedIn ? "person.crop.circle.badge.checkmark" : "person.crop.circle").font(.title2) }
+            } icon: {
+                GoogleProfileAvatarView(url: account.avatarURL, size: DS.IconSize.medium.rawValue) {
+                    Image(systemName: account.signedIn ? "person.crop.circle.badge.checkmark" : "person.crop.circle")
+                        .font(DS.Typography.title2)
+                }
+            }
             if account.busy { ProgressView("Connecting…") }
             else if account.signedIn { Button("Sign out") { account.signOut() }.buttonStyle(.bordered) }
             else if TechnicalGoogleAIAccount.configured {
@@ -134,6 +150,30 @@ struct TechnicalGoogleAIConnection: View {
         .alert("Google sign-in",isPresented: Binding(get: { account.error != nil },set: { if !$0 { account.error = nil } })) {
             Button("OK") { account.error = nil }
         } message: { Text(account.error ?? "") }
+    }
+}
+
+/// Shared Google profile avatar with fallback view for Workspace and Account screens.
+struct GoogleProfileAvatarView<Fallback: View>: View {
+    let url: URL?
+    let size: CGFloat
+    @ViewBuilder let fallback: () -> Fallback
+
+    var body: some View {
+        if let url {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    fallback()
+                }
+            }
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+        } else {
+            fallback()
+        }
     }
 }
 
@@ -155,6 +195,7 @@ struct GoogleAccountSettingsView: View {
             Section("Google account") { TechnicalGoogleAIConnection() }
             Section("AI recognition") {
                 GoogleAIConsentToggle()
+                AIARModeStatusRow()
                 Text("Scanning and offline recognition work without Google. Images stay local until you choose them and confirm sending in MEP review.").font(.caption).foregroundStyle(.secondary)
             }
             Section {
@@ -182,5 +223,40 @@ struct GoogleAIConsentToggle: View {
                 Text("Only images you select and confirm in review are sent to your configured service and its AI provider. They may show private rooms, people or labels. Google sign-in identifies your account. Depth stays local. Provider retention depends on your service configuration. You can switch AI off at any time; scans still work offline.")
             }
             .onAppear { if enabled && consentVersion < 1 { enabled = false } }
+    }
+}
+
+/// Disabled placeholder toggle shown in Settings while `FeatureFlags.aiARMode` is off.
+struct AIARModeStatusRow: View {
+    var available: Bool = FeatureFlags.aiARMode
+
+    var body: some View {
+        if !available {
+            Toggle(isOn: .constant(false)) {
+                VStack(alignment: .leading, spacing: DS.Spacing.xs) {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: DS.Spacing.s) {
+                            Text("AI AR mode")
+                            comingSoonBadge
+                        }
+                        VStack(alignment: .leading, spacing: DS.Spacing.xs) {
+                            Text("AI AR mode")
+                            comingSoonBadge
+                        }
+                    }
+                    Text("AI AR mode will be added soon.")
+                        .font(DS.Typography.caption)
+                        .foregroundStyle(DS.ColorToken.textSecondary.color)
+                }
+            }
+            .disabled(true)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private var comingSoonBadge: some View {
+        Text("Coming soon")
+            .dsBadge()
+            .fixedSize()
     }
 }

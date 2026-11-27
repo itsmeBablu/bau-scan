@@ -62,13 +62,13 @@ struct ProjectVoiceNotesView: View {
                     } label: {
                         Image(systemName:recorder.recording ? "stop.fill" : "mic.fill")
                             .font(DS.Typography.body.weight(.semibold)).frame(width:44,height:44)
-                    }.buttonStyle(.plain).foregroundStyle(recorder.recording ? .red : .primary)
+                    }.buttonStyle(.plain).foregroundStyle(recorder.recording ? DS.ColorToken.recording.color : DS.ColorToken.textPrimary.color)
                         .accessibilityLabel(recorder.recording ? "Stop and save" : "Record voice note")
                         .disabled(busy || recorder.preparing || (!recorder.recording && !references.contains { $0.id == referenceID }))
                     if recorder.recording {
                         HStack(spacing:2) {
                             ForEach(Array(recorder.levels.suffix(32).enumerated()),id:\.offset) { _,level in
-                                Capsule().fill(.red).frame(width:3,height:max(3,CGFloat(level)*22))
+                                Capsule().fill(DS.ColorToken.recording.color).frame(width:3,height:max(3,CGFloat(level)*22))
                             }
                         }.frame(maxWidth:.infinity).frame(height:28)
                         Text(Duration.seconds(recorder.elapsed).formatted(.time(pattern:.minuteSecond))).font(.caption).monospacedDigit()

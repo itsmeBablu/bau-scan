@@ -10,7 +10,7 @@ struct HoldMicrophoneControl:UIViewRepresentable {
     func makeUIView(context:Context) -> Control { let view = Control(); view.start = start; view.finish = finish; return view }
     func updateUIView(_ view:Control,context:Context) {
         view.start = start; view.finish = finish
-        view.tintColor = recording ? .systemRed : .label
+        view.tintColor = recording ? DS.ColorToken.recording.platformColor : .label
         view.setImage(recording ? "mic.fill" : "mic")
     }
     final class Control:UIControl {

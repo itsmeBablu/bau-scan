@@ -19,6 +19,11 @@ struct SettingsView: View {
     @AppStorage("profile.organisation") private var organisation = ""
     @Environment(RoomStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @State private var showingSourcePrompt = false
+    @State private var sourcePassword = ""
+    @State private var wrongSourcePassword = false
+    @State private var googleAccount = TechnicalGoogleAIAccount.shared
     @AppStorage(CloudAvailability.preferenceKey) private var useICloud = false
     @AppStorage("scan.experimentalRelocalization") private var experimentalRelocalization = false
     @AppStorage("measurementUnit") private var unit: MeasurementUnit = .both
@@ -53,12 +58,18 @@ struct SettingsView: View {
         }
         .environment(\.locale,(AppLanguage(rawValue:language) ?? .system).locale)
         .dsAppTheme()
+        .sheet(isPresented: $showingSourcePrompt) {
+            sourcePasswordSheet
+                .environment(\.locale,(AppLanguage(rawValue:language) ?? .system).locale)
+                .dsAppTheme()
+        }
     }
 
     private var form: some View {
         Form {
             Section("Privacy") {
                 GoogleAIConsentToggle()
+                AIARModeStatusRow()
                 NavigationLink("Project data and deletion") { ProjectPrivacyView() }
                 Text("Scans stay on this device unless you enable iCloud, share a file or explicitly send selected images for AI processing.").font(.caption)
             }
@@ -111,12 +122,23 @@ struct SettingsView: View {
             if includesProfile {
                 Section {
                     VStack(spacing: 10) {
-                        Image(systemName: "person.crop.circle.fill").dsIcon(.hero,weight:.light).foregroundStyle(.secondary)
-                        Text(displayName.isEmpty ? "Your workspace" : displayName).font(.title2.bold())
+                        GoogleProfileAvatarView(url: googleAccount.avatarURL, size: DS.IconSize.hero.rawValue) {
+                            Image(systemName: "person.crop.circle.fill")
+                                .dsIcon(.hero, weight: .light)
+                                .foregroundStyle(DS.ColorToken.textSecondary.color)
+                        }
+                        if let name = Self.workspaceDisplayName(saved: displayName, googleName: googleAccount.displayName) {
+                            Text(verbatim: name).font(.title2.bold())
+                        } else {
+                            Text("Your workspace").font(.title2.bold())
+                        }
                         if !organisation.isEmpty { Text(organisation).font(.subheadline).foregroundStyle(.secondary) }
-                    }.frame(maxWidth: .infinity).padding(.vertical,16)
-                    TextField("Name",text: $displayName)
-                    TextField("Organisation",text: $organisation)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .task { await googleAccount.restore() }
+                    TextField("Name", text: $displayName, prompt: googleAccount.displayName.map { Text(verbatim: $0) })
+                    TextField("Organisation", text: $organisation)
                 } footer: { Text("Workspace details are stored on this device. Google account details appear below after sign-in.") }
                 Section("Google account") {
                     TechnicalGoogleAIConnection()
@@ -141,6 +163,7 @@ struct SettingsView: View {
                 if !CloudAvailability.isSignedIn { Text("cloud.status.localNoAccount").font(.footnote).foregroundStyle(.secondary) }
                 #endif
                 Button { openLibraryFolder() } label: { Label("settings.openFolder", systemImage: "folder") }
+                ProjectStorageList(location: store.location, refreshKey: storageTaskID)
             } header: { Text("settings.icloud.header") } footer: { Text("settings.icloud.footer") }
 
             #if os(iOS) && canImport(RoomPlan)
@@ -180,25 +203,113 @@ struct SettingsView: View {
             #endif
 
             Section("settings.about.header") {
-                HStack(spacing: 14) {
-                    BrandLogoView(size: 44)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("dWalkScan").font(.headline)
-                        Text("Babu Reddy").font(.subheadline).foregroundStyle(.secondary)
+                VStack(spacing: DS.Spacing.m) {
+                    BrandLogoView(size: DS.Size.aboutLogo)
+                    VStack(spacing: DS.Spacing.xs) {
+                        Text("dWalkScan")
+                            .font(DS.Typography.title3.weight(.semibold))
+                        Text("Babu Reddy Kanala")
+                            .font(DS.Typography.subheadline)
+                            .foregroundStyle(DS.ColorToken.textSecondary.color)
                     }
                 }
-                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .padding(.vertical, DS.Spacing.m)
 
                 LabeledContent("settings.about.version") {
                     Text(version)
                 }
-                // Redirect to GitHub repo only — project website is ignored and not redirected
-                Link(destination: URL(string: "https://github.com/itsmeBablu/bau-scan")!) {
+                Link(destination: Self.websiteURL) {
+                    Label("settings.about.website", systemImage: "globe")
+                }
+                Button {
+                    sourcePassword = ""
+                    wrongSourcePassword = false
+                    showingSourcePrompt = true
+                } label: {
                     Label("settings.about.source", systemImage: "chevron.left.forwardslash.chevron.right")
                 }
             }
         }
         .formStyle(.grouped)
+    }
+
+    private static let websiteURL = URL(string: "https://wed-walk-scan.vercel.app/")!
+    private static let sourceURL = URL(string: "https://github.com/itsmeBablu/bau-scan")!
+
+    static func canOpenSourceRepository(password: String) -> Bool {
+        password.trimmingCharacters(in: .whitespacesAndNewlines) == "7416"
+    }
+
+    static func workspaceDisplayName(saved: String, googleName: String?) -> String? {
+        let custom = saved.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !custom.isEmpty { return custom }
+        let accountName = googleName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return accountName.isEmpty ? nil : accountName
+    }
+
+    private var sourcePasswordSheet: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    SecureField("Password", text: $sourcePassword)
+                        #if os(iOS)
+                        .keyboardType(.numberPad)
+                        #endif
+                        .onChange(of: sourcePassword) { _, newValue in
+                            if !newValue.isEmpty { wrongSourcePassword = false }
+                        }
+                        .onSubmit { submitSourcePassword() }
+                    if wrongSourcePassword {
+                        Label("Incorrect password", systemImage: "exclamationmark.triangle")
+                            .font(DS.Typography.caption)
+                            .foregroundStyle(DS.ColorToken.error.color)
+                    }
+                } footer: {
+                    Text("Enter the password to open the GitHub repository.")
+                }
+            }
+            .formStyle(.grouped)
+            .navigationTitle("settings.about.source")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        sourcePassword = ""
+                        wrongSourcePassword = false
+                        showingSourcePrompt = false
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Open") { submitSourcePassword() }
+                        .disabled(sourcePassword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+        #if os(iOS)
+        .presentationDetents([.height(260), .medium])
+        #else
+        .frame(minWidth: 340, minHeight: 210)
+        #endif
+    }
+
+    private func submitSourcePassword() {
+        guard Self.canOpenSourceRepository(password: sourcePassword) else {
+            wrongSourcePassword = true
+            sourcePassword = ""
+            return
+        }
+        sourcePassword = ""
+        wrongSourcePassword = false
+        showingSourcePrompt = false
+        openURL(Self.sourceURL)
+    }
+
+    private var storageTaskID: String {
+        store.location.documentsURL.path + "|\(store.isCloud)|\(store.records.count)|\(store.houseRecords.count)"
     }
 
     private func openLibraryFolder() {
@@ -211,5 +322,133 @@ struct SettingsView: View {
         comps?.scheme = "shareddocuments"
         if let url = comps?.url { UIApplication.shared.open(url) }
         #endif
+    }
+}
+
+private struct ProjectStorageList: View {
+    let location: StorageLocation
+    let refreshKey: String
+    @Environment(\.locale) private var locale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var entries: [ProjectStorageEntry] = []
+    @State private var loading = true
+    @State private var showAll = false
+    @State private var expandedProjects: Set<UUID> = []
+
+    private static let compactThreshold = 3
+    private static let compactScrollHeight: CGFloat = 152
+    private static let expandedScrollHeight: CGFloat = 220
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s) {
+            HStack(spacing: DS.Spacing.s) {
+                Text("Projects")
+                    .font(DS.Typography.subheadline.weight(.semibold))
+                    .foregroundStyle(DS.ColorToken.textSecondary.color)
+                Spacer(minLength: DS.Spacing.s)
+                if entries.count > Self.compactThreshold {
+                    Button {
+                        withAnimation(DS.Motion.animation(reduceMotion: reduceMotion)) {
+                            showAll.toggle()
+                        }
+                    } label: {
+                        Text(showAll ? "Show less" : "Show all")
+                            .dsBadge()
+                            .frame(minHeight: DS.Size.minimumTouchTarget)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if loading && entries.isEmpty {
+                ProgressView()
+                    .controlSize(.small)
+            } else if entries.isEmpty {
+                Text("No projects yet")
+                    .font(DS.Typography.caption)
+                    .foregroundStyle(DS.ColorToken.textSecondary.color)
+            } else if !showAll && entries.count > Self.compactThreshold {
+                ScrollView(.vertical) {
+                    rows
+                }
+                .frame(height: expandedProjects.isEmpty ? Self.compactScrollHeight : Self.expandedScrollHeight)
+            } else {
+                rows
+            }
+        }
+        .padding(.vertical, DS.Spacing.xs)
+        .task(id: refreshKey) {
+            await reload()
+        }
+    }
+
+    private var rows: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                let isExpanded = expandedProjects.contains(entry.id)
+                VStack(alignment: .leading, spacing: DS.Spacing.xs) {
+                    Button {
+                        withAnimation(DS.Motion.animation(reduceMotion: reduceMotion)) {
+                            if isExpanded { expandedProjects.remove(entry.id) }
+                            else { expandedProjects.insert(entry.id) }
+                        }
+                    } label: {
+                        HStack(spacing: DS.Spacing.s) {
+                            Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                                .font(DS.Typography.caption.weight(.semibold))
+                                .foregroundStyle(DS.ColorToken.accent.color)
+                                .frame(width: DS.Spacing.l)
+                            Text(entry.displayName(locale: locale))
+                                .font(DS.Typography.body)
+                                .foregroundStyle(DS.ColorToken.textPrimary.color)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                            Spacer(minLength: DS.Spacing.s)
+                            Text(entry.formattedBytes)
+                                .font(DS.Typography.subheadline)
+                                .monospacedDigit()
+                                .foregroundStyle(DS.ColorToken.textSecondary.color)
+                        }
+                        .frame(minHeight: DS.Size.minimumTouchTarget)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text(entry.displayName(locale: locale)))
+                    .accessibilityValue(Text(verbatim: entry.formattedBytes))
+                    .accessibilityHint(Text("Project details"))
+
+                    if isExpanded {
+                        DSFlowLayout(spacing: DS.Spacing.s, lineSpacing: DS.Spacing.s) {
+                            DSMetricBadge(title: "Layouts", value: String(entry.layouts), tone: .sky)
+                            DSMetricBadge(title: "Floors", value: String(entry.floors), tone: .lavender)
+                            DSMetricBadge(title: "Total area", value: MeasurementFormat.squareMeters(entry.totalAreaM2, locale: locale), tone: .butter)
+                            DSMetricBadge(title: "Approved", value: String(entry.approvedCount), tone: .mint)
+                            DSMetricBadge(title: "Accepted", value: String(entry.acceptedCount), tone: .peach)
+                        }
+                        .padding(.leading, DS.Spacing.xl)
+                        .padding(.bottom, DS.Spacing.s)
+                    }
+                }
+                if index < entries.count - 1 {
+                    Divider()
+                }
+            }
+        }
+    }
+
+    private func reload() async {
+        loading = entries.isEmpty
+        defer { loading = false }
+        let active = location
+        let local = RootView.hasForcedRoot ? active.documentsURL : StorageLocation.local().documentsURL
+        var roots = ["local": local]
+        if active.kind == .iCloud { roots["icloud"] = active.documentsURL }
+        let connected = roots, currentLocale = locale
+        let loaded = try? await BackgroundWork.run(priority: .utility) {
+            try ProjectStorageUsage.load(roots: connected, catalogueRoot: local, locale: currentLocale)
+        }
+        guard !Task.isCancelled, let loaded else { return }
+        entries = loaded
     }
 }

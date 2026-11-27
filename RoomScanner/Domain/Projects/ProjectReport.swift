@@ -15,6 +15,7 @@ struct ProjectReport {
     var name: String
     var generatedAt: Date
     var notes: String
+    var details: ProjectDetails? = nil
     var scans: [Scan]
     var photos: [Photo]
     var unresolved: [String]

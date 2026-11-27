@@ -38,6 +38,7 @@ The universal companion **Mac application** shares the exact same Swift core cod
 │  • Technik MEP Plant Rooms    │  • Office & Home Collections  │  • Multi-Level Separated DXF / SVG     │
 │  • Continuous Walkthrough     │  • Automatic 32" Monitor Rule │  • Client PDF Reports & Photo Gallery  │
 │  • Spatial 3D Survey Photos   │  • Grid Snap & Cutaway Walls  │  • Net Wall & Floor Material Takeoffs  │
+│  • Spatial Tags & Voice Notes │  • Written Notes & Pin Links  │  • Written Notes & Voice Recordings    │
 └───────────────────────────────┴───────────────────────────────┴────────────────────────────────────────┘
 ```
 
@@ -59,7 +60,13 @@ The universal companion **Mac application** shares the exact same Swift core cod
 * **3D Directional Markers:** Each photo is geolocated with its exact 3D camera position ($X, Y, Z$) and viewing angle ($\text{yaw}$), rendered as interactive spatial pins on both 2D floor plans and 3D Studio scenes.
 * **Photo Gallery & Notes:** Review captured site photos alongside their floor plan context.
 
-### 🛋️ 4. Studio 3D Editor & Furniture Collections
+### 📌 4. Spatial Tags, Written Notes & Audio Recordings
+* **Live 3D Spatial Tags (`ARNote` Pins):** Tap tracked surfaces during single-room, multi-story, or Technik scans to drop 3D spatial tags anchored to exact scan coordinates, camera pose, floor level, room ID, and architectural element (`CapturePinOverlay`). Markers stay interactive across the live AR HUD, 2D floor plans (`Plan2DView`), and 3D viewer (`ViewerView`).
+* **Written Notes & Project Metadata:** Attach titled notes (`NoteTextEditor`) to spatial tags or associate standalone notes with specific scans and floors (`ProjectWrittenNotesView`), complete with full-text search, project prose notes, and structured party/custom metadata printed on Page 1 of PDF reports.
+* **Audio Recordings (Voice Notes):** Use press-and-hold live voice capture (`HoldMicrophoneControl` / `LiveScanNotes`) during scanning or record, pause, resume, and re-record inside the project voice library (`ProjectVoiceNotesView` / `VoiceNotePlayerSheet`) with live level metering, M4A/AAC clips, inline waveform playback scrubbing (`InlineVoiceNoteRow`), and crash-safe durable recovery (`VoiceNoteRecovery`).
+* **Local-First Privacy & Export:** Voice audio stays strictly in your selected storage library (Local or iCloud Drive) — never uploaded to AI services — and exports cleanly with `VoiceNotesExporter` (`JSON`, `CSV`, `.txt` manifests, plus opt-in ZIP audio bundling).
+
+### 🛋️ 5. Studio 3D Editor & Furniture Collections
 * **Interactive 3D Manipulation:** Position, rotate, elevate, and replace models with $5\text{ cm}$ grid snapping, wall alignment, and real-time collision/overlap checks.
 * **Cutaway & Plan Views:** Toggle cutaway front walls to look directly into complex spaces, inspect 3D dimensions, or switch to an orthographic 2D floor plan.
 * **Dedicated Office Furniture Collection:**
@@ -73,7 +80,7 @@ The universal companion **Mac application** shares the exact same Swift core cod
 * **Residential Furniture Library:** Sofas, double beds, lounge chairs, dining tables, storage cabinets, refrigerators, stoves, sinks, toilets, bathtubs, showers, and laundry washers.
 * **Model Library Category Pills:** Filter seamlessly between **All**, **Office**, **Living**, and **Kitchen & Bath**.
 
-### 🏗️ 5. Renovation Takeoffs & Project Tools
+### 🏗️ 6. Renovation Takeoffs & Project Tools
 * **Opening-Aware Material Takeoffs:**
   * **Net vs. Gross Wall Area:** Automatically computes total wall area and subtracts door/window openings to determine true paintable surface area.
   * **Flooring & Ceiling Area:** Surface calculation with configurable waste allowance percentage sliders ($+5\%$, $+10\%$, $+15\%$).
@@ -81,7 +88,7 @@ The universal companion **Mac application** shares the exact same Swift core cod
 * **Interactive Plan Task Pins:** Drop punch-list task pins onto 2D plans with statuses (`Open`, `In Progress`, `Resolved`) and link them to renovation phases (`Existing`, `Demolition`, `Proposed`).
 * **Field Measurement Verification:** Log physical laser distance meter or tape measure checks against LiDAR-scanned dimensions to maintain rigorous survey records.
 
-### 📐 6. Universal BIM, CAD & Deliverables Export
+### 📐 7. Universal BIM, CAD & Deliverables Export
 * **Autodesk Revit & IFC:** Export native IFC building models with mapped architectural walls, doors, windows, and MEP equipment classifications.
 * **Multi-Level CAD Separation:** Automatically separates multi-story buildings into per-floor archives (`level-0.dxf`, `level-1.dxf`, `level-0.svg`, etc.) while embedding the true measured elevation datum.
 * **Client PDF Deliverable Reports:** 1-click comprehensive report generator compiling project covers, scaled 2D plans, survey photos, room dimensions, equipment registers, and punch-list schedules.
@@ -113,6 +120,9 @@ dWalkScan features a tactile, blur-backed **Liquid Glass** user interface tailor
 | **Technik MEP Plant Room Scan** | ✅ Built | Boiler, tank, manifold, pump, panel, duct, and pipe detection |
 | **Multimodal Gemini AI** | ✅ Built | Photo analysis & German MEP technical equipment specifications |
 | **Spatial Survey Photos** | ✅ Built | In-scan photo capture with 3D camera pose markers and gallery |
+| **Spatial Tags (3D Surface Pins)** | ✅ Built | Tap tracked AR surfaces during scans; view pins in AR, 2D plans & 3D viewer |
+| **Written Notes & Project Details** | ✅ Built | Scan/floor-linked searchable notes, project parties & Page-1 PDF details |
+| **Audio Recordings (Voice Notes)** | ✅ Built | Hold-to-record M4A voice notes, waveform playback, offline recovery & ZIP export |
 | **Studio 3D Editor** | ✅ Built | Real-time 60 FPS SceneKit editor, $5\text{ cm}$ snap, front-wall cutaway |
 | **Office Furniture Collection** | ✅ Built | Desks, office chairs, conference tables, PCs, monitors, whiteboards |
 | **Automatic 32″ Screen Rule** | ✅ Built | Screens $\le 32''$ auto-classified as Monitor; $> 32''$ as Television |
@@ -200,7 +210,8 @@ d-walk-scan/
 │   │   ├── Projects/        # Project index, pins, quantities, distance checks
 │   │   └── TechnicalRoom/   # MEP equipment domain models & journal
 │   ├── Export/              # SVG, DXF, Revit/IFC, PDF Reports, MeshWriters, LevelExport
-│   ├── Scan/                # RoomPlan & LiDAR capture coordinators, SurveyPhotoCapture
+│   ├── Notes/               # Spatial & project audio notes, M4A recorder, playback & recovery
+│   ├── Scan/                # RoomPlan & LiDAR capture coordinators, SurveyPhotoCapture, LiveScanNotes
 │   ├── SceneEditing/        # Studio 3D Editor, StudioSceneBuilder, SceneEditDocument
 │   ├── Storage/             # Packages (.roomscan, .housescan), iCloud Drive, PrivacyStore
 │   ├── TechnicalRoom/       # MEP review UI, German equipment catalogue, Google AI

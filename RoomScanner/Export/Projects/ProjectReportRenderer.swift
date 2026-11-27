@@ -33,8 +33,10 @@ enum ProjectReportRenderer {
             end()
         }
         let date = DateFormatter(); date.locale = locale; date.dateStyle = .long
-        lines(report.name,[AppLanguage.text("Renovation survey",locale:locale),date.string(from:report.generatedAt),warning,
-                          AppLanguage.text("Each scan is an independent survey. Repeated or overlapping scans must not be added as building totals.",locale:locale)])
+        var cover = [AppLanguage.text("Renovation survey",locale:locale),date.string(from:report.generatedAt),warning,
+                     AppLanguage.text("Each scan is an independent survey. Repeated or overlapping scans must not be added as building totals.",locale:locale)]
+        cover += coverDetailLines(for: report.details, locale: locale)
+        lines(report.name, cover)
         if !report.notes.isEmpty {
             let paragraphs = report.notes.split(separator:"\n",omittingEmptySubsequences:false).flatMap { paragraph -> [String] in
                 let chars = Array(paragraph)
@@ -91,5 +93,55 @@ enum ProjectReportRenderer {
         }
         if !report.unresolved.isEmpty { lines(AppLanguage.text("Unresolved items",locale:locale),report.unresolved) }
         ctx.closePDF(); return data as Data
+    }
+
+    static func coverDetailLines(for details: ProjectDetails?, locale: Locale) -> [String] {
+        guard let details else { return [] }
+        func clean(_ value: String?) -> String? {
+            guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
+            return trimmed
+        }
+        func appendWrapped(_ text: String, into lines: inout [String]) {
+            let chars = Array(text)
+            guard chars.count > 500 else { lines.append(text); return }
+            lines.append(contentsOf: stride(from: 0, to: chars.count, by: 500).map { String(chars[$0..<min(chars.count, $0 + 500)]) })
+        }
+        var lines: [String] = []
+        let place = [clean(details.postcode), clean(details.city)].compactMap { $0 }.joined(separator: " ")
+        let address = [clean(details.street), clean(place)].compactMap { $0 }.joined(separator: ", ")
+        if !address.isEmpty {
+            appendWrapped(AppLanguage.text("Address", locale: locale) + ": " + address, into: &lines)
+        }
+        if let notes = clean(details.notes) {
+            appendWrapped(AppLanguage.text("Notes", locale: locale) + ": " + notes, into: &lines)
+        }
+        for (index, party) in (details.parties ?? []).enumerated() {
+            let roleText = clean(party.role).map { AppLanguage.text($0, locale: locale) }
+            let titleParts = [roleText, clean(party.name)].compactMap { $0 }
+            let header = titleParts.isEmpty ? "\(AppLanguage.text("Project parties", locale: locale)) \(index + 1)" : titleParts.joined(separator: " — ")
+            var bodyParts: [String] = []
+            for (labelKey, rawValue) in [
+                ("Company", party.company),
+                ("Branch", party.branch),
+                ("Address", party.address),
+                ("Website", party.website),
+                ("Phone", party.phone),
+                ("Email", party.email)
+            ] {
+                if let value = clean(rawValue) {
+                    bodyParts.append(AppLanguage.text(labelKey, locale: locale) + ": " + value)
+                }
+            }
+            appendWrapped(bodyParts.isEmpty ? header : header + " · " + bodyParts.joined(separator: " · "), into: &lines)
+            if let notes = clean(party.notes) {
+                appendWrapped(AppLanguage.text("Notes", locale: locale) + ": " + notes, into: &lines)
+            }
+            for custom in party.otherDetails ?? [] {
+                let key = clean(custom.key), val = clean(custom.value)
+                if let key, let val { appendWrapped("\(key): \(val)", into: &lines) }
+                else if let single = key ?? val { appendWrapped(single, into: &lines) }
+            }
+        }
+        return lines
     }
 }

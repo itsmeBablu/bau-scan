@@ -93,4 +93,21 @@ final class DesignSystemTests: XCTestCase {
         XCTAssertNil(DS.Motion.animation(reduceMotion:true))
         XCTAssertNotNil(DS.Motion.animation(reduceMotion:false))
     }
+
+    @MainActor func testFlowLayoutWrapsPastelBadgesOntoNextLineWhenNarrow() throws {
+        let badges = DSFlowLayout(spacing: DS.Spacing.s, lineSpacing: DS.Spacing.s) {
+            DSMetricBadge(title: "Layouts", value: "5", tone: .sky)
+            DSMetricBadge(title: "Floors", value: "3", tone: .lavender)
+            DSMetricBadge(title: "Total area", value: "250.0 m²", tone: .butter)
+            DSMetricBadge(title: "Approved", value: "4", tone: .mint)
+            DSMetricBadge(title: "Accepted", value: "6", tone: .peach)
+        }
+        func renderedHeight(width: CGFloat) throws -> Int {
+            let renderer = ImageRenderer(content: badges.frame(width: width).padding(DS.Spacing.s).background(DS.ColorToken.card.color))
+            return try XCTUnwrap(renderer.cgImage).height
+        }
+        let wide = try renderedHeight(width: 640)
+        let narrow = try renderedHeight(width: 220)
+        XCTAssertGreaterThan(narrow, wide)
+    }
 }
