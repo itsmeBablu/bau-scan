@@ -2,6 +2,11 @@ name: Pull request tests
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      capture_screenshots:
+        description: Capture the iPhone and iPad visual baseline after tests pass
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -91,3 +96,23 @@ jobs:
       - run: python Scripts/test_compiler_warning_report.py
       - run: python -m pip install -r services/technical-google-ai/requirements-dev.txt
       - run: python -m pytest services/technical-google-ai -q
+  screenshots:
+    if: github.event_name == 'workflow_dispatch' && inputs.capture_screenshots
+    needs: [swift, service-and-localization]
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: command -v xcodegen || brew install xcodegen
+      - run: node Scripts/capture_ui_screenshots.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshots-${{ github.sha }}
+          path: build/ui-screenshots/
+          if-no-files-found: error
+          retention-days: 7

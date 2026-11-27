@@ -22,5 +22,9 @@ final class DemoDataTests: XCTestCase {
         XCTAssertEqual(RoomStore(location: location).records.count, 0, "la liste se charge à reload()")
         let fresh = RoomStore(location: location); fresh.reload()
         XCTAssertEqual(fresh.records.map(\.name), ["Chambre", "Salon"])
+        let references = fresh.records.map { ProjectReference(kind: .room, itemID: $0.id, library: "local") }
+        let project = RenovationProject(name: "Lindenhof", date: Date(timeIntervalSince1970: 1735689600), references: references)
+        _ = try ProjectIndexStore.update(root: Self.demoRoot) { $0.projects = [project] }
+        XCTAssertEqual(try ProjectIndexStore.read(root: Self.demoRoot).projects, [project])
     }
 }

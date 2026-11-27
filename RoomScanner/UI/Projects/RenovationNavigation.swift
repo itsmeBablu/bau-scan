@@ -25,16 +25,43 @@ struct RenovationNavigation: View {
     @AppStorage("renovation.onboarded") private var onboarded = false
     @State private var guide = false
     @State private var guidePage = 0
+    #if DEBUG && targetEnvironment(simulator)
+    @State private var screenshotOpened = false
+    @State private var screenshotGallery = false
+    #endif
 
     var body: some View {
         Group {
             if let id = openProjectID {
                 ProjectChatWorkspace(projectID:id,savedReference:$savedReference,onScan:beginScan,onCapture:{ mode in beginCapture(mode,projectID:id) },onClose:{ openProjectID = nil })
+                    #if DEBUG && targetEnvironment(simulator)
+                    .onAppear { ScreenshotDestination.dashboard.appeared() }
+                    #endif
             } else {
                 navigation { projects }
             }
         }
         .task(id:refreshToken) { await workspace.reload(location:store.location); guide = !onboarded }
+        #if DEBUG && targetEnvironment(simulator)
+        .onChange(of: workspace.catalogueRevision) {
+            guard !screenshotOpened, let destination = ScreenshotDestination.requested,
+                  let project = workspace.index.projects.first(where: { !$0.isUnsorted && $0.references.count == 2 }),
+                  workspace.error == nil else { return }
+            screenshotOpened = true
+            switch destination {
+            case .projects: destination.appeared()
+            case .dashboard: openProjectID = project.id
+            case .scanSetup: beginCapture(.house, projectID: project.id)
+            case .gallery: screenshotGallery = true
+            }
+        }
+        .sheet(isPresented: $screenshotGallery) {
+            NavigationStack {
+                DesignSystemGallery(dark: UserDefaults.standard.string(forKey: "ui.appearance") == "dark")
+                    .onAppear { ScreenshotDestination.gallery.appeared() }
+            }
+        }
+        #endif
         .onChange(of:store.records) { _,_ in refresh() }
         .onChange(of:store.houseRecords) { _,_ in refresh() }
         .onChange(of:scenePhase) { _,phase in if phase == .active { refresh() } }
@@ -51,6 +78,9 @@ struct RenovationNavigation: View {
             ScanSetupSheet(workspace:workspace,projectID:request.projectID,mode:request.mode,defaultLocation:store.location) { pendingCapture = $0 }
                 .id(request.id)
                 .presentationDetents([.medium,.large])
+                #if DEBUG && targetEnvironment(simulator)
+                .onAppear { ScreenshotDestination.scanSetup.appeared() }
+                #endif
         }
         .fullScreenCover(item:$activeCapture,onDismiss:refresh) { capture in
             ProjectCaptureView(mode:capture.mode,projectID:capture.projectID,store:store,workspace:workspace,preparedPersistence:capture.persistence,captureLocation:capture.location,onSaved:{ kind,id,library in
