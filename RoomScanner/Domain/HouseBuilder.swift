@@ -22,11 +22,14 @@ struct HouseBuilder {
         var plans: [FloorPlan] = []
         for scan in structure.rooms {
             let proposed = naming.proposedName(for: scan.sectionLabels, existingNames: names)
-            names.append(proposed)
             var plan = planBuilder.build(from: scan, name: proposed)
             plan.story = storyOf[scan.id] ?? scan.story
             plan.transform = .identity
-            plans.append(plan)
+            let regions = RoomRegionBuilder.rooms(from:plan,scan:scan)
+            for var region in regions {
+                region.name = naming.proposedName(for:regions.count > 1 ? [region.label] : scan.sectionLabels,existingNames:names)
+                names.append(region.name); plans.append(region)
+            }
         }
         let indices = Set(plans.map(\.story)).sorted()
         let stories = indices.map { i in Story(index: i, rooms: plans.filter { $0.story == i }) }

@@ -54,6 +54,20 @@ final class SelectedPhotosExporterTests:XCTestCase {
         XCTAssertThrowsError(try SelectedPhotosExporter.export(project:project,assets:[photo],organization:[:],summaries:[:],locale:Locale(identifier:"en"),to:root.appendingPathComponent("wrong.pdf")))
     }
 
+    func testCustomFloorNameChangesOnlyExportFolderLabel() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let reference = ProjectReference(kind:.house,itemID:UUID(),library:"local")
+        let photo = try asset(reference:reference,room:UUID(),number:7,name:"Office",root:root.appendingPathComponent("source"))
+        var project = RenovationProject(name:"A",references:[reference]); project.details = .init(floorNames:[1:"Workplace"])
+        let output = root.appendingPathComponent("export")
+        try SelectedPhotosExporter.files(project:project,assets:[photo],organization:[reference.id:.init(level:1,kind:.house)],summaries:[:],locale:Locale(identifier:"en"),in:output)
+        let records = try JSONDecoder().decode([SurveyPhotoArchiveWriter.Entry].self,from:Data(contentsOf:output.appendingPathComponent("photo-index.json")))
+        XCTAssertTrue(records[0].imageFile.contains("/1.Workplace/"))
+        XCTAssertEqual(records[0].photoID,photo.photo.id); XCTAssertEqual(records[0].number,7)
+        XCTAssertEqual(try photo.image().jpegData,bytes)
+    }
+
     private func asset(reference:ProjectReference,room:UUID,number:Int,name:String,root:URL) throws -> ProjectPhotoAsset {
         let photo = SurveyPhoto(id:UUID(),roomID:room,number:number,pose:pose,timestamp:3)
         let target = root.appendingPathComponent(photo.jpegPath)

@@ -3,6 +3,12 @@ import SwiftUI
 /// Settings: iCloud Drive, 'dWalkScan' folder, measurements (mm / m), updates (Mac), about.
 struct SettingsView: View {
     @AppStorage(PDFPhotoPolicy.preferenceKey) private var pdfPhotos = PDFPhotoPolicy.defaultValue
+    @AppStorage("evidence.2d.photos") private var photos2D = false
+    @AppStorage("evidence.2d.audio") private var audio2D = false
+    @AppStorage("evidence.2d.pins") private var pins2D = false
+    @AppStorage("evidence.3d.photos") private var photos3D = true
+    @AppStorage("evidence.3d.audio") private var audio3D = true
+    @AppStorage("evidence.3d.pins") private var pins3D = true
     var embedded = false
     var includesProfile = false
     @AppStorage(AppLanguage.preferenceKey) private var language = AppLanguage.system.rawValue
@@ -61,6 +67,16 @@ struct SettingsView: View {
                 }
                 Toggle("Pro details",isOn:$proDetails)
                 Text("Show pipe designations, systems, provenance and structured schema exports. Existing data is always retained.").font(.caption).foregroundStyle(.secondary)
+            }
+            Section("2D visibility") {
+                Toggle("Photos",isOn:$photos2D)
+                Toggle("Voice notes",isOn:$audio2D)
+                Toggle("Pins",isOn:$pins2D)
+            }
+            Section("3D visibility") {
+                Toggle("Photos",isOn:$photos3D)
+                Toggle("Voice notes",isOn:$audio3D)
+                Toggle("Pins",isOn:$pins3D)
             }
             Section("Language") {
                 Picker("Language",selection:$language) {

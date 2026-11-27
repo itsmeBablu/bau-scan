@@ -172,7 +172,7 @@ struct TechnicalStoredRoomView: View {
                         Text(proDetails ? "MEP review" : "Find objects").tag(Tab.recognition)
                     }
                     .pickerStyle(.segmented).labelsHidden().padding(.horizontal).padding(.vertical, 8)
-                    if tab == .scan { TechnicalSavedScanView(package: package,onPhotoLink: savePhotoLink) }
+                    if tab == .scan { TechnicalSavedScanView(package: package,noteReference:ScanVoiceNoteLibrary.reference(itemID:id,kind:.technicalRoom,storageRoot:library.root.deletingLastPathComponent()),onPhotoLink: savePhotoLink) }
                     else if tab == .details { editor }
                     else {
                         TechnicalMEPReviewView(package: Binding(get: { self.package ?? package },set: { self.package = $0 }),persist: saveRecognition)

@@ -16,7 +16,7 @@ struct ProjectDeliverablesView: View {
     @State private var includeDetails = false
     @AppStorage(PDFPhotoPolicy.preferenceKey) private var pdfPhotos = PDFPhotoPolicy.defaultValue
     @State private var error: String?
-    @State private var category = ProjectArtifactCategory.all
+    @State private var scanExport:ProjectLibraryEntry?
     @State private var output = ProjectExportKind.report
     @State private var generationMessage: String?
     @State private var generatedURL: URL?
@@ -30,7 +30,7 @@ struct ProjectDeliverablesView: View {
     @State private var requestID = UUID()
     @State private var generationTask: Task<Void,Never>?
     private var root: URL { RootView.hasForcedRoot ? store.location.documentsURL : StorageLocation.local().documentsURL }
-    private var filtered: [ProjectArtifactFile] { files.filter { category == .all || $0.category == category } }
+
     var body: some View {
         List {
             Section("Create a report") {
@@ -46,9 +46,14 @@ struct ProjectDeliverablesView: View {
                 }
                 Text("Reports include available source scans. Missing items are listed, never silently omitted.").font(.caption)
             }
-            Section("Exports") {
-                Picker("Category", selection: $category) { ForEach(ProjectArtifactCategory.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) } }
-                ForEach(filtered) { file in
+            Section("Individual scans") {
+                ForEach(workspace.project(projectID)?.references.compactMap(workspace.entry).filter { !$0.isDesign } ?? []) { entry in
+                    Button { scanExport = entry } label: { Label(workspace.title(entry,locale:locale),systemImage:"square.and.arrow.up") }
+                }
+            }
+            ForEach(ProjectArtifactCategory.allCases.filter { $0 != .all }) { category in
+            Section(LocalizedStringKey(category.rawValue)) {
+                ForEach(files.filter { $0.category == category }) { file in
                     HStack {
                         Button { preview = file.url } label: {
                             VStack(alignment: .leading, spacing: DS.Spacing.xs) {
@@ -79,13 +84,15 @@ struct ProjectDeliverablesView: View {
                             .accessibilityLabel("Export actions")
                     }
                 }
-                if filtered.isEmpty { Text("No exports yet") }
+                if !files.contains(where:{ $0.category == category }) { Text("No exports yet").foregroundStyle(.secondary) }
             }.disabled(busy)
+            }
         }.navigationTitle("Exports")
             .task(id: projectID.uuidString+root.path) { await reload() }
             .onAppear { visible = true }
             .onDisappear { visible = false; reloadRequest = UUID(); cancelGeneration() }
             .onChange(of:workspace.catalogueRevision) { _,_ in cancelGeneration(); generatedURL = nil; generationMessage = nil }
+            .sheet(item:$scanExport) { entry in ProjectScanExportSheet(entry:entry) }
             .quickLookPreview($preview)
             .fileExporter(isPresented:$savingFile,items:fileToSave.map { [$0] } ?? [],contentTypes:[fileToSave.flatMap { UTType(filenameExtension:$0.pathExtension) } ?? .data]) { result in
                 if case .failure(let failure) = result { error = failure.localizedDescription }

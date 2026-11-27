@@ -12,6 +12,8 @@ struct ProjectWrittenNotesView:View {
     @State private var message:String?
     @State private var values:[ARNote] = []
     @State private var reloadRequest = UUID()
+    @State private var active = false
+    @State private var deletion = OperationLifetime()
     @State private var query = ""
     @State private var editing:ARNote?
     @State private var deleting:ARNote?
@@ -68,6 +70,8 @@ struct ProjectWrittenNotesView:View {
                 Button("Discard unsaved edits",role:.destructive) { dismiss() }
                 Button("Keep editing",role:.cancel) {}
             }
+            .onAppear { active = true }
+            .onDisappear { active = false; reloadRequest = UUID() }
             .task(id:projectID.uuidString+workspace.notesRoot.path) {
                 if notes == baseline { notes = workspace.project(projectID)?.notes ?? ""; baseline = notes }
                 await reload()
@@ -92,28 +96,37 @@ struct ProjectWrittenNotesView:View {
         reloadRequest = request
         do {
             let loaded = try await BackgroundWork.run(priority:.utility) { try ARNoteStore.index(root:root,projectID:projectID).notes }
-            guard !Task.isCancelled,root == workspace.notesRoot,reloadRequest == request else { return }; values = loaded
+            guard active,!Task.isCancelled,self.projectID == projectID,root == workspace.notesRoot,reloadRequest == request else { return }; values = loaded
         } catch {
-            guard !Task.isCancelled,root == workspace.notesRoot,reloadRequest == request else { return }
+            guard active,!Task.isCancelled,self.projectID == projectID,root == workspace.notesRoot,reloadRequest == request else { return }
             message = error.localizedDescription
         }
     }
     private func save(_ note:ARNote,expected:ARNote?) async throws {
-        let root = workspace.notesRoot
+        let root = workspace.notesRoot, projectID = projectID
         guard workspace.project(projectID)?.references.contains(note.reference) == true else { throw CocoaError(.fileNoSuchFile) }
         var changed = note; changed.modifiedAt = Date()
         do {
             _ = try await NoteSaveWorker.text(changed,expected:expected,root:root)
-            await reload()
-        } catch { await reload(); throw error }
+            if active,self.projectID == projectID,root == workspace.notesRoot { await reload() }
+        } catch {
+            if active,self.projectID == projectID,root == workspace.notesRoot { await reload() }
+            throw error
+        }
     }
     private func removeText(_ note:ARNote) {
-        let root = workspace.notesRoot
+        guard let operation = deletion.begin() else { return }
+        let root = workspace.notesRoot, projectID = projectID
         Task {
+            defer { deletion.finish(operation) }
             do {
+                // This mutation intentionally finishes after navigation; only UI
+                // publication is tied to the visible project and root.
                 _ = try await Task.detached(priority:.utility) { try ARNoteStore.removeWrittenText(note,root:root) }.value
-                await reload()
-            } catch { message = error.localizedDescription }
+                if active,self.projectID == projectID,root == workspace.notesRoot { await reload() }
+            } catch {
+                if active,self.projectID == projectID,root == workspace.notesRoot { message = error.localizedDescription }
+            }
         }
     }
 }

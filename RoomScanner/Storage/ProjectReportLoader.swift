@@ -48,8 +48,15 @@ enum ProjectReportLoader {
                     let pinNotes = sourcePins.map { pin in
                         let photo = sourcePhotos.first { $0.id == pin.photoID }
                         let metadata = photoMetadata.first { $0.photo.id == pin.photoID }
-                        let reference = photo.map { " → "+$0.roomName+" · "+AppLanguage.text("Photo",locale:locale)+" \($0.photo.number)" }
-                            ?? metadata.map { " → "+$0.roomName+" · "+AppLanguage.text("Photo",locale:locale)+" \($0.photo.number)" } ?? ""
+                        let photoLabel = AppLanguage.text("Photo", locale: locale)
+                        let reference: String
+                        if let photo {
+                            reference = " → \(photo.roomName) · \(photoLabel) \(photo.photo.number)"
+                        } else if let metadata {
+                            reference = " → \(metadata.roomName) · \(photoLabel) \(metadata.photo.number)"
+                        } else {
+                            reference = ""
+                        }
                         return pin.text+" · "+AppLanguage.text(pin.status.rawValue,locale:locale)+reference
                     }
                     report.scans.append(.init(title:entry.title,house:house,detailLines:quantities+pinNotes,pins:sourcePins))

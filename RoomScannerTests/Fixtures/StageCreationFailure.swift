@@ -23,7 +23,7 @@ enum PackageTestSnapshot {
         var result:[String:Data] = [:]
         for case let file as URL in enumerator {
             if try file.resourceValues(forKeys:[.isRegularFileKey]).isRegularFile == true {
-                result[String(file.path.dropFirst(base.path.count+1))] = try Data(contentsOf:file)
+                result[file.resolvingSymlinksInPath().pathComponents.dropFirst(base.pathComponents.count).joined(separator:"/")] = try Data(contentsOf:file)
             }
         }
         if let failure { throw failure }

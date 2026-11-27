@@ -20,9 +20,10 @@ struct ProjectScanExportSheet:View {
                     }.toolbar { ToolbarItem(placement:.cancellationAction) { Button("Close") { dismiss() } } }
                 }
             }
-        }.task(id:entry.id) {
+        }.task(id:entry.id+entry.root.path+entry.url.path) {
+            subject = nil; technical = nil; error = nil
             do {
-                let result = try await Task.detached(priority:.userInitiated) { () -> (ExportSubject?,TechnicalRoomPackage?) in
+                let result = try await BackgroundWork.run(priority:.userInitiated) { () -> (ExportSubject?,TechnicalRoomPackage?) in
                     if entry.reference.kind == .technicalRoom { return (nil,try TechnicalRoomPackage.read(from:entry.url)) }
                     var subject:ExportSubject
                     if entry.reference.kind == .house {
@@ -31,7 +32,7 @@ struct ProjectScanExportSheet:View {
                         subject = ExportSubject(record:try RoomPackage.readRecord(from:entry.url),plan:try RoomPackage.readPlan(from:entry.url),packageURL:entry.url)
                     }
                     subject.name = entry.title; return (subject,nil)
-                }.value
+                }
                 guard !Task.isCancelled else { return }; subject = result.0; technical = result.1
             } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
         }

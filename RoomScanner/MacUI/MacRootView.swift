@@ -8,7 +8,8 @@ struct MacRootView: View {
     @State private var technicalStore = TechnicalRoomLibraryStore()
     @State private var designs: [SceneEditDocument] = []
     @State private var designLoadRequest = UUID()
-    @State private var designRoots: [UUID: URL] = [:]
+    @State private var designRoots: [String: URL] = [:]
+    @State private var active = false
     @State private var appState = MacAppState()
     @State private var pendingDeletion: MacItem?
     @State private var search = ""
@@ -91,7 +92,7 @@ struct MacRootView: View {
             case .technicalRoom(let manifest) where technicalStore.records.contains(manifest):
                 TechnicalStoredRoomView(id: manifest.id, library: technicalStore).id(manifest.id)
             case .design(let reference):
-                MacDesignDetail(reference:reference,root:designRoots[reference.sourceID] ?? store.location.documentsURL).id(reference.id)
+                MacDesignDetail(reference:reference,root:designRoots[reference.id] ?? store.location.documentsURL).id(reference.id)
             default:
                 MacEmptyStateView { importPackage() }
             }
@@ -121,14 +122,7 @@ struct MacRootView: View {
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
             if url.pathExtension == "technicalroom" {
-                Task {
-                    do {
-                        let id = try await technicalStore.importPackage(url)
-                        if let rec = technicalStore.records.first(where: { $0.id == id }) {
-                            appState.selected = .technicalRoom(rec)
-                        }
-                    } catch { errorMessage = error.localizedDescription }
-                }
+                importTechnicalPackage(url)
                 return true
             } else if [FileLayout.packageExtension, FileLayout.housePackageExtension].contains(url.pathExtension) {
                 do {
@@ -155,7 +149,8 @@ struct MacRootView: View {
             do { try technicalStore.reload(); try await loadDesigns(); refreshSelection() } catch { errorMessage = error.localizedDescription }
         }
         .onChange(of:technicalStore.records) { _,_ in refreshSelection() }
-        .onDisappear { designLoadRequest = UUID() }
+        .onAppear { active = true }
+        .onDisappear { active = false; designLoadRequest = UUID() }
         .onChange(of: store.records) { _, _ in refreshSelection() }
         .onChange(of: store.houseRecords) { _, _ in refreshSelection() }
         .onChange(of: appState.selected, initial: true) { _, item in
@@ -169,14 +164,7 @@ struct MacRootView: View {
         .onOpenURL { url in
             if TechnicalGoogleAIAccount.handle(url) { return }
             if url.pathExtension == "technicalroom" {
-                Task {
-                    do {
-                        let id = try await technicalStore.importPackage(url)
-                        if let rec = technicalStore.records.first(where: { $0.id == id }) {
-                            appState.selected = .technicalRoom(rec)
-                        }
-                    } catch { errorMessage = error.localizedDescription }
-                }
+                importTechnicalPackage(url)
                 return
             }
             guard [FileLayout.packageExtension, FileLayout.housePackageExtension].contains(url.pathExtension) else { return }
@@ -209,7 +197,7 @@ struct MacRootView: View {
         DesignRef(document,modifiedAt:(try? designURL(for:document).resourceValues(forKeys:[.contentModificationDateKey]))?.contentModificationDate)
     }
     private func designURL(for document: DesignRef) -> URL {
-        let root = designRoots[document.sourceID] ?? store.location.documentsURL
+        let root = designRoots[document.id] ?? store.location.documentsURL
         return root.appendingPathComponent("SceneEdits/\(document.source.rawValue)-\(document.sourceID.uuidString).json")
     }
 
@@ -328,14 +316,7 @@ struct MacRootView: View {
         guard panel.runModal() == .OK else { return }
         for url in panel.urls {
             if url.pathExtension == "technicalroom" {
-                Task {
-                    do {
-                        let id = try await technicalStore.importPackage(url)
-                        if let rec = technicalStore.records.first(where: { $0.id == id }) {
-                            appState.selected = .technicalRoom(rec)
-                        }
-                    } catch { errorMessage = error.localizedDescription }
-                }
+                importTechnicalPackage(url)
             } else {
                 do {
                     let item = try store.importAny(from: url)
@@ -348,45 +329,39 @@ struct MacRootView: View {
         }
     }
 
+    private func importTechnicalPackage(_ url:URL) {
+        let library = technicalStore, root = store.location.documentsURL
+        Task {
+            do {
+                let id = try await library.importPackage(url)
+                // Import remains durable in its captured library. Navigation or
+                // switching roots must not select it in a different catalogue.
+                guard active,technicalStore === library,root == store.location.documentsURL else { return }
+                if let record = library.records.first(where:{ $0.id == id }) { appState.selected = .technicalRoom(record) }
+            } catch {
+                if active,technicalStore === library,root == store.location.documentsURL { errorMessage = error.localizedDescription }
+            }
+        }
+    }
+
     private func loadDesigns() async throws {
         let primary = store.location.documentsURL
         let local = technicalStore.root.deletingLastPathComponent()
         let roots = primary.standardizedFileURL == local.standardizedFileURL ? [primary] : [primary, local]
         let request = UUID(); designLoadRequest = request
-        let loaded: [(SceneEditDocument, URL)]
+        let loaded: [SceneEditCatalogue.Entry]
         do {
-            loaded = try await BackgroundWork.run(priority:.utility) {
-                var results: [(SceneEditDocument, URL)] = []
-                for documents in roots {
-                    try Task.checkCancellation()
-                    let root = documents.appendingPathComponent("SceneEdits", isDirectory: true)
-                    guard FileManager.default.fileExists(atPath: root.path) else { continue }
-                    let files = try FileManager.default.contentsOfDirectory(at:root,includingPropertiesForKeys:nil)
-                        .filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }.prefix(200)
-                    for file in files {
-                        try Task.checkCancellation()
-                        let name = file.deletingPathExtension().lastPathComponent
-                        guard let separator = name.firstIndex(of: "-"),
-                              let source = SceneEditDocument.Source(rawValue: String(name[..<separator])),
-                              let id = UUID(uuidString: String(name[name.index(after: separator)...])) else { continue }
-                        if let value = try SceneEditStore.read(file, source: source, id: id),
-                           !results.contains(where: { $0.0.source == source && $0.0.sourceID == id }) {
-                            results.append((value, documents))
-                        }
-                    }
-                }
-                return results.sorted { $0.0.title.localizedStandardCompare($1.0.title) == .orderedAscending }
-            }
+            loaded = try await BackgroundWork.run(priority:.utility) { try SceneEditCatalogue.load(roots:roots) }
         } catch is CancellationError { return }
         catch {
-            guard !Task.isCancelled,designLoadRequest == request,primary == store.location.documentsURL,
+            guard !Task.isCancelled,active,designLoadRequest == request,primary == store.location.documentsURL,
                   local == technicalStore.root.deletingLastPathComponent() else { return }
             throw error
         }
-        guard !Task.isCancelled,designLoadRequest == request,primary == store.location.documentsURL,
+        guard !Task.isCancelled,active,designLoadRequest == request,primary == store.location.documentsURL,
               local == technicalStore.root.deletingLastPathComponent() else { return }
-        designs = loaded.map { $0.0 }
-        designRoots = Dictionary(loaded.map { ($0.0.sourceID, $0.1) }, uniquingKeysWith: { first, _ in first })
+        designs = loaded.map(\.document)
+        designRoots = Dictionary(uniqueKeysWithValues:loaded.map { ($0.id,$0.root) })
     }
 }
 

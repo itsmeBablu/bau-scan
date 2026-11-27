@@ -32,8 +32,8 @@ enum SafePackageRead {
     /// Cheap containment checks also used before a cached preview is returned.
     /// Whole-package budgets remain the responsibility of `validate`/`data`.
     static func fileURL(_ file: URL, root: URL) throws -> URL {
-        let rootInfo = try root.resourceValues(forKeys:[.isDirectoryKey,.isSymbolicLinkKey])
-        guard rootInfo.isDirectory == true,rootInfo.isSymbolicLink != true else { throw CocoaError(.fileReadNoPermission) }
+        let rootInfo = try FileManager.default.attributesOfItem(atPath:root.path)
+        guard rootInfo[.type] as? FileAttributeType == .typeDirectory else { throw CocoaError(.fileReadNoPermission) }
         let base = root.standardizedFileURL,original = file.standardizedFileURL
         guard original.path.hasPrefix(base.path+"/") else { throw CocoaError(.fileReadNoPermission) }
         let relative = String(original.path.dropFirst(base.path.count+1))

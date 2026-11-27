@@ -8,9 +8,11 @@ struct RenovationNavigation: View {
     @Environment(RoomStore.self) private var store
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var workspace = RenovationWorkspace()
+    @State private var openProjectID: UUID?
+    @State private var savedReference: ProjectReference?
+    @State private var openingSavedScan = false
     @State private var settings = false
-    @State private var scan = false
-    @State private var requestedScan = ScanMode.house
+    @State private var scanRequest:ProjectScanRequest?
     @State private var pendingCapture: PreparedProjectCapture?
     @State private var activeCapture: PreparedProjectCapture?
     @State private var creating = false
@@ -20,14 +22,18 @@ struct RenovationNavigation: View {
     @AppStorage("ui.projects.layout") private var projectLayout = "grid"
     @State private var renamingProject: RenovationProject?
     @State private var privacyProject: RenovationProject?
-    @State private var renamedProjectName = ""
-    @State private var activeCaptureProject: UUID?
     @AppStorage("renovation.onboarded") private var onboarded = false
     @State private var guide = false
     @State private var guidePage = 0
 
     var body: some View {
-        navigation { projects }
+        Group {
+            if let id = openProjectID {
+                ProjectChatWorkspace(projectID:id,savedReference:$savedReference,onScan:beginScan,onCapture:{ mode in beginCapture(mode,projectID:id) },onClose:{ openProjectID = nil })
+            } else {
+                navigation { projects }
+            }
+        }
         .task(id:refreshToken) { await workspace.reload(location:store.location); guide = !onboarded }
         .onChange(of:store.records) { _,_ in refresh() }
         .onChange(of:store.houseRecords) { _,_ in refresh() }
@@ -41,42 +47,44 @@ struct RenovationNavigation: View {
                     .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Done") { privacyProject = nil } } }
             }
         }
-        .sheet(isPresented:$scan,onDismiss:{ activeCapture = pendingCapture; pendingCapture = nil }) {
-            ScanSetupSheet(workspace:workspace,projectID:activeCaptureProject,mode:requestedScan,defaultLocation:store.location) { pendingCapture = $0 }
+        .sheet(item:$scanRequest,onDismiss:{ activeCapture = pendingCapture; pendingCapture = nil }) { request in
+            ScanSetupSheet(workspace:workspace,projectID:request.projectID,mode:request.mode,defaultLocation:store.location) { pendingCapture = $0 }
+                .id(request.id)
                 .presentationDetents([.medium,.large])
         }
         .fullScreenCover(item:$activeCapture,onDismiss:refresh) { capture in
-            ProjectCaptureView(mode:capture.mode,projectID:capture.projectID,store:store,workspace:workspace,preparedPersistence:capture.persistence,captureLocation:capture.location,onSaved:attach)
+            ProjectCaptureView(mode:capture.mode,projectID:capture.projectID,store:store,workspace:workspace,preparedPersistence:capture.persistence,captureLocation:capture.location,onSaved:{ kind,id,library in
+                attach(kind,id:id,library:library,projectID:capture.projectID,location:capture.location)
+            })
         }
         .alert("New project",isPresented:$creating) {
             TextField("Project name",text:$projectName)
             Button("Create") { workspace.create(projectName); projectName = "" }
             Button("Cancel",role:.cancel) {}
         } message: { Text("A place, such as a flat or building address.") }
-        .alert("Rename project",isPresented:Binding(get:{ renamingProject != nil },set:{ if !$0 { renamingProject = nil } })) {
-            TextField("Project name",text:$renamedProjectName)
-            Button("Save") {
-                guard let id = renamingProject?.id else { return }
-                let clean = renamedProjectName.trimmingCharacters(in:.whitespacesAndNewlines)
-                workspace.change { index in
-                    guard !clean.isEmpty, let i = index.projects.firstIndex(where:{ $0.id == id }) else { throw CocoaError(.fileWriteUnknown) }
-                    index.projects[i].name = clean; index.projects[i].modifiedAt = Date()
-                }
-                renamingProject = nil
-            }
-            Button("Cancel",role:.cancel) { renamingProject = nil }
-        }
+        .sheet(item:$renamingProject) { project in ProjectRenameSheet(project:project).environment(workspace) }
         .alert("Project library",isPresented:Binding(get:{ workspace.error != nil },set:{ if !$0 { workspace.error = nil } })) {
             Button("OK") { workspace.error = nil }
         } message: { Text(workspace.error ?? "") }
+        .overlay {
+            if openingSavedScan { ProgressView("Opening scan…").padding(20).dsMaterial(in:RoundedRectangle(cornerRadius:DS.Radius.floating)) }
+        }
         .environment(workspace)
     }
     private func refresh() { Task { await workspace.reload(location:store.location) } }
-    private func attach(_ kind: ProjectReference.Kind,id: UUID,library: String) {
-        let projectID = activeCapture?.projectID
+    private func attach(_ kind: ProjectReference.Kind,id: UUID,library: String,projectID:UUID?,location:StorageLocation) {
+        openingSavedScan = true
         Task {
-            await workspace.reload(location:store.location)
-            if let projectID { workspace.assign(.init(kind:kind,itemID:id,library:library),to:projectID) }
+            defer { openingSavedScan = false }
+            await workspace.reloadAndWait(location:location)
+            let reference = ProjectReference(kind:kind,itemID:id,library:library)
+            if let projectID {
+                workspace.assign(reference,to:projectID)
+                guard workspace.project(projectID)?.references.contains(reference) == true else { return }
+            }
+            guard workspace.destination(reference) != nil else { return }
+            openProjectID = projectID ?? workspace.index.projects.first(where:{ $0.references.contains(reference) })?.id
+            savedReference = reference
         }
     }
     private func navigation<Content: View>(@ViewBuilder content: () -> Content) -> some View {
@@ -85,7 +93,6 @@ struct RenovationNavigation: View {
                 .toolbar { ToolbarItem(placement:.topBarTrailing) {
                     Button { settings = true } label: { Label("Settings",systemImage:"person.crop.circle") }.labelStyle(.iconOnly)
                 } }
-                .navigationDestination(for:UUID.self) { id in ProjectChatWorkspace(projectID:id,onScan:beginScan,onCapture:{ mode in beginCapture(mode,projectID:id) }) }
                 .navigationDestination(for:ProjectReference.self) { reference in
                     if let entry = workspace.destination(reference) { RenovationItemDestination(entry:entry) }
                     else { ContentUnavailableView("Item unavailable",systemImage:"icloud.slash",description:Text("Reconnect its library to open this item. Your project reference has been kept.")) }
@@ -93,10 +100,10 @@ struct RenovationNavigation: View {
         }
     }
     private func beginCapture(_ mode:ScanMode,projectID:UUID) {
-        activeCaptureProject = projectID; workspace.currentProjectID = projectID
-        requestedScan = mode; scan = true
+        workspace.currentProjectID = projectID
+        scanRequest = ProjectScanRequest(projectID:projectID,mode:mode)
     }
-    private func beginScan() { activeCaptureProject = workspace.currentProjectID; requestedScan = .house; scan = true }
+    private func beginScan() { scanRequest = ProjectScanRequest(projectID:workspace.currentProjectID,mode:.house) }
     private var visibleProjects:[RenovationProject] {
         workspace.index.projects.filter {
             projectQuery.isEmpty || ($0.isUnsorted ? AppLanguage.text("Unsorted") : $0.name).localizedCaseInsensitiveContains(projectQuery)
@@ -110,15 +117,13 @@ struct RenovationNavigation: View {
         Group {
             if projectLayout == "list" {
                 List {
-                    UnfinishedScansView()
                     ForEach(visibleProjects) { projectLink($0,card:false) }
                     if visibleProjects.isEmpty { projectEmptyState }
                 }
             } else {
                 ScrollView {
                     VStack(spacing:DS.Spacing.l) {
-                        UnfinishedScansView()
-                        if visibleProjects.isEmpty { projectEmptyState }
+                            if visibleProjects.isEmpty { projectEmptyState }
                         LazyVGrid(columns:sizeClass == .compact ? [GridItem(.flexible()),GridItem(.flexible())] : [GridItem(.adaptive(minimum:200))],spacing:DS.Spacing.l) {
                             ForEach(visibleProjects) { projectLink($0,card:true) }
                         }
@@ -142,11 +147,15 @@ struct RenovationNavigation: View {
         actions: { if projectQuery.isEmpty { Button("Create a project") { creating = true } } }
     }
     private func projectLink(_ project:RenovationProject,card:Bool) -> some View {
-        NavigationLink(value:project.id) { ProjectSummary(project:project,workspace:workspace,card:card) }
+        Button { openProjectID = project.id } label: {
+            ProjectSummary(project:project,workspace:workspace,card:card)
+                .contentShape(Rectangle())
+        }
+            .accessibilityIdentifier("project.open.\(project.id.uuidString)")
             .buttonStyle(.plain)
             .contextMenu {
                 if !project.isUnsorted {
-                    Button("Rename project",systemImage:"pencil") { renamedProjectName = project.name; renamingProject = project }
+                    Button("Rename",systemImage:"pencil") { renamingProject = project }
                 }
                 Button("Delete project data…",systemImage:"trash",role:.destructive) { privacyProject = project }
             }
@@ -229,20 +238,31 @@ struct ProjectSummary: View {
 }
 
 struct ProjectCover: View {
+    @Environment(\.colorScheme) private var colorScheme
     let url: URL?
     var size:CGFloat = 72
+    var technicalPackageURL:URL? = nil
     @State private var image: CGImage?
     var body: some View {
         Group {
-            if let image { Image(decorative:image,scale:1).resizable().scaledToFit() }
+            if let image {
+                if technicalPackageURL == nil,colorScheme == .dark { Image(decorative:image,scale:1).resizable().scaledToFit().colorInvert() }
+                else { Image(decorative:image,scale:1).resizable().scaledToFit() }
+            }
             else { Image(systemName:"square.split.bottomrightquarter").font(.title2).foregroundStyle(.secondary) }
-        }.frame(maxWidth:size).frame(height:size).background(.quaternary,in:RoundedRectangle(cornerRadius:DS.Radius.small))
+        }.frame(maxWidth:size).frame(height:size).background(technicalPackageURL == nil ? (colorScheme == .dark ? Color.black : Color.white) : DS.ColorToken.card.color,in:RoundedRectangle(cornerRadius:DS.Radius.small))
             .task(id:url) {
                 image = nil
+                if let technicalPackageURL,let mesh = try? await TechnicalMeshPreviewCache.shared.image(packageURL:technicalPackageURL) {
+                    guard !Task.isCancelled else { return }; image = mesh; return
+                }
                 guard let url else { return }
                 let decoded = await Task.detached {
                     guard let source = CGImageSourceCreateWithURL(url as CFURL,nil) else { return nil as CGImage? }
-                    return CGImageSourceCreateThumbnailAtIndex(source,0,[kCGImageSourceCreateThumbnailFromImageAlways:true,kCGImageSourceThumbnailMaxPixelSize:256] as CFDictionary)
+                    guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source,0,[kCGImageSourceCreateThumbnailFromImageAlways:true,kCGImageSourceThumbnailMaxPixelSize:256] as CFDictionary) else { return nil }
+                    guard let gray = CGContext(data:nil,width:thumbnail.width,height:thumbnail.height,bitsPerComponent:8,bytesPerRow:thumbnail.width,space:CGColorSpaceCreateDeviceGray(),bitmapInfo:CGImageAlphaInfo.none.rawValue) else { return thumbnail }
+                    gray.draw(thumbnail,in:CGRect(x:0,y:0,width:thumbnail.width,height:thumbnail.height))
+                    return gray.makeImage()
                 }.value
                 guard !Task.isCancelled else { return }
                 image = decoded
@@ -265,7 +285,8 @@ struct ProjectEntryRow: View {
         NavigationLink(value:openAsDesign ? designReference : entry.reference) {
             if card {
                 VStack(alignment:.leading,spacing:8) {
-                    ProjectCover(url:coverURL,size:140).frame(maxWidth:.infinity)
+                    if openAsDesign || entry.isDesign { ProjectStudioCover(entry:entry) }
+                    else { ProjectCover(url:coverURL,size:160,technicalPackageURL:entry.reference.kind == .technicalRoom ? entry.url : nil).frame(maxWidth:.infinity) }
                     Text(workspace.title(entry,locale:locale)).font(.headline).lineLimit(2)
                     Text(String(entry.roomCount)+" "+AppLanguage.text("Rooms")).font(.caption).foregroundStyle(.secondary)
                     if let area = entry.area { Text(MeasurementFormat.squareMeters(area)).font(.caption).foregroundStyle(.secondary) }
@@ -324,53 +345,62 @@ struct ProjectEntryRow: View {
 /// A project owns independent navigation stacks for its five working areas.
 struct ProjectChatWorkspace: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @Environment(\.dismiss) private var dismiss
     @Environment(RoomStore.self) private var store
     @Environment(RenovationWorkspace.self) private var workspace
     let projectID: UUID
+    @Binding var savedReference: ProjectReference?
+    @State private var selectedTab = 0
+    @State private var paths = (0..<5).map { _ in NavigationPath() }
     var onScan: () -> Void
     var onCapture: (ScanMode) -> Void
+    var onClose: () -> Void
     private var entries: [ProjectLibraryEntry] {
         workspace.project(projectID)?.references.compactMap(workspace.entry) ?? []
     }
     var body: some View {
-        TabView {
-            Tab("Project", systemImage: "building.2") {
-                projectStack("Project") { RenovationProjectPage(projectID: projectID, onScan: startScan) }
+        TabView(selection:$selectedTab) {
+            Tab("Project", systemImage: "building.2", value:0) {
+                projectStack("Project",index:0) { RenovationProjectPage(projectID: projectID, onScan: startScan) }
             }
-            Tab("House", systemImage: "house") {
-                projectStack("House") { scanCards(mode: .house) }
+            Tab("House", systemImage: "house", value:1) {
+                projectStack("House",index:1) { scanCards(mode: .house) }
             }
-            Tab("Technik", systemImage: "wrench.and.screwdriver") {
-                projectStack("Technik") { scanCards(mode: .technicalRoom) }
+            Tab("Technik", systemImage: "wrench.and.screwdriver", value:2) {
+                projectStack("Technik",index:2) { scanCards(mode: .technicalRoom) }
             }
-            Tab("Studio", systemImage: "cube.transparent") {
-                projectStack("Studio") {
+            Tab("Studio", systemImage: "cube.transparent", value:3) {
+                projectStack("Studio",index:3) {
                     ScrollView {
                         VStack(alignment: .leading, spacing: DS.Spacing.l) {
                             Text("Saved Studio designs").font(.headline); cards(entries.filter(\.isDesign))
-                            Text("Create from a scan").font(.headline); cards(entries.filter { !$0.isDesign }, studio: true)
+                            cards(entries.filter { !$0.isDesign }, studio: true)
                         }.padding(DS.Spacing.l)
                     }
                 }
             }
-            Tab("Settings", systemImage: "gearshape") {
-                projectStack("Settings") { ProjectDetailsEditor(projectID: projectID, settings: true) }
+            Tab("Settings", systemImage: "gearshape", value:4) {
+                projectStack("Settings",index:4) { ProjectDetailsEditor(projectID: projectID, settings: true) }
             }
         }
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden()
         .onAppear { workspace.currentProjectID = projectID }
+        .onChange(of:savedReference,initial:true) { _,reference in
+            guard let reference else { return }
+            selectedTab = reference.kind == .technicalRoom ? 2 : 1
+            paths[selectedTab] = NavigationPath([reference])
+            savedReference = nil
+        }
         .projectPreferenceScope(workspace.project(projectID)?.details?.preferences ?? .init())
     }
-    private func projectStack<Content: View>(_ title: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
-        NavigationStack {
+    private func projectStack<Content: View>(_ title: LocalizedStringKey,index:Int, @ViewBuilder content: () -> Content) -> some View {
+        NavigationStack(path:$paths[index]) {
             content()
                 .navigationTitle(title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar(.visible, for: .navigationBar)
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { Button("Projects", systemImage: "chevron.left") { dismiss() } }
+                    ToolbarItem(placement: .topBarLeading) { Button("Projects", systemImage: "chevron.left", action:onClose) }
                 }
                 .navigationDestination(for: ProjectReference.self) { reference in
                     if let entry = workspace.destination(reference) { RenovationItemDestination(entry: entry) }
@@ -384,10 +414,7 @@ struct ProjectChatWorkspace: View {
         }
     }
     private func scanCards(mode: ScanMode) -> some View {
-        ProjectScanLibraryView(projectID:projectID,technical:mode == .technicalRoom)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) {
-            Button(mode == .house ? "Scan a house" : "Scan Technik room", systemImage: "plus") { onCapture(mode) }
-        } }
+        ProjectScanLibraryView(projectID:projectID,technical:mode == .technicalRoom,onScan:{ onCapture(mode) })
     }
     private func startScan() { workspace.currentProjectID = projectID; onScan() }
 }

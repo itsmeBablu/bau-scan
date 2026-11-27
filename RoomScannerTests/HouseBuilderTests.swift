@@ -29,6 +29,8 @@ final class HouseBuilderTests: XCTestCase {
 
     func testRoomTintsDistinguishRoomsOnlyInHouses() {
         var r = PlanRenderer()
+        XCTAssertFalse(r.options.tintRooms)
+        r.options.tintRooms = true
         XCTAssertEqual(r.floorColor(forRoomAt: 0, of: 1), r.options.floorColor, "pièce seule : couleur par défaut")
         XCTAssertEqual(r.floorColor(forRoomAt: 0, of: 2), PlanRenderer.roomTint(0))
         XCTAssertNotEqual(r.floorColor(forRoomAt: 0, of: 2), r.floorColor(forRoomAt: 1, of: 2))

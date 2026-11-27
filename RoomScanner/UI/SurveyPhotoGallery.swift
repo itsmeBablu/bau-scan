@@ -33,7 +33,7 @@ struct SurveyPhotoGallery: View {
                     }
                 }
                 #if os(iOS)
-                .tabViewStyle(.page(indexDisplayMode:.automatic))
+                .tabViewStyle(.page(indexDisplayMode:.never))
                 #endif
                 Text("Taken at this camera position (scan coordinates, not GPS). Device validation pending.")
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal)

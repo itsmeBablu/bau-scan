@@ -220,6 +220,8 @@ private struct RevitExportPanel: View {
     @State private var result: URL?
     @State private var error: String?
     @State private var working = false
+    @State private var generationTask:Task<Void,Never>?
+    @State private var request = UUID()
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
@@ -259,6 +261,7 @@ private struct RevitExportPanel: View {
                 result = nil
             } catch { self.error = error.localizedDescription }
         }
+        .onDisappear { request = UUID(); generationTask?.cancel(); generationTask = nil; working = false }
         .onChange(of:architecture) { _,_ in result = nil }
         .onChange(of:mep) { _,_ in result = nil }
         .onChange(of:legacy) { _,_ in result = nil }
@@ -267,6 +270,8 @@ private struct RevitExportPanel: View {
         #endif
     }
     private func generate() {
+        guard !working else { return }
+        let token = UUID(); request = token
         working = true
         result = nil
         error = nil
@@ -278,10 +283,11 @@ private struct RevitExportPanel: View {
         options.includeMEP = mep
         options.schema = legacy ? .ifc2x3 : .ifc4
         let evidenceURL = subject.kind == .house ? subject.usdzURL?.deletingLastPathComponent().appendingPathComponent("structure.json") : nil
-        Task {
+        let capturedOptions = options
+        generationTask = Task {
             do {
-                let url = try await Task.detached(priority:.userInitiated) {
-                    var effective = options
+                let url = try await BackgroundWork.run(priority:.userInitiated) {
+                    var effective = capturedOptions
                     if let evidenceURL,FileManager.default.fileExists(atPath:evidenceURL.path) {
                         effective = try RevitScanEvidence.options(house:house,structureData:Data(contentsOf:evidenceURL),base:effective)
                     }
@@ -290,10 +296,13 @@ private struct RevitExportPanel: View {
                     let url = directory.appendingPathComponent("Survey.ifc")
                     try data.write(to:url,options:.atomic)
                     return url
-                }.value
-                result = url
-            } catch { self.error = error.localizedDescription }
-            working = false
+                }
+                guard !Task.isCancelled,request == token else { return }
+                result = url; working = false; generationTask = nil
+            } catch {
+                guard !Task.isCancelled,request == token else { return }
+                self.error = error.localizedDescription; working = false; generationTask = nil
+            }
         }
     }
 }

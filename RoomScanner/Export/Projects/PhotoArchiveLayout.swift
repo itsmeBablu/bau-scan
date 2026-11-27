@@ -13,7 +13,7 @@ struct PhotoArchiveLayout {
     private var usedRooms:[String:Set<String>] = [:]
     private var usedImages:[String:Set<String>] = [:]
 
-    mutating func paths(photo:SurveyPhoto,roomName:String,sourceID:String,organization:ScanOrganization?,summary:ProjectScanSummary?,locale:Locale) throws -> Paths {
+    mutating func paths(photo:SurveyPhoto,roomName:String,sourceID:String,organization:ScanOrganization?,summary:ProjectScanSummary?,locale:Locale,floorNames:[Int:String] = [:]) throws -> Paths {
         try organization?.validate()
         let building = organization?.buildingName
         if buildings[building] == nil {
@@ -22,11 +22,11 @@ struct PhotoArchiveLayout {
         var level = ProjectScanGrouping.LevelKey(number:organization?.level,otherName:organization?.otherLevelName)
         if let summary,summary.stories > 1 {
             let story = summary.roomDetails.first { $0.id == photo.roomID }?.story
-            level = .init(number:story.flatMap { organization?.storyLevels?[$0] },otherName:nil)
+            level = .init(number:story.flatMap { organization?.storyLevels?[$0] ?? $0 },otherName:nil)
         }
         let scope = FloorScope(building:building,level:level),buildingPath = "Photos/"+(buildings[building] ?? "")
         if floors[scope] == nil {
-            let label = level.number.map { String($0)+"."+StoryNaming.localizedName(for:$0,locale:locale) } ?? level.otherName ?? AppLanguage.text("Unassigned level",locale:locale)
+            let label = level.number.map { String($0)+"."+(floorNames[$0] ?? StoryNaming.localizedName(for:$0,locale:locale)) } ?? level.otherName ?? AppLanguage.text("Unassigned level",locale:locale)
             floors[scope] = buildingPath+"/"+ArchivePath.unique(ArchivePath.component(label),used:&usedFloors[buildingPath,default:[]])
         }
         guard let floor = floors[scope] else { throw CocoaError(.fileWriteUnknown) }

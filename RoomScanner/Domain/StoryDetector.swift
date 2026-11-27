@@ -33,11 +33,11 @@ enum StoryNaming {
         index == 0 ? "story.ground" : index < 0 ? "story.lower %lld" : "story.upper %lld"
     }
     static func localizedName(for index: Int, locale: Locale = AppLanguage.locale) -> String {
-        if index == 0 { return String(localized: "story.ground", locale: locale) }
+        if index == 0 { return AppLanguage.text("story.ground",locale:locale) }
         if index < 0 {
             let basement = index == Int.min ? Int.max : -index
-            return String(localized: "story.lower \(basement)", locale: locale)
+            return String(format:AppLanguage.text("story.lower %lld",locale:locale),locale:locale,basement)
         }
-        return String(localized: "story.upper \(index)", locale: locale)
+        return String(format:AppLanguage.text("story.upper %lld",locale:locale),locale:locale,index)
     }
 }

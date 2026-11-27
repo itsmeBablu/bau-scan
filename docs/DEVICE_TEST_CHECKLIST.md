@@ -255,3 +255,17 @@ different datasets or sanitizer-enabled versus normal builds.
 
 All cases above remain unverified until device logs/results are supplied. No
 engineering accuracy, DIN compliance or universal performance budget is implied.
+
+
+## 26 November Mac continuation — pending physical acceptance
+
+Mac/simulator results are in `docs/QA_VALIDATION_REPORT.md`; none of these boxes is checked by installing, rendering, synthetic tests or sanitizer success.
+
+- [ ] Confirm unchanged House and Technik capture sessions, live camera/mesh, microphone hold/release, interruptions, long scans, background saving and reopening on the iPhone.
+- [ ] Browse local + iCloud, duplicate a local scan, verify the selected cloud catalogue remains visible and the duplicate stays in its originating project. Switch roots during a Technical import and verify no late selection/error appears in the other library.
+- [ ] Project overview: expand scan/floor/room, check areas/furniture/door/window counts against the captured rooms, rename a room and verify plans, photo captions and overview refresh without changing scan geometry.
+- [ ] Rename building-floor labels, reopen the project, verify albums and selected-photo export folders use those names while original photo numbers/poses remain unchanged.
+- [ ] Expand/collapse contact cards; save/reopen optional company/branch/address/website/email/phone fields. Confirm cancel does not save a draft.
+- [ ] Inspect plan cards in light/dark mode and accessibility text sizes. Inspect Studio grid previews, full-screen portrait/landscape, touch selection and photo/audio markers. Confirm source scans remain separate from designs.
+- [ ] Confirm saved Technical notes stay attached to the correct local/cloud reference, including identical UUID twins if available. Test playback and edits after navigation.
+- [ ] Verify real provider-backed iCloud download/conflict/offline behavior and device capture recovery. Disposable filesystem primitive SIGKILL/ENOSPC checks do not verify these scenarios.

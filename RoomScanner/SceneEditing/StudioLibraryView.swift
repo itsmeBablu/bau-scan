@@ -9,7 +9,9 @@ struct StudioLibraryView: View {
     @State private var technical: TechnicalRoomLibraryStore?
     @State private var launch: Launch?
     @State private var designs: [SceneEditDocument] = []
-    @State private var designRoots: [UUID:URL] = [:]
+    @State private var designRoots: [String:URL] = [:]
+    @State private var loadRequest = UUID()
+    @State private var active = false
     @State private var error: String?
     @State private var busy = false
     enum Mode: String,CaseIterable { case house = "Whole home", technical = "Utility room" }
@@ -23,8 +25,8 @@ struct StudioLibraryView: View {
                 }
                 if !filteredDesigns.isEmpty {
                     Section("Saved designs") {
-                        ForEach(filteredDesigns,id: \.sourceID) { document in
-                            projectButton(document.title,icon: "square.stack.3d.up") { launch = Launch(document: document,root: designRoots[document.sourceID]) }
+                        ForEach(filteredDesigns.map { SceneEditCatalogue.Entry(document:$0,root:designRoots[DesignRef($0).id] ?? store.location.documentsURL) }) { entry in
+                            projectButton(entry.document.title,icon: "square.stack.3d.up") { launch = Launch(document:entry.document,root:entry.root) }
                         }
                     }
                 }
@@ -61,13 +63,15 @@ struct StudioLibraryView: View {
         .frame(minWidth: 800,minHeight: 650)
         #endif
 
-        .task {
+        .task(id:store.location.documentsURL) {
             // Technical surveys own their local library independently of House iCloud switching.
             let library = TechnicalRoomLibraryStore()
             technical = library
             do { try library.reload(); try await loadDesigns() } catch { self.error = error.localizedDescription }
         }
-        .studioPresentation(item: $launch,onDismiss: { Task { try? await loadDesigns() } }) { launch in
+        .onAppear { active = true }
+        .onDisappear { active = false; loadRequest = UUID() }
+        .studioPresentation(item: $launch,onDismiss: { Task { do { try await loadDesigns() } catch { if active { self.error = error.localizedDescription } } } }) { launch in
             NavigationStack { StudioProjectView(seed: launch.document,storageRoot: launch.root ?? store.location.documentsURL) }
         }
         .alert("Studio",isPresented: Binding(get: { error != nil },set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
@@ -98,35 +102,33 @@ struct StudioLibraryView: View {
         } catch { self.error = error.localizedDescription }
     }
     private func openTechnical(_ id: UUID) {
-        guard let technical else { return }; busy = true
+        guard let technical,!busy else { return }; busy = true
+        let primary = store.location.documentsURL
         Task { @MainActor in
             defer { busy = false }
             do {
                 let package = try await technical.read(id)
-                let document = try await Task.detached { try SceneEditDocument.technical(package) }.value
+                let document = try await BackgroundWork.run { try SceneEditDocument.technical(package) }
+                guard active,!Task.isCancelled,self.technical === technical,primary == store.location.documentsURL else { return }
                 launch = Launch(document: document,root: technical.root.deletingLastPathComponent())
-            } catch { self.error = error.localizedDescription }
+            } catch { if active,!Task.isCancelled,self.technical === technical,primary == store.location.documentsURL { self.error = error.localizedDescription } }
         }
     }
     private func loadDesigns() async throws {
         let primary = store.location.documentsURL
         let local = technical?.root.deletingLastPathComponent() ?? StorageLocation.local().documentsURL
         let roots = primary.standardizedFileURL == local.standardizedFileURL ? [primary] : [primary,local]
-        let loaded = try await Task.detached {
-            var results: [(SceneEditDocument,URL)] = []
-            for documents in roots {
-              let root = documents.appendingPathComponent("SceneEdits",isDirectory: true)
-              guard FileManager.default.fileExists(atPath: root.path) else { continue }
-              let files = try FileManager.default.contentsOfDirectory(at: root,includingPropertiesForKeys: nil).filter { $0.pathExtension == "json" }.prefix(200)
-            for file in files {
-                let name = file.deletingPathExtension().lastPathComponent
-                guard let separator = name.firstIndex(of: "-"),let source = SceneEditDocument.Source(rawValue: String(name[..<separator])),let id = UUID(uuidString: String(name[name.index(after: separator)...])) else { continue }
-                if let value = try SceneEditStore.read(file,source: source,id: id),!results.contains(where: { $0.0.source == source && $0.0.sourceID == id }) { results.append((value,documents)) }
-            }
-            }
-            return results.sorted { $0.0.title.localizedStandardCompare($1.0.title) == .orderedAscending }
-        }.value
-        designs = loaded.map { $0.0 }
-        designRoots = Dictionary(loaded.map { ($0.0.sourceID,$0.1) },uniquingKeysWith: { first,_ in first })
+        let request = UUID(); loadRequest = request
+        let loaded:[SceneEditCatalogue.Entry]
+        do { loaded = try await BackgroundWork.run(priority:.utility) { try SceneEditCatalogue.load(roots:roots) } }
+        catch is CancellationError { return }
+        catch {
+            guard active,!Task.isCancelled,request == loadRequest,primary == store.location.documentsURL else { return }
+            throw error
+        }
+        guard active,!Task.isCancelled,request == loadRequest,primary == store.location.documentsURL,
+              local == (technical?.root.deletingLastPathComponent() ?? StorageLocation.local().documentsURL) else { return }
+        designs = loaded.map(\.document)
+        designRoots = Dictionary(uniqueKeysWithValues:loaded.map { ($0.id,$0.root) })
     }
 }

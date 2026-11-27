@@ -38,6 +38,7 @@ struct TechnicalRoomPackage {
     var thumbnailPNG: Data?
     var evidence = TechnicalCaptureEvidence()
     var recognition = TechnicalMEPReview()
+    var meshPreviewPNG:Data? = nil
 
     func validate() throws {
         guard manifest.schemaVersion == 1 else { throw PackageError.unsupportedVersion(manifest.schemaVersion) }
@@ -58,7 +59,7 @@ struct TechnicalRoomPackage {
         if manifest.checkpointAcceptedAtSave {
             guard alignment.checkpoints.last?.accepted == true else { throw PackageError.invalidPackage }
         }
-        guard (worldMapData?.count ?? 0) <= 64 * 1_048_576, (thumbnailPNG?.count ?? 0) <= 10 * 1_048_576 else { throw PackageError.oversizedFile }
+        guard (worldMapData?.count ?? 0) <= 64 * 1_048_576, (thumbnailPNG?.count ?? 0) <= 10 * 1_048_576,(meshPreviewPNG?.count ?? 0) <= 10*1_048_576 else { throw PackageError.oversizedFile }
         let assets = Set(document.photoAssets.map(\.id))
         guard assets == Set(document.room.photos.map(\.id)) else { throw PackageError.invalidPackage }
         for photo in document.room.photos {
@@ -103,6 +104,7 @@ struct TechnicalRoomPackage {
         }
         if let worldMapData { try worldMapData.write(to: staging.appendingPathComponent("world-map.archive"), options: .atomic) }
         if let thumbnailPNG { try thumbnailPNG.write(to: staging.appendingPathComponent("thumbnail.png"), options: .atomic) }
+        if let meshPreviewPNG { try meshPreviewPNG.write(to:staging.appendingPathComponent("mesh-preview.png"),options:.atomic) }
         let photos = staging.appendingPathComponent("photos", isDirectory: true)
         if !document.photoAssets.isEmpty { try fm.createDirectory(at: photos, withIntermediateDirectories: true) }
         for photo in document.photoAssets { try photo.jpegData.write(to: photos.appendingPathComponent("\(photo.id.uuidString).jpg"), options: .atomic) }
@@ -169,6 +171,7 @@ struct TechnicalRoomPackage {
                            worldMapData: try optional("world-map.archive", maximum: 64 * 1_048_576), thumbnailPNG: try optional("thumbnail.png", maximum: 10 * 1_048_576))
         var completed = package
         completed.evidence = evidence; completed.recognition = recognition
+        completed.meshPreviewPNG = try optional("mesh-preview.png",maximum:10*1_048_576)
         try completed.validate()
         return completed
     }

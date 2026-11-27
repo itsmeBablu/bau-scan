@@ -23,9 +23,9 @@ struct StudioProjectView: View {
             else { ProgressView("Opening Studio…") }
         }
         .task(id:storageRoot.path+seed.source.rawValue+seed.sourceID.uuidString) {
-            loaded = nil; error = nil; photos = []
+            loaded = nil; error = nil; photos = []; notes = []
             let source = seed.source, id = seed.sourceID, house = seed.shell, root = storageRoot
-            photos = (try? await Task.detached { () throws -> [SurveyPhotoImage] in
+            let loadedPhotos = (try? await Task.detached { () throws -> [SurveyPhotoImage] in
                 if source == .technical {
                     let url = root.appendingPathComponent("TechnicalRooms").appendingPathComponent(id.uuidString).appendingPathExtension("technicalroom")
                     return SurveyPhotoStore.images(technical:try TechnicalRoomPackage.read(from:url),studio:true)
@@ -35,18 +35,20 @@ struct StudioProjectView: View {
                     location.roomsURL.appendingPathComponent(id.uuidString).appendingPathExtension(FileLayout.packageExtension)
                 return try SurveyPhotoStore.images(from:url,house:house)
             }.value) ?? []
-            notes = (try? await Task.detached { () throws -> [ARNote] in
+            let loadedNotes = (try? await Task.detached { () throws -> [ARNote] in
                 let kind:ProjectReference.Kind = source == .house ? .house : source == .room ? .room : .technicalRoom
                 let reference = ScanVoiceNoteLibrary.reference(itemID:id,kind:kind,storageRoot:root)
                 let values = try ScanVoiceNoteLibrary.notes(for:reference)
                 guard !values.isEmpty else { return [] }
                 if source == .technical {
                     let package = try TechnicalRoomPackage.read(from:root.appendingPathComponent("TechnicalRooms/"+id.uuidString+".technicalroom"))
-                    let floor = TechnicalSavedMeshGeometry.latest(in:package.journal.meshes).flatMap { try? TechnicalSavedMeshGeometry(snapshot:$0,reference:package.alignment.referenceFrame) }.map { $0.center.y-$0.extent.y/2 } ?? 0
+                    let mesh = TechnicalSavedMeshGeometry.latest(in:package.journal.meshes).flatMap { try? TechnicalSavedMeshGeometry(snapshot:$0,reference:package.alignment.referenceFrame) }
+                    let floor = mesh.map { $0.center.y-$0.extent.y/2 } ?? 0
                     return values.map { value in
                         var note = value
                         if note.displayPosition == nil,let point = note.position {
                             var p = package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:point) } ?? point
+                            p = mesh?.containedMarker(p) ?? p
                             p.y -= floor; note.displayPosition = p
                             if let camera = note.cameraPosition {
                                 var c = package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:camera) } ?? camera
@@ -77,7 +79,7 @@ struct StudioProjectView: View {
                     }
                     return value
                 }.value
-                try document.validate(); guard !Task.isCancelled else { return }; loaded = document
+                try document.validate(); guard !Task.isCancelled else { return }; loaded = document; photos = loadedPhotos; notes = loadedNotes
             } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
         }
     }
@@ -88,7 +90,9 @@ struct StudioEditorView: View {
     var notesRoot:URL = ScanVoiceNoteLibrary.root
     @State private var selectedNote:ARNote?
     var photos: [SurveyPhotoImage] = []
-    @State private var showPhotos = true
+    @AppStorage("evidence.3d.photos") private var showPhotos = true
+    @AppStorage("evidence.3d.audio") private var showNotes = true
+    @AppStorage("evidence.3d.pins") private var showPins = true
     @State private var selectedPhoto: SurveyPhotoImage?
     @State private var multipleSelection = false
     let storageURL: URL
@@ -127,6 +131,7 @@ struct StudioEditorView: View {
     @FocusState private var viewportFocused: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var textSize
+    @Environment(\.locale) private var locale
     init(document: SceneEditDocument,storageURL: URL,photos: [SurveyPhotoImage] = [],notes:[ARNote] = [],notesRoot:URL = ScanVoiceNoteLibrary.root) {
         self.notes = notes; self.notesRoot = notesRoot
         self.photos = photos
@@ -143,8 +148,10 @@ struct StudioEditorView: View {
             SurveyPhotoGallery(photos:photos,initial:photo.id) { controller.flyToPhoto($0.photo) }
         }
         #endif
-        .sheet(item:$selectedNote) { note in VoiceNotePlayerSheet(note:note,root:notesRoot,onSave:savedDisplayedNote) }
-        .onChange(of:notes) { _,value in controller.setNotes(value) }
+        .sheet(item:$selectedNote) { note in VoiceNotePlayerSheet(note:note,root:notesRoot,displayTitle:VoiceNoteDisplayName.title(note,summary:ProjectScanSummary(house:session.document.shell),locale:locale),onSave:savedDisplayedNote) }
+        .onChange(of:notes) { _,_ in refreshNoteVisibility() }
+        .onChange(of:showPins) { _,_ in refreshNoteVisibility() }
+        .onChange(of:showNotes) { _,_ in refreshNoteVisibility() }
         .onChange(of:showPhotos) { _,value in controller.setPhotos(value ? photos : []) }
         .onChange(of:photos) { _,value in controller.setPhotos(showPhotos ? value : []) }
         .onChange(of:selectedPhoto?.id) { _,id in controller.selectPhotoMarker(id) }
@@ -178,11 +185,11 @@ struct StudioEditorView: View {
         .sheet(item: $equipmentEditor) { item in equipmentSheet(item) }
         #endif
         .alert("Studio",isPresented: Binding(get: { error != nil },set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
-        .fileExporter(isPresented: $exporting,document: exportFile,contentType: exportType,defaultFilename: exportName) { result in
-            if case .failure(let failure) = result { error = failure.localizedDescription }
-        }
+        .modifier(StudioExportPresentation(exporting:$exporting,document:exportFile,type:exportType,name:exportName,error:$error))
         .fileImporter(isPresented: $importing,allowedContentTypes: [.json]) { result in importProject(result) }
     }
+
+    private func refreshNoteVisibility() { controller.setNotes(notes.filter { $0.audioFileName == nil ? showPins : showNotes }) }
 
     private var baseEditor:some View {
         editorLayout
@@ -232,9 +239,9 @@ struct StudioEditorView: View {
     private func savedDisplayedNote(_ saved:ARNote) {
         var updated = notes
         if let i = updated.firstIndex(where:{ $0.id == saved.id }) {
-            var value = saved; value.displayPosition = updated[i].displayPosition; updated[i] = value
+            var value = saved; value.displayPosition = updated[i].displayPosition; value.displayCameraPosition = updated[i].displayCameraPosition; updated[i] = value
         }
-        controller.setNotes(updated)
+        controller.setNotes(updated.filter { $0.audioFileName == nil ? showPins : showNotes })
     }
     @ToolbarContentBuilder private var selectionToolbar: some ToolbarContent {
         ToolbarItem {
@@ -262,7 +269,7 @@ struct StudioEditorView: View {
                 session.selectedIDs = Set(session.document.presentationObjects.filter { $0.story == story }.map(\.id))
                 session.selectedID = nil
             }
-            controller.setNotes(notes)
+            controller.setNotes(notes.filter { $0.audioFileName == nil ? showPins : showNotes })
             controller.onNote = { id in selectedNote = notes.first { $0.id == id } }
             controller.setPhotos(showPhotos ? photos : [])
             controller.onPhoto = { id in showInspector = false; selectedPhoto = photos.first { $0.id == id } }
@@ -570,7 +577,9 @@ struct StudioEditorView: View {
                     Button("Delete selected",role:.destructive) { perform { try session.deleteSelection() } }
                         .disabled(session.selectedIDs.isEmpty)
                     Button("Clear selection") { session.select(nil,multiple:false) }
-                    if !photos.isEmpty { Toggle("Photos",isOn:$showPhotos) }
+                    Toggle("Photos",isOn:$showPhotos)
+                    Toggle("Voice notes",isOn:$showNotes)
+                    Toggle("Pins",isOn:$showPins)
                     Button(showPlan ? "Show 3D" : "Show 2D plan") { showPlan.toggle() }
                     Button("Reset camera") { reset += 1 }
                     Toggle("3D dimensions",isOn: $showDimensions)
@@ -946,5 +955,18 @@ private struct StudioObjectFields: View {
         let r = color.redComponent,g = color.greenComponent,b = color.blueComponent
         #endif
         return .init(x: Double(r),y: Double(g),z: Double(b))
+    }
+}
+
+private struct StudioExportPresentation:ViewModifier {
+    @Binding var exporting:Bool
+    let document:StudioFile?
+    let type:UTType
+    let name:String
+    @Binding var error:String?
+    func body(content:Content) -> some View {
+        content.fileExporter(isPresented:$exporting,document:document,contentType:type,defaultFilename:name) { result in
+            if case .failure(let failure) = result { error = failure.localizedDescription }
+        }
     }
 }

@@ -183,7 +183,8 @@ struct DXFExporter {
 
     private func fmt(_ v: Double) -> String {
         let r = (v * 10000).rounded() / 10000
-        return String(format: "%.4f", locale: Locale(identifier: "en_US_POSIX"), r == 0 ? 0 : r)
+        let value:Double = r == 0 ? 0.0 : r
+        return String(format: "%.4f", locale: Locale(identifier: "en_US_POSIX"), value)
     }
     /// Angle normalized to ]-90°, 90°] for readable orientation.
     private func readable(_ a: Double) -> Double {

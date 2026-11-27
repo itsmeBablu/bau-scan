@@ -109,6 +109,6 @@ final class CloudStorageTests: XCTestCase {
         XCTAssertEqual(revised.lastPathComponent,"plan - 2.pdf")
         XCTAssertEqual(try Data(contentsOf:revised),Data("pdf2".utf8))
         XCTAssertEqual(try Data(contentsOf:dest),Data("pdf".utf8),"Keep the previous version")
-        XCTAssertEqual(try store.saveExport(file,for:pkg.record),revised,"Identical bytes must reuse the same path")
+        XCTAssertEqual(try store.saveExport(file,for:pkg.record).resolvingSymlinksInPath(),revised.resolvingSymlinksInPath(),"Identical bytes must reuse the same path")
     }
 }

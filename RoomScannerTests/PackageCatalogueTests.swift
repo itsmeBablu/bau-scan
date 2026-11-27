@@ -13,12 +13,12 @@ final class PackageCatalogueTests: XCTestCase {
         try Data("not decoded by catalogue".utf8).write(to: package.appendingPathComponent("plan.json"))
         let first = try PackageCatalogue.rooms(in: root)
         XCTAssertEqual(first.records, [record]); XCTAssertTrue(first.problems.isEmpty)
-        XCTAssertEqual(first.urls[record.id], package)
+        XCTAssertEqual(first.urls[record.id]?.resolvingSymlinksInPath().path, package.resolvingSymlinksInPath().path)
         let mismatched = root.appendingPathComponent(UUID().uuidString + ".roomscan")
         try FileManager.default.moveItem(at: package, to: mismatched)
         let invalid = try PackageCatalogue.rooms(in: root)
         XCTAssertTrue(invalid.records.isEmpty)
-        XCTAssertEqual(invalid.problems.map(\.url), [mismatched])
+        XCTAssertEqual(invalid.problems.map { $0.url.resolvingSymlinksInPath().path }, [mismatched.resolvingSymlinksInPath().path])
         XCTAssertTrue(FileManager.default.fileExists(atPath: mismatched.path))
     }
 

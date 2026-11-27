@@ -12,6 +12,7 @@ struct ProjectDetailsEditor:View {
     @State private var confirmingClose = false
     @State private var saved = false
     @State private var appSettings = false
+    @State private var expandedParty:UUID?
     private var parties:Binding<[ProjectParty]> { Binding(get:{ details.parties ?? [] },set:{ details.parties = $0 }) }
     private var preferences:Binding<ProjectPreferences> { Binding(get:{ details.preferences ?? .init() },set:{ details.preferences = $0 }) }
     var body:some View {
@@ -49,7 +50,7 @@ struct ProjectDetailsEditor:View {
                     TextField("Notes",text:$details.notes.text,axis:.vertical)
                 }
                 Section("Project parties") {
-                    ForEach(parties) { party in ProjectPartyEditor(party:party) }.onDelete { details.parties?.remove(atOffsets:$0) }
+                    ForEach(parties) { party in ProjectPartyEditor(party:party,expanded:$expandedParty) }.onDelete { details.parties?.remove(atOffsets:$0) }
                     Button("Add party",systemImage:"person.badge.plus") { details.parties = (details.parties ?? [])+[ProjectParty()] }.disabled((details.parties?.count ?? 0) >= 100)
                 }
             }
@@ -87,11 +88,15 @@ struct ProjectDetailsEditor:View {
 }
 private struct ProjectPartyEditor:View {
     @Binding var party:ProjectParty
+    @Binding var expanded:UUID?
     var body:some View {
-        DisclosureGroup(party.name ?? AppLanguage.text("New party")) {
-            Picker("Role",selection:$party.role.text) { ForEach(ProjectParty.roles,id:\.self) { Text(AppLanguage.text($0)).tag($0) } }
+        DisclosureGroup(party.name.flatMap { $0.isEmpty ? nil : $0 } ?? party.role ?? AppLanguage.text("New party"),isExpanded:Binding(get:{ expanded == party.id },set:{ expanded = $0 ? party.id : nil })) {
+            Picker("Role",selection:$party.role.text) { Text("Role").tag(""); ForEach(ProjectParty.roles,id:\.self) { Text(AppLanguage.text($0)).tag($0) } }
             TextField("Name",text:$party.name.text)
             TextField("Company",text:$party.company.text)
+            TextField("Branch",text:$party.branch.text)
+            TextField("Address",text:$party.address.text,axis:.vertical)
+            TextField("Website",text:$party.website.text)
             TextField("Phone",text:$party.phone.text)
             TextField("Email",text:$party.email.text)
             TextField("Notes",text:$party.notes.text,axis:.vertical)

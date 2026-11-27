@@ -29,13 +29,16 @@ private struct SurveyPhotoThumbnail: View {
 struct TechnicalSavedScanView: View {
     @AppStorage("technical.showCeiling") private var showCeiling = false
     let package: TechnicalRoomPackage
+    var noteReference:ProjectReference? = nil
+    var notesRoot:URL = ScanVoiceNoteLibrary.root
     var immersive = false
     var closeImmersive: (() -> Void)? = nil
     @State private var expanded = false
     var selectedSuggestion: UUID? = nil
     var onPhotoLink: ((UUID,URL) async throws -> Void)? = nil
-    @State private var showPhotos = true
-    @State private var showAudio = true
+    @AppStorage("evidence.3d.photos") private var showPhotos = true
+    @AppStorage("evidence.3d.audio") private var showAudio = true
+    @AppStorage("evidence.3d.pins") private var showPins = true
     @State private var voiceNotes: [ARNote] = []
     @State private var selectedVoice: ARNote?
     @State private var showRoomSurfaces = true
@@ -61,6 +64,7 @@ struct TechnicalSavedScanView: View {
                                 Toggle("Ceiling",isOn:$showCeiling)
                                 Toggle("Photos",isOn:$showPhotos)
                                 Toggle("Voice notes",isOn:$showAudio)
+                                Toggle("Pins",isOn:$showPins)
                                 Picker("Display",selection:$appearance) {
                                     Text("Scan").tag(Appearance.scan); Text("MEP").tag(Appearance.mep); Text("Both").tag(Appearance.both)
                                 }
@@ -130,18 +134,21 @@ struct TechnicalSavedScanView: View {
         .onChange(of: package.recognition) { _,_ in resetID = UUID() }
         .onChange(of: selectedSuggestion) { _,_ in resetID = UUID() }
         .onChange(of: appearance) { _,_ in resetID = UUID() }
-        .task(id:package.manifest.id) {
-            let reference = ProjectReference(kind:.technicalRoom,itemID:package.manifest.id,library:"local")
-            voiceNotes = (try? await Task.detached { try ScanVoiceNoteLibrary.notes(for:reference) }.value) ?? []
+        .task(id:(noteReference?.id ?? package.manifest.id.uuidString)+notesRoot.path) {
+            let reference = noteReference ?? ProjectReference(kind:.technicalRoom,itemID:package.manifest.id,library:"local")
+            let root = notesRoot
+            let loaded = (try? await BackgroundWork.run { try ScanVoiceNoteLibrary.notes(for:reference,root:root) }) ?? []
+            guard !Task.isCancelled else { return }; voiceNotes = loaded
         }
-        .sheet(item:$selectedVoice) { note in VoiceNotePlayerSheet(note:note) }
+        .sheet(item:$selectedVoice) { note in VoiceNotePlayerSheet(note:note,root:notesRoot) }
+        .onChange(of:showPins) { _,_ in resetID = UUID() }
         .onChange(of: showAudio) { _,_ in resetID = UUID() }
         .onChange(of: voiceNotes) { _,_ in resetID = UUID() }
         .onChange(of: showPhotos) { _,_ in resetID = UUID() }
         .onChange(of: showRoomSurfaces) { _,_ in renderError = nil; resetID = UUID() }
         .onChange(of: showCeiling) { _,_ in renderError = nil; resetID = UUID() }
         .studioPresentation(isPresented: $expanded) {
-            TechnicalSavedScanView(package: package, immersive: true, closeImmersive: { expanded = false }, selectedSuggestion: selectedSuggestion, onPhotoLink: onPhotoLink)
+            TechnicalSavedScanView(package: package,noteReference:noteReference,notesRoot:notesRoot, immersive: true, closeImmersive: { expanded = false }, selectedSuggestion: selectedSuggestion, onPhotoLink: onPhotoLink)
         }
         .studioPresentation(item: $fullPhoto) { photo in
             TechnicalSurveyPhotoView(photo: photo,number: surveyPhotos.firstIndex(where: { $0.id == photo.id }).map { $0 + 1 },persistLink: onPhotoLink)
@@ -178,11 +185,12 @@ struct TechnicalSavedScanView: View {
                         light.light.intensity = 2500
                         light.look(at: .zero, from: SIMD3(radius, radius * 2, radius), relativeTo: nil)
                         content.add(light)
-                        if showAudio {
-                            for note in voiceNotes.suffix(256) {
+                        if showAudio || showPins {
+                            for note in voiceNotes.suffix(256) where note.audioFileName == nil ? showPins : showAudio {
                                 guard let point = note.viewingPosition else { continue }
                                 let p = note.displayPosition == nil ? package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:point) } ?? point : point
-                                let origin = TechnicalPoint3(x:p.x-geometry.center.x,y:p.y-geometry.center.y,z:p.z-geometry.center.z)
+                                let anchored = geometry.containedMarker(p)
+                                let origin = TechnicalPoint3(x:anchored.x-geometry.center.x,y:anchored.y-geometry.center.y,z:anchored.z-geometry.center.z)
                                 let camera = note.viewingCameraPosition.map { point -> TechnicalPoint3 in
                                     let c = note.displayCameraPosition == nil ? package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:point) } ?? point : point
                                     return .init(x:c.x-geometry.center.x,y:c.y-geometry.center.y,z:c.z-geometry.center.z)

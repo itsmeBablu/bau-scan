@@ -1,8 +1,8 @@
 import Foundation
 
 struct HouseWallSettings {
-    var exteriorThickness = 0.365
-    var interiorThickness = 0.115
+    var exteriorThickness = FloorPlan.defaultWallThickness
+    var interiorThickness = FloorPlan.defaultWallThickness
     var maximumAngle = 3.0 * Double.pi / 180
     var maximumGap = 0.5
     var minimumOverlap = 0.3

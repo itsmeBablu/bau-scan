@@ -433,3 +433,18 @@ failure-injection, sanitizer, leak and performance tests pass; budgets met or de
 explained; device-only items listed for me; existing packages and features work.
 
 Start with Phase G only. Create the branch, run CI, fix what fails, report, STOP.
+
+
+### Mac continuation checkpoint — 26 November 2026
+
+The actual dirty Mac checkout was inspected and preserved, generated with XcodeGen and tested with both full schemes before further consolidation. Initial iOS cloud-toggle timeout is retained in evidence; full repeat passed unchanged assertions/timeouts. Seven style literals were repaired without changing the style baseline. Details and logs: `docs/QA_VALIDATION_REPORT.md`, `.worktrees/mac-checks/20261126-continuation/`.
+
+- Priority consolidation implemented: duplication preserves the selected local/iCloud catalogue and original project owner; Mac/Studio share a Foundation-only read catalogue preserving source-kind identity and root precedence; fixed-root Technical imports cannot select into another root after completion. Workspace/catalogue regressions pass.
+- Saved-item reads and written-note completion publication are scoped to their project/root/cancellation lifetime. Durable note writes/removal continue after navigation. Source-package rename, project-only alias, native Trash and project removal remain distinct authorities.
+- Representative existing-fixture exports retained and structurally inspected. Real SIGKILL publication-boundary and bounded-volume ENOSPC primitive checks passed; whole-app capture/power-loss/iCloud recovery is not inferred from those results.
+- Full ASan runs passed on the pre-UI consolidation tree: Mac 572 tests / one existing skip / zero failures; iOS 578 / one existing skip / zero failures. Focused TSan passed 30 Mac and 33 iOS tests. Strict warnings remain measured findings, not a Swift 6-clean claim. No unchecked Sendable or diagnostic suppression added.
+- User then authorized optional **project metadata only** for flexible floor names and contact branch/address/website. Native scan/package formats, coordinates, RoomPlan/AR/audio-session behavior and null accuracy remain unchanged. Project-screen/Studio refinements follow the verification gate, with final full schemes and coverage being collected for that later tree.
+- Phase 3b and physical iPhone acceptance remain PENDING. Revit/IfcOpenShell interoperability and real provider-backed iCloud conflicts remain UNVERIFIED. No pull/push/reset/clean/dependency update or CI run was performed. No whole-project completion or production-readiness claim follows from simulator/macOS success.
+
+
+Final local checkpoint: both full final schemes passed after the last photo-background change: RoomScanner 581 tests / one existing skip / zero failures; RoomScannerMac 575 / one existing skip / zero failures. Ancillary checks pass. Existing scan/package format and capture sources remain byte-identical to the starting checkout; optional project metadata is explicitly authorized. Evidence and exact limitations are in the final dated QA entry and `.worktrees/mac-checks/20261126-continuation/final-results.json`. Device/provider/interop/Phase 3b and strict-concurrency ownership gates remain pending; no remote CI completion is claimed.

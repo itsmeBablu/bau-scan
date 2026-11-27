@@ -14,12 +14,27 @@ import Observation
     var notesRoot: URL { catalogueRoot }
     private var ready = false
     private var pendingReload: StorageLocation?
+    private var requestedLocation: StorageLocation?
+    @ObservationIgnored private var reloadWaiters: [CheckedContinuation<Void, Never>] = []
     private let localRoot: URL?
     private let beforeCataloguePublication: (@MainActor () async -> Void)?
     init(localRoot:URL? = nil,beforeCataloguePublication:(@MainActor () async -> Void)? = nil) {
         self.localRoot = localRoot; self.beforeCataloguePublication = beforeCataloguePublication
     }
     var currentProject: RenovationProject? { index.projects.first { $0.id == currentProjectID } }
+    func floorName(_ level:Int,projectID:UUID,locale:Locale) -> String {
+        project(projectID)?.details?.floorNames?[level] ?? StoryNaming.localizedName(for:level,locale:locale)
+    }
+    func renameRoom(_ entry:ProjectLibraryEntry,roomID:UUID,to name:String) async throws {
+        let location = StorageLocation(kind:entry.reference.library == "icloud" ? .iCloud : .local,documentsURL:entry.root)
+        let library = RoomStore(location:location,allowsCloud:false)
+        if entry.reference.kind == .house {
+            try library.renameRoom(in:HousePackage.readRecord(from:entry.url),roomID:roomID,to:name)
+        } else if entry.reference.kind == .room {
+            try library.rename(RoomPackage.readRecord(from:entry.url),to:name)
+        } else { throw CocoaError(.fileWriteNoPermission) }
+        if let location = requestedLocation { await reloadAndWait(location:location) }
+    }
     func title(_ entry: ProjectLibraryEntry) -> String {
         title(entry,locale:AppLanguage.locale)
     }
@@ -62,6 +77,8 @@ import Observation
         change { if $0.displayNames == nil { $0.displayNames = [:] }; $0.displayNames?[entry.id] = clean }
     }
     func duplicate(_ entry: ProjectLibraryEntry) async {
+        guard ready else { error = AppLanguage.text("Wait for the project catalogue to finish loading."); return }
+        let root = catalogueRoot, startingLocation = requestedLocation
         do {
             // Reuse package readers/importers. Originals are read only; the copy gets its own ID.
             let owner = index.projects.first { $0.references.contains(entry.reference) }?.id
@@ -82,12 +99,21 @@ import Observation
                 guard let copy = try SceneEditStore.read(entry.url,source:source,id:entry.reference.itemID) else { throw CocoaError(.fileNoSuchFile) }
                 try SceneEditStore.duplicate(copy,sourceID:newID,root:entry.root)
             }
-            await reload(location:location)
+            // Package writes remain durable in their original library. Assign using
+            // the original catalogue's latest revision, even after navigation.
             if let owner {
-                assign(.init(kind:sourceKind,itemID:newID,library:entry.reference.library),to:owner)
-                if entry.isDesign { assign(.init(kind:entry.reference.kind,itemID:newID,library:entry.reference.library),to:owner) }
+                _ = try ProjectIndexStore.update(root:root) { current in
+                    try current.assign(.init(kind:sourceKind,itemID:newID,library:entry.reference.library),to:owner)
+                    if entry.isDesign { try current.assign(.init(kind:entry.reference.kind,itemID:newID,library:entry.reference.library),to:owner) }
+                }
             }
-        } catch { self.error = error.localizedDescription }
+            // A local source can be copied while browsing iCloud. Refresh the
+            // selected library, never replace it with the source's location.
+            guard ready,root == catalogueRoot,let selectedLocation = requestedLocation else { return }
+            await reload(location:selectedLocation)
+        } catch {
+            if ready,root == catalogueRoot,startingLocation == requestedLocation { self.error = error.localizedDescription }
+        }
     }
     func project(_ id: UUID) -> RenovationProject? { index.projects.first { $0.id == id } }
     func entry(_ reference: ProjectReference) -> ProjectLibraryEntry? {
@@ -101,15 +127,44 @@ import Observation
         return .init(reference:reference,title:source.title,date:source.date,area:source.area,roomCount:source.roomCount,root:source.root,url:source.url)
     }
 
+    /// Save callers need a published catalogue, not merely a queued reload.
+    func reloadAndWait(location: StorageLocation) async {
+        while loading {
+            await withCheckedContinuation { reloadWaiters.append($0) }
+            guard !Task.isCancelled else { return }
+        }
+        await reload(location: location)
+        while loading {
+            await withCheckedContinuation { reloadWaiters.append($0) }
+            guard !Task.isCancelled else { return }
+        }
+    }
+
     func reload(location: StorageLocation) async {
         guard !Task.isCancelled else { return }
+        requestedLocation = location
         guard !loading else { pendingReload = location; return }; loading = true
         let interval = PerformanceTrace.begin("CatalogueLoad")
         defer { interval.end() }
         defer {
             loading = false
-            if let next = pendingReload { pendingReload = nil; Task { await reload(location:next) } }
+            let waiters = reloadWaiters; reloadWaiters.removeAll()
+            for waiter in waiters { waiter.resume() }
         }
+        var requested = location
+        repeat {
+            pendingReload = nil
+            await loadCatalogue(location:requested)
+            guard let next = pendingReload else { break }
+            requested = next
+        } while !Task.isCancelled
+        if Task.isCancelled,let next = pendingReload {
+            pendingReload = nil
+            Task { await reload(location:next) }
+        }
+    }
+
+    private func loadCatalogue(location:StorageLocation) async {
         let local = localRoot ?? (RootView.hasForcedRoot ? location.documentsURL : StorageLocation.local().documentsURL)
         if local != catalogueRoot { ready = false }
         let roots: [(String, URL)] = location.kind == .iCloud ? [("icloud",location.documentsURL),("local",local)] : [("local",local)]
@@ -185,6 +240,17 @@ import Observation
         guard ready else { error = AppLanguage.text("Wait for the project catalogue to finish loading."); return }
         do { index = try ProjectIndexStore.update(root:catalogueRoot,edit); catalogueRevision &+= 1 }
         catch { self.error = error.localizedDescription }
+    }
+    @discardableResult func renameProject(_ id:UUID,to name:String) -> Bool {
+        let clean = name.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard ready,!clean.isEmpty,clean.count <= 240 else { error = AppLanguage.text("Project name"); return false }
+        do {
+            index = try ProjectIndexStore.update(root:catalogueRoot) { index in
+                guard let i = index.projects.firstIndex(where:{ $0.id == id && !$0.isUnsorted }) else { throw CocoaError(.fileNoSuchFile) }
+                index.projects[i].name = clean; index.projects[i].modifiedAt = Date()
+            }
+            catalogueRevision &+= 1; error = nil; return true
+        } catch { self.error = error.localizedDescription; return false }
     }
     func create(_ name: String) {
         let clean = name.trimmingCharacters(in:.whitespacesAndNewlines); guard !clean.isEmpty else { return }

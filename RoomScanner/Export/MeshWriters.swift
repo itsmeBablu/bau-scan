@@ -5,7 +5,10 @@ import simd
 /// PLY (ASCII). Meters, Y up.
 enum MeshWriters {
     private static let posix = Locale(identifier: "en_US_POSIX")
-    private static func f(_ v: Float) -> String { String(format: "%.4f", locale: posix, v == 0 ? 0 : v) }
+    private static func f(_ v: Float) -> String {
+        let value:Double = v == 0 ? 0.0 : Double(v)
+        return String(format:"%.4f",locale:posix,value)
+    }
 
     /// Wavefront OBJ : `v`, `vn`, `g <groupe>`, faces `f v//vn`. Indices 1-based.
     static func obj(_ mesh: TriangleMesh, name: String) -> Data {

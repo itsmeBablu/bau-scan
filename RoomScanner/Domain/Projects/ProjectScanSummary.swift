@@ -7,6 +7,11 @@ struct ProjectScanSummary: Equatable {
         let name: String
         let area: Double
         let story: Int
+        var elements:[String:Int] = [:]
+        var doors = 0
+        var windows = 0
+        var captureID:UUID? = nil
+        var polygon:[Point2D] = []
     }
     let floorArea: Double
     let wallAreaGross: Double
@@ -21,6 +26,6 @@ struct ProjectScanSummary: Equatable {
         floorArea = measures.floorArea; rooms = measures.roomCount; stories = measures.storyCount
         wallAreaGross = quantities.reduce(0) { $0 + $1.wallAreaGross }
         wallAreaNet = quantities.reduce(0) { $0 + $1.wallAreaNet }
-        roomDetails = house.allRooms.map { Room(id:$0.id,name:$0.name,area:RoomMeasurements(plan:$0).floorArea,story:$0.story) }
+        roomDetails = house.allRooms.map { Room(id:$0.id,name:$0.name,area:RoomMeasurements(plan:$0).floorArea,story:$0.story,elements:Dictionary(grouping:$0.objects,by: \.category).mapValues(\.count),doors:$0.openings.filter { $0.kind == .door }.count,windows:$0.openings.filter { $0.kind == .window }.count,captureID:$0.sourceCaptureID,polygon:$0.floorPolygon.map($0.transform.apply)) }
     }
 }

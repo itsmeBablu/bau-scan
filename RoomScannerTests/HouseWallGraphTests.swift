@@ -30,7 +30,7 @@ final class HouseWallGraphTests: XCTestCase {
         let graph = HouseWallGraph(house: House(room: room))
         XCTAssertEqual(graph.walls.count, 4)
         let area = graph.walls.flatMap(\.footprints).reduce(0) { $0 + Polygon2D.area($1) }
-        XCTAssertEqual(area, 4.73 * 3.73 - 12, accuracy: 0.000001)
+        XCTAssertEqual(area, 4.2 * 3.2 - 12, accuracy: 0.000001)
         XCTAssertEqual(RoomMeasurements(plan: room).floorArea, 12, accuracy: 0.000001)
         assertDisjoint(graph)
     }
@@ -154,7 +154,7 @@ final class HouseWallGraphTests: XCTestCase {
         let shared = graph.walls.filter { $0.wallType == .interior }
         XCTAssertEqual(shared.count, 1)
         XCTAssertEqual(shared.first?.thicknessSource, .defaultValue)
-        XCTAssertEqual(shared.first?.thickness ?? 0, 0.115, accuracy: 0.000001)
+        XCTAssertEqual(shared.first?.thickness ?? 0, FloorPlan.defaultWallThickness, accuracy: 0.000001)
         XCTAssertEqual(shared.first?.roomIdsOnSideA.count, 1)
         XCTAssertEqual(shared.first?.roomIdsOnSideB.count, 1)
     }

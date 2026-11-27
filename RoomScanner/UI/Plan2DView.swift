@@ -26,19 +26,22 @@ struct Plan2DView: View {
     @State private var lastMeasurementText: String?
     @State private var notes:[ARNote] = []
     @State private var selectedNote:ARNote?
-    @State private var showNotes = true
+    @AppStorage("evidence.2d.audio") private var showNotes = false
+    @AppStorage("evidence.2d.pins") private var showPins = false
     @State private var noteError:String?
     @State private var photos: [ProjectPhotoAsset] = []
-    @State private var showPhotos = true
+    @AppStorage("evidence.2d.photos") private var showPhotos = false
     @State private var selectedPhoto: ProjectPhotoAsset?
 
+    @Environment(\.colorScheme) private var colorScheme
+    private var drawingInk:CGColor { CGColor(gray:colorScheme == .dark ? 0.94 : 0.08,alpha:1) }
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         GeometryReader { geo in
             let size = geo.size
             ZStack {
-                DS.ColorToken.mediaSurface.color
+                (colorScheme == .dark ? Color(white:0.07) : .white)
                 if showGrid { CADGridBackground() }
                 if let image = render(size: size) {
                     Image(decorative: image, scale: displayScale * 2)
@@ -66,8 +69,8 @@ struct Plan2DView: View {
                     }
                 }
 
-                if showNotes {
-                    ForEach(notes.suffix(256)) { note in
+                if showNotes || showPins {
+                    ForEach(notes.suffix(256).filter { $0.audioFileName == nil ? showPins : showNotes }) { note in
                         if let point = note.viewingPosition {
                             let anchor = viewPoint(from:.init(x:point.x,y:-point.z),size:size)
                             let label = CGPoint(x:anchor.x,y:anchor.y-(note.anchorPinID == nil ? 0 : 34))
@@ -205,13 +208,14 @@ struct Plan2DView: View {
                         Toggle("Furniture and objects", isOn: $showObjects)
                         Toggle("Photos", isOn: $showPhotos)
                         Toggle("Voice notes",isOn:$showNotes)
+                        Toggle("Pins",isOn:$showPins)
                         Toggle("Drafting grid", isOn: $showGrid)
                     }
                     Section {
                         Button("Reset view") { resetView(); showingOptions = false }
                         Button("Restore defaults") {
                             textScale = 1; showDimensions = true; showLabels = true
-                            showObjects = true; showPhotos = true; showGrid = true
+                            showObjects = true; showPhotos = false; showNotes = false; showPins = false; showGrid = true
                         }
                     }
                 }
@@ -237,13 +241,13 @@ struct Plan2DView: View {
         r.options.showOpeningDimensions = showDimensions
         r.options.showRoomLabels = showLabels
         r.options.showObjects = showObjects
-        r.options.objectFill = DS.ColorToken.onBrand.platformColor.cgColor.copy(alpha:0.04) ?? DS.ColorToken.onBrand.platformColor.cgColor
-        r.options.objectStroke = DS.ColorToken.onBrand.platformColor.cgColor.copy(alpha:0.45) ?? DS.ColorToken.onBrand.platformColor.cgColor
-        r.options.wallColor = DS.ColorToken.onBrand.platformColor.cgColor
-        r.options.dimensionColor = DS.ColorToken.onBrand.platformColor.cgColor
-        r.options.dimensionLineColor = DS.ColorToken.onBrand.platformColor.cgColor.copy(alpha:0.55) ?? DS.ColorToken.onBrand.platformColor.cgColor
-        r.options.textColor = DS.ColorToken.onBrand.platformColor.cgColor
-        r.options.windowColor = DS.ColorToken.info.platformColor.cgColor
+        r.options.objectFill = drawingInk.copy(alpha:0.04) ?? drawingInk
+        r.options.objectStroke = drawingInk.copy(alpha:0.45) ?? drawingInk
+        r.options.wallColor = drawingInk
+        r.options.dimensionColor = drawingInk
+        r.options.dimensionLineColor = drawingInk.copy(alpha:0.55) ?? drawingInk
+        r.options.textColor = drawingInk
+        r.options.windowColor = drawingInk
         r.options.mode = .fill
         return r.image(house, pageSize: size, pixelScale: displayScale * 2)
     }
@@ -311,18 +315,19 @@ struct Plan2DView: View {
 
 /// Quiet paper drafting grid; optional, independent of actual measurement geometry.
 private struct CADGridBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
     var body: some View {
         Canvas { context, size in
-            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(DS.ColorToken.mediaSurface.color))
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(colorScheme == .dark ? Color(white:0.07) : .white))
             let minor: CGFloat = 16
             let major: CGFloat = minor * 5
             for x in stride(from: 0, through: size.width, by: minor) {
                 var line = Path(); line.move(to: CGPoint(x: x, y: 0)); line.addLine(to: CGPoint(x: x, y: size.height))
-                context.stroke(line, with: .color(DS.ColorToken.onBrand.color.opacity(x.truncatingRemainder(dividingBy: major) == 0 ? 0.08 : 0.025)), lineWidth: DS.Stroke.separator)
+                context.stroke(line, with: .color((colorScheme == .dark ? Color.white : .black).opacity(x.truncatingRemainder(dividingBy: major) == 0 ? 0.08 : 0.025)), lineWidth: DS.Stroke.separator)
             }
             for y in stride(from: 0, through: size.height, by: minor) {
                 var line = Path(); line.move(to: CGPoint(x: 0, y: y)); line.addLine(to: CGPoint(x: size.width, y: y))
-                context.stroke(line, with: .color(DS.ColorToken.onBrand.color.opacity(y.truncatingRemainder(dividingBy: major) == 0 ? 0.08 : 0.025)), lineWidth: DS.Stroke.separator)
+                context.stroke(line, with: .color((colorScheme == .dark ? Color.white : .black).opacity(y.truncatingRemainder(dividingBy: major) == 0 ? 0.08 : 0.025)), lineWidth: DS.Stroke.separator)
             }
         }
         .ignoresSafeArea()

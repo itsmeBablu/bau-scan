@@ -8,7 +8,9 @@ enum SavedExportFiles {
     static func store(_ source:URL,in folder:URL,
                       fault:(PublicationStage) throws -> Void = { _ in }) throws -> URL {
         try Task.checkCancellation()
-        let info = try source.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey])
+        var inspectedSource = source
+        inspectedSource.removeAllCachedResourceValues()
+        let info = try inspectedSource.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey])
         guard info.isRegularFile == true,info.isSymbolicLink != true,let bytes = info.fileSize,
               (0...1_073_741_824).contains(bytes),!source.lastPathComponent.hasPrefix(".") else { throw CocoaError(.fileReadCorruptFile) }
         let directory = try folder.resourceValues(forKeys:[.isDirectoryKey,.isSymbolicLinkKey])

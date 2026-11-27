@@ -20,7 +20,7 @@ struct CapturePinOverlay:UIViewRepresentable {
     let session:ARSession
     let pins:CapturePins
     func makeUIView(context:Context) -> Overlay { let view = Overlay(); view.session = session; view.pins = pins; view.start(); return view }
-    func updateUIView(_ view:Overlay,context:Context) { view.pins = pins; view.sync() }
+    func updateUIView(_ view:Overlay,context:Context) { view.session = session; view.pins = pins; view.sync() }
     static func dismantleUIView(_ view:Overlay,coordinator:()) { view.timer?.invalidate() }
     final class Overlay:UIView {
         weak var session:ARSession?

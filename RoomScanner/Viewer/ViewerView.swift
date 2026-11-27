@@ -15,14 +15,15 @@ struct ViewerView: View {
     @Bindable var state: ViewerState
     var radiators: [HouseRadiator] = []
     var photoPackageURL: URL? = nil
-    @State private var showNotes = true
+    @AppStorage("evidence.3d.photos") private var defaultPhotos = true
+    @AppStorage("evidence.3d.audio") private var defaultAudio = true
+    @AppStorage("evidence.3d.pins") private var defaultPins = true
     @State private var noteError:String?
     @State private var notes:[ARNote] = []
     @State private var selectedNote:ARNote?
     @State private var noteRoot:URL?
     @State private var markerRoot = Entity()
     @State private var photos: [ProjectPhotoAsset] = []
-    @State private var showPhotos = true
     @State private var selectedPhoto: ProjectPhotoAsset?
     @State private var photoError: String?
     @State private var pendingPhoto: ProjectPhotoAsset?
@@ -43,7 +44,7 @@ struct ViewerView: View {
         Group {
         #if os(iOS)
         if state.mode == .ar {
-            CameraARView(house:house,state:state,radiators:radiators,notes:showNotes ? notes : [],photos:showPhotos ? photos.map(\.photo) : [],onNote:selectNote,onPhoto:selectPhoto)
+            CameraARView(house:house,state:state,radiators:radiators,notes:notes.filter { $0.audioFileName == nil ? state.showPins : state.showNotes },photos:state.showPhotos ? photos.map(\.photo) : [],onNote:selectNote,onPhoto:selectPhoto)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             virtualView
@@ -52,6 +53,10 @@ struct ViewerView: View {
         virtualView
         #endif
         }
+        .onAppear { state.showPhotos = defaultPhotos; state.showNotes = defaultAudio; state.showPins = defaultPins }
+        .onChange(of:state.showPhotos) { _,value in defaultPhotos = value }
+        .onChange(of:state.showNotes) { _,value in defaultAudio = value }
+        .onChange(of:state.showPins) { _,value in defaultPins = value; updateMarkers() }
         .task(id:photoPackageURL) {
             notes = []; photos = []; selectedNote = nil; selectedPhoto = nil; pendingPhoto = nil
             noteError = nil; photoError = nil
@@ -67,10 +72,8 @@ struct ViewerView: View {
             } catch { if !Task.isCancelled { noteError = error.localizedDescription } }
         }
         .overlay(alignment:.topLeading) {
-            if !photos.isEmpty || !notes.isEmpty || photoError != nil || noteError != nil {
+            if photoError != nil || noteError != nil {
             VStack {
-                if !photos.isEmpty { Toggle("Photos",isOn:$showPhotos).toggleStyle(.button) }
-                if !notes.isEmpty { Toggle("Voice notes",isOn:$showNotes).toggleStyle(.button) }
                 if let noteError { Text(noteError).font(.caption).foregroundStyle(DS.ColorToken.error.color) }
                 if let photoError { Text(photoError).font(.caption).foregroundStyle(DS.ColorToken.error.color) }
             }.padding().dsMaterial(in:Capsule())
@@ -101,8 +104,8 @@ struct ViewerView: View {
                 .padding(.top, 10)
             }
         }
-        .sheet(item:$selectedNote) { note in VoiceNotePlayerSheet(note:note,root:noteRoot ?? ScanVoiceNoteLibrary.root) { saved in
-            if let i = notes.firstIndex(where:{ $0.id == saved.id }) { var value = saved; value.displayPosition = notes[i].displayPosition; notes[i] = value }
+        .sheet(item:$selectedNote) { note in VoiceNotePlayerSheet(note:note,root:noteRoot ?? ScanVoiceNoteLibrary.root,displayTitle:VoiceNoteDisplayName.title(note,summary:ProjectScanSummary(house:house),locale:locale)) { saved in
+            if let i = notes.firstIndex(where:{ $0.id == saved.id }) { var value = saved; value.displayPosition = notes[i].displayPosition; value.displayCameraPosition = notes[i].displayCameraPosition; notes[i] = value }
         } }
         .sheet(item:$selectedPhoto) { photo in
             ProjectPhotoGallery(assets:photos,initial:photo.id,flyTo:flyToPhoto,compactPresentation:true)
@@ -117,10 +120,10 @@ struct ViewerView: View {
             .onChange(of: state.showObjects) { _, _ in rebuildScene() }
             .onChange(of: house) { _, _ in rebuildScene(); resetView() }
             .onChange(of: radiators) { _, _ in rebuildScene() }
-            .onChange(of: showNotes) { _,_ in updateMarkers() }
+            .onChange(of: state.showNotes) { _,_ in updateMarkers() }
             .onChange(of: notes) { _, _ in updateMarkers() }
             .onChange(of: photos) { _, _ in updateMarkers() }
-            .onChange(of: showPhotos) { _, _ in updateMarkers() }
+            .onChange(of: state.showPhotos) { _, _ in updateMarkers() }
     }
     private var sceneContent: some View {
         RealityView { content in
@@ -245,12 +248,12 @@ struct ViewerView: View {
     private func selectPhoto(_ id:UUID) { selectedPhoto = photos.first { $0.photo.id == id } }
     private func updateMarkers() {
         markerRoot.children.removeAll()
-        if showPhotos { for photo in photos.suffix(200) {
+        if state.showPhotos { for photo in photos.suffix(200) {
             let marker = SurveyPhotoMarkers.entity(photo.photo)
             if selectedPhoto?.id == photo.id,let icon = marker.children.first { icon.scale = SIMD3(repeating:1.25) }
             markerRoot.addChild(marker)
         } }
-        for note in notes.suffix(256) where showNotes {
+        for note in notes.suffix(256) where note.audioFileName == nil ? state.showPins : state.showNotes {
             guard let p = note.viewingPosition else { continue }
             markerRoot.addChild(AnnotationIcon.noteEntity(note,position:p))
         }
@@ -342,7 +345,7 @@ private struct CameraARView: View {
                 ContentUnavailableView("AR is unavailable", systemImage: "arkit", description: Text("Use a supported iPhone or iPad to view your scan in AR."))
             } else if authorized {
                 NativeARView(house: house, radiators: radiators, notes:notes,photos:photos,onNote:onNote,onPhoto:onPhoto,dimensions: state.showDimensions, objects: state.showObjects,
-                             scale: state.arScale, resetToken: state.resetToken, active: scenePhase == .active && visible,
+                             scale: state.arScale, resetToken: state.resetToken, active: visible,
                              status: $cameraStatus, failed: $cameraFailed)
                     .id(state.resetToken)
                     .overlay(alignment: .top) {
@@ -406,8 +409,9 @@ private struct NativeARView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> CameraBackedARView {
         let view = CameraBackedARView(frame: .zero, cameraMode: .ar, automaticallyConfigureSession: false)
-        view.environment.background = .cameraFeed()
+        ARCameraPresentation.configure(view)
         view.session.delegate = context.coordinator
+        view.session.delegateQueue = .main
         let coordinator = context.coordinator
         view.addGestureRecognizer(UITapGestureRecognizer(target:coordinator,action:#selector(Coordinator.tapped(_:))))
         view.onWindowChanged = { [weak coordinator, weak view] in
@@ -415,6 +419,7 @@ private struct NativeARView: UIViewRepresentable {
             coordinator?.updateSession(view)
         }
         configure(view, coordinator: coordinator)
+        coordinator.observeApplication(view)
         return view
     }
 
@@ -485,18 +490,30 @@ private struct NativeARView: UIViewRepresentable {
         private var lastStatus = ""
         var report: ((String, Bool) -> Void)?
         var watchdog: Task<Void, Never>?
+        private var applicationObservers:[NSObjectProtocol] = []
+
+        func observeApplication(_ view:ARView) {
+            guard applicationObservers.isEmpty else { return }
+            for name in [UIApplication.didBecomeActiveNotification,UIApplication.willResignActiveNotification,UIApplication.didEnterBackgroundNotification] {
+                applicationObservers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self,weak view] _ in
+                    Task { @MainActor in if let view { self?.updateSession(view) } }
+                })
+            }
+        }
 
         func stop() {
             active = false
             running = false
             watchdog?.cancel()
+            for observer in applicationObservers { NotificationCenter.default.removeObserver(observer) }
+            applicationObservers.removeAll()
             report = nil; onNote = nil; onPhoto = nil
         }
 
         func updateSession(_ view: ARView) {
             cameraView = view
             guard !failedSession else { return }
-            guard active, view.window != nil,view.bounds.width > 0,view.bounds.height > 0 else {
+            guard ARCameraRunPolicy.shouldRun(visible:active,attached:view.window != nil,width:view.bounds.width,height:view.bounds.height,applicationActive:UIApplication.shared.applicationState == .active) else {
                 if running { view.session.pause(); running = false }
                 watchdog?.cancel()
                 return
@@ -505,7 +522,7 @@ private struct NativeARView: UIViewRepresentable {
                 let configuration = ARWorldTrackingConfiguration()
                 configuration.planeDetection = [.horizontal]
                 configuration.environmentTexturing = .automatic
-                view.environment.background = .cameraFeed()
+                ARCameraPresentation.configure(view)
                 view.session.run(configuration, options: needsReset ? [.resetTracking, .removeExistingAnchors] : [])
                 needsReset = false
                 running = true

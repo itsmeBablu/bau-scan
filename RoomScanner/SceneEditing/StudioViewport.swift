@@ -49,10 +49,10 @@ enum StudioCameraFraming {
             if let level = note.level,level != previousStory { continue }
             guard let p = note.viewingPosition else { continue }
             let node = iconNode(symbol:note.audioFileName == nil ? "mappin" : AnnotationPresentation.audioSymbol,name:"note:"+note.id.uuidString)
-            let height = note.audioFileName == nil ? 0.12 : 0.28
-            node.position = SCNVector3(p.x,p.y+height,p.z); noteRoot.addChildNode(node)
-            if let stem = annotationLine(from:p,to:.init(x:p.x,y:p.y+height,z:p.z)) { noteRoot.addChildNode(stem) }
-            if let camera = note.viewingCameraPosition,let ray = annotationLine(from:camera,to:p) { noteRoot.addChildNode(ray) }
+            let iconPoint = AnnotationPresentation.noteIconPosition(note,anchor:p)
+            node.position = SCNVector3(iconPoint.x,iconPoint.y,iconPoint.z); noteRoot.addChildNode(node)
+            if let stem = annotationLine(from:p,to:iconPoint) { noteRoot.addChildNode(stem) }
+            if note.audioFileName == nil,let camera = note.viewingCameraPosition,let ray = annotationLine(from:camera,to:p) { noteRoot.addChildNode(ray) }
         }
         view?.scene?.rootNode.addChildNode(noteRoot)
     }
@@ -60,7 +60,8 @@ enum StudioCameraFraming {
         let material = SCNMaterial(); material.lightingModel = .constant; material.isDoubleSided = true
         material.readsFromDepthBuffer = false; material.writesToDepthBuffer = false
         material.diffuse.contents = AnnotationIcon.image(symbol)
-        let node = SCNNode(geometry:SCNPlane(width:0.16,height:0.16)); node.name = name
+        let size = CGFloat(AnnotationPresentation.iconSize)
+        let node = SCNNode(geometry:SCNPlane(width:size,height:size)); node.name = name
         node.renderingOrder = 1000
         node.geometry?.materials = [material]; node.constraints = [SCNBillboardConstraint()]; return node
     }
@@ -70,7 +71,7 @@ enum StudioCameraFraming {
         guard length.isFinite,length > 0.001 else { return nil }
         let material = SCNMaterial(); material.lightingModel = .constant
         material.diffuse.contents = platformColor(CGColor(red:0.45,green:0.4,blue:0.95,alpha:1))
-        let node = SCNNode(geometry:SCNCylinder(radius:0.002,height:CGFloat(length)))
+        let node = SCNNode(geometry:SCNCylinder(radius:CGFloat(AnnotationPresentation.lineRadius),height:CGFloat(length)))
         node.geometry?.materials = [material]; node.simdPosition = (start+end)/2
         node.simdOrientation = simd_quatf(from:SIMD3(0,1,0),to:delta/length); return node
     }
@@ -370,12 +371,12 @@ enum StudioCameraFraming {
         }
         return nil
     }
-    func png() throws -> Data {
+    func png(size:CGSize = .init(width:1920,height:1440)) throws -> Data {
         guard let view,let scene = view.scene,let camera = view.pointOfView else { throw SceneEditDocument.Failure.exportFailed }
         highlight(nil); defer { highlight(selected) }
         let renderer = SCNRenderer(device: MTLCreateSystemDefaultDevice(),options: nil)
         renderer.scene = scene; renderer.pointOfView = camera
-        let image = renderer.snapshot(atTime: 0,with: .init(width: 1920,height: 1440),antialiasingMode: .multisampling4X)
+        let image = renderer.snapshot(atTime: 0,with:size,antialiasingMode:.multisampling4X)
         #if os(iOS)
         guard let data = image.pngData() else { throw SceneEditDocument.Failure.exportFailed }
         #else

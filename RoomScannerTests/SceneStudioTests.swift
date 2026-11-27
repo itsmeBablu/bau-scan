@@ -821,14 +821,42 @@ final class SceneStudioTests: XCTestCase {
         try await Task.sleep(for:.milliseconds(650))
         XCTAssertNotNil(hosting.presentedViewController,"Scan a house must open its full-screen capture without a missing-environment crash")
     }
+    @MainActor func testNewlySavedHouseOpensItsFloorPlanInsideProjectWithoutRestart() async throws {
+        let location = StorageLocation.temporary()
+        defer { try? FileManager.default.removeItem(at:location.documentsURL) }
+        let plan = FloorPlanBuilder().build(from:SyntheticRooms.rectangularRoom().scan,name:"Kitchen")
+        let house = House(name:"Saved floor plan",stories:[.init(index:0,rooms:[plan])])
+        let reference = ProjectReference(kind:.house,itemID:house.id,library:"local")
+        let project = RenovationProject(name:"Project",references:[reference])
+        try HousePackage(record:HouseRecord(house:house),house:house,rooms:[]).write(to:location.housePackageURL(for:house.id))
+        try ProjectIndexStore.write(.init(projects:[project]),root:location.documentsURL)
+        let workspace = RenovationWorkspace(localRoot:location.documentsURL)
+        await workspace.reloadAndWait(location:location)
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene:scene)
+        window.frame = CGRect(x:0,y:0,width:393,height:852)
+        let hosting = UIHostingController(rootView:ProjectChatWorkspace(projectID:project.id,savedReference:.constant(reference),onScan:{},onCapture:{ _ in },onClose:{})
+            .environment(workspace).environment(RoomStore(location:location,allowsCloud:false)))
+        window.rootViewController = hosting; window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        func controllers(_ controller:UIViewController) -> [UIViewController] { [controller]+controller.children.flatMap(controllers) }
+        var titles:[String] = []
+        for _ in 0..<20 {
+            titles = controllers(hosting).compactMap { $0.navigationItem.title }
+            if titles.contains(house.name) { break }
+            try await Task.sleep(for:.milliseconds(100))
+        }
+        XCTAssertEqual(controllers(hosting).compactMap { $0 as? UITabBarController }.first?.selectedIndex,1)
+        XCTAssertTrue(titles.contains(house.name),"The saved floor-plan detail must open immediately: \(titles)")
+    }
     @MainActor func testProjectOwnsHouseTechnikAndStudioTabs() async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene:scene)
         window.frame = CGRect(x:0,y:0,width:393,height:852)
         let workspace = RenovationWorkspace()
-        let hosting = UIHostingController(rootView:NavigationStack {
-            ProjectChatWorkspace(projectID:UUID(),onScan:{},onCapture:{ _ in })
-        }.environment(workspace).environment(RoomStore(location:.temporary(),allowsCloud:false)))
+        let hosting = UIHostingController(rootView:
+            ProjectChatWorkspace(projectID:UUID(),savedReference:.constant(nil),onScan:{},onCapture:{ _ in },onClose:{})
+                .environment(workspace).environment(RoomStore(location:.temporary(),allowsCloud:false)))
         window.rootViewController = hosting; window.makeKeyAndVisible()
         defer { window.isHidden = true; window.rootViewController = nil }
         try await Task.sleep(for:.milliseconds(300))

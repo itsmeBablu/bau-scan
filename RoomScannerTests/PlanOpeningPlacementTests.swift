@@ -12,7 +12,7 @@ final class PlanOpeningPlacementTests: XCTestCase {
         let host = try XCTUnwrap(graph.openingHosts.first { $0.openingID == opening.id })
         let wall = try XCTUnwrap(graph.walls.first { host.wallIDs.contains($0.id) })
         XCTAssertEqual(wall.segment.distance(to: room.transform.apply(display.center)), 0, accuracy: 1e-8)
-        XCTAssertGreaterThan(display.center.distance(to: opening.center), 0.1)
+        XCTAssertEqual(display.center.distance(to: opening.center),wall.thickness/2,accuracy:0.000001)
         XCTAssertEqual(display.width, opening.width)
         XCTAssertEqual(display.sillHeight, opening.sillHeight)
         XCTAssertEqual(room, original)

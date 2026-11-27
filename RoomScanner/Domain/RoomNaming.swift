@@ -29,7 +29,7 @@ struct RoomNaming {
     }
 
     static func defaultBaseName(_ label: RoomLabel) -> String {
-        String(localized: String.LocalizationValue(label.localizationKey), bundle: .main, locale: AppLanguage.locale)
+        AppLanguage.text(label.localizationKey)
     }
 }
 

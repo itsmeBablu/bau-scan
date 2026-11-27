@@ -29,9 +29,10 @@ struct HousePackage {
                          roomExtras: [UUID: RoomExtras] = [:], createdAt: Date = Date()) throws -> HousePackage {
         let house = try HouseBuilder().build(from: structure, name: name)
         let rooms = house.allRooms.map { plan -> RoomPackage in
-            let extras = roomExtras[plan.id]
+            let sourceID = plan.sourceCaptureID ?? plan.id
+            let extras = plan.id == sourceID ? roomExtras[sourceID] : nil
             return RoomPackage(record: RoomRecord(plan: plan, createdAt: createdAt), plan: plan,
-                               scan: structure.rooms.first { $0.id == plan.id },
+                               scan: plan.id == sourceID ? structure.rooms.first { $0.id == sourceID } : nil,
                                capturedRoomData: extras?.capturedRoomData, usdzData: extras?.usdzData, usdzMeshData: extras?.usdzMeshData,
                                thumbnailPNG: PlanRenderer.thumbnailPNG(for: plan))
         }
@@ -45,6 +46,7 @@ struct HousePackage {
         defer { interval.end() }
         if let radiators { try radiators.validate(for: house) }
         let staging = try PackageReplacement.staging(for:packageURL,fm:fm)
+        try fm.createDirectory(at:staging,withIntermediateDirectories:true)
         try fm.createDirectory(at: staging.appendingPathComponent(F.rooms, isDirectory: true), withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: staging) }
         try RoomPackage.encoder.encode(record).write(to: staging.appendingPathComponent(F.meta))

@@ -18,6 +18,7 @@ struct LiveScanNotes: View {
     var nearbyPin:(TechnicalPoint3)->ARNote? = { _ in nil }
     var selectedPin: ARNote? = nil
     var onPin: (ARNote)->Void = { _ in }
+    var onTextSaved: () -> Void = {}
     @State private var recorder = NoteAudioRecorder()
     @State private var holding = false
     @State private var pin: TechnicalPoint3?
@@ -74,7 +75,7 @@ struct LiveScanNotes: View {
             if let selectedPin,!recorder.recording {
                 HStack {
                     TextField("Note",text:$text).textFieldStyle(.roundedBorder)
-                    Button { pendingText = selectedPin; saveText() } label: { Image(systemName:"checkmark.circle.fill") }.accessibilityLabel("Save note")
+                    Button { pendingText = selectedPin; saveText(closeEditor:true) } label: { Image(systemName:"checkmark.circle.fill") }.accessibilityLabel("Save note")
                 }.padding(8).frame(width:260).dsMaterial(in:RoundedRectangle(cornerRadius:DS.Radius.card)).offset(y:-60)
             }
         }
@@ -130,7 +131,7 @@ struct LiveScanNotes: View {
             } catch { message = error.localizedDescription }
         }
     }
-    private func saveText() {
+    private func saveText(closeEditor:Bool = false) {
         guard !busy else { return }; busy = true
         Task { @MainActor in
             defer { busy = false }
@@ -141,6 +142,7 @@ struct LiveScanNotes: View {
                 let saved = try await NoteSaveWorker.text(value,root:root)
                 onPin(saved)
                 pendingText = nil; message = AppLanguage.text("Pinned note saved")
+                if closeEditor { text = ""; pin = nil; message = nil; onTextSaved() }
                 let media = ScanVoiceMedia(note:saved,audio:nil,pose:capturedPose,capturedAt:Date())
                 Task { try? await persistence.write(media,key:"note-"+saved.id.uuidString,latest:false,media:true) }
             } catch { message = error.localizedDescription }

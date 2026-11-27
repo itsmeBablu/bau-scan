@@ -98,6 +98,8 @@ struct FloorPlan: Codable, Equatable, Identifiable {
     var ceilingHeight: ClosedRange<Double>
     var floorOutlineSource: FloorOutlineSource? = nil
     var floorSlabThickness: Double? = nil
+    /// Multiple physical rooms may come from one continuous RoomPlan capture.
+    var sourceCaptureID: UUID? = nil
 
     /// Floor extents must never grow to include loose furniture outside the room.
     var floorBounds: Rect2D {

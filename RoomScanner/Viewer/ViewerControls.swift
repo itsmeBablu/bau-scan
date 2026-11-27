@@ -47,6 +47,9 @@ struct ViewerControls: View {
             }
             Toggle("viewer.dimensions",isOn: $state.showDimensions)
             Toggle("viewer.objects",isOn: $state.showObjects)
+            Toggle("Photos",isOn:$state.showPhotos)
+            Toggle("Voice notes",isOn:$state.showNotes)
+            Toggle("Pins",isOn:$state.showPins)
             if state.mode != .ar { Toggle("viewer.measure",isOn: $state.isMeasuring) }
             if usdzURL != nil { Button("viewer.quicklook") { showQuickLook = true } }
         } label: { controlLabel("Options",icon: "ellipsis.circle") }

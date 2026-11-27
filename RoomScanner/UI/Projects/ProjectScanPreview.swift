@@ -14,6 +14,7 @@ struct ProjectScanPreview: View {
     @State private var viewer = ViewerState()
     private var scans: [ProjectLibraryEntry] { entries.filter { !$0.isDesign } }
     private var entry: ProjectLibraryEntry? { scans.first { $0.reference == reference } }
+    private var loadID:String { (entry?.id ?? "")+(entry?.root.path ?? "")+(entry?.url.path ?? "") }
     private var shown: House? { house.map { value in House(id:value.id,name:value.name,stories:value.stories.filter { story == nil || $0.index == story }) } }
     var body: some View {
         VStack(alignment:.leading,spacing:12) {
@@ -29,7 +30,7 @@ struct ProjectScanPreview: View {
                 else if technical != nil { Text("A dimensioned room-shell floor plan is not stored in this utility-room capture. Use its 3D survey.") }
             case .model:
                 if let shown { ViewerView(house:shown,state:viewer,photoPackageURL:entry?.url).frame(height:320) }
-                else if let technical { TechnicalSavedScanView(package:technical).frame(height:360) }
+                else if let technical { TechnicalSavedScanView(package:technical,noteReference:entry?.reference).frame(height:360) }
             case .measure:
                 if let shown { ForEach(shown.allRooms) { room in
                     let q = RenovationQuantities(room)
@@ -54,14 +55,14 @@ struct ProjectScanPreview: View {
             }
         }
         .task { reference = scans.first?.reference }
-        .task(id:reference) { await load() }
+        .task(id:loadID) { await load() }
         .sheet(item:$photo) { selected in SurveyPhotoGallery(photos:photos,initial:selected.id) }
     }
     private func load() async {
         house = nil; technical = nil; photos = []; error = nil
         guard let entry else { return }
         do {
-            let result = try await Task.detached { () throws -> (House?,TechnicalRoomPackage?,[SurveyPhotoImage]) in
+            let result = try await BackgroundWork.run { () throws -> (House?,TechnicalRoomPackage?,[SurveyPhotoImage]) in
                 if entry.reference.kind == .technicalRoom {
                     let package = try TechnicalRoomPackage.read(from:entry.url)
                     return (nil,package,SurveyPhotoStore.images(technical:package))
@@ -70,9 +71,12 @@ struct ProjectScanPreview: View {
                 if entry.reference.kind == .house { house = try HousePackage.readHouse(from:entry.url) }
                 else { house = House(room:try RoomPackage.readPlan(from:entry.url)) }
                 return (house,nil,try SurveyPhotoStore.images(from:entry.url,house:house))
-            }.value
-            guard reference == entry.reference else { return }
+            }
+            guard !Task.isCancelled,reference == entry.reference,self.entry?.root == entry.root,self.entry?.url == entry.url else { return }
             house = result.0; technical = result.1; photos = result.2; story = result.0?.stories.first?.index
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            guard !Task.isCancelled,reference == entry.reference,self.entry?.root == entry.root,self.entry?.url == entry.url else { return }
+            self.error = error.localizedDescription
+        }
     }
 }

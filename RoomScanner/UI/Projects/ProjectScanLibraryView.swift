@@ -3,6 +3,7 @@ import SwiftUI
 struct ProjectScanLibraryView: View {
     let projectID: UUID
     let technical: Bool
+    var onScan:(()->Void)? = nil
     @Environment(RenovationWorkspace.self) private var workspace
     @Environment(\.locale) private var locale
     #if os(iOS)
@@ -11,7 +12,11 @@ struct ProjectScanLibraryView: View {
     #else
     private var compact: Bool { false }
     #endif
-    @AppStorage("ui.scanLibrary.layout") private var layout = "list"
+    @AppStorage private var layout:String
+    init(projectID:UUID,technical:Bool,onScan:(()->Void)? = nil) {
+        self.projectID = projectID; self.technical = technical; self.onScan = onScan
+        _layout = AppStorage(wrappedValue:"grid",technical ? "ui.technicalLibrary.layout" : "ui.houseLibrary.layout")
+    }
     @State private var closedBuildings: Set<ProjectScanGrouping.BuildingKey> = []
     @State private var closedLevels: Set<LevelIdentity> = []
     private struct LevelIdentity: Hashable {
@@ -33,15 +38,18 @@ struct ProjectScanLibraryView: View {
                 ScrollView { LazyVStack(alignment:.leading,spacing:DS.Spacing.l) { groups }.padding(DS.Spacing.l) }
             } else { List { groups } }
         }
-        .toolbar {
-            ToolbarItem {
-                Menu("View options",systemImage:"line.3.horizontal.decrease") {
-                    Picker("Layout",selection:$layout) {
-                        Label("List",systemImage:"list.bullet").tag("list")
-                        Label("Grid",systemImage:"square.grid.2x2").tag("grid")
-                    }
-                }
-            }
+        .safeAreaInset(edge:.bottom) {
+            HStack {
+                Spacer()
+                if let onScan { Button(action:onScan) { Image(systemName:"plus").frame(width:44,height:44) }.accessibilityLabel(technical ? "Scan Technik room" : "Scan a house") }
+                Menu {
+                Picker("Layout",selection:$layout) {
+                    Label("List",systemImage:"list.bullet").tag("list")
+                    Label("Grid",systemImage:"square.grid.2x2").tag("grid")
+                }.pickerStyle(.inline)
+                } label: { Label("View options",systemImage:"ellipsis.circle") }
+                    .labelStyle(.iconOnly).frame(width:44,height:44).accessibilityIdentifier("scan.library.options")
+            }.buttonStyle(.plain).padding(.horizontal,12).padding(.vertical,4).dsMaterial(in:Capsule()).fixedSize().frame(maxWidth:.infinity,alignment:.trailing).padding(.horizontal).padding(.bottom,8)
         }
     }
     private var groups: some View {
@@ -83,7 +91,7 @@ struct ProjectScanLibraryView: View {
                             VStack(alignment:.leading) {
                                 Text(room.name)
                                 let mapped = workspace.organization(for:entry.reference)?.storyLevels?[room.story]
-                                Text(mapped.map { StoryNaming.localizedName(for:$0,locale:locale) } ?? AppLanguage.text("Unassigned level",locale:locale))
+                                Text(mapped.map { workspace.floorName($0,projectID:projectID,locale:locale) } ?? AppLanguage.text("Unassigned level",locale:locale))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()
@@ -95,7 +103,7 @@ struct ProjectScanLibraryView: View {
         }
     }
     private func levelName(_ key:ProjectScanGrouping.LevelKey) -> String {
-        if let level = key.number { return StoryNaming.localizedName(for:level,locale:locale) }
+        if let level = key.number { return workspace.floorName(level,projectID:projectID,locale:locale) }
         return key.otherName ?? AppLanguage.text("Unassigned level",locale:locale)
     }
 }

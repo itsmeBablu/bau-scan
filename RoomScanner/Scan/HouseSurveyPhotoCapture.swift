@@ -54,13 +54,13 @@ import Observation
             else {
                 room = candidates.min { a,b in
                     func distance(_ plan: FloorPlan) -> Double {
-                        guard let scan = scans.first(where: { $0.id == plan.id }) else { return .infinity }
+                        guard let scan = scans.first(where: { $0.id == (plan.sourceCaptureID ?? plan.id) }) else { return .infinity }
                         return abs(photo.pose[13] - StoryDetector.floorHeight(of:scan) - 1.4)
                     }
                     return distance(a) < distance(b)
                 }
             }
-            guard let room,let scan = scans.first(where: { $0.id == room.id }) else { return photo }
+            guard let room,let scan = scans.first(where: { $0.id == (room.sourceCaptureID ?? room.id) }) else { return photo }
             photo.roomID = room.id
             var rotation = room.transform.rotation
             if alignSingleRoom,let longest = scan.walls.max(by:{ $0.dimensions.x < $1.dimensions.x }) {

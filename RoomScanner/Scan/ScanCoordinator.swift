@@ -174,7 +174,18 @@ final class ScanCoordinator {
         guard let frame = arSession.currentFrame else { return nil }
         return (0..<4).flatMap { c in (0..<4).map { Double(frame.camera.transform[c][$0]) } }
     }
-    func noteSurface() -> TechnicalPoint3? { CaptureSurfacePoint.center(session:arSession) }
+    func noteSurface() -> TechnicalPoint3? {
+        guard let point = CaptureSurfacePoint.center(session:arSession) else { return nil }
+        guard let latestRoom else { return point }
+        let scan = CapturedRoomAdapter.scanInput(from:latestRoom)
+        var builder = FloorPlanBuilder(); builder.alignToLongestWall = false
+        let room = builder.build(from:scan,name:"")
+        guard room.floorOutlineSource != .boundsEstimate else { return point }
+        let floor = StoryDetector.floorHeight(of:scan)
+        let local = TechnicalPoint3(x:point.x,y:point.y-floor,z:point.z)
+        let anchored = ScanNoteRegistration.contained(local,in:room)
+        return .init(x:anchored.x,y:anchored.y+floor,z:anchored.z)
+    }
     func flushCheckpoint(_ trigger:ScanCheckpointPolicy.Trigger) {
         guard active,state == .scanning,checkpointTask == nil,let room = latestRoom,let persistence else { return }
         let time = Date().timeIntervalSinceReferenceDate

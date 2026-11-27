@@ -38,7 +38,7 @@ enum SurveyPhotoArchiveWriter {
                 summary = ProjectScanSummary(house:house)
                 images = try SurveyPhotoStore.images(from:entry.url,house:house)
             }
-            records += try write(images,to:root,used:&used,sourceID:ref.id,organization:organization[ref.id],summary:summary,locale:locale)
+            records += try write(images,to:root,used:&used,sourceID:ref.id,organization:organization[ref.id],summary:summary,locale:locale,floorNames:project.details?.floorNames ?? [:])
         }
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted,.sortedKeys]
         try encoder.encode(records).write(to:root.appendingPathComponent("photo-index.json"))
@@ -69,13 +69,13 @@ enum SurveyPhotoArchiveWriter {
         var sourceID: String?
     }
     /// `used` spans all source scans in a bundle, protecting same-name rooms and case-only collisions.
-    static func write(_ images: [SurveyPhotoImage], to root: URL, used: inout PhotoArchiveLayout, sourceID: String? = nil,organization:ScanOrganization? = nil,summary:ProjectScanSummary? = nil,locale:Locale = AppLanguage.locale) throws -> [Entry] {
+    static func write(_ images: [SurveyPhotoImage], to root: URL, used: inout PhotoArchiveLayout, sourceID: String? = nil,organization:ScanOrganization? = nil,summary:ProjectScanSummary? = nil,locale:Locale = AppLanguage.locale,floorNames:[Int:String] = [:]) throws -> [Entry] {
         var manifest: [Entry] = []
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted,.sortedKeys]; encoder.dateEncodingStrategy = .iso8601
         for image in images {
             try image.photo.validate()
             guard image.jpegData.count <= 4*1_048_576,image.jpegData.starts(with:[0xff,0xd8]) else { throw CocoaError(.fileReadCorruptFile) }
-            let paths = try used.paths(photo:image.photo,roomName:image.roomName,sourceID:sourceID ?? "",organization:organization,summary:summary,locale:locale)
+            let paths = try used.paths(photo:image.photo,roomName:image.roomName,sourceID:sourceID ?? "",organization:organization,summary:summary,locale:locale,floorNames:floorNames)
             let target = root.appendingPathComponent(paths.image)
             try FileManager.default.createDirectory(at:target.deletingLastPathComponent(),withIntermediateDirectories:true)
             let jpeg = target.lastPathComponent

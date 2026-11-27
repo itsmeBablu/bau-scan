@@ -111,25 +111,45 @@ struct DSInlineAudioRow: View {
     @Binding var progress: Double
     var toggle:()->Void
     var body: some View {
-        HStack(spacing:DS.Spacing.m) {
-            Button(action:toggle) { Image(systemName:playing ? "pause.fill" : "play.fill") }
-                .buttonStyle(DSButtonStyle(kind:.floating)).accessibilityLabel(playing ? "Pause playback" : "Play recording")
-            VStack(alignment:.leading,spacing:DS.Spacing.xs) {
-                Text(title).font(DS.Typography.headline)
-                Text(subtitle).font(DS.Typography.caption).foregroundStyle(DS.ColorToken.textSecondary.color)
-                if !waveform.isEmpty {
-                    GeometryReader { geometry in
-                        HStack(alignment:.center,spacing:DS.Spacing.xs/2) {
-                            ForEach(waveform.indices,id:\.self) { index in
-                                Capsule().fill(DS.ColorToken.accent.color.opacity(Double(index)/Double(waveform.count) <= progress ? 1 : 0.35))
-                                    .frame(height:max(DS.Spacing.xs,geometry.size.height*min(1,max(0,waveform[index]))))
-                            }
-                        }.frame(height:geometry.size.height)
-                    }.frame(height:DS.Spacing.xl).accessibilityHidden(true)
-                }
-                Slider(value:$progress,in:0...1).accessibilityLabel("Playback position")
-                Text(time).font(DS.Typography.caption).monospacedDigit()
+        VStack(alignment:.leading,spacing:2) {
+            Text(title).font(DS.Typography.subheadline.weight(.semibold)).lineLimit(1)
+            HStack(spacing:DS.Spacing.xs) {
+                Button(action:toggle) { Image(systemName:playing ? "pause.fill" : "play.fill") }
+                    .font(.system(size:16,weight:.semibold)).frame(width:44,height:44).contentShape(Rectangle())
+                    .buttonStyle(.plain).accessibilityLabel(playing ? "Pause playback" : "Play recording")
+                DSAudioScrubber(waveform:waveform,progress:$progress)
+                Text(time).font(.caption2).monospacedDigit().lineLimit(1).minimumScaleFactor(0.75)
             }
-        }
+            Text(subtitle).font(DS.Typography.caption).foregroundStyle(DS.ColorToken.textSecondary.color).lineLimit(1)
+        }.padding(.horizontal,8).padding(.vertical,3).background(DS.ColorToken.surface.color,in:RoundedRectangle(cornerRadius:12))
+    }
+}
+
+private struct DSAudioScrubber:View {
+    let waveform:[Double]
+    @Binding var progress:Double
+    var body:some View {
+        GeometryReader { geometry in
+            Canvas { context,size in
+                let count = 48,step = size.width/Double(count)
+                for index in 0..<count {
+                    let peak = waveform.isEmpty ? 0.18 : waveform[min(waveform.count-1,index*waveform.count/count)]
+                    let height = max(3,28*min(1,max(0,peak)))
+                    let rect = CGRect(x:Double(index)*step,y:(size.height-height)/2,width:max(1,step-2),height:height)
+                    let color = Double(index)/Double(count) <= progress ? DS.ColorToken.accent.color : DS.ColorToken.textSecondary.color.opacity(0.35)
+                    context.fill(Path(roundedRect:rect,cornerRadius:1.5),with:.color(color))
+                }
+            }.contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance:0).onChanged { value in progress = min(1,max(0,value.location.x/max(1,geometry.size.width))) })
+        }.frame(minWidth:60,maxWidth:.infinity).frame(height:44)
+            .accessibilityElement().accessibilityLabel("Playback position")
+            .accessibilityValue(Text(progress,format:.percent.precision(.fractionLength(0))))
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: progress = min(1,progress+0.05)
+                case .decrement: progress = max(0,progress-0.05)
+                @unknown default: break
+                }
+            }
     }
 }

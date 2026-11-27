@@ -1,6 +1,12 @@
 #if os(iOS)
 import SwiftUI
 
+struct ProjectScanRequest:Identifiable {
+    let id = UUID()
+    let projectID:UUID?
+    let mode:ScanMode
+}
+
 /// Prepared on disk before presenting either scanner. Does not own a camera/session.
 struct PreparedProjectCapture: Identifiable {
     let mode: ScanMode
@@ -14,8 +20,9 @@ struct ScanSetupSheet: View {
     let workspace: RenovationWorkspace
     let defaultLocation:StorageLocation
     let onPrepared: (PreparedProjectCapture) -> Void
+    private let fixedProjectID:UUID?
     @State private var projectID: UUID?
-    @State private var mode: ScanMode
+    private let mode: ScanMode
     @State private var organization: ScanOrganization
     @State private var preparing = false
     @State private var confirmingCollision = false
@@ -24,8 +31,9 @@ struct ScanSetupSheet: View {
 
     init(workspace: RenovationWorkspace, projectID: UUID?, mode: ScanMode, defaultLocation:StorageLocation, onPrepared: @escaping (PreparedProjectCapture) -> Void) {
         self.workspace = workspace; self.defaultLocation = defaultLocation; self.onPrepared = onPrepared
+        fixedProjectID = projectID
         _projectID = State(initialValue: projectID.flatMap { workspace.project($0)?.isUnsorted == true ? nil : $0 })
-        _mode = State(initialValue: mode)
+        self.mode = mode
         _organization = State(initialValue: .init(kind: mode == .technicalRoom ? .technicalRoom : mode == .house ? .house : .room))
     }
     private var collisions: [ProjectReference] {
@@ -38,16 +46,17 @@ struct ScanSetupSheet: View {
         NavigationStack {
             Form {
                 Section("Save to project") {
+                    if let fixedProjectID {
+                        LabeledContent("Project",value:workspace.project(fixedProjectID)?.name ?? AppLanguage.text("Unsorted"))
+                    } else {
                     Picker("Project", selection: $projectID) {
                         Text("Unsorted").tag(UUID?.none)
                         ForEach(workspace.index.projects.filter { !$0.isUnsorted }) { project in
                             Text(project.name).tag(Optional(project.id))
                         }
                     }
-                    Picker("Scan", selection: $mode) {
-                        Text("House").tag(ScanMode.house)
-                        Text("Technik").tag(ScanMode.technicalRoom)
                     }
+                    LabeledContent("Scan",value:AppLanguage.text(mode == .technicalRoom ? "Technik" : "House"))
                 }
                 ScanOrganizationFields(value: $organization)
                 if let nextNumber { Section { Button("Suggest next number") { organization.number = nextNumber } } }
@@ -68,7 +77,6 @@ struct ScanSetupSheet: View {
                         .disabled(preparing || !ScanCoordinator.isSupported || (try? organization.validate()) == nil)
                 }
             }
-            .onChange(of: mode) { _, value in organization.kind = value == .technicalRoom ? .technicalRoom : value == .house ? .house : .room }
             .confirmationDialog("This number is already used here", isPresented: $confirmingCollision, titleVisibility: .visible) {
                 if let nextNumber { Button("Use next available number") { organization.number = nextNumber; start() } }
                 Button("Keep both") { start() }
@@ -84,7 +92,7 @@ struct ScanSetupSheet: View {
     private func start() {
         guard !preparing else { return }
         preparing = true
-        let mode = mode, projectID = projectID, organization = organization
+        let mode = mode, projectID = fixedProjectID ?? projectID, organization = organization
         Task {
             defer { preparing = false }
             do {

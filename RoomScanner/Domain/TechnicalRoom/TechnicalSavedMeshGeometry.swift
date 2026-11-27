@@ -77,3 +77,13 @@ extension TechnicalMeshSnapshot {
         return .init(timestamp: timestamp, patches: filtered, alignmentVerified: alignmentVerified, truncated: truncated)
     }
 }
+
+// Display correction for legacy markers outside the captured mesh extents.
+// Raw observations and mesh vertices remain unchanged.
+extension TechnicalSavedMeshGeometry {
+    func containedMarker(_ point:TechnicalPoint3) -> TechnicalPoint3 {
+        let inside = abs(point.x-center.x) <= extent.x/2 && abs(point.y-center.y) <= extent.y/2 && abs(point.z-center.z) <= extent.z/2
+        guard !inside else { return point }
+        return vertices.min { $0.distance(to:point) < $1.distance(to:point) } ?? point
+    }
+}

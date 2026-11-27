@@ -16,7 +16,9 @@ enum CapturedRoomAdapter {
                        dimensions: $0.dimensions, transform: $0.transform, confidence: confidence($0.confidence))
         }
         let labels = room.sections.compactMap { RoomLabel(rawValue: String(describing: $0.label)) }
-        return ScanInput(id: room.identifier, story: room.story, sectionLabels: labels, surfaces: surfaces, objects: objects)
+        var scan = ScanInput(id: room.identifier, story: room.story, sectionLabels: labels, surfaces: surfaces, objects: objects)
+        scan.sections = room.sections.map { ScanSection(label:RoomLabel(rawValue:$0.label.rawValue) ?? .unidentified,center:$0.center) }
+        return scan
     }
 
     static func surface(_ s: CapturedRoom.Surface, _ category: ScanSurface.Category) -> ScanSurface {

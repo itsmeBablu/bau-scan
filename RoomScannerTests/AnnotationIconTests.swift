@@ -11,7 +11,7 @@ final class AnnotationIconTests:XCTestCase {
         XCTAssertNotNil(marker.components[BillboardComponent.self])
         XCTAssertEqual(marker.components[CollisionComponent.self]?.shapes.count,1)
     }
-    @MainActor func testCameraAndWaveformTexturesHaveTransparentCornersAndNoBackgroundDisk() throws {
+    @MainActor func testCameraAndWaveformTexturesHaveTransparentCornersAndReadableBackgroundDisk() throws {
         for symbol in [AnnotationPresentation.cameraSymbol,AnnotationPresentation.audioSymbol] {
             let image = try XCTUnwrap(AnnotationIcon.image(symbol))
             let width = image.width,height = image.height
@@ -25,7 +25,7 @@ final class AnnotationIconTests:XCTestCase {
             XCTAssertEqual(pixels[(width*height-1)*4+3],0)
             let opaque = stride(from:3,to:pixels.count,by:4).filter { pixels[$0] > 200 }.count
             XCTAssertGreaterThan(opaque,0)
-            XCTAssertLessThan(opaque,width*height/2,"Outline icon must not contain an opaque background disk")
+            XCTAssertGreaterThan(opaque,width*height/2,"Evidence icons need a readable background disk")
         }
     }
     func testPlanDirectionUsesActualCameraAxesAndOmitsVerticalProjection() throws {
@@ -37,7 +37,7 @@ final class AnnotationIconTests:XCTestCase {
         XCTAssertNil(AnnotationPresentation.planDirection(pose))
         XCTAssertEqual(Array(pose[12...14]),[2,3,4])
         XCTAssertEqual(AnnotationPresentation.directionCorners.count,4)
-        XCTAssertTrue(AnnotationPresentation.directionCorners.allSatisfy { $0.z == -0.54 })
+        XCTAssertTrue(AnnotationPresentation.directionCorners.allSatisfy { $0.z == -0.80 })
     }
     @MainActor func testPhotoKeepsDirectionFrustumAndVoiceKeepsCameraLeader() throws {
         let photo = SurveyPhoto(id:UUID(),number:1,pose:[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],timestamp:1)
@@ -46,10 +46,11 @@ final class AnnotationIconTests:XCTestCase {
         var note = ARNote(projectID:UUID(),reference:.init(kind:.house,itemID:UUID(),library:"local"),number:1,level:0,roomID:nil,position:.init(x:1,y:1,z:1),planPosition:nil,language:"en")
         note.cameraPosition = .init(x:0,y:1.5,z:0); note.audioFileName = "note-01.m4a"; note.audioDuration = 1
         let marker = AnnotationIcon.noteEntity(note)
-        XCTAssertNotNil(marker.findEntity(named:"capture-to-pin"))
+        XCTAssertNil(marker.findEntity(named:"capture-to-pin"),"Voice leader is drawn once")
         XCTAssertNotNil(marker.findEntity(named:"pin-label-leader"))
         let voice = try XCTUnwrap(marker.findEntity(named:"scan-note:"+note.id.uuidString))
-        XCTAssertGreaterThan(voice.position.y,0,"Voice icon floats above its spatial anchor")
+        XCTAssertEqual(voice.position.x,-1,accuracy:0.001)
+        XCTAssertEqual(voice.position.y,0.5,accuracy:0.001,"Voice icon uses the observed camera height")
     }
 
 }

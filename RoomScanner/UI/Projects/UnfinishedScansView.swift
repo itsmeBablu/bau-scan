@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct UnfinishedScansView: View {
+    let projectID:UUID
     @Environment(RoomStore.self) private var library
     @Environment(RenovationWorkspace.self) private var workspace
     @Environment(\.scenePhase) private var phase
@@ -39,7 +40,7 @@ struct UnfinishedScansView: View {
         #if os(iOS)
         .fullScreenCover(item:$probing) { session in if let disk { ScanRelocalizationProbe(session:session,store:disk) } }
         #endif
-        .task { do { disk = try ScanSessionStore.local(); await reload() } catch { message = error.localizedDescription } }
+        .task(id:projectID.uuidString+String(workspace.catalogueRevision)) { do { disk = try ScanSessionStore.local(); await reload() } catch { message = error.localizedDescription } }
         .onChange(of:phase) { _,value in if value == .active { Task { await reload() } } }
         .confirmationDialog("Discard unfinished scan?",isPresented:Binding(get:{ discard != nil },set:{ if !$0 { discard = nil } }),titleVisibility:.visible) {
             Button("Discard draft",role:.destructive) { if let discard { remove(discard) } }
@@ -55,7 +56,7 @@ struct UnfinishedScansView: View {
         AppLanguage.text(session.kind == .technical ? "Technik Room" : session.kind == .house ? "House scan" : "Room scan")
     }
     private func reload() async {
-        do { sessions = try await disk?.unfinished() ?? [] } catch { message = error.localizedDescription }
+        do { sessions = try await disk?.recoveryCandidates(projectID:projectID) ?? [] } catch { message = error.localizedDescription }
     }
     private func recover(_ session:ScanSession) {
         guard let disk else { return }; busy = true
@@ -63,7 +64,7 @@ struct UnfinishedScansView: View {
             defer { busy = false }
             do {
                 _ = try await ScanSessionRecovery.shared.promote(session,store:disk,documents:workspace.notesRoot)
-                library.reload(); await workspace.reload(location:library.location)
+                library.reload(); await workspace.reloadAndWait(location:library.location)
                 await reload(); message = AppLanguage.text("Recovered as a partial scan")
             } catch { message = AppLanguage.text("Draft retained. Retry recovery.")+" "+error.localizedDescription }
         }

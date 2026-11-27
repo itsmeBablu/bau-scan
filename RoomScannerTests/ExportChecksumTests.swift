@@ -24,7 +24,10 @@ final class ExportChecksumTests: XCTestCase {
         let missing = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let job = Task<Void,Never> {
             withUnsafeCurrentTask { $0?.cancel() }
-            XCTAssertThrowsError(try ExportChecksum.sha256(missing)) { XCTAssertTrue($0 is CancellationError) }
+            do {
+                _ = try ExportChecksum.sha256(missing)
+                XCTFail("Cancelled checksum must not produce a digest")
+            } catch { XCTAssertTrue(error is CancellationError) }
         }
         await job.value
         XCTAssertFalse(FileManager.default.fileExists(atPath:missing.path))

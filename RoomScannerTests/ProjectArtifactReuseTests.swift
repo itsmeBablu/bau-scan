@@ -17,7 +17,7 @@ final class ProjectArtifactReuseTests:XCTestCase {
             try await ProjectArtifactGenerator.generate(kind:.quantities,project:project,index:index,entries:[entry],locale:Locale(identifier:"en"),unit:.meters,includeDetails:false,wastePercent:10,root:root)
         }
         let first = try await generate(),second = try await generate()
-        XCTAssertFalse(first.reused); XCTAssertTrue(second.reused); XCTAssertEqual(first.url,second.url)
+        XCTAssertFalse(first.reused); XCTAssertTrue(second.reused); XCTAssertEqual(first.url.resolvingSymlinksInPath(),second.url.resolvingSymlinksInPath())
         XCTAssertEqual(first.url.lastPathComponent,"Renovation - A - Quantities.csv")
         package.plan.name = "Changed room"; try package.write(to:source)
         let changed = try await generate()
@@ -63,7 +63,7 @@ final class ProjectArtifactReuseTests:XCTestCase {
         let first = try ProjectArtifactIndex.publishResult(source,request:firstRequest,projectName:"Musterstraße 5",sourceNames:["EG · Building A · Reception"],root:root)
         let otherRequest = ProjectExportRequest(projectID:firstRequest.projectID,kind:firstRequest.kind,metadataDigest:String(repeating:"c",count:64),sourceRevision:firstRequest.sourceRevision,locale:"de",unit:.meters,includeDetails:false,wastePercent:10)
         let second = try ProjectArtifactIndex.publishResult(source,request:otherRequest,projectName:"Changed label",sourceNames:["Other name"],root:root)
-        XCTAssertTrue(second.reused); XCTAssertEqual(first.url,second.url)
+        XCTAssertTrue(second.reused); XCTAssertEqual(first.url.resolvingSymlinksInPath(),second.url.resolvingSymlinksInPath())
         XCTAssertEqual(first.url.lastPathComponent,"Musterstraße 5 - EG · Building A · Reception - Quantities.csv")
         XCTAssertEqual(try ProjectArtifacts.files(root:root,projectID:firstRequest.projectID).count,1)
         let renamed = try ProjectArtifacts.rename(first.url,to:"Reception schedule",root:root,projectID:firstRequest.projectID)

@@ -153,7 +153,7 @@ struct TechnicalRoomScanView: View {
                             position:{ CaptureSurfacePoint.center(session:scanner.session) },pose:{
                                 guard let m = scanner.session.currentFrame?.camera.transform else { return nil }
                                 return (0..<4).flatMap { c in (0..<4).map { Double(m[c][$0]) } }
-                            },nearbyPin:{ pins.nearest(to:$0) },selectedPin:pins.selection,onPin:{ pins.put($0) }).frame(width:112).disabled(saving || !scanner.hasLiveFrames) }
+                            },nearbyPin:{ pins.nearest(to:$0) },selectedPin:pins.selection,onPin:{ pins.put($0) },onTextSaved:{ pins.selected = nil }).frame(width:112).disabled(saving || !scanner.hasLiveFrames) }
                         Menu {
                             Button("Survey tools") { showingControls.toggle() }
                             Toggle("Show captured mesh",isOn:$showMesh)
@@ -161,6 +161,7 @@ struct TechnicalRoomScanView: View {
                             Toggle("Ceiling",isOn:$showCeiling)
                             Toggle("Photos",isOn:photoVisibility)
                             Toggle("Voice notes",isOn:$showAudio)
+                            Button("Refresh camera") { if let viewport { ARCameraPresentation.configure(viewport,manualMesh:true) } }
                         } label: {
                             Image(systemName:"ellipsis").frame(width:DS.Size.minimumTouchTarget,height:DS.Size.minimumTouchTarget)
                         }.buttonStyle(.plain).dsMaterial(in:Circle()).accessibilityLabel("Survey tools")
@@ -604,6 +605,10 @@ struct TechnicalRoomScanView: View {
                     for depth in package.journal.depths { guard compacted.append(depth) else { throw CocoaError(.fileWriteOutOfSpace) } }
                     finalPackage.journal = compacted
                 }
+                let snapshots = finalPackage.journal.meshes
+                finalPackage.meshPreviewPNG = try await BackgroundWork.run {
+                    TechnicalSavedMeshGeometry.latest(in:snapshots).flatMap(TechnicalMeshPreviewRenderer.png)
+                }
                 try await TechnicalRoomLibraryStore().save(finalPackage)
                 try await persistence.registerOrganization(for:.init(kind:.technicalRoom,itemID:package.manifest.id,library:"local"),catalogueRoot:workspace?.notesRoot ?? StorageLocation.local().documentsURL)
                 await persistence.complete()
@@ -681,14 +686,15 @@ private final class TechnicalCameraHost: UIViewController {
     init(scanner: TechnicalRoomScanCoordinator) {
         self.scanner = scanner
         super.init(nibName: nil, bundle: nil)
-        camera.session = scanner.session
-        camera.environment.background = .cameraFeed()
+        ARCameraPresentation.configure(camera,manualMesh:true)
         camera.scene.addAnchor(meshOverlay)
     }
     required init?(coder: NSCoder) { nil }
     override func loadView() { view = camera }
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        guard scanner.bindCameraSession(camera.session) else { return }
+        ARCameraPresentation.configure(camera,manualMesh:true)
         scanner.start()
     }
     // Modal annotation sheets must not destroy the capture. The representable's

@@ -54,4 +54,17 @@ final class ProjectDetailsTests:XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(ProjectDetails.self,from:Data(contentsOf:b.appendingPathComponent("project-details.json"))),project.details)
     }
 
+    func testFlexibleFloorsAndContactsRoundTripWithoutRequiringNewFieldsInOldData() throws {
+        var details = ProjectDetails(floorNames:[-1:"Plant room",0:"Entrance",1:"Offices"],parties:[.init(role:"Architect",name:"Anna",company:"Practice",branch:"Berlin",address:"Example street",website:"https://example.test",phone:"123",email:"a@example.test")])
+        XCTAssertTrue(details.valid)
+        XCTAssertEqual(try JSONDecoder().decode(ProjectDetails.self,from:JSONEncoder().encode(details)),details)
+        let old = try JSONDecoder().decode(ProjectParty.self,from:Data("{\"id\":\"00000000-0000-0000-0000-000000000001\",\"name\":\"Legacy\"}".utf8))
+        XCTAssertNil(old.branch); XCTAssertNil(old.address); XCTAssertNil(old.website)
+        details.floorNames?[1] = "   "
+        XCTAssertFalse(details.valid)
+        details.floorNames?[1] = "Offices"
+        details.parties?[0].website = String(repeating:"x",count:4001)
+        XCTAssertFalse(details.valid)
+    }
+
 }

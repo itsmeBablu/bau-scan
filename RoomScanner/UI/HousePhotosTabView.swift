@@ -23,23 +23,7 @@ struct HousePhotosTabView: View {
                 ContentUnavailableView("detail.photos.empty", systemImage: "camera")
             } else {
                 ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 180, maximum: 260), spacing: 16)], spacing: 16) {
-                        ForEach(photos) { photo in
-                            Button { selectedPhoto = photo } label: {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    ProjectPhotoThumbnail(asset: photo)
-                                        .frame(height: 140)
-                                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
-                                    Text(photo.title)
-                                        .font(.subheadline)
-                                        .lineLimit(1)
-                                        .foregroundStyle(.primary)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding()
+                    PhotoAlbumBrowser(assets:photos,summaries:Dictionary(uniqueKeysWithValues:Set(photos.map(\.reference.id)).map { ($0,ProjectScanSummary(house:house)) })).padding()
                 }
             }
         }
@@ -75,7 +59,6 @@ struct SurveyPhotoThumbnailView: View {
 
     var body: some View {
         ZStack {
-            Rectangle().fill(.quaternary)
             if let image {
                 Image(decorative: image, scale: 1)
                     .resizable()

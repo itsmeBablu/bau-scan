@@ -1,8 +1,34 @@
 import XCTest
 import SceneKit
+import ImageIO
 @testable import RoomScanner
 
 final class TechnicalRoomPackageTests: XCTestCase {
+    private func previewMesh() -> TechnicalMeshSnapshot {
+        .init(timestamp:1,patches:[.init(anchorID:UUID(),vertices:[.init(x:0,y:0,z:0),.init(x:1,y:0,z:0),.init(x:0,y:1,z:0)],triangleIndices:[0,1,2],colors:[.init(x:1,y:0,z:0),.init(x:1,y:0,z:0),.init(x:1,y:0,z:0)])],alignmentVerified:false,truncated:false)
+    }
+    func testMeshGridPreviewIsBoundedAndPreservesCapturedGeometry() throws {
+        let mesh = previewMesh(),original = mesh
+        let png = try XCTUnwrap(TechnicalMeshPreviewRenderer.png(mesh))
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(png as CFData,nil))
+        let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source,0,nil))
+        XCTAssertEqual(image.width,600); XCTAssertEqual(image.height,400)
+        XCTAssertEqual(mesh,original)
+        var value = try package(); value.meshPreviewPNG = png
+        let url = root.appendingPathComponent("preview.technicalroom")
+        try value.write(to:url)
+        let reopened = try TechnicalRoomPackage.read(from:url)
+        XCTAssertEqual(reopened.meshPreviewPNG,png)
+        XCTAssertEqual(reopened.thumbnailPNG,value.thumbnailPNG,"The camera evidence thumbnail remains separate")
+    }
+    func testLegacyMeshPreviewSkipsUnrelatedDepthAndPhotoPayloads() async throws {
+        let folder = root.appendingPathComponent("legacy.technicalroom")
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        struct Capture:Encodable { let meshes:[TechnicalMeshSnapshot]; let depths:String }
+        try JSONEncoder().encode(Capture(meshes:[previewMesh()],depths:"Not decoded for a grid preview")).write(to:folder.appendingPathComponent("capture.json"))
+        let image = try await TechnicalMeshPreviewCache().image(packageURL:folder)
+        XCTAssertNotNil(image)
+    }
     private var root: URL!
     override func setUpWithError() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("technical-package-tests-\(UUID())", isDirectory: true)

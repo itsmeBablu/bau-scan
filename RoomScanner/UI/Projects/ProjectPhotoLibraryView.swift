@@ -7,11 +7,10 @@ struct ProjectPhotoThumbnail: View {
     @State private var failed = false
     var body:some View {
         ZStack {
-            Rectangle().fill(.quaternary)
-            if let image { Image(decorative:image,scale:1).resizable().scaledToFill() }
+            if let image { Image(decorative:image,scale:1).resizable().scaledToFit() }
             else if failed { Image(systemName:"photo.badge.exclamationmark") }
             else { ProgressView() }
-        }.clipped().task(id:asset.id) {
+        }.clipped().task(id:asset.id+asset.root.path) {
             image = nil; failed = false
             do {
                 let decoded = try await PhotoThumbnailCache.shared.image(asset)
@@ -79,12 +78,12 @@ struct ProjectPhotosView: View {
         let value = workspace.organization(for:asset.reference)
         if let summary = workspace.scanSummaries[asset.reference.id],summary.stories > 1 {
             let story = summary.roomDetails.first { $0.id == asset.photo.roomID }?.story
-            return .init(number:story.flatMap { value?.storyLevels?[$0] },otherName:nil)
+            return .init(number:story.flatMap { value?.storyLevels?[$0] ?? $0 },otherName:nil)
         }
         return .init(number:value?.level,otherName:value?.otherLevelName)
     }
     private func levelTitle(_ key:ProjectScanGrouping.LevelKey) -> String {
-        key.number.map { StoryNaming.localizedName(for:$0,locale:locale) } ?? key.otherName ?? AppLanguage.text("Unassigned level",locale:locale)
+        key.number.map { workspace.floorName($0,projectID:projectID,locale:locale) } ?? key.otherName ?? AppLanguage.text("Unassigned level",locale:locale)
     }
     var body:some View {
         ScrollView {
@@ -136,6 +135,9 @@ struct ProjectPhotosView: View {
                 if exporting { ProgressView("Exporting photos…") }
                 if let exportURL { ShareLink(item:exportURL) { Label("Share selected photos ZIP",systemImage:"square.and.arrow.up") } }
                 if filtered.isEmpty && !loading { ContentUnavailableView("No project photos yet",systemImage:"photo.on.rectangle") }
+                if !selecting {
+                    PhotoAlbumBrowser(assets:filtered,summaries:workspace.scanSummaries,organization:workspace.index.scanOrganization ?? [:],floorNames:workspace.project(projectID)?.details?.floorNames ?? [:])
+                } else {
                 LazyVGrid(columns:[GridItem(.adaptive(minimum:140))],spacing:DS.Spacing.l) {
                     ForEach(filtered) { asset in
                         Button {
@@ -156,6 +158,7 @@ struct ProjectPhotosView: View {
                             }
                             .accessibilityAddTraits(selection.contains(asset.id) ? .isSelected : [])
                     }
+                }
                 }
                 if let warning { Text(warning).font(.caption).foregroundStyle(.secondary) }
             }.padding(DS.Spacing.l)
@@ -237,14 +240,21 @@ struct ProjectPhotoGallery: View {
                 }
             }
             #if os(iOS)
-            .tabViewStyle(.page(indexDisplayMode:.automatic))
+            .tabViewStyle(.page(indexDisplayMode:.never))
             #endif
+            .safeAreaInset(edge:.bottom) {
+                HStack {
+                    Button("Previous",systemImage:"chevron.left") { if index > 0 { selected = assets[index-1].id } }.disabled(index <= 0)
+                    Spacer()
+                    Text("\(assets.isEmpty ? 0 : index+1) / \(assets.count)").font(.caption).monospacedDigit()
+                    Spacer()
+                    Button("Next",systemImage:"chevron.right") { if index+1 < assets.count { selected = assets[index+1].id } }.disabled(index+1 >= assets.count)
+                }.padding().dsMaterial()
+            }
             .navigationTitle(current?.title ?? AppLanguage.text("Photos"))
             .toolbar {
                 ToolbarItem(placement:.confirmationAction) { Button("Done") { dismiss() } }
                 ToolbarItemGroup {
-                    Button("Previous",systemImage:"chevron.left") { selected = assets[index-1].id }.disabled(index <= 0)
-                    Button("Next",systemImage:"chevron.right") { selected = assets[index+1].id }.disabled(index+1 >= assets.count)
                     if let current { ShareLink(item:current.url) { Label("Share",systemImage:"square.and.arrow.up") } }
                     Button("Full screen",systemImage:"arrow.up.left.and.arrow.down.right") { fullScreen = true }
                     if let flyTo,let current { Button("Go to camera",systemImage:"viewfinder") { flyTo(current); dismiss() } }
@@ -280,7 +290,7 @@ private struct ProjectPhotoPage: View {
     @State private var error:String?
     var body:some View {
         Group {
-            if let bytes { SurveyPhotoCanvas(data:bytes) }
+            if let bytes { SurveyPhotoCanvas(data:bytes).padding(12) }
             else if let error { ContentUnavailableView("Photo unavailable",systemImage:"photo.badge.exclamationmark",description:Text(error)) }
             else { ProgressView("Loading photo…") }
         }.task(id:asset.id) {

@@ -143,7 +143,7 @@ struct ScanView: View {
             if persistence.failure != nil { Label("Saving failed · draft retained",systemImage:"exclamationmark.triangle").font(.caption).padding(8).dsMaterial(in:Capsule()) }
             HStack {
                 if workspace?.project(voiceProjectID ?? UUID())?.details?.preferences?.voice != false { VoiceNoteHUD(reference:captureReference,persistence:persistence,workspace:workspace,projectID:voiceProjectID,
-                    position:{ coordinator.noteSurface() },pose:{ coordinator.notePose() },roomID:{ mode == .house ? coordinator.liveRoomID : captureID },level:{ coordinator.liveLevel },borrowCaptureAudioSession:true,nearbyPin:{ pins.nearest(to:$0) },selectedPin:pins.selection,onPin:{ pins.put($0) })
+                    position:{ coordinator.noteSurface() },pose:{ coordinator.notePose() },roomID:{ mode == .house ? coordinator.liveRoomID : captureID },level:{ coordinator.liveLevel },borrowCaptureAudioSession:true,nearbyPin:{ pins.nearest(to:$0) },selectedPin:pins.selection,onPin:{ pins.put($0) },onTextSaved:{ pins.selected = nil })
                     .disabled(coordinator.state != .scanning) }
                 Spacer()
                 if ScanPhotoPolicy.buttonVisible(enabled:cameraPhotos,cameraRunning:cameraLive) {

@@ -19,7 +19,7 @@ struct PlanRenderer {
     struct Options {
         var mode: Mode = .page(titleBlock: true)
         var locale: Locale = AppLanguage.locale
-        var unit: MeasurementUnit = .both
+        var unit: MeasurementUnit = .meters
         var showDimensions = true
         var showOpeningDimensions = true
         var showRoomLabels = true
@@ -27,20 +27,20 @@ struct PlanRenderer {
         var showFloor = true
         /// Transparent background (texture) or white (sheet).
         var transparentBackground = false
-        /// dWalkScan palette (Primary Yellow #facc15, Secondary #fef08a, Dark Charcoal #111110 / #272000).
+        /// Neutral CAD palette; optional room tints remain an explicit presentation choice.
         var wallColor = CGColor(red: 17/255, green: 17/255, blue: 16/255, alpha: 1) // #111110
-        var floorColor = CGColor(red: 254/255, green: 243/255, blue: 199/255, alpha: 1) // #fef3c7
-        var dimensionColor = CGColor(red: 39/255, green: 32/255, blue: 0/255, alpha: 1) // #272000 deep warm charcoal for text/dimension
-        var dimensionLineColor = CGColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 1) // #facc15 primary yellow
-        var objectFill = CGColor(red: 254/255, green: 240/255, blue: 138/255, alpha: 0.5) // #fef08a
-        var objectStroke = CGColor(red: 39/255, green: 32/255, blue: 0/255, alpha: 1) // #272000
+        var floorColor = CGColor(gray: 0.97, alpha: 1)
+        var dimensionColor = CGColor(gray:0.18,alpha:1)
+        var dimensionLineColor = CGColor(gray: 0.45, alpha: 1)
+        var objectFill = CGColor(gray: 0.90, alpha: 0.5)
+        var objectStroke = CGColor(gray:0.30,alpha:1)
         var textColor = CGColor(red: 17/255, green: 17/255, blue: 16/255, alpha: 1) // #111110
         /// Multiplier for in-plan labels and dimensions. The interactive 2D viewer exposes this to users.
         var textScale: CGFloat = 1
-        var showLabelBackground = true
-        var windowColor = CGColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 1) // #facc15
+        var showLabelBackground = false
+        var windowColor = CGColor(gray: 0.28, alpha: 1)
         /// House: each room receives a distinct floor tint (`PlanRenderer.roomTint`).
-        var tintRooms = true
+        var tintRooms = false
     }
 
     /// Pastel floor tints to distinguish rooms of a house (cycle of 6 in warm yellow/cream tones).
@@ -66,7 +66,7 @@ struct PlanRenderer {
 
     /// Margin around plan (m) reserved for dimensions.
     static let dimensionMargin = 0.55
-    static let dimensionOffset = 0.30
+    static let dimensionOffset = 0.45
     /// Shorter walls (pillars, returns) are not dimensioned to avoid overlapping labels on real scans.
     static let minimumDimensionedLength = 0.5
 
@@ -226,7 +226,7 @@ struct PlanRenderer {
         var r = self
         r.options.showDimensions = false
         r.options.showOpeningDimensions = false
-        r.options.showRoomLabels = false
+        r.options.showRoomLabels = true
         let hiddenDoors = Self.duplicateDoorIndices(in:rooms)
         for (i, room) in rooms.enumerated() { r.drawFloor(room, mapper: mapper, color: floorColor(forRoomAt: i, of: rooms.count), in: ctx) }
         let graph = HouseWallGraph(house: house)
@@ -359,10 +359,15 @@ struct PlanRenderer {
             ctx.strokePath()
             ctx.setLineDash(phase: 0, lengths: [])
         case .window:
-            // Two thin lines (glazing) within wall thickness.
+            // Plan cut: clear the solid wall band, then draw frame and glazing.
+            // The sill remains in 3D; a floor-level wall fill must not hide glass.
+            let half = n * (thickness / 2)
+            let corners = [seg.start+half,seg.end+half,seg.end-half,seg.start-half]
+            path(corners,mapper:mapper,in:ctx)
+            ctx.setFillColor(CGColor(gray:1,alpha:1)); ctx.fillPath()
             ctx.setStrokeColor(options.windowColor); ctx.setLineWidth(thin); ctx.setLineDash(phase: 0, lengths: [])
-            let off = n * (thickness * 0.3)
-            for d in [off, off * -1] {
+            let off = n * (thickness * 0.15)
+            for d in [half,half * -1,off,off * -1] {
                 ctx.move(to: mapper.point(seg.start + d)); ctx.addLine(to: mapper.point(seg.end + d))
             }
             // End jambs tie the glazing symbol to the resolved wall band.
@@ -404,19 +409,16 @@ struct PlanRenderer {
             ctx.strokePath()
             ctx.restoreGState()
 
-            // Top (above dimension line): Width
-            let posWidth = seg.midpoint + outward * (0.18 + textSpacing)
-            drawText(widthStr, at: mapper.point(posWidth), angle: angle, fontSize: fontSize, color: options.dimensionColor, in: ctx)
-
-            // Bottom (below dimension line): Height
-            let posHeight = seg.midpoint + outward * max(0.06, (0.18 - textSpacing))
-            drawText(heightStr, at: mapper.point(posHeight), angle: angle, fontSize: fontSize, color: options.dimensionColor, in: ctx)
+            // A single opening-size label stays clear of both glazing and the
+            // separate overall-wall dimension line.
+            let posSize = seg.midpoint + outward * (0.18 + textSpacing)
+            drawText(widthStr+" × "+heightStr, at: mapper.point(posSize), angle: angle, fontSize: fontSize, color: options.dimensionColor, in: ctx)
 
             // Window parapet height (Image 2 reference):
             // Centered on inward side (inside the room along the sill) with NO overlap
             if o.kind == .window {
                 let parapetStr = MeasurementFormat.parapetHeight(o.sillHeight, unit: options.unit, locale: options.locale)
-                let posBRH = seg.midpoint + inward * 0.16
+                let posBRH = seg.midpoint + inward * 0.23
                 drawText(parapetStr, at: mapper.point(posBRH), angle: angle, fontSize: fontSize * 0.95, weight: .regular, color: options.dimensionColor, in: ctx)
             }
         }
@@ -434,7 +436,8 @@ struct PlanRenderer {
         let fontSize = max(min(mapper.length(0.30), 14), 8.5) * options.textScale
         let subFontSize = fontSize * 0.82
 
-        // Soft background pill with rounded corners, primary yellow border, and high legibility
+        // Optional quiet backing improves contrast over furniture; room tags
+        // never have a border in the drawing or its exported versions.
         let textWidth = CGFloat(max(name.count, areaStr.count)) * fontSize * 0.65
         let pillW = max(mapper.length(1.3), textWidth + 20)
         let pillH = fontSize * 2.7 + 6
@@ -444,9 +447,7 @@ struct PlanRenderer {
         let pillPath = CGPath(roundedRect: pillRect, cornerWidth: 8, cornerHeight: 8, transform: nil)
         ctx.addPath(pillPath)
         ctx.setFillColor(CGColor(red: 255/255, green: 255/255, blue: 255/255, alpha: 0.88))
-        ctx.setStrokeColor(CGColor(red: 250/255, green: 204/255, blue: 21/255, alpha: 0.65)) // #facc15
-        ctx.setLineWidth(1)
-        if options.showLabelBackground { ctx.drawPath(using: .fillStroke) } else { ctx.beginPath() }
+        if options.showLabelBackground { ctx.fillPath() } else { ctx.beginPath() }
         ctx.restoreGState()
 
         drawText(name, at: CGPoint(x: pt.x, y: pt.y + fontSize * 0.45), angle: 0, fontSize: fontSize, weight: .bold, color: options.textColor, align: .center, in: ctx)
@@ -607,7 +608,7 @@ extension PlanRenderer {
     static func thumbnailPNG(for house: House) -> Data? {
         var r = PlanRenderer(); r.options.mode = .fill; r.options.showObjects = true
         r.options.showOpeningDimensions = false
-        r.options.showRoomLabels = false
+        r.options.showRoomLabels = true
         let shown = house.stories.count > 1 ? House(id: house.id, name: house.name, stories: [house.stories[0]]) : house
         return r.pngData(shown, pixels: CGSize(width: 600, height: 400))
     }

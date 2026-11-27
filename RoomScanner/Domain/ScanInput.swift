@@ -11,6 +11,8 @@ struct ScanInput: Codable, Equatable {
     var sectionLabels: [RoomLabel]
     var surfaces: [ScanSurface]
     var objects: [ScanObject]
+    /// Optional for older packages; preserves RoomPlan's spatial room labels.
+    var sections: [ScanSection]? = nil
 
     init(id: UUID = UUID(), story: Int = 0, sectionLabels: [RoomLabel] = [], surfaces: [ScanSurface], objects: [ScanObject] = []) {
         self.id = id; self.story = story; self.sectionLabels = sectionLabels; self.surfaces = surfaces; self.objects = objects
@@ -19,6 +21,11 @@ struct ScanInput: Codable, Equatable {
     var walls: [ScanSurface] { surfaces.filter { $0.category == .wall } }
     var floors: [ScanSurface] { surfaces.filter { $0.category == .floor } }
     var openings: [ScanSurface] { surfaces.filter { $0.category.isOpening } }
+}
+
+struct ScanSection: Codable, Equatable {
+    var label: RoomLabel
+    var center: SIMD3<Float>
 }
 
 struct ScanSurface: Codable, Equatable {

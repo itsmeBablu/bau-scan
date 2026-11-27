@@ -4,6 +4,7 @@ import SwiftUI
 struct VoiceNotePlayerSheet:View {
     let note:ARNote
     var root:URL = ScanVoiceNoteLibrary.root
+    var displayTitle:String? = nil
     var onSave:(ARNote)->Void = { _ in }
     @State private var current:ARNote?
     @State private var textBaseline:ARNote?
@@ -44,7 +45,7 @@ struct VoiceNotePlayerSheet:View {
                     Button("Save text") { saveText() }.disabled(saving || loading || !dirty || text.count > 16_000 || title.count > 200)
                 }.disabled(loading)
                 if baseline.audioFileName != nil {
-                    Section("Playback") { InlineVoiceNoteRow(note:baseline,root:root,subtitle:baseline.createdAt.formatted(),enabled:!saving && !recordingActive && !loading) }
+                    Section("Playback") { InlineVoiceNoteRow(note:baseline,root:root,subtitle:baseline.createdAt.formatted(),displayTitle:displayTitle,enabled:!saving && !recordingActive && !loading) }
                 }
                 #if os(iOS)
                 Section("Voice note") {
@@ -68,7 +69,7 @@ struct VoiceNotePlayerSheet:View {
                 #endif
                 if saving { ProgressView("Saving voice note") }
                 if let error { Text(error).font(.caption).foregroundStyle(DS.ColorToken.error.color) }
-            }.navigationTitle(baseline.audioFileName == nil ? "Written note" : "Voice note")
+            }.navigationTitle(displayTitle ?? (baseline.audioFileName == nil ? AppLanguage.text("Written note") : AppLanguage.text("Voice note")))
                 .toolbar { ToolbarItem(placement:.confirmationAction) {
                     Button("Done") { if dirty || recordingActive || pending { confirmingClose = true } else { dismiss() } }.disabled(saving)
                 } }

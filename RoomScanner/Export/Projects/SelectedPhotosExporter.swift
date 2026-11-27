@@ -36,7 +36,7 @@ enum SelectedPhotosExporter {
             try Task.checkCancellation(); try asset.photo.validate()
             let value = organization[asset.reference.id]
             guard value == nil || value?.kind == asset.reference.kind else { throw CocoaError(.fileReadCorruptFile) }
-            let paths = try layout.paths(photo:asset.photo,roomName:asset.roomName,sourceID:asset.reference.id,organization:value,summary:summaries[asset.reference.id],locale:locale)
+            let paths = try layout.paths(photo:asset.photo,roomName:asset.roomName,sourceID:asset.reference.id,organization:value,summary:summaries[asset.reference.id],locale:locale,floorNames:project.details?.floorNames ?? [:])
             let jpegPath = paths.image,cameraPath = paths.camera
             try write(asset.image().jpegData,jpegPath)
             let camera = SurveyPhotoArchiveWriter.Camera(photoID:asset.photo.id,roomID:asset.photo.roomID,number:asset.photo.number,imageFile:URL(fileURLWithPath:jpegPath).lastPathComponent,rawCameraPose:asset.photo.pose,displayCameraPose:asset.photo.displayPose,captureTimestamp:asset.photo.timestamp,capturedAt:asset.photo.capturedAt,sourceID:asset.reference.id)

@@ -44,7 +44,16 @@ final class TechnicalRoomScanCoordinator: NSObject, @preconcurrency ARSessionDel
     }
     func flushAndWait() async { await persistenceTask?.value; flushIncremental(force:true); await persistenceTask?.value }
 
-    let session = ARSession()
+    private(set) var session = ARSession()
+    /// Bind the renderer's native session before any world coordinates exist.
+    /// Never exchange sessions underneath a running or previously tracked survey.
+    @discardableResult func bindCameraSession(_ native:ARSession) -> Bool {
+        if session === native { return true }
+        guard !active,!requestingPermission,!hasLiveFrames,state.phase != .stopped else { return false }
+        session.delegate = nil; session.pause()
+        session = native
+        return true
+    }
     private(set) var state = TechnicalCaptureState()
     private(set) var errorMessage: String?
     private(set) var frameCount = 0

@@ -15,6 +15,11 @@ struct ProjectPinsView: View {
     private var shown: House? { house.map { House(id:$0.id,name:$0.name,stories:$0.stories.filter { $0.index == story }) } }
     var body: some View {
         VStack {
+            HStack {
+                NavigationLink { ProjectWrittenNotesView(projectID:projectID) } label: { Label("Written notes",systemImage:"doc.text") }
+                Spacer()
+                NavigationLink { ProjectVoiceNotesView(projectID:projectID,initialReference:selected) } label: { Label("Voice notes",systemImage:"waveform") }
+            }.font(.subheadline).padding(.horizontal)
             Picker("Scan",selection:$selected) { ForEach(sources) { Text($0.title).tag(Optional($0.reference)) } }.padding(.horizontal)
             if let house {
                 Picker("Level",selection:$story) { ForEach(house.stories,id:\.index) { Text(StoryNaming.localizedName(for:$0.index)).tag($0.index) } }.padding(.horizontal)
@@ -57,7 +62,7 @@ struct ProjectPinsView: View {
             if let error { Text(error).foregroundStyle(DS.ColorToken.error.color).font(.caption) }
         }.navigationTitle("Notes & task pins")
             .task { if selected == nil { selected = sources.first?.reference } }
-            .task(id:selected) { await load() }
+            .task(id:(selected?.id ?? "")+(selected.flatMap(workspace.entry)?.root.path ?? "")) { await load() }
             .sheet(item:$draft) { pin in
                 ProjectPinEditor(pin:pin,photos:photos,elements:design?.engineeringElements.filter { $0.story == story && $0.kind != "Floor" } ?? [],phase:nil) { edited,phase in save(edited,phase:phase) } onDelete: { id in
                     workspace.change { $0.pins?.removeAll { $0.id == id } }; draft = nil
@@ -65,20 +70,23 @@ struct ProjectPinsView: View {
             }
     }
     private func load() async {
-        house = nil; design = nil; photos = []
+        house = nil; design = nil; photos = []; error = nil
         guard let selected,let entry = workspace.entry(selected) else { return }
         do {
-            let value = try await Task.detached {
+            let value = try await BackgroundWork.run {
                 let house: House
                 let source: SceneEditDocument.Source
                 if selected.kind == .house { house = try HousePackage.readHouse(from:entry.url); source = .house }
                 else { house = House(room:try RoomPackage.readPlan(from:entry.url)); source = .room }
                 let saved = try SceneEditStore.read(SceneEditStore.url(root:entry.root,source:source,id:selected.itemID),source:source,id:selected.itemID)
                 return (house,try SurveyPhotoStore.images(from:entry.url,house:house),saved ?? SceneEditDocument.seed(house:house,source:source,id:selected.itemID))
-            }.value
-            guard self.selected == selected else { return }
+            }
+            guard !Task.isCancelled,self.selected == selected,workspace.entry(selected)?.root == entry.root,workspace.entry(selected)?.url == entry.url else { return }
             house = value.0; photos = value.1; design = value.2; story = value.0.stories.first?.index ?? 0
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            guard !Task.isCancelled,self.selected == selected,workspace.entry(selected)?.root == entry.root,workspace.entry(selected)?.url == entry.url else { return }
+            self.error = error.localizedDescription
+        }
     }
     private func save(_ pin: ProjectPin,phase: StudioEngineering.Phase?) {
         do {

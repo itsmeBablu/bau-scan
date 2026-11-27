@@ -28,7 +28,7 @@ final class PlanMeshBuilderTests: XCTestCase {
             let t = mesh.triangles[index]
             return volume+Double(simd_dot(mesh.positions[Int(t.x)],simd_cross(mesh.positions[Int(t.y)],mesh.positions[Int(t.z)])))/6
         }
-        let expected = (4.73*3.73-12)*2.5-(0.9*2+1.2)*0.365
+        let expected = (4.2*3.2-12)*2.5-(0.9*2+1.2)*0.10
         XCTAssertEqual(abs(signedVolume),expected,accuracy:0.001,"Closed wall volume minus door/window voids")
         XCTAssertEqual(mesh.groups[1].triangles.count, 12, "un panneau de porte")
         XCTAssertEqual(mesh.groups[2].triangles.count, 12, "un vitrage")
@@ -43,8 +43,8 @@ final class PlanMeshBuilderTests: XCTestCase {
         let mesh = PlanMeshBuilder().build(House(room: plan))
         let b = try XCTUnwrap(mesh.bounds)
         // 4 x 3 m centered at origin, 10 cm walls centered on segment; 5 cm slab below floor; 2.5 m ceiling.
-        XCTAssertEqual(b.min.x, -2.365, accuracy: 0.001); XCTAssertEqual(b.max.x, 2.365, accuracy: 0.001)
-        XCTAssertEqual(b.min.z, -1.865, accuracy: 0.001); XCTAssertEqual(b.max.z, 1.865, accuracy: 0.001)
+        XCTAssertEqual(b.min.x, -2.10, accuracy: 0.001); XCTAssertEqual(b.max.x, 2.10, accuracy: 0.001)
+        XCTAssertEqual(b.min.z, -1.60, accuracy: 0.001); XCTAssertEqual(b.max.z, 1.60, accuracy: 0.001)
         XCTAssertEqual(b.min.y, -0.05, accuracy: 0.001); XCTAssertEqual(b.max.y, 2.5, accuracy: 0.001)
     }
 

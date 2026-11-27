@@ -37,10 +37,12 @@ struct ProjectRecentEvidenceView: View {
                     NavigationLink { ProjectVoiceNotesView(projectID:projectID) } label: { Text("See All") }
                 }
                 if summary.voices.isEmpty { Text("No voice notes yet").foregroundStyle(.secondary) }
-                ForEach(summary.voices) { note in
+                ForEach(Array(summary.voices.prefix(2))) { note in
                     InlineVoiceNoteRow(note:note,root:workspace.notesRoot,
-                        subtitle:workspace.entry(note.reference).map { workspace.title($0,locale:locale) } ?? note.reference.itemID.uuidString)
+                        subtitle:workspace.entry(note.reference).map { workspace.title($0,locale:locale) } ?? note.reference.itemID.uuidString,
+                        displayTitle:VoiceNoteDisplayName.title(note,summary:workspace.scanSummaries[note.reference.id],locale:locale))
                 }
+                if !summary.voices.isEmpty { NavigationLink { ProjectVoiceNotesView(projectID:projectID) } label: { Text("Show more") } }
             }.dsCard()
             VStack(alignment:.leading,spacing:DS.Spacing.m) {
                 Text("Project notes").font(.headline)

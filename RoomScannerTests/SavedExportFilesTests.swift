@@ -12,7 +12,10 @@ final class SavedExportFilesTests:XCTestCase {
         let existing = try SavedExportFiles.store(source,in:saved)
         let request = Task<Void,Never> {
             withUnsafeCurrentTask { $0?.cancel() }
-            XCTAssertThrowsError(try SavedExportFiles.store(source,in:saved)) { XCTAssertTrue($0 is CancellationError) }
+            do {
+                _ = try SavedExportFiles.store(source,in:saved)
+                XCTFail("Cancelled request must not return an export")
+            } catch { XCTAssertTrue(error is CancellationError) }
         }
         await request.value
         XCTAssertEqual(try Data(contentsOf:existing),bytes)
@@ -67,7 +70,7 @@ final class SavedExportFilesTests:XCTestCase {
         let first = root.appendingPathComponent("Ground Floor - Reception.pdf"),second = root.appendingPathComponent("Another label.pdf")
         try Data("same plan".utf8).write(to:first); try Data("same plan".utf8).write(to:second)
         let original = try SavedExportFiles.store(first,in:saved)
-        XCTAssertEqual(try SavedExportFiles.store(second,in:saved),original)
+        XCTAssertEqual(try SavedExportFiles.store(second,in:saved).resolvingSymlinksInPath(),original.resolvingSymlinksInPath())
         XCTAssertEqual(original.lastPathComponent,first.lastPathComponent)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath:saved.path).count,1)
     }
@@ -84,6 +87,6 @@ final class SavedExportFilesTests:XCTestCase {
         XCTAssertEqual(revised.lastPathComponent,"Reception - 2.pdf")
         XCTAssertEqual(try Data(contentsOf:original),Data("old plan".utf8))
         XCTAssertEqual(try Data(contentsOf:revised),Data("new plan".utf8))
-        XCTAssertEqual(try SavedExportFiles.store(source,in:saved),revised)
+        XCTAssertEqual(try SavedExportFiles.store(source,in:saved).resolvingSymlinksInPath(),revised.resolvingSymlinksInPath())
     }
 }

@@ -7,7 +7,9 @@ enum AppLanguage: String, CaseIterable {
     var locale: Locale { self == .system ? .current : Locale(identifier:self == .german ? "de_DE" : "en_GB") }
     static var locale: Locale { selected.locale }
     static func text(_ key: String, locale: Locale = AppLanguage.locale) -> String {
-        String(localized:String.LocalizationValue(key),locale:locale)
+        let language = locale.language.languageCode?.identifier ?? "en"
+        let bundle = Bundle.main.path(forResource:language,ofType:"lproj").flatMap(Bundle.init(path:)) ?? .main
+        return String(localized:String.LocalizationValue(key),bundle:bundle,locale:locale)
     }
     static func format(_ key: String, _ values: [String], locale: Locale = AppLanguage.locale) -> String {
         String(format:text(key,locale:locale),locale:locale,arguments:values.map { $0 as CVarArg })

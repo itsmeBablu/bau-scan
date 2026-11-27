@@ -26,7 +26,7 @@ final class ArtifactPublicationBoundaryTests:XCTestCase {
             XCTAssertEqual(try Data(contentsOf:existing),Data("old durable output".utf8))
             XCTAssertEqual(try Data(contentsOf:source),changed)
             XCTAssertEqual(try Data(contentsOf:folder.appendingPathComponent(".artifact-index-v1.json")),priorIndex)
-            XCTAssertEqual(try ProjectArtifacts.files(root:root,projectID:project),[existing])
+            XCTAssertEqual(try ProjectArtifacts.files(root:root,projectID:project).map { $0.resolvingSymlinksInPath() },[existing.resolvingSymlinksInPath()])
             XCTAssertNil(try ProjectArtifactIndex.lookup(next,root:root))
             let retry = try ProjectArtifactIndex.publish(source,request:next,projectName:"Survey",root:root)
             XCTAssertNotEqual(retry,existing)

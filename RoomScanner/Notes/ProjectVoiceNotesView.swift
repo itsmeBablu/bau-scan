@@ -56,23 +56,28 @@ struct ProjectVoiceNotesView: View {
                     }
                 }.disabled(busy || audioActive) }
                 #if os(iOS)
-                if recorder.recording {
-                    Text(Duration.seconds(recorder.elapsed).formatted(.time(pattern:.minuteSecond)))
-                        .monospacedDigit().accessibilityLabel("Recording duration")
-                    HStack {
-                        Button(recorder.paused ? "Resume recording" : "Pause recording") {
+                HStack(spacing:8) {
+                    Button {
+                        if recorder.recording { recorder.stop() } else { startRecording() }
+                    } label: {
+                        Image(systemName:recorder.recording ? "stop.fill" : "mic.fill")
+                            .font(DS.Typography.body.weight(.semibold)).frame(width:44,height:44)
+                    }.buttonStyle(.plain).foregroundStyle(recorder.recording ? .red : .primary)
+                        .accessibilityLabel(recorder.recording ? "Stop and save" : "Record voice note")
+                        .disabled(busy || recorder.preparing || (!recorder.recording && !references.contains { $0.id == referenceID }))
+                    if recorder.recording {
+                        HStack(spacing:2) {
+                            ForEach(Array(recorder.levels.suffix(32).enumerated()),id:\.offset) { _,level in
+                                Capsule().fill(.red).frame(width:3,height:max(3,CGFloat(level)*22))
+                            }
+                        }.frame(maxWidth:.infinity).frame(height:28)
+                        Text(Duration.seconds(recorder.elapsed).formatted(.time(pattern:.minuteSecond))).font(.caption).monospacedDigit()
+                        Button(recorder.paused ? "Resume recording" : "Pause recording",systemImage:recorder.paused ? "play.fill" : "pause.fill") {
                             if recorder.paused { recorder.resume() } else { recorder.pause() }
-                        }
-                        Button("Stop and save") { recorder.stop() }
-                    }
-                } else if failedClip != nil {
-                    Button("Retry saving recording") { if let failedClip { saveClip(failedClip) } }.disabled(busy)
-                } else {
-                    Button(action: startRecording) {
-                        Label("Record voice note",systemImage: "mic.fill").frame(maxWidth: .infinity,minHeight: 36)
-                    }.dsProminentControl(recording:true)
-                        .disabled(busy || recorder.preparing || !references.contains { $0.id == referenceID })
+                        }.labelStyle(.iconOnly).frame(width:44,height:44)
+                    } else { Text("Record voice note").font(.subheadline); Spacer() }
                 }
+                if let failedClip { Button("Retry saving recording") { saveClip(failedClip) }.disabled(busy) }
                 #endif
                 if !references.contains(where:{ $0.id == referenceID }) { Text("Select a scan before recording.").font(.caption).foregroundStyle(.secondary) }
                 #if os(iOS)
@@ -94,6 +99,7 @@ struct ProjectVoiceNotesView: View {
                         if note.audioDuration != nil {
                             InlineVoiceNoteRow(note:note,root:workspace.notesRoot,
                                 subtitle:workspace.entry(note.reference).map { workspace.title($0,locale:locale) } ?? note.reference.itemID.uuidString,
+                        displayTitle:VoiceNoteDisplayName.title(note,summary:workspace.scanSummaries[note.reference.id],locale:locale),
                                 enabled:!busy && !audioActive)
                         }
                     }.padding(.vertical,4).contextMenu {
@@ -223,13 +229,14 @@ struct ProjectVoiceNotesView: View {
     private func shareAudio(_ note:ARNote) {
         guard !busy,!audioActive else { return }
         let root = workspace.notesRoot
+        let name = VoiceNoteDisplayName.title(note,summary:workspace.scanSummaries[note.reference.id],locale:locale)
         let request = UUID(); shareRequest = request
         sharedAudio = nil; sharing = true
         Task {
             do {
                 let file = try await Task.detached(priority:.utility) {
                     let bytes = try ARNoteStore.audio(for:note,root:root)
-                    let target = try ExportService.scratchDirectory().appendingPathComponent(ArchivePath.component(note.title ?? note.stem)+".m4a")
+                    let target = try ExportService.scratchDirectory().appendingPathComponent(ArchivePath.component(name)+".m4a")
                     try bytes.write(to:target,options:.atomic); return target
                 }.value
                 guard visible,sharing,shareRequest == request,root == workspace.notesRoot else { return }; sharedAudio = file

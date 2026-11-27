@@ -20,7 +20,7 @@ enum CaptureSurfacePoint {
             }
         }
         let m = frame.camera.transform
-        let query = ARRaycastQuery(origin:SIMD3(m[3].x,m[3].y,m[3].z),direction:-SIMD3(m[2].x,m[2].y,m[2].z),allowing:.estimatedPlane,alignment:.any)
+        let query = ARRaycastQuery(origin:SIMD3(m[3].x,m[3].y,m[3].z),direction:-SIMD3(m[2].x,m[2].y,m[2].z),allowing:.existingPlaneGeometry,alignment:.any)
         guard let hit = session.raycast(query).first else { return nil }
         let p = hit.worldTransform.columns.3
         return .init(x:Double(p.x),y:Double(p.y),z:Double(p.z))
