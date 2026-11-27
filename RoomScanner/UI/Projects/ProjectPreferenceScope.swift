@@ -9,7 +9,8 @@ extension EnvironmentValues {
 }
 private struct ProjectPreferenceScope:ViewModifier {
     let preferences:ProjectPreferences?
-    @Environment(\.locale) private var appLocale
+    @AppStorage(AppLanguage.preferenceKey) private var language = AppLanguage.system.rawValue
+    private var appLocale:Locale { (AppLanguage(rawValue:language) ?? .system).locale }
     func body(content:Content) -> some View {
         content.environment(\.projectPreferences,preferences)
             .environment(\.locale,ProjectPreferenceResolution.locale(preferences,appDefault:appLocale))

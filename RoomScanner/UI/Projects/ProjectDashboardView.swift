@@ -130,9 +130,9 @@ struct RenovationProjectPage: View {
                             ForEach(summary.roomDetails.filter { $0.story == story }) { room in
                                 VStack(alignment:.leading,spacing:DS.Spacing.xs) {
                                     HStack {
-                                        Text(room.name).font(.subheadline.weight(.semibold)); Spacer()
-                                        Text(MeasurementFormat.squareMeters(room.area,locale:locale)).monospacedDigit().font(.subheadline)
-                                        Button { newRoomName = room.name; roomToRename = .init(entry:entry,room:room) } label:{ Image(systemName:"pencil") }
+                                        Text(room.displayName(locale:locale)).font(.subheadline.weight(.semibold)); Spacer()
+                                        Text(room.area > 0 && room.area.isFinite ? MeasurementFormat.squareMeters(room.area,locale:locale) : AppLanguage.text("Area unavailable",locale:locale)).monospacedDigit().font(.subheadline)
+                                        Button { newRoomName = room.displayName(locale:locale); roomToRename = .init(entry:entry,room:room) } label:{ Image(systemName:"pencil") }
                                             .accessibilityLabel("Rename room")
                                     }
                                     Text(room.elements.keys.sorted().map { "\(room.elements[$0] ?? 0) \($0)" }.joined(separator:" · ")).font(.caption).foregroundStyle(.secondary)

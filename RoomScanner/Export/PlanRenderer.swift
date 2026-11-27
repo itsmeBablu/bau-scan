@@ -207,7 +207,8 @@ struct PlanRenderer {
         for (i, room) in rooms.enumerated() { drawFloor(room, mapper: mapper, color: floorColor(forRoomAt: i, of: rooms.count), in: ctx) }
         let graph = HouseWallGraph(house: house)
         drawResolvedWalls(house, graph: graph, mapper: mapper, in: ctx)
-        for (i, room) in rooms.enumerated() { drawRoom(room, mapper: mapper, floor: floorColor(forRoomAt: i, of: rooms.count), graph:graph,hiddenDoors:hiddenDoors[room.id] ?? [],in:ctx) }
+        for room in rooms { drawRoom(room, mapper: mapper, graph:graph,hiddenDoors:hiddenDoors[room.id] ?? [],in:ctx) }
+        drawRoomLabels(rooms,mapper:mapper,in:ctx)
         if titleHeight > 0 { drawTitleBlock(house, rooms: rooms, scaleDenominator: scaleDenominator, in: ctx, size: size, height: titleHeight) }
     }
 
@@ -231,7 +232,8 @@ struct PlanRenderer {
         for (i, room) in rooms.enumerated() { r.drawFloor(room, mapper: mapper, color: floorColor(forRoomAt: i, of: rooms.count), in: ctx) }
         let graph = HouseWallGraph(house: house)
         r.drawResolvedWalls(house, graph: graph, mapper: mapper, in: ctx)
-        for (i, room) in rooms.enumerated() { r.drawRoom(room, mapper: mapper, floor: floorColor(forRoomAt: i, of: rooms.count), graph:graph,hiddenDoors:hiddenDoors[room.id] ?? [],in:ctx) }
+        for room in rooms { r.drawRoom(room, mapper: mapper, graph:graph,hiddenDoors:hiddenDoors[room.id] ?? [],in:ctx) }
+        r.drawRoomLabels(rooms,mapper:mapper,in:ctx)
         return ctx.makeImage()
     }
 
@@ -263,15 +265,10 @@ struct PlanRenderer {
         path(room.floorPolygon, mapper: mapper, in: ctx)
         ctx.fillPath()
     }
-    private func drawRoom(_ room: FloorPlan, mapper base: Mapper, floor floorColor: CGColor, graph:HouseWallGraph,hiddenDoors:Set<Int> = [],in ctx: CGContext) {
+    private func drawRoom(_ room: FloorPlan, mapper base: Mapper, graph:HouseWallGraph,hiddenDoors:Set<Int> = [],in ctx: CGContext) {
         var mapper = base; mapper.transform = room.transform
         let side = InteriorSide(polygon: room.floorPolygon, fallback: room.bounds.center)
 
-        // Floor
-        if options.showFloor, room.floorPolygon.count >= 3 {
-            ctx.setFillColor(floorColor)
-            path(room.floorPolygon, mapper: mapper, in: ctx); ctx.fillPath()
-        }
         // Objects
         if options.showObjects {
             for o in room.objects { drawObject(o, mapper: mapper, in: ctx) }
@@ -285,9 +282,12 @@ struct PlanRenderer {
         if options.showDimensions {
             for wall in room.walls { drawDimension(wall, side: side, mapper: mapper, in: ctx) }
         }
-        // Room label (name + m² area)
-        if options.showRoomLabels {
-            drawRoomLabel(room, mapper: mapper, in: ctx)
+    }
+
+    private func drawRoomLabels(_ rooms:[FloorPlan],mapper base:Mapper,in ctx:CGContext) {
+        for room in rooms {
+            var mapper = base; mapper.transform = room.transform
+            drawRoomLabel(room,mapper:mapper,in:ctx)
         }
     }
 
@@ -429,9 +429,9 @@ struct PlanRenderer {
         let center = Polygon2D.interiorPoint(room.floorPolygon, fallback: room.bounds.center)
         let pt = mapper.point(center)
 
-        let name = room.name.isEmpty ? RoomNaming.defaultBaseName(room.label) : room.name
+        let name = RoomNaming.displayName(room.name,label:room.label,locale:options.locale)
         let area = Polygon2D.area(room.floorPolygon)
-        let areaStr = MeasurementFormat.squareMeters(area, locale: options.locale)
+        let areaStr = area > 0 && area.isFinite ? MeasurementFormat.squareMeters(area, locale: options.locale) : AppLanguage.text("Area unavailable",locale:options.locale)
 
         let fontSize = max(min(mapper.length(0.30), 14), 8.5) * options.textScale
         let subFontSize = fontSize * 0.82

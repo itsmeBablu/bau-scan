@@ -1,5 +1,90 @@
 # Mac handoff: verification and remaining consolidation
 
+## Screenshot UI follow-up — 27 November 2026 (new, unverified)
+
+Final window choice: B (frame with sill), superseding A/the native window symbol
+for the Windows quantity row. DSWindowFrameIcon is an original scalable SwiftUI
+vector with four panes and sill, no downloaded asset/dependency. Check light/dark,
+Dynamic Type, row alignment and VoiceOver (the Label supplies “Windows”; the drawing
+is decorative). This does not change window symbols in floor plans or scan geometry.
+
+3D canvas follow-up: ViewerView's virtual canvas now uses the existing Surface
+token (white in light/high-contrast light, dark in dark mode), replacing the fixed
+brand charcoal. The existing light-grey wall material is unchanged. Verify live
+Light/Dark/System switching, wall-edge visibility and camera/selection preservation.
+AR remains camera-backed and is not given an opaque white overlay. This presentation
+change has not been built or visually verified on an Apple device here.
+
+Icon selection follow-up: native names are centralized in DS.Symbol. Apply the
+user's A/B choices, with window.vertical.closed replacing the split-rectangle
+preview. Quantities shows Doors, Windows and Other openings separately; counts
+and export calculations are unchanged. Check waveform for voice, ruler for
+measurement (final selection), ellipsis options, clock-arrow restore and icon-only 3D/2D/AR modes.
+Validate native symbols and accessible labels on iOS 18+/macOS 15+, including
+selected states and narrow/Dynamic Type layouts. Waste allowance has an EN/DE
+explanation and still adjusts only flooring/paint estimates, not scan measurements.
+
+Preserve the earlier live-preference/name fixes below. Generate with XcodeGen and
+run both full schemes after this follow-up. Run StudioRestoreTests (three cases),
+ReportedGeometryRegressionTests (two cases), existing Studio conflict/duplicate/
+catalogue tests and the previous live preference/renderer regressions.
+
+Manual checks:
+- Quantities: inspect all metrics/icons/units, smaller insets and full-width rows;
+  no duplicate expandable House metrics. Technical lines and pins still appear.
+- From House and Technik libraries open saved items: the app-level project tab bar
+  must disappear on every detail sub-tab and return on back navigation. Test deep
+  links, iPad, portrait/landscape and accessibility text sizes.
+- 2D: text decrease/percentage/increase, ruler and options centered as individual
+  floating controls. Test limits, measurement result/clear and zoom/pan.
+- 3D: one floating row for 3D/2D/AR, mic, recenter, measure and options. Narrow or
+  accessibility layouts must scroll without clipped/unreachable controls. AR still
+  disables the existing non-AR measurement mode. Test Quick Look and visibility.
+- Studio: saving updates the same design; its source is not offered as a second
+  start-design card. Local/cloud or distinct source kinds must not hide each other.
+  Explicit duplicates and recovery conflict copies must not be deleted.
+- Restore from scan: confirm/cancel, undo/redo, save/reopen, original source bytes
+  unchanged and no second design file. Test House (with radiator survey), Room and
+  Technik originals; missing/corrupt source must show an error without losing edits.
+
+Reported angled window wall and absent Flur remain unresolved without actual scan
+input. Compare the affected .housescan and an older counterpart against bda846a
+(23 November, 15:28:05 +01:00) using the SAME JSON input. FloorPlanBuilder is unchanged
+since that version; later partition/wall-resolution stages need comparison. Do not
+straighten walls, invent room polygons/areas, change native formats or roll back
+capture behavior from screenshots alone. Keep capture-derived results marked
+device validation pending. All screenshot UI/Studio changes remain unbuilt here.
+
+## New follow-up to verify — 27 November 2026
+
+The Mac continuation report records passing tests for the prior tree. The subsequent
+Windows follow-up based on 2369a53 is NEW and has not been built on Apple platforms.
+Generate and run both full schemes again before treating it as verified. New tests:
+LivePresentationPreferencesTests (iOS only), RoomNamingTests additions,
+ProjectScanSummaryTests additions, SVGExporterTests additions and the paint-order
+case in PlanRendererTests. Keep all existing export/golden tests unchanged.
+
+Manual acceptance for this follow-up:
+- Open App settings from inside a project. Switch Dark to Light and back, including
+  System. The currently open settings/navigation/form must update immediately.
+- Switch app English/German while settings remains open. Close it and check current
+  tabs, sheets and navigation destinations. Test a project using app defaults and
+  one explicitly pinned to German/System: its explicit override must remain.
+  Navigation paths and unsaved project details must survive preference changes.
+- Check the House and Technik bottom-right plus/options controls on iPhone/iPad:
+  24 pt glyphs, 48 pt targets, no clipping or lost labels/actions/Dynamic Type support.
+- Reopen yesterday's hallway in both room list and 2D. Blank names show Room/Raum;
+  existing Flur/custom names stay unchanged. Available polygon areas remain the
+  same; absent/invalid areas show unavailable. Room labels must be enabled in 2D
+  options. Test manual room rename, including persistence and reopen.
+- Inspect PDF/PNG, SVG and 3D floor textures. Floors render once, labels last;
+  later overlapping floor fills must not erase earlier labels/graphics. Review
+  visual changes rather than silently approving regenerated golden baselines.
+
+No scan from the reported hallway was supplied in Windows, so its actual missing
+geometry/classification is not verified. No hallway, area or staircase geometry
+was fabricated. Capture/session behavior and persisted formats remain unchanged.
+
 ## Current handoff — 2026-11-26
 
 Publication update: after preparing this handoff, the user explicitly authorized

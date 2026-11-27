@@ -148,53 +148,19 @@ struct Plan2DView: View {
         .sheet(item: $selectedPhoto) { photo in
             ProjectPhotoGallery(assets: photos, initial: photo.id,compactPresentation:true)
         }
-        .safeAreaInset(edge: .bottom) {
-            ScrollView(.horizontal) {
-            HStack(spacing: 12) {
-                Button { textScale = max(0.7, ((textScale - 0.1) * 10).rounded() / 10) } label: {
-                    Label("Smaller text", systemImage: "textformat.size.smaller")
-                }
-                .disabled(textScale <= 0.7)
-                Text("\(Int((textScale * 100).rounded()))%")
-                    .monospacedDigit().frame(minWidth: 48)
-                Button { textScale = min(1.8, ((textScale + 0.1) * 10).rounded() / 10) } label: {
-                    Label("Larger text", systemImage: "textformat.size.larger")
-                }
-                .disabled(textScale >= 1.8)
-
-                Divider().frame(height: 18)
-
-                Toggle(isOn: $isMeasuring) {
-                    Label("plan.measure", systemImage: "ruler.fill")
-                }
-                .toggleStyle(.button)
-
+        .safeAreaInset(edge:.bottom) {
+            VStack(spacing:8) {
                 if let last = lastMeasurementText {
-                    Text("Measured: \(last)").bold()
-                    Text("measure.copied").font(.caption).foregroundStyle(.secondary)
-                    Button("Clear") {
-                        lastMeasurementText = nil
-                        measureStart = nil
-                        measureEnd = nil
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    HStack {
+                        Text("Measured: \(last)").monospacedDigit()
+                        Button("Clear") { lastMeasurementText = nil; measureStart = nil; measureEnd = nil }
+                    }.font(.caption).padding(8).dsMaterial(in:Capsule())
                 }
-
-                Spacer(minLength: 0)
-                Button { showingOptions = true } label: { Label("Plan options", systemImage: "slider.horizontal.3") }
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.bordered)
-            .padding(12)
-            }
-            .scrollIndicators(.hidden).fixedSize(horizontal:false,vertical:true)
-            .dsMaterial()
-        }
-        .toolbar {
-            ToolbarItem(placement: .secondaryAction) {
-                Button { showingOptions = true } label: { Label("Plan options", systemImage: "slider.horizontal.3") }
-            }
+                ViewThatFits(in:.horizontal) {
+                    planTools.fixedSize()
+                    ScrollView(.horizontal) { planTools }.scrollIndicators(.hidden)
+                }.frame(maxWidth:.infinity)
+            }.padding(.horizontal,12).padding(.vertical,8)
         }
         .sheet(isPresented: $showingOptions) {
             NavigationStack {
@@ -226,6 +192,21 @@ struct Plan2DView: View {
             .presentationDetents([.medium, .large])
             .frame(minWidth: 320, minHeight: 420)
         }
+    }
+
+    private var planTools:some View {
+        HStack(spacing:8) {
+            Button { textScale = max(0.7,((textScale-0.1)*10).rounded()/10) } label: {
+                Label("Smaller text",systemImage:"textformat.size.smaller")
+            }.disabled(textScale <= 0.7)
+            Text("\(Int((textScale*100).rounded()))%").monospacedDigit().font(.caption)
+            Button { textScale = min(1.8,((textScale+0.1)*10).rounded()/10) } label: {
+                Label("Larger text",systemImage:"textformat.size.larger")
+            }.disabled(textScale >= 1.8)
+            Button { isMeasuring.toggle() } label: { Label("plan.measure",systemImage:DS.Symbol.measure) }
+                .buttonStyle(DSCanvasToolStyle(selected:isMeasuring))
+            Button { showingOptions = true } label: { Label("Plan options",systemImage:DS.Symbol.options) }
+        }.labelStyle(.iconOnly).buttonStyle(DSCanvasToolStyle())
     }
 
     private func render(size: CGSize) -> CGImage? {

@@ -62,7 +62,7 @@ struct ProjectDetailsEditor:View {
             }
         }.onAppear { if !loaded { reload(); loaded = true } }
             .onChange(of:details) { _,_ in saved = false }
-            .sheet(isPresented:$appSettings) { SettingsView(includesProfile:true).projectPreferenceScope(nil).environment(\.locale,AppLanguage.locale) }
+            .sheet(isPresented:$appSettings) { SettingsView(includesProfile:true).projectPreferenceScope(nil) }
             .interactiveDismissDisabled(onClose != nil && dirty)
             .toolbar {
                 if onClose != nil { ToolbarItem(placement:.confirmationAction) {

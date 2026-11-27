@@ -3,6 +3,26 @@ import CoreGraphics
 @testable import RoomScanner
 
 final class PlanRendererTests: XCTestCase {
+    func testLaterFloorCannotCoverEarlierRoomNameAndArea() throws {
+        var first = FloorPlanBuilder().build(from:SyntheticRooms.rectangularRoom().scan,name:"Room")
+        first.walls = []; first.openings = []; first.objects = []
+        first.floorPolygon = [.init(x:0,y:0),.init(x:4,y:0),.init(x:4,y:2),.init(x:0,y:2)]
+        var later = first; later.id = UUID(); later.name = "Other"
+        later.floorPolygon = [.init(x:0,y:0),.init(x:10,y:0),.init(x:10,y:10),.init(x:0,y:10)]
+        // Deliberate overlap isolates paint order, not physical-room inference.
+        let house = House(name:"Label regression",stories:[.init(index:0,rooms:[first,later])])
+        var renderer = PlanRenderer()
+        renderer.options.mode = .fill; renderer.options.showDimensions = false
+        renderer.options.showOpeningDimensions = false; renderer.options.showObjects = false
+        let labelled = try XCTUnwrap(renderer.image(house,pageSize:CGSize(width:600,height:600),pixelScale:1))
+        renderer.options.showRoomLabels = false
+        let plain = try XCTUnwrap(renderer.image(house,pageSize:CGSize(width:600,height:600),pixelScale:1))
+        // Left strip includes the first label; the second label is near x=300.
+        let region = CGRect(x:0,y:0,width:240,height:600)
+        XCTAssertGreaterThan(darkPixelRatio(try XCTUnwrap(labelled.cropping(to:region))),
+                             darkPixelRatio(try XCTUnwrap(plain.cropping(to:region)))+0.0001)
+    }
+
     func testSharedDoorHasOneSwingWithoutChangingOtherStoriesOrDistinctDoors() throws {
         var a = FloorPlanBuilder().build(from: SyntheticRooms.rectangularRoom().scan, name: "A")
         let door = try XCTUnwrap(a.openings.first { $0.kind == .door })

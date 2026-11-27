@@ -40,6 +40,7 @@ struct HouseDetailView: View {
         }
         .safeAreaInset(edge:.top) { if currentRecord.incomplete == true { Text("Partial scan · not fully scanned").font(.caption).padding(8).frame(maxWidth:.infinity).dsMaterial() } }
         .navigationTitle(currentRecord.name)
+        .scanWorkspaceFocus()
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -212,18 +213,19 @@ struct HouseMeasuresView: View {
                 Section(StoryNaming.localizedName(for: story.index)) {
                     ForEach(story.rooms) { room in
                         let m = RoomMeasurements(plan: room)
+                        let areaText = m.floorArea > 0 && m.floorArea.isFinite ? MeasurementFormat.squareMeters(m.floorArea,locale:locale) : AppLanguage.text("Area unavailable",locale:locale)
                         if let onRename {
                             Button { onRename(room) } label: {
                                 HStack {
                                     VStack(alignment: .leading,spacing: 4) {
-                                        Text(room.name).foregroundStyle(.primary)
-                                        Text("\(MeasurementFormat.squareMeters(m.floorArea,locale:locale)) · \(MeasurementFormat.length(m.perimeter, unit:unit,locale:locale))").font(.subheadline).foregroundStyle(.secondary)
+                                        Text(RoomNaming.displayName(room.name,label:room.label,locale:locale)).foregroundStyle(.primary)
+                                        Text("\(areaText) · \(MeasurementFormat.length(m.perimeter, unit:unit,locale:locale))").font(.subheadline).foregroundStyle(.secondary)
                                     }
                                     Spacer(); Image(systemName: "pencil").foregroundStyle(.secondary)
                                 }
-                            }.buttonStyle(.plain).accessibilityLabel("Rename room: "+room.name)
+                            }.buttonStyle(.plain).accessibilityLabel("Rename room: "+RoomNaming.displayName(room.name,label:room.label,locale:locale))
                         } else {
-                            row(Text(room.name), "\(MeasurementFormat.squareMeters(m.floorArea,locale:locale)) · \(MeasurementFormat.length(m.perimeter, unit:unit,locale:locale))")
+                            row(Text(RoomNaming.displayName(room.name,label:room.label,locale:locale)), "\(areaText) · \(MeasurementFormat.length(m.perimeter, unit:unit,locale:locale))")
                         }
                     }
                 }

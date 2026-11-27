@@ -101,9 +101,9 @@ struct SVGExporter {
             // Room label (name + m² area)
             let center = Polygon2D.interiorPoint(room.floorPolygon, fallback: room.bounds.center)
             let q = t.apply(center)
-            let name = room.name.isEmpty ? RoomNaming.defaultBaseName(room.label) : room.name
+            let name = RoomNaming.displayName(room.name,label:room.label,locale:locale)
             let area = Polygon2D.area(room.floorPolygon)
-            let areaStr = MeasurementFormat.squareMeters(area, locale: locale)
+            let areaStr = area > 0 && area.isFinite ? MeasurementFormat.squareMeters(area, locale: locale) : AppLanguage.text("Area unavailable",locale:locale)
             texts += "  <text x=\"\(mm(q.x - b.minX))\" y=\"\(mm(b.maxY - q.y - 0.10))\" font-size=\"140\" font-weight=\"bold\" fill=\"#111110\" text-anchor=\"middle\" dominant-baseline=\"middle\">\(esc(name))</text>\n"
             texts += "  <text x=\"\(mm(q.x - b.minX))\" y=\"\(mm(b.maxY - q.y + 0.12))\" font-size=\"110\" fill=\"#272000\" text-anchor=\"middle\" dominant-baseline=\"middle\">\(esc(areaStr))</text>\n"
             for o in room.objects {

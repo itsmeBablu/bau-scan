@@ -568,6 +568,14 @@ struct SceneEditDocument: Codable,Equatable,Identifiable {
         try change { $0 = next }
     }
     var dirty: Bool { document != saved }
+    func restoreFromScan(_ seed:SceneEditDocument) throws {
+        guard seed.source == document.source,seed.sourceID == document.sourceID else { throw SceneEditDocument.Failure.wrongSource }
+        var restored = seed
+        restored.revision = document.revision; restored.modifiedAt = document.modifiedAt
+        restored.title = document.title
+        try change { $0 = restored }
+        select(nil,multiple:false)
+    }
     init(_ document: SceneEditDocument,historyByteLimit: Int = 64*1_048_576) {
         self.document = document; saved = document; self.historyByteLimit = max(0,historyByteLimit)
     }

@@ -40,6 +40,7 @@ struct RoomDetailView: View {
         }
         .safeAreaInset(edge:.top) { if currentRecord.incomplete == true { Text("Partial scan · not fully scanned").font(.caption).padding(8).frame(maxWidth:.infinity).dsMaterial() } }
         .navigationTitle(currentRecord.name)
+        .scanWorkspaceFocus()
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif

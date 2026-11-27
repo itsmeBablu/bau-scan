@@ -392,26 +392,26 @@ struct ProjectChatWorkspace: View {
     }
     var body: some View {
         TabView(selection:$selectedTab) {
-            Tab("Project", systemImage: "building.2", value:0) {
+            Tab("Project", systemImage: DS.Symbol.project, value:0) {
                 projectStack("Project",index:0) { RenovationProjectPage(projectID: projectID, onScan: startScan) }
             }
-            Tab("House", systemImage: "house", value:1) {
+            Tab("House", systemImage: DS.Symbol.house, value:1) {
                 projectStack("House",index:1) { scanCards(mode: .house) }
             }
-            Tab("Technik", systemImage: "wrench.and.screwdriver", value:2) {
+            Tab("Technik", systemImage: DS.Symbol.technical, value:2) {
                 projectStack("Technik",index:2) { scanCards(mode: .technicalRoom) }
             }
-            Tab("Studio", systemImage: "cube.transparent", value:3) {
+            Tab("Studio", systemImage: DS.Symbol.studio, value:3) {
                 projectStack("Studio",index:3) {
                     ScrollView {
                         VStack(alignment: .leading, spacing: DS.Spacing.l) {
                             Text("Saved Studio designs").font(.headline); cards(entries.filter(\.isDesign))
-                            cards(entries.filter { !$0.isDesign }, studio: true)
+                            cards(studioSources, studio: true)
                         }.padding(DS.Spacing.l)
                     }
                 }
             }
-            Tab("Settings", systemImage: "gearshape", value:4) {
+            Tab("Settings", systemImage: DS.Symbol.settings, value:4) {
                 projectStack("Settings",index:4) { ProjectDetailsEditor(projectID: projectID, settings: true) }
             }
         }
@@ -449,6 +449,13 @@ struct ProjectChatWorkspace: View {
     private func scanCards(mode: ScanMode) -> some View {
         ProjectScanLibraryView(projectID:projectID,technical:mode == .technicalRoom,onScan:{ onCapture(mode) })
     }
+    private var studioSources:[ProjectLibraryEntry] {
+        entries.filter { source in
+            !source.isDesign && !entries.contains { design in
+                design.isDesign && design.reference == source.reference.designReference
+            }
+        }
+    }
     private func startScan() { workspace.currentProjectID = projectID; onScan() }
 }
 
@@ -476,7 +483,7 @@ struct RenovationItemDestination: View {
             else if entry.reference.kind == .room, let r = itemStore.records.first(where:{ $0.id == entry.reference.itemID }) { RoomDetailView(record:r).environment(itemStore) }
             else if entry.reference.kind == .technicalRoom { TechnicalStoredRoomView(id:entry.reference.itemID,library:TechnicalRoomLibraryStore(root:entry.root.appendingPathComponent("TechnicalRooms"))) }
             else { ContentUnavailableView("Item unavailable",systemImage:"folder.badge.questionmark") }
-        }.onDisappear { Task { await workspace.reload(location:libraryStore.location) } }.task {
+        }.scanWorkspaceFocus().onDisappear { Task { await workspace.reload(location:libraryStore.location) } }.task {
             guard entry.isDesign else {
                 if entry.reference.kind != .technicalRoom { itemStore.reload() }
                 libraryLoaded = true

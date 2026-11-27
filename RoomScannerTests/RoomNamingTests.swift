@@ -2,6 +2,15 @@ import XCTest
 @testable import RoomScanner
 
 final class RoomNamingTests: XCTestCase {
+    func testDisplayFallbackFollowsRequestedLanguageWithoutRenamingSavedRooms() {
+        for name in ["", "  \n\t"] {
+            XCTAssertEqual(RoomNaming.displayName(name,label:.unidentified,locale:Locale(identifier:"en_GB")),"Room")
+            XCTAssertEqual(RoomNaming.displayName(name,label:.unidentified,locale:Locale(identifier:"de_DE")),"Raum")
+        }
+        XCTAssertEqual(RoomNaming.displayName("Flur",label:.unidentified,locale:Locale(identifier:"en_GB")),"Flur")
+        XCTAssertEqual(RoomNaming.displayName("Bath Room 2",label:.bathroom,locale:Locale(identifier:"de_DE")),"Bath Room 2")
+    }
+
     let naming = RoomNaming(localizedBaseName: { label in
         switch label { case .bedroom: "Chambre"; case .livingRoom: "Salon"; default: "Pièce" }
     })

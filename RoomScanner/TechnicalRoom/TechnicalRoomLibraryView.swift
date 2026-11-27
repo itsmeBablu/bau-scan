@@ -183,6 +183,7 @@ struct TechnicalStoredRoomView: View {
             else { ProgressView("Opening saved survey…") }
         }
         .navigationTitle(package?.manifest.name ?? "Technical survey")
+        .scanWorkspaceFocus()
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif

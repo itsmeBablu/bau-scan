@@ -31,6 +31,12 @@ struct RoomNaming {
     static func defaultBaseName(_ label: RoomLabel) -> String {
         AppLanguage.text(label.localizationKey)
     }
+
+    /// Display fallback only: preserve saved/user-entered names and scan formats.
+    static func displayName(_ name:String,label:RoomLabel,locale:Locale) -> String {
+        name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty
+            ? AppLanguage.text(label.localizationKey,locale:locale) : name
+    }
 }
 
 extension RoomLabel {

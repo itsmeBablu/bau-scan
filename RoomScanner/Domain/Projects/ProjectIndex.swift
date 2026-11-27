@@ -7,6 +7,16 @@ struct ProjectReference: Codable, Hashable, Identifiable {
     var itemID: UUID
     var library: String // "local" or "icloud"; no absolute paths in the index
     var id: String { library + ":" + kind.rawValue + ":" + itemID.uuidString }
+    var designReference:Self {
+        let design:Kind
+        switch kind {
+        case .room: design = .designRoom
+        case .house: design = .designHouse
+        case .technicalRoom: design = .designTechnical
+        default: return self
+        }
+        return .init(kind:design,itemID:itemID,library:library)
+    }
 }
 
 struct RenovationProject: Codable, Equatable, Identifiable {
