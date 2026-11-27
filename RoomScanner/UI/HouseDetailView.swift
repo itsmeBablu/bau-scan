@@ -232,7 +232,11 @@ struct HouseMeasuresView: View {
     }
 
     private func row(_ title: Text, _ value: String) -> some View {
+        #if os(macOS)
+        DSMacMeasurementRow(title: title, value: value)
+        #else
         HStack { title; Spacer(); Text(value).foregroundStyle(.secondary).monospacedDigit() }
+        #endif
     }
 }
 
@@ -243,6 +247,12 @@ struct HouseRow: View {
     @State private var thumbnail: CGImage?
 
     var body: some View {
+        #if os(macOS)
+        DSMacLibraryRow(title: record.name,
+                        detail: Text("house.row \(record.roomCount) \(record.storyCount) \(MeasurementFormat.squareMeters(record.areaM2))"),
+                        symbol: "house", thumbnail: thumbnail)
+            .task(id: record.id) { thumbnail = await loadThumbnail() }
+        #else
         HStack(spacing: 12) {
             Group {
                 if let thumbnail {
@@ -261,6 +271,7 @@ struct HouseRow: View {
                     .font(.subheadline).foregroundStyle(.secondary)
             }
         }.padding(.vertical,6)
+        #endif
     }
 
     private func loadThumbnail() async -> CGImage? {

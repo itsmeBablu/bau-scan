@@ -185,6 +185,9 @@ struct MeasuresView: View {
     private func row(_ title: LocalizedStringKey, _ value: String, _ confidence: Confidence? = nil) -> some View { row(Text(title), value, confidence) }
     private func row(_ title: String, _ value: String, _ confidence: Confidence? = nil) -> some View { row(Text(title), value, confidence) }
     private func row(_ title: Text, _ value: String, _ confidence: Confidence?) -> some View {
+        #if os(macOS)
+        DSMacMeasurementRow(title: title, value: value, confidence: confidence)
+        #else
         HStack {
             title
             Spacer()
@@ -195,5 +198,6 @@ struct MeasuresView: View {
                     .accessibilityLabel(Text(confidence == .medium ? "confidence.medium" : "confidence.low"))
             }
         }
+        #endif
     }
 }

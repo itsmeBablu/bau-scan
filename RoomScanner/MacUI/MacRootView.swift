@@ -75,7 +75,8 @@ struct MacRootView: View {
                 }
             }
             .searchable(text: $search, placement: .sidebar, prompt: Text("mac.search"))
-            .navigationSplitViewColumnWidth(min: 220, ideal: 260)
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: DS.Size.macSidebarMinimum, ideal: DS.Size.macSidebarIdeal)
             .toolbar {
                 ToolbarItem(placement: .automatic) { CloudStatusBadge() }
             }
@@ -369,18 +370,9 @@ struct MacRootView: View {
 private struct TechnicalRoomRow: View {
     let manifest: TechnicalRoomManifest
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "cube.transparent").font(.title2).foregroundStyle(.tint)
-                .frame(width: 48, height: 48)
-                .background(.quaternary)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(manifest.name).font(.headline)
-                Text(manifest.modifiedAt, format: .dateTime.day().month().year())
-                    .font(.subheadline).foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 4)
+        DSMacLibraryRow(title: manifest.name,
+                        detail: Text(manifest.modifiedAt, format: .dateTime.day().month().year()),
+                        symbol: "cube.transparent")
     }
 }
 
@@ -388,17 +380,8 @@ private struct TechnicalRoomRow: View {
 private struct DesignRow: View {
     let document: SceneEditDocument
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "square.stack.3d.up").font(.title2).foregroundStyle(.tint)
-                .frame(width: 48, height: 48)
-                .background(.quaternary)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(document.title).font(.headline)
-                Text(document.source == .house ? "House" : (document.source == .technical ? "Utility room" : "Room"))
-                    .font(.subheadline).foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 4)
+        DSMacLibraryRow(title: document.title,
+                        detail: Text(document.source == .house ? "House" : (document.source == .technical ? "Utility room" : "Room")),
+                        symbol: "square.stack.3d.up")
     }
 }

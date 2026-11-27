@@ -254,6 +254,12 @@ struct RoomRow: View {
     @State private var thumbnail: CGImage?
 
     var body: some View {
+        #if os(macOS)
+        DSMacLibraryRow(title: record.name,
+                        detail: Text("\(MeasurementFormat.squareMeters(record.areaM2)) · \(record.createdAt, format: .dateTime.day().month().year())"),
+                        symbol: "square.split.bottomrightquarter", thumbnail: thumbnail)
+            .task(id: record.id) { thumbnail = await loadThumbnail() }
+        #else
         HStack(spacing: 12) {
             Group {
                 if let thumbnail {
@@ -276,6 +282,7 @@ struct RoomRow: View {
                     .font(.subheadline).foregroundStyle(.secondary)
             }
         }.padding(.vertical,6)
+        #endif
     }
 
     /// Package thumbnail; if missing, rendered on the fly and persisted.

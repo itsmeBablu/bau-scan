@@ -13,6 +13,7 @@ struct MacEmptyStateView: View {
             Text(store.isCloud ? "mac.empty.description.icloud" : "mac.empty.description.local")
         } actions: {
             Button("mac.menu.import", action: onImport)
+                .dsProminentControl()
         }
     }
 }

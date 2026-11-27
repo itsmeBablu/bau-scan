@@ -76,6 +76,11 @@ public enum DS {
         }
     }
     public enum Size {
+        #if os(macOS)
+        public static let macLibraryThumbnail: CGFloat = 40
+        public static let macSidebarMinimum: CGFloat = 220
+        public static let macSidebarIdeal: CGFloat = 280
+        #endif
         public static let minimumTouchTarget: CGFloat = 44
         public static let libraryCardMinimumWidth: CGFloat = 180
         public static let projectCardMinimumWidth: CGFloat = 200

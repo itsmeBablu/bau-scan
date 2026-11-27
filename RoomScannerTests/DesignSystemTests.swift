@@ -8,6 +8,29 @@ import AppKit
 @testable import RoomScanner
 
 final class DesignSystemTests: XCTestCase {
+    #if os(macOS)
+    @MainActor func testMacMeasurementReflowsInNarrowDetail() throws {
+        let locale = Locale(identifier: "de_DE")
+        let range = [2.54, 3.10].map { MeasurementFormat.length($0, unit: .both, locale: locale) }
+            .joined(separator: " – ")
+        let row = DSMacMeasurementRow(title: Text(verbatim: "Lichte Raumhöhe"),
+                                      value: range, confidence: .medium)
+        func snapshot(width: CGFloat) throws -> CGImage {
+            let renderer = ImageRenderer(content: row.frame(width: width).padding().background(DS.ColorToken.surface.color))
+            return try XCTUnwrap(renderer.cgImage)
+        }
+        let wide = try snapshot(width: 520)
+        let narrow = try snapshot(width: 180)
+        XCTAssertGreaterThan(narrow.height, wide.height)
+        for (name, image) in [("wide", wide), ("narrow", narrow)] {
+            let size = NSSize(width: CGFloat(image.width), height: CGFloat(image.height))
+            let attachment = XCTAttachment(image: NSImage(cgImage: image, size: size))
+            attachment.name = "Mac measurement - " + name
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+    }
+    #endif
     #if os(iOS)
     func testLibraryCardsGiveAccessibilityTextAFullRow() {
         XCTAssertEqual(DS.libraryColumns(compact: true, textSize: .large).count, 2)
