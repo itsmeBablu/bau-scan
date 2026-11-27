@@ -44,12 +44,14 @@ struct Segment2D: Codable, Equatable, Hashable {
     var leftNormal: Point2D { let d = direction; return Point2D(x: -d.y, y: d.x) }
 
     /// Distance from point to segment (clamped to endpoints).
-    func distance(to p: Point2D) -> Double {
+    func distance(to p: Point2D) -> Double { p.distance(to: closestPoint(to: p)) }
+
+    func closestPoint(to p: Point2D) -> Point2D {
         let ab = end - start
         let ab2 = ab.x * ab.x + ab.y * ab.y
-        guard ab2 > 0 else { return start.distance(to: p) }
+        guard ab2 > 0 else { return start }
         let t = max(0, min(1, ((p.x - start.x) * ab.x + (p.y - start.y) * ab.y) / ab2))
-        return p.distance(to: start + ab * t)
+        return start + ab * t
     }
 }
 

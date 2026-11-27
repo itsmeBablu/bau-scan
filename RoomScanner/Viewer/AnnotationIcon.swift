@@ -68,7 +68,7 @@ struct AnnotationTarget:Component {}
         let icon = entity(symbol:note.audioFileName == nil ? "mappin" : AnnotationPresentation.audioSymbol,name:name ?? "scan-note:"+note.id.uuidString)
         icon.position = SIMD3(Float(localIcon.x),Float(localIcon.y),Float(localIcon.z)); root.addChild(icon)
         if let stem = line(from:.init(x:0,y:0,z:0),to:localIcon) { stem.name = "pin-label-leader"; root.addChild(stem) }
-        if note.audioFileName == nil,let c = camera ?? note.viewingCameraPosition,let beam = line(from:.init(x:c.x-p.x,y:c.y-p.y,z:c.z-p.z),to:.init(x:0,y:0,z:0)) { beam.name = "capture-to-pin"; root.addChild(beam) }
+        if note.markerIconPosition == nil, note.audioFileName == nil,let c = camera ?? note.viewingCameraPosition,let beam = line(from:.init(x:c.x-p.x,y:c.y-p.y,z:c.z-p.z),to:.init(x:0,y:0,z:0)) { beam.name = "capture-to-pin"; root.addChild(beam) }
         return root
     }
 

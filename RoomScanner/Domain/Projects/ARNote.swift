@@ -30,6 +30,19 @@ struct ARNote: Codable, Equatable, Identifiable {
     var displayPosition: TechnicalPoint3? = nil
     var retainAudio: Bool? = nil
     var transcript: String? = nil
+    // Derived when opening a saved scan. Never persisted as captured evidence.
+    var markerIconPosition: TechnicalPoint3? = nil
+
+    func applyingPresentation(from displayed: ARNote) -> ARNote {
+        var result = self
+        result.roomID = displayed.roomID
+        result.level = displayed.level
+        result.displayPosition = displayed.displayPosition
+        result.displayCameraPosition = displayed.displayCameraPosition
+        result.markerIconPosition = displayed.markerIconPosition
+        return result
+    }
+
     var viewingCameraPosition:TechnicalPoint3? { displayCameraPosition ?? cameraPosition }
     var viewingPosition: TechnicalPoint3? { displayPosition ?? position }
     var positionSource: String { "scan-derived" }

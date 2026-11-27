@@ -47,12 +47,12 @@ enum StudioCameraFraming {
         noteRoot.removeFromParentNode(); noteRoot.childNodes.forEach { $0.removeFromParentNode() }
         for note in notes.suffix(256) {
             if let level = note.level,level != previousStory { continue }
-            guard let p = note.viewingPosition else { continue }
+            guard let p = note.displayPosition else { continue }
             let node = iconNode(symbol:note.audioFileName == nil ? "mappin" : AnnotationPresentation.audioSymbol,name:"note:"+note.id.uuidString)
             let iconPoint = AnnotationPresentation.noteIconPosition(note,anchor:p)
             node.position = SCNVector3(iconPoint.x,iconPoint.y,iconPoint.z); noteRoot.addChildNode(node)
             if let stem = annotationLine(from:p,to:iconPoint) { noteRoot.addChildNode(stem) }
-            if note.audioFileName == nil,let camera = note.viewingCameraPosition,let ray = annotationLine(from:camera,to:p) { noteRoot.addChildNode(ray) }
+            if note.markerIconPosition == nil, note.audioFileName == nil,let camera = note.viewingCameraPosition,let ray = annotationLine(from:camera,to:p) { noteRoot.addChildNode(ray) }
         }
         view?.scene?.rootNode.addChildNode(noteRoot)
     }

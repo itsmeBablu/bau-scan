@@ -12,7 +12,7 @@ enum AnnotationPresentation {
     ]
     static let lineRadius:Float = 0.004
     static func noteIconPosition(_ note:ARNote,anchor:TechnicalPoint3,camera:TechnicalPoint3? = nil) -> TechnicalPoint3 {
-        if note.audioFileName != nil,let camera = camera ?? note.viewingCameraPosition { return camera }
+        if let icon = note.markerIconPosition { return icon }
         return .init(x:anchor.x,y:anchor.y+(note.audioFileName == nil ? 0.12 : 0.28),z:anchor.z)
     }
     static let planDirectionLength:CGFloat = 36

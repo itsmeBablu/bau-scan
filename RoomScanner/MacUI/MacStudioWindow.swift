@@ -5,14 +5,13 @@ struct MacStudioWindow: View {
     let designID: UUID
     @Environment(RoomStore.self) private var store
     @State private var document: SceneEditDocument?
-    @State private var storageURL: URL?
-    @State private var photos: [SurveyPhotoImage] = []
+    @State private var storageRoot: URL?
     @State private var error: String?
 
     var body: some View {
         Group {
-            if let document, let storageURL {
-                StudioEditorView(document: document, storageURL: storageURL, photos: photos)
+            if let document, let storageRoot {
+                StudioProjectView(seed: document, storageRoot: storageRoot)
             } else if let error {
                 ContentUnavailableView("Could not open design", systemImage: "exclamationmark.triangle", description: Text(error))
             } else {
@@ -21,7 +20,7 @@ struct MacStudioWindow: View {
         }
         .frame(minWidth: 900, minHeight: 650)
         .task(id: designID.uuidString+store.location.documentsURL.path) {
-            document = nil; storageURL = nil; error = nil; photos = []
+            document = nil; storageRoot = nil; error = nil
             await load()
         }
     }
@@ -36,18 +35,8 @@ struct MacStudioWindow: View {
                 if FileManager.default.fileExists(atPath: url.path) {
                     do {
                         if let doc = try SceneEditStore.read(url, source: source, id: designID) {
-                            let loadedPhotos: [SurveyPhotoImage] = (try? await Task.detached { () throws -> [SurveyPhotoImage] in
-                                if source == .technical {
-                                    let techURL = root.appendingPathComponent("TechnicalRooms").appendingPathComponent(designID.uuidString).appendingPathExtension("technicalroom")
-                                    return SurveyPhotoStore.images(technical: try TechnicalRoomPackage.read(from: techURL), studio: true)
-                                }
-                                let pkg = source == .house
-                                    ? location.housePackageURL(for:designID)
-                                    : location.packageURL(for:designID)
-                                return try SurveyPhotoStore.images(from: pkg, house: doc.shell)
-                            }.value) ?? []
                             guard !Task.isCancelled,primary == store.location else { return }
-                            storageURL = url; document = doc; photos = loadedPhotos
+                            storageRoot = root; document = doc
                             return
                         }
                     } catch {

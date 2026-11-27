@@ -116,15 +116,15 @@ struct HouseDetailView: View {
             switch tab {
             case .plan:
                 #if os(macOS)
-                Plan2DView(house: shown(house), packageURL: store.packageURL(for: currentRecord))
+                Plan2DView(house: shown(house), evidenceHouse: house, packageURL: store.packageURL(for: currentRecord))
                     .onDrag { DragExportProvider.provider(subject: ExportSubject(record: currentRecord, house: shown(house), packageURL: store.packageURL(for: currentRecord)), format: .pdf) }
                     .help("mac.dragHint")
                 #else
-                Plan2DView(house: shown(house), packageURL: store.packageURL(for: currentRecord))
+                Plan2DView(house: shown(house), evidenceHouse: house, packageURL: store.packageURL(for: currentRecord))
                 #endif
             case .viewer:
                 VStack(spacing: 0) {
-                    ViewerView(house: shown(house), state: viewerState, radiators: radiators,photoPackageURL:store.packageURL(for:currentRecord))
+                    ViewerView(house: shown(house), evidenceHouse: house, state: viewerState, radiators: radiators,photoPackageURL:store.packageURL(for:currentRecord))
                     ViewerControls(state: viewerState, usdzURL: HousePackage.usdzURL(in: store.packageURL(for: currentRecord)),onVoiceNote: { showingVoiceNotes = true })
                 }
             case .measures: HouseMeasuresView(house: shown(house),onRename: { room in

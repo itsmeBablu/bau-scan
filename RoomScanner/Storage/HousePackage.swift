@@ -91,7 +91,17 @@ struct HousePackage {
             let result = try RoomPackage.decoder.decode(HouseRadiatorSurvey.self,from: SafePackageRead.data(file,root:root,maximum:64*1_048_576))
             let house = try RoomPackage.decoder.decode(House.self,from: SafePackageRead.data(root.appendingPathComponent(F.house),root:root))
             try result.validate(for: house)
-            return result
+            // Early split-room surveys lost the source floor. Recover for display
+            // only when the original structure is still present.
+            let missingFloor = result.radiators.filter { $0.capturedInHouseCoordinates == true && $0.houseFloorElevation == nil }
+            guard !missingFloor.isEmpty,
+                  let data = try? SafePackageRead.data(root.appendingPathComponent(F.structure), root: root),
+                  let structure = try? RoomPackage.decoder.decode(StructureInput.self, from: data),
+                  let recovered = try? HouseRadiatorRegistration.associate(missingFloor, house: house, structure: structure) else { return result }
+            let byID = Dictionary(uniqueKeysWithValues: recovered.radiators.filter { $0.houseFloorElevation != nil }.map { ($0.id, $0) })
+            var displayed = result
+            displayed.radiators = result.radiators.map { byID[$0.id] ?? $0 }
+            return displayed
         }
     }
     static func writeRadiators(_ survey: HouseRadiatorSurvey,house: House,in url: URL) throws {

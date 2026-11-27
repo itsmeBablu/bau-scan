@@ -1,6 +1,7 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Tap a surface to place the pin": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Tap a surface to place the pin"}},"de":{"stringUnit":{"state":"translated","value":"Tippe auf eine Oberfläche, um die Markierung zu setzen."}}}},
     "Builder": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Builder"}},"de":{"stringUnit":{"state":"translated","value":"Bauunternehmen"}}}},
     "Planner": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Planner"}},"de":{"stringUnit":{"state":"translated","value":"Planer"}}}},
     "Floors & rooms": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Floors & rooms"}},"de":{"stringUnit":{"state":"translated","value":"Etagen und Räume"}}}},

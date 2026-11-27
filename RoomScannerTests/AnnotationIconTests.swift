@@ -39,7 +39,7 @@ final class AnnotationIconTests:XCTestCase {
         XCTAssertEqual(AnnotationPresentation.directionCorners.count,4)
         XCTAssertTrue(AnnotationPresentation.directionCorners.allSatisfy { $0.z == -0.80 })
     }
-    @MainActor func testPhotoKeepsDirectionFrustumAndVoiceKeepsCameraLeader() throws {
+    @MainActor func testPhotoKeepsDirectionFrustumAndVoiceUsesSurfaceLeader() throws {
         let photo = SurveyPhoto(id:UUID(),number:1,pose:[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],timestamp:1)
         let camera = SurveyPhotoMarkers.entity(photo)
         XCTAssertEqual(camera.children.filter { $0.name.hasPrefix("photo-frustum-") }.count,8)
@@ -49,8 +49,8 @@ final class AnnotationIconTests:XCTestCase {
         XCTAssertNil(marker.findEntity(named:"capture-to-pin"),"Voice leader is drawn once")
         XCTAssertNotNil(marker.findEntity(named:"pin-label-leader"))
         let voice = try XCTUnwrap(marker.findEntity(named:"scan-note:"+note.id.uuidString))
-        XCTAssertEqual(voice.position.x,-1,accuracy:0.001)
-        XCTAssertEqual(voice.position.y,0.5,accuracy:0.001,"Voice icon uses the observed camera height")
+        XCTAssertEqual(voice.position.x,0,accuracy:0.001)
+        XCTAssertEqual(voice.position.y,0.28,accuracy:0.001,"Voice icon stays above the selected surface")
     }
 
 }

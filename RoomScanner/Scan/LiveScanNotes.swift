@@ -10,6 +10,9 @@ struct LiveScanNotes: View {
     let persistence: CapturePersistence
     let workspace: RenovationWorkspace?
     let projectID: UUID?
+    let pins: CapturePins
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityVoiceOverEnabled) private var usesVoiceOver
     var position: () -> TechnicalPoint3?
     var pose: () -> [Double]?
     var roomID: () -> UUID? = { nil }
@@ -38,6 +41,7 @@ struct LiveScanNotes: View {
             HStack(spacing:12) {
                 HoldMicrophoneControl(recording:recorder.recording,start:{
                     guard !busy,pending == nil else { return }
+                    pins.placing = false
                     let surface = position()
                     recordingPin = selectedPin ?? surface.flatMap(nearbyPin)
                     recordingPosition = recordingPin?.position ?? surface
@@ -47,10 +51,14 @@ struct LiveScanNotes: View {
                 },finish:{ cancel in holding = false; recorder.stop(cancel:cancel,reason:cancel ? "Recording discarded" : "User stopped recording") })
                     .frame(width:48,height:48)
                 Button {
-                    guard let point = position() else { message = AppLanguage.text("Aim at a tracked surface"); return }
-                    pin = point; capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level(); text = ""
-                    do { let owner = try owner(); var value = ARNote(projectID:owner,reference:reference,number:1,level:capturedLevel,roomID:capturedRoom,position:point,planPosition:nil,language:locale.identifier); value.cameraPosition = cameraPoint(); value.title = AppLanguage.text("Pinned note",locale:locale); pendingText = value; onPin(value); saveText() } catch { message = error.localizedDescription }
-                } label: { Image(systemName:pin == nil ? "mappin" : "mappin.circle.fill").frame(width:48,height:48) }
+                    if usesVoiceOver {
+                        place(position().map { ScanSurfaceTarget(point: $0) })
+                    } else {
+                        pins.placing.toggle()
+                        pins.selected = nil
+                        message = pins.placing ? AppLanguage.text("Tap a surface to place the pin", locale: locale) : nil
+                    }
+                } label: { Image(systemName:!pins.placing && pin == nil ? "mappin" : "mappin.circle.fill").frame(width:48,height:48) }
                     .dsMaterial(in:Circle()).accessibilityLabel("Pin a note to this surface")
                     .disabled(holding || recorder.recording || recorder.preparing || pending != nil)
             }.disabled(busy)
@@ -68,8 +76,12 @@ struct LiveScanNotes: View {
                 } }.frame(width:100,height:24).dsMaterial(in:Capsule()).offset(y:-32).allowsHitTesting(false)
             }
         }
-        .overlay(alignment:.bottomLeading) {
-            if let error = recorder.error ?? message { Text(error).font(.caption2).lineLimit(2).frame(width:220,alignment:.leading).padding(6).dsMaterial(in:Capsule()).offset(y:45).allowsHitTesting(false) }
+        .overlay(alignment:.topLeading) {
+            if let error = recorder.error ?? message {
+                Text(error).font(.caption2).lineLimit(2).frame(width:220,alignment:.leading).padding(6).dsMaterial(in:Capsule())
+                    .offset(y: (selectedPin != nil && !recorder.recording) ? -104 : (recorder.recording ? -68 : -44))
+                    .allowsHitTesting(false)
+            }
         }
         .overlay(alignment:.topLeading) {
             if let selectedPin,!recorder.recording {
@@ -80,12 +92,34 @@ struct LiveScanNotes: View {
             }
         }
         .onChange(of:selectedPin) { _,value in text = value?.text ?? "" }
-        .onDisappear { recorder.stop(partial:true) }
+        .onChange(of: pins.tap?.id) { _, _ in
+            guard enabled, !busy, !holding, let tap = pins.tap else { return }
+            place(tap.target)
+        }
+        .onChange(of: enabled) { _, active in if !active { pins.placing = false } }
+        .onDisappear { pins.placing = false; recorder.stop(partial:true) }
+    }
+    private func place(_ target: ScanSurfaceTarget?) {
+        guard let target else { message = AppLanguage.text("Aim at a tracked surface"); return }
+        pin = target.point
+        capturedPose = pose()
+        capturedRoom = roomID()
+        capturedLevel = level()
+        text = ""
+        do {
+            var value = ARNote(projectID: try owner(), reference: reference, number: 1, level: capturedLevel,
+                               roomID: capturedRoom, position: target.point, planPosition: nil, language: locale.identifier)
+            value.elementID = target.elementID
+            value.cameraPosition = cameraPoint()
+            value.title = AppLanguage.text("Pinned note", locale: locale)
+            pendingText = value
+            saveText()
+        } catch { message = error.localizedDescription }
     }
     private func note(owner:UUID) -> ARNote {
         var note = ARNote(projectID:owner,reference:reference,number:1,level:recordingPin?.level ?? capturedLevel,
-            roomID:recordingPin?.roomID ?? capturedRoom,position:recordingPosition ?? cameraPoint(),planPosition:nil,language:locale.identifier)
-        note.anchorPinID = recordingPin?.id; note.cameraPosition = cameraPoint()
+            roomID:recordingPin?.roomID ?? capturedRoom,position:recordingPosition,planPosition:nil,language:locale.identifier)
+        note.elementID = recordingPin?.elementID; note.anchorPinID = recordingPin?.id; note.cameraPosition = cameraPoint()
         note.text = text; note.modifiedAt = Date()
         return note
     }
@@ -109,10 +143,6 @@ struct LiveScanNotes: View {
             do {
                 let owner = try owner()
                 if pendingMedia == nil {
-                    // A recording can start before the first tracked frame.
-                    // Use an observed stop position if the start had none.
-                    if recordingPosition == nil { recordingPosition = position() }
-                    if capturedPose == nil { capturedPose = pose(); capturedRoom = roomID(); capturedLevel = level() }
                     var value = note(owner:owner)
                     value.audioModifiedAt = value.modifiedAt
                     value.audioFileName = value.stem+".m4a"; value.audioDuration = clip.duration; value.partial = clip.partial
@@ -134,14 +164,15 @@ struct LiveScanNotes: View {
     private func saveText(closeEditor:Bool = false) {
         guard !busy else { return }; busy = true
         Task { @MainActor in
-            defer { busy = false }
+            defer { busy = false; pendingText = nil }
             do {
                 let owner = try owner()
                 var value = pendingText ?? note(owner:owner); value.text = text; value.modifiedAt = Date()
                 let root = workspace?.notesRoot ?? ScanVoiceNoteLibrary.root
                 let saved = try await NoteSaveWorker.text(value,root:root)
                 onPin(saved)
-                pendingText = nil; message = AppLanguage.text("Pinned note saved")
+                message = AppLanguage.text("Pinned note saved")
+                if !closeEditor { pins.selected = saved.id }
                 if closeEditor { text = ""; pin = nil; message = nil; onTextSaved() }
                 let media = ScanVoiceMedia(note:saved,audio:nil,pose:capturedPose,capturedAt:Date())
                 Task { try? await persistence.write(media,key:"note-"+saved.id.uuidString,latest:false,media:true) }

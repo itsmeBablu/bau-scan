@@ -107,9 +107,14 @@ struct SVGExporter {
             texts += "  <text x=\"\(mm(q.x - b.minX))\" y=\"\(mm(b.maxY - q.y - 0.10))\" font-size=\"140\" font-weight=\"bold\" fill=\"#111110\" text-anchor=\"middle\" dominant-baseline=\"middle\">\(esc(name))</text>\n"
             texts += "  <text x=\"\(mm(q.x - b.minX))\" y=\"\(mm(b.maxY - q.y + 0.12))\" font-size=\"110\" fill=\"#272000\" text-anchor=\"middle\" dominant-baseline=\"middle\">\(esc(areaStr))</text>\n"
             for o in room.objects {
-                let c = cos(o.angle), s = sin(o.angle), hw = o.size.width / 2, hd = o.size.depth / 2
-                let corners = [(-hw, -hd), (hw, -hd), (hw, hd), (-hw, hd)].map { (x, y) in Point2D(x: o.center.x + x * c - y * s, y: o.center.y + x * s + y * c) }
-                objects += poly(corners, t, "fill=\"#cccccc\" fill-opacity=\"0.5\" stroke=\"#737373\" stroke-width=\"12\"")
+                let symbol = PlanFurnitureSymbol(o)
+                objects += poly(symbol.footprint, t, "fill=\"#cccccc\" fill-opacity=\"0.5\" stroke=\"#737373\" stroke-width=\"12\"")
+                if !symbol.detail.isEmpty {
+                    for stroke in symbol.detail {
+                        objects += line(stroke, t, "stroke=\"#737373\" stroke-width=\"12\"")
+                    }
+                    continue
+                }
                 let q = t.apply(o.center)
                 objects += "  <text x=\"\(mm(q.x - b.minX))\" y=\"\(mm(b.maxY - q.y))\" font-size=\"110\" fill=\"#737373\" text-anchor=\"middle\" dominant-baseline=\"middle\">\(esc(ObjectNaming.localizedName(o.category)))</text>\n"
             }

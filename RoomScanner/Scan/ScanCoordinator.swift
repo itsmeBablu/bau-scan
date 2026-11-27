@@ -168,6 +168,7 @@ final class ScanCoordinator {
         if mode == .house { captureView.captureSession.stop(pauseARSession: false) } else { captureView.captureSession.stop() }
     }
 
+    var tapGeometry: ScanInput? { latestRoom.map { CapturedRoomAdapter.scanInput(from: $0) } }
     var liveLevel: Int? { latestRoom?.story }
     var liveRoomID: UUID? { latestRoom?.identifier }
     func notePose() -> [Double]? {

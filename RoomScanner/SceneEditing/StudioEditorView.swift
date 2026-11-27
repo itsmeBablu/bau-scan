@@ -42,20 +42,7 @@ struct StudioProjectView: View {
                 guard !values.isEmpty else { return [] }
                 if source == .technical {
                     let package = try TechnicalRoomPackage.read(from:root.appendingPathComponent("TechnicalRooms/"+id.uuidString+".technicalroom"))
-                    let mesh = TechnicalSavedMeshGeometry.latest(in:package.journal.meshes).flatMap { try? TechnicalSavedMeshGeometry(snapshot:$0,reference:package.alignment.referenceFrame) }
-                    let floor = mesh.map { $0.center.y-$0.extent.y/2 } ?? 0
-                    return values.map { value in
-                        var note = value
-                        if note.displayPosition == nil,let point = note.position {
-                            var p = package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:point) } ?? point
-                            p = mesh?.containedMarker(p) ?? p
-                            p.y -= floor; note.displayPosition = p
-                            if let camera = note.cameraPosition {
-                                var c = package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:camera) } ?? camera
-                                c.y -= floor; note.displayCameraPosition = c
-                            }
-                        }; return note
-                    }
+                    return TechnicalMarkerSurface.registered(values, package: package, studio: true)
                 }
                 let location = StorageLocation(kind:.local,documentsURL:root)
                 let url = source == .house ? location.housePackageURL(for:id) : location.packageURL(for:id)
@@ -239,7 +226,7 @@ struct StudioEditorView: View {
     private func savedDisplayedNote(_ saved:ARNote) {
         var updated = notes
         if let i = updated.firstIndex(where:{ $0.id == saved.id }) {
-            var value = saved; value.displayPosition = updated[i].displayPosition; value.displayCameraPosition = updated[i].displayCameraPosition; updated[i] = value
+            updated[i] = saved.applyingPresentation(from: updated[i])
         }
         controller.setNotes(updated.filter { $0.audioFileName == nil ? showPins : showNotes })
     }

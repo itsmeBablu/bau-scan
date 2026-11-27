@@ -137,7 +137,11 @@ struct TechnicalSavedScanView: View {
         .task(id:(noteReference?.id ?? package.manifest.id.uuidString)+notesRoot.path) {
             let reference = noteReference ?? ProjectReference(kind:.technicalRoom,itemID:package.manifest.id,library:"local")
             let root = notesRoot
-            let loaded = (try? await BackgroundWork.run { try ScanVoiceNoteLibrary.notes(for:reference,root:root) }) ?? []
+            let survey = package
+            let loaded = (try? await BackgroundWork.run {
+                let notes = try ScanVoiceNoteLibrary.notes(for: reference, root: root)
+                return TechnicalMarkerSurface.registered(notes, package: survey, studio: false)
+            }) ?? []
             guard !Task.isCancelled else { return }; voiceNotes = loaded
         }
         .sheet(item:$selectedVoice) { note in VoiceNotePlayerSheet(note:note,root:notesRoot) }
@@ -187,15 +191,13 @@ struct TechnicalSavedScanView: View {
                         content.add(light)
                         if showAudio || showPins {
                             for note in voiceNotes.suffix(256) where note.audioFileName == nil ? showPins : showAudio {
-                                guard let point = note.viewingPosition else { continue }
-                                let p = note.displayPosition == nil ? package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:point) } ?? point : point
-                                let anchored = geometry.containedMarker(p)
-                                let origin = TechnicalPoint3(x:anchored.x-geometry.center.x,y:anchored.y-geometry.center.y,z:anchored.z-geometry.center.z)
-                                let camera = note.viewingCameraPosition.map { point -> TechnicalPoint3 in
-                                    let c = note.displayCameraPosition == nil ? package.alignment.referenceFrame.map { TechnicalReferenceFrame.apply($0,to:point) } ?? point : point
-                                    return .init(x:c.x-geometry.center.x,y:c.y-geometry.center.y,z:c.z-geometry.center.z)
+                                guard let anchor = note.displayPosition, let icon = note.markerIconPosition else { continue }
+                                func centered(_ p: TechnicalPoint3) -> TechnicalPoint3 {
+                                    .init(x: p.x-geometry.center.x, y: p.y-geometry.center.y, z: p.z-geometry.center.z)
                                 }
-                                content.add(AnnotationIcon.noteEntity(note,position:origin,camera:camera,name:"technicalNote:"+note.id.uuidString))
+                                var displayed = note
+                                displayed.markerIconPosition = centered(icon)
+                                content.add(AnnotationIcon.noteEntity(displayed, position: centered(anchor), name: "technicalNote:"+note.id.uuidString))
                             }
                         }
                         if showPhotos {

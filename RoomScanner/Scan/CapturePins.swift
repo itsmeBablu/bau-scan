@@ -4,6 +4,12 @@ import ARKit
 import Observation
 
 @MainActor @Observable final class CapturePins {
+    struct Tap: Identifiable {
+        let id = UUID()
+        let target: ScanSurfaceTarget?
+    }
+    var placing = false
+    var tap: Tap?
     var notes:[ARNote] = []
     var selected:UUID?
     var selection:ARNote? {
@@ -19,19 +25,37 @@ import Observation
 struct CapturePinOverlay:UIViewRepresentable {
     let session:ARSession
     let pins:CapturePins
-    func makeUIView(context:Context) -> Overlay { let view = Overlay(); view.session = session; view.pins = pins; view.start(); return view }
-    func updateUIView(_ view:Overlay,context:Context) { view.session = session; view.pins = pins; view.sync() }
+    var scan: () -> ScanInput? = { nil }
+    func makeUIView(context:Context) -> Overlay { let view = Overlay(); view.session = session; view.pins = pins; view.scan = scan; view.start(); return view }
+    func updateUIView(_ view:Overlay,context:Context) { view.session = session; view.pins = pins; view.scan = scan; view.sync() }
     static func dismantleUIView(_ view:Overlay,coordinator:()) { view.timer?.invalidate() }
-    final class Overlay:UIView {
+    final class Overlay:UIView, UIGestureRecognizerDelegate {
         weak var session:ARSession?
+        var scan: () -> ScanInput? = { nil }
         var pins:CapturePins?
         var timer:Timer?
         private let leaders = CAShapeLayer()
         private let pinImage = UIImage(systemName:"mappin.circle.fill")
         private let voiceImage = UIImage(systemName:"mic.circle.fill")
         private var buttons:[UUID:UIButton] = [:]
-        func start() { isOpaque = false; leaders.actions = ["path":NSNull(),"position":NSNull(),"bounds":NSNull()]; leaders.strokeColor = UIColor.systemIndigo.cgColor; leaders.fillColor = UIColor.clear.cgColor; leaders.lineWidth = 1.5; layer.addSublayer(leaders); let value = Timer(timeInterval:1.0/15,repeats:true) { [weak self] _ in self?.sync() }; timer = value; RunLoop.main.add(value,forMode:.common) }
+        @objc private func place(_ recognizer: UITapGestureRecognizer) {
+            guard let pins, pins.placing, let session, let orientation = window?.windowScene?.interfaceOrientation else { return }
+            let target = CaptureSurfacePoint.tapped(recognizer.location(in: self), size: bounds.size,
+                                                     orientation: orientation, session: session, scan: scan())
+            pins.tap = .init(target: target)
+            if target != nil { pins.placing = false }
+        }
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            pins?.placing == true
+        }
+
+        func start() {
+            let tap = UITapGestureRecognizer(target: self, action: #selector(place(_:)))
+            tap.delegate = self
+            addGestureRecognizer(tap)
+            isOpaque = false; leaders.actions = ["path":NSNull(),"position":NSNull(),"bounds":NSNull()]; leaders.strokeColor = UIColor.systemIndigo.cgColor; leaders.fillColor = UIColor.clear.cgColor; leaders.lineWidth = 1.5; layer.addSublayer(leaders); let value = Timer(timeInterval:1.0/15,repeats:true) { [weak self] _ in self?.sync() }; timer = value; RunLoop.main.add(value,forMode:.common) }
         override func hitTest(_ point:CGPoint,with event:UIEvent?) -> UIView? {
+            if pins?.placing == true, bounds.contains(point) { return self }
             let hit = super.hitTest(point,with:event); return hit === self ? nil : hit
         }
         func sync() {

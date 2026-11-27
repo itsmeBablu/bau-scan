@@ -12,6 +12,7 @@ import AVFoundation
 /// - AR (iOS): camera-backed ARView, model anchored on a horizontal plane.
 struct ViewerView: View {
     let house: House
+    var evidenceHouse: House? = nil
     @Bindable var state: ViewerState
     var radiators: [HouseRadiator] = []
     var photoPackageURL: URL? = nil
@@ -44,7 +45,7 @@ struct ViewerView: View {
         Group {
         #if os(iOS)
         if state.mode == .ar {
-            CameraARView(house:house,state:state,radiators:radiators,notes:notes.filter { $0.audioFileName == nil ? state.showPins : state.showNotes },photos:state.showPhotos ? photos.map(\.photo) : [],onNote:selectNote,onPhoto:selectPhoto)
+            CameraARView(house:house,state:state,radiators:radiators,notes:ScanNoteRegistration.visible(notes, in: house).filter { $0.audioFileName == nil ? state.showPins : state.showNotes },photos:state.showPhotos ? photos.map(\.photo) : [],onNote:selectNote,onPhoto:selectPhoto)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             virtualView
@@ -61,7 +62,7 @@ struct ViewerView: View {
             notes = []; photos = []; selectedNote = nil; selectedPhoto = nil; pendingPhoto = nil
             noteError = nil; photoError = nil
             guard let url = photoPackageURL else { return }
-            let house = house, root = ScanVoiceNoteLibrary.root
+            let house = evidenceHouse ?? house, root = ScanVoiceNoteLibrary.root
             noteRoot = root
             do {
                 let loaded = try await BackgroundWork.run { try SavedScanEvidence.load(packageURL:url,house:house,notesRoot:root) }
@@ -105,7 +106,7 @@ struct ViewerView: View {
             }
         }
         .sheet(item:$selectedNote) { note in VoiceNotePlayerSheet(note:note,root:noteRoot ?? ScanVoiceNoteLibrary.root,displayTitle:VoiceNoteDisplayName.title(note,summary:ProjectScanSummary(house:house),locale:locale)) { saved in
-            if let i = notes.firstIndex(where:{ $0.id == saved.id }) { var value = saved; value.displayPosition = notes[i].displayPosition; value.displayCameraPosition = notes[i].displayCameraPosition; notes[i] = value }
+            if let i = notes.firstIndex(where:{ $0.id == saved.id }) { notes[i] = saved.applyingPresentation(from: notes[i]) }
         } }
         .sheet(item:$selectedPhoto) { photo in
             ProjectPhotoGallery(assets:photos,initial:photo.id,flyTo:flyToPhoto,compactPresentation:true)
@@ -253,7 +254,7 @@ struct ViewerView: View {
             if selectedPhoto?.id == photo.id,let icon = marker.children.first { icon.scale = SIMD3(repeating:1.25) }
             markerRoot.addChild(marker)
         } }
-        for note in notes.suffix(256) where note.audioFileName == nil ? state.showPins : state.showNotes {
+        for note in ScanNoteRegistration.visible(notes, in: house).suffix(256) where note.audioFileName == nil ? state.showPins : state.showNotes {
             guard let p = note.viewingPosition else { continue }
             markerRoot.addChild(AnnotationIcon.noteEntity(note,position:p))
         }

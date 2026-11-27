@@ -1,4 +1,5 @@
 import Foundation
+import simd
 
 /// Display geometry derived from a saved snapshot. The original evidence is never modified.
 struct TechnicalSavedMeshGeometry {
@@ -78,12 +79,88 @@ extension TechnicalMeshSnapshot {
     }
 }
 
-// Display correction for legacy markers outside the captured mesh extents.
-// Raw observations and mesh vertices remain unchanged.
-extension TechnicalSavedMeshGeometry {
-    func containedMarker(_ point:TechnicalPoint3) -> TechnicalPoint3 {
-        let inside = abs(point.x-center.x) <= extent.x/2 && abs(point.y-center.y) <= extent.y/2 && abs(point.z-center.z) <= extent.z/2
-        guard !inside else { return point }
-        return vertices.min { $0.distance(to:point) < $1.distance(to:point) } ?? point
+/// Project onto observed triangles, including in concave or incomplete meshes.
+struct TechnicalMarkerSurface {
+    private let mesh: TechnicalSavedMeshGeometry
+    private struct Chunk {
+        let range: Range<Int>
+        let low: SIMD3<Double>
+        let high: SIMD3<Double>
+    }
+    private let chunks: [Chunk]
+
+    init(_ mesh: TechnicalSavedMeshGeometry) {
+        self.mesh = mesh
+        chunks = stride(from: 0, to: mesh.triangleIndices.count, by: 192).map { start in
+            let range = start..<min(start + 192, mesh.triangleIndices.count)
+            var low = SIMD3<Double>(repeating: .infinity)
+            var high = SIMD3<Double>(repeating: -.infinity)
+            for index in mesh.triangleIndices[range] {
+                let p = Self.vector(mesh.vertices[Int(index)])
+                low = simd_min(low, p)
+                high = simd_max(high, p)
+            }
+            return Chunk(range: range, low: low, high: high)
+        }
+    }
+
+    private static func vector(_ p: TechnicalPoint3) -> SIMD3<Double> { .init(p.x, p.y, p.z) }
+
+    func closest(to point: TechnicalPoint3) -> TechnicalPoint3? {
+        let p = Self.vector(point)
+        var bestDistance = Double.infinity
+        var best: SIMD3<Double>?
+        for chunk in chunks {
+            let bound = simd_max(chunk.low, simd_min(chunk.high, p))
+            guard simd_distance_squared(p, bound) < bestDistance else { continue }
+            for i in stride(from: chunk.range.lowerBound, to: chunk.range.upperBound, by: 3) {
+                func vertex(_ offset: Int) -> SIMD3<Double> {
+                    Self.vector(mesh.vertices[Int(mesh.triangleIndices[i + offset])])
+                }
+                let a = vertex(0), b = vertex(1), c = vertex(2)
+                let normal = simd_cross(b - a, c - a)
+                let norm = simd_length_squared(normal)
+                guard norm > 1e-16 else { continue }
+                let projected = p - normal * (simd_dot(p - a, normal) / norm)
+                func segment(_ a: SIMD3<Double>, _ b: SIMD3<Double>) -> SIMD3<Double> {
+                    let d = b - a
+                    return a + d * min(1, max(0, simd_dot(p - a, d) / simd_length_squared(d)))
+                }
+                let candidate: SIMD3<Double>
+                if simd_dot(simd_cross(b-a, projected-a), normal) >= 0,
+                   simd_dot(simd_cross(c-b, projected-b), normal) >= 0,
+                   simd_dot(simd_cross(a-c, projected-c), normal) >= 0 {
+                    candidate = projected
+                } else {
+                    let ab = segment(a,b), bc = segment(b,c), ca = segment(c,a)
+                    let side = simd_distance_squared(p, ab) < simd_distance_squared(p, bc) ? ab : bc
+                    candidate = simd_distance_squared(p, side) < simd_distance_squared(p, ca) ? side : ca
+                }
+                let distance = simd_distance_squared(p, candidate)
+                if distance < bestDistance { best = candidate; bestDistance = distance }
+            }
+        }
+        return best.map { .init(x: $0.x, y: $0.y, z: $0.z) }
+    }
+
+    static func registered(_ notes: [ARNote], package: TechnicalRoomPackage, studio: Bool) -> [ARNote] {
+        guard !notes.isEmpty else { return [] }
+        let reference = package.alignment.referenceFrame
+        let mesh = TechnicalSavedMeshGeometry.latest(in: package.journal.meshes)
+            .flatMap { try? TechnicalSavedMeshGeometry(snapshot: $0, reference: reference) }
+        let surface = mesh.map(Self.init)
+        let floor = studio ? (mesh.map { $0.center.y - $0.extent.y / 2 } ?? 0) : 0
+        return notes.map { original in
+            var note = original
+            note.displayPosition = nil
+            note.markerIconPosition = nil
+            guard let raw = original.position.map({ point in reference.map { TechnicalReferenceFrame.apply($0, to: point) } ?? point }) ?? original.displayPosition,
+                  let anchor = surface?.closest(to: raw) else { return note }
+            let displayAnchor = TechnicalPoint3(x: anchor.x, y: anchor.y - floor, z: anchor.z)
+            let offset = original.audioFileName == nil ? 0.12 : 0.28
+            note.displayPosition = displayAnchor
+            note.markerIconPosition = .init(x: displayAnchor.x, y: displayAnchor.y + offset, z: displayAnchor.z)
+            return note
+        }
     }
 }

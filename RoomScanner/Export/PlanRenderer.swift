@@ -455,14 +455,18 @@ struct PlanRenderer {
     }
 
     private func drawObject(_ o: PlacedObject, mapper: Mapper, in ctx: CGContext) {
-        let c = cos(o.angle), s = sin(o.angle)
-        let hw = o.size.width / 2, hd = o.size.depth / 2
-        let corners = [(-hw, -hd), (hw, -hd), (hw, hd), (-hw, hd)].map { (x, y) in
-            Point2D(x: o.center.x + x * c - y * s, y: o.center.y + x * s + y * c)
-        }
+        let symbol = PlanFurnitureSymbol(o)
         ctx.setFillColor(options.objectFill); ctx.setStrokeColor(options.objectStroke)
         ctx.setLineWidth(max(mapper.length(0.015), 0.6)); ctx.setLineDash(phase: 0, lengths: [])
-        path(corners, mapper: mapper, in: ctx); ctx.drawPath(using: .fillStroke)
+        path(symbol.footprint, mapper: mapper, in: ctx); ctx.drawPath(using: .fillStroke)
+        if !symbol.detail.isEmpty {
+            for segment in symbol.detail {
+                ctx.move(to: mapper.point(segment.start))
+                ctx.addLine(to: mapper.point(segment.end))
+            }
+            ctx.strokePath()
+            return
+        }
         let fontSize = max(min(mapper.length(0.22), 11), 4) * options.textScale
         if mapper.length(o.size.width) > fontSize * 2 {
             drawText(ObjectNaming.localizedName(o.category), at: mapper.point(o.center), angle: readable(o.angle),

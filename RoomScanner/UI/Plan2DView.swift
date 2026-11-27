@@ -4,6 +4,7 @@ import SwiftUI
 /// pinch/scroll zoom, pan drag, double-tap to recenter, 2-point measurement, and photo markers.
 struct Plan2DView: View {
     let house: House
+    var evidenceHouse: House? = nil
     var packageURL: URL? = nil
     @AppStorage("planTextScale") private var textScale = 1.0
     @AppStorage("planShowDimensions") private var showDimensions = true
@@ -70,7 +71,7 @@ struct Plan2DView: View {
                 }
 
                 if showNotes || showPins {
-                    ForEach(notes.suffix(256).filter { $0.audioFileName == nil ? showPins : showNotes }) { note in
+                    ForEach(ScanNoteRegistration.visible(notes, in: house).suffix(256).filter { $0.audioFileName == nil ? showPins : showNotes }) { note in
                         if let point = note.viewingPosition {
                             let anchor = viewPoint(from:.init(x:point.x,y:-point.z),size:size)
                             let label = CGPoint(x:anchor.x,y:anchor.y-(note.anchorPinID == nil ? 0 : 34))
@@ -131,7 +132,7 @@ struct Plan2DView: View {
         .task(id: packageURL) {
             notes = []; photos = []; selectedNote = nil; selectedPhoto = nil; noteError = nil
             guard let url = packageURL else { return }
-            let house = house, root = ScanVoiceNoteLibrary.root
+            let house = evidenceHouse ?? house, root = ScanVoiceNoteLibrary.root
             do {
                 let loaded = try await BackgroundWork.run { try SavedScanEvidence.load(packageURL:url,house:house,notesRoot:root) }
                 guard !Task.isCancelled else { return }
@@ -142,7 +143,7 @@ struct Plan2DView: View {
         }
         .overlay(alignment:.topLeading) { if let noteError { Text(noteError).font(.caption).padding().dsMaterial(in:Capsule()) } }
         .sheet(item:$selectedNote) { note in VoiceNotePlayerSheet(note:note) { saved in
-            if let i = notes.firstIndex(where:{ $0.id == saved.id }) { var value = saved; value.displayPosition = notes[i].displayPosition; notes[i] = value }
+            if let i = notes.firstIndex(where:{ $0.id == saved.id }) { notes[i] = saved.applyingPresentation(from: notes[i]) }
         } }
         .sheet(item: $selectedPhoto) { photo in
             ProjectPhotoGallery(assets: photos, initial: photo.id,compactPresentation:true)

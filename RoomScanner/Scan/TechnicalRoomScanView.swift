@@ -150,7 +150,7 @@ struct TechnicalRoomScanView: View {
                     HStack(spacing: 12) {
                         if showAudio { VoiceNoteHUD(reference:.init(kind:.technicalRoom,itemID:persistence.id,library:"local"),
                             persistence:persistence,workspace:workspace,projectID:voiceProjectID,
-                            position:{ CaptureSurfacePoint.center(session:scanner.session) },pose:{
+                            pins:pins,position:{ CaptureSurfacePoint.center(session:scanner.session) },pose:{
                                 guard let m = scanner.session.currentFrame?.camera.transform else { return nil }
                                 return (0..<4).flatMap { c in (0..<4).map { Double(m[c][$0]) } }
                             },nearbyPin:{ pins.nearest(to:$0) },selectedPin:pins.selection,onPin:{ pins.put($0) },onTextSaved:{ pins.selected = nil }).frame(width:112).disabled(saving || !scanner.hasLiveFrames) }

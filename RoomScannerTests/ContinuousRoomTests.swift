@@ -48,7 +48,7 @@ final class ContinuousRoomTests:XCTestCase {
         let graph = HouseWallGraph(house:House(room:plan))
         XCTAssertTrue(graph.walls.allSatisfy { $0.thickness == 0.10 && $0.thicknessSource == .defaultValue })
     }
-    func testNoteUsesItsPhysicalRoomAndPreservesCameraHeight() throws {
+    func testNoteUsesItsPhysicalRoomAndKeepsVoiceOnThePinnedSurface() throws {
         let capture = scan(partitionLength:3)
         let house = try HouseBuilder().build(from:.init(rooms:[capture]),name:"House")
         var note = ARNote(projectID:UUID(),reference:.init(kind:.house,itemID:house.id,library:"local"),number:1,level:0,roomID:capture.id,position:.init(x:3,y:0,z:-1.5),planPosition:nil,language:"en")
@@ -56,7 +56,12 @@ final class ContinuousRoomTests:XCTestCase {
         note.audioFileName = "note.m4a"
         let registered = try XCTUnwrap(ScanNoteRegistration.registered([note],house:house,scans:[capture],singleRoom:false).first)
         XCTAssertEqual(registered.roomID,house.allRooms[1].id)
-        XCTAssertEqual(AnnotationPresentation.noteIconPosition(registered,anchor:try XCTUnwrap(registered.viewingPosition)).y,1.4,accuracy:0.001)
+        let anchor = try XCTUnwrap(registered.displayPosition)
+        let icon = try XCTUnwrap(registered.markerIconPosition)
+        XCTAssertEqual(icon.x, anchor.x)
+        XCTAssertEqual(icon.z, anchor.z)
+        XCTAssertEqual(icon.y, anchor.y + 0.28, accuracy: 0.001)
+        XCTAssertEqual(registered.displayCameraPosition?.y, 1.4)
         let title = VoiceNoteDisplayName.title(note,summary:ProjectScanSummary(house:house),locale:Locale(identifier:"en"))
         XCTAssertTrue(title.hasPrefix(house.allRooms[1].name+" · "))
         XCTAssertTrue(title.contains("6")); XCTAssertTrue(title.hasSuffix(" · 1"))
